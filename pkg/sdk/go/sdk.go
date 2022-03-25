@@ -1,13 +1,8 @@
 package sdk
 
 import (
-	"bytes"
 	"crypto/tls"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
-	"strings"
 )
 
 const (
@@ -37,6 +32,7 @@ type Computation struct {
 	DatasetProviders  []string `json:"datasetproviders,omitempty"`
 	AlorithmProviders []string `json:"alorithmproviders,omitempty"`
 	// Ttl
+	ID       string                 `json:"id,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -44,8 +40,11 @@ type SDK interface {
 	// CreateComputation registers new thing and returns its id.
 	CreateComputation(computation Computation, token string) (string, error)
 
-	// Computations returns page of computations.
-	Computations(token string, offset, limit uint64, name string) (ComputationsPage, error)
+	// Things returns page of things.
+	Things(token string, offset, limit uint64, name string) (ThingsPage, error)
+
+	// UpdateThing updates existing thing.
+	UpdateComputation(computation Computation, token string) error
 }
 
 type cSDK struct {
@@ -67,36 +66,6 @@ func NewSDK(URL string) SDK {
 			},
 		},
 	}
-}
-
-const computationsEndpoint = "computations"
-const connectEndpoint = "connect"
-
-func (sdk cSDK) CreateComputation(c Computation, token string) (string, error) {
-	data, err := json.Marshal(c)
-	if err != nil {
-		return "", err
-	}
-
-	url := fmt.Sprintf("%s/%s", sdk.computationsURL, computationsEndpoint)
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := sdk.sendRequest(req, token, string(CTJSON))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		return "", errors.New("Fail to create")
-	}
-
-	id := strings.TrimPrefix(resp.Header.Get("Location"), fmt.Sprintf("/%s/", computationsEndpoint))
-	return id, nil
 }
 
 func (sdk cSDK) sendRequest(req *http.Request, token, contentType string) (*http.Response, error) {
