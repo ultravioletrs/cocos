@@ -9,55 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
-)
-
-const (
-	// CTJSON represents JSON content type.
-	CTJSON ContentType = "application/json"
-
-	// CTJSONSenML represents JSON SenML content type.
-	CTJSONSenML ContentType = "application/senml+json"
-
-	// CTBinary represents binary content type.
-	CTBinary ContentType = "application/octet-stream"
 )
 
 type ContentType string
-
-type Computation struct {
-	Name              string   `json:"name,omitempty"`
-	Description       string   `json:"description,omitempty"`
-	Datasets          []string `json:"datasets,omitempty"`
-	Algorithms        []string `json:"Algorithms,omitempty"`
-	StartTime         time.Time
-	EndTime           time.Time
-	Status            string   `json:"Status,omitempty"`
-	Owner             string   `json:"owner,omitempty"`
-	DatasetProviders  []string `json:"datasetproviders,omitempty"`
-	AlorithmProviders []string `json:"alorithmproviders,omitempty"`
-	// Ttl
-	ID       string                 `json:"id,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-}
-
-type ComputationsPage struct {
-	Computation []Computation `json:"computations"`
-	pageRes
-}
-
-// type computationRes struct {
-// 	ID       string                 `json:"ID,omitempty"`
-// 	Name     string                 `json:"name,omitempty"`
-// 	Key      string                 `json:"key,omitempty"`
-// 	Metadata map[string]interface{} `json:"metadata,omitempty"`
-// }
-
-type pageRes struct {
-	Total  uint64 `json:"total"`
-	Offset uint64 `json:"offset"`
-	Limit  uint64 `json:"limit"`
-}
 
 var _ SDK = (*cSDK)(nil)
 
@@ -224,9 +178,7 @@ func (sdk cSDK) DeleteComputation(id, token string) error {
 
 func NewSDK(URL string) SDK {
 	return &cSDK{
-
 		computationsURL: URL,
-
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
