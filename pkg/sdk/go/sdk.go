@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+const (
+	// CTJSON represents JSON content type.
+	CTJSON ContentType = "application/json"
+)
+
 type ContentType string
 
 var _ SDK = (*cSDK)(nil)
@@ -36,6 +41,19 @@ type cSDK struct {
 	computationsURL string
 
 	client *http.Client
+}
+
+func NewSDK(URL string) SDK {
+	return &cSDK{
+		computationsURL: URL,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		},
+	}
 }
 
 const computationsEndpoint = "computations"
@@ -174,19 +192,6 @@ func (sdk cSDK) DeleteComputation(id, token string) error {
 	}
 
 	return nil
-}
-
-func NewSDK(URL string) SDK {
-	return &cSDK{
-		computationsURL: URL,
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-			},
-		},
-	}
 }
 
 func (sdk cSDK) sendRequest(req *http.Request, token, contentType string) (*http.Response, error) {
