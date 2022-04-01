@@ -35,16 +35,19 @@ type SDK interface {
 
 	// DeleteComputation removes existing computation.
 	DeleteComputation(id, token string) error
+
+	CreateUser(username, password string) (string, error)
 }
 
 type cSDK struct {
 	computationsURL string
-
-	client *http.Client
+	client          *http.Client
+	mf              mfx.SDK
 }
 
 func NewSDK(URL string) SDK {
 	return &cSDK{
+		mf:              mfsdk,
 		computationsURL: URL,
 		client: &http.Client{
 			Transport: &http.Transport{
