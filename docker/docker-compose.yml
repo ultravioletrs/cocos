@@ -65,18 +65,6 @@ services:
     volumes:
       - mainflux-keto-db-volume:/var/lib/postgresql/data
 
-  nats:
-    image: nats:2.2.4-alpine
-    container_name: mainflux-nats
-    command: "-c /etc/nats/nats.conf"
-    restart: on-failure
-    volumes:
-      - ./nats/:/etc/nats
-    networks:
-      - mainflux-base-net
-    ports:
-    - 4222:4222
-
   auth-db:
     image: postgres:13.3-alpine
     container_name: mainflux-auth-db
