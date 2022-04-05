@@ -1,23 +1,20 @@
-# Copyright (c) Mainflux
-# SPDX-License-Identifier: Apache-2.0
-
 version: "3.7"
 
 networks:
-  mainflux-base-net:
+  cocos-base-net:
     driver: bridge
 
 volumes:
-  mainflux-auth-db-volume:
-  mainflux-users-db-volume:
-  mainflux-keto-db-volume:
-  mainflux-auth-redis-volume:
-  mainflux-es-redis-volume:
+  cocos-auth-db-volume:
+  cocos-users-db-volume:
+  cocos-keto-db-volume:
+  cocos-auth-redis-volume:
+  cocos-es-redis-volume:
 
 services:
   keto:
     image: oryd/keto:v0.6.0-alpha.3
-    container_name: mainflux-keto
+    container_name: coocs-keto
     ports:
       - ${MF_KETO_READ_REMOTE_PORT}:${MF_KETO_READ_REMOTE_PORT}
       - ${MF_KETO_WRITE_REMOTE_PORT}:${MF_KETO_WRITE_REMOTE_PORT}
@@ -30,13 +27,13 @@ services:
         source: ./keto
         target: /home/ory
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     depends_on:
       - keto-db
 
   keto-migrate:
     image: oryd/keto:v0.6.0-alpha.3
-    container_name: mainflux-keto-migrate
+    container_name: copcos-keto-migrate
     environment:
       - KETO_WRITE_REMOTE=keto:${MF_KETO_WRITE_REMOTE_PORT}
       - KETO_READ_REMOTE=keto:${MF_KETO_READ_REMOTE_PORT}
@@ -48,39 +45,39 @@ services:
     command: migrate up --all-namespaces -c /home/ory/keto.yml --yes
     restart: on-failure
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     depends_on:
       - keto-db
 
   keto-db:
     image: postgres:13.3-alpine
-    container_name: mainflux-keto-db
+    container_name: cocos-keto-db
     restart: on-failure
     environment:
       POSTGRES_USER: ${MF_KETO_DB_USER}
       POSTGRES_PASSWORD: ${MF_KETO_DB_PASS}
       POSTGRES_DB: ${MF_KETO_DB}
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     volumes:
-      - mainflux-keto-db-volume:/var/lib/postgresql/data
+      - cocos-keto-db-volume:/var/lib/postgresql/data
 
   auth-db:
     image: postgres:13.3-alpine
-    container_name: mainflux-auth-db
+    container_name: cocos-auth-db
     restart: on-failure
     environment:
       POSTGRES_USER: ${MF_AUTH_DB_USER}
       POSTGRES_PASSWORD: ${MF_AUTH_DB_PASS}
       POSTGRES_DB: ${MF_AUTH_DB}
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     volumes:
-      - mainflux-auth-db-volume:/var/lib/postgresql/data
+      - cocos-auth-db-volume:/var/lib/postgresql/data
 
   auth:
     image: mainflux/auth:${MF_RELEASE_TAG}
-    container_name: mainflux-auth
+    container_name: cocos-auth
     depends_on:
       - auth-db
       - keto
@@ -107,24 +104,24 @@ services:
       - ${MF_AUTH_HTTP_PORT}:${MF_AUTH_HTTP_PORT}
       - ${MF_AUTH_GRPC_PORT}:${MF_AUTH_GRPC_PORT}
     networks:
-      - mainflux-base-net
+      - cocos-base-net
 
   users-db:
     image: postgres:13.3-alpine
-    container_name: mainflux-users-db
+    container_name: cocos-users-db
     restart: on-failure
     environment:
       POSTGRES_USER: ${MF_USERS_DB_USER}
       POSTGRES_PASSWORD: ${MF_USERS_DB_PASS}
       POSTGRES_DB: ${MF_USERS_DB}
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     volumes:
-      - mainflux-users-db-volume:/var/lib/postgresql/data
+      - cocos-users-db-volume:/var/lib/postgresql/data
 
   users:
     image: mainflux/users:${MF_RELEASE_TAG}
-    container_name: mainflux-users
+    container_name: cocos-users
     volumes:
       - ./templates/${MF_USERS_RESET_PWD_TEMPLATE}:/${MF_EMAIL_TEMPLATE}
     depends_on:
@@ -156,12 +153,12 @@ services:
     ports:
       - ${MF_USERS_HTTP_PORT}:${MF_USERS_HTTP_PORT}
     networks:
-      - mainflux-base-net
+      - cocos-base-net
   auth-redis:
     image: redis:6.2.2-alpine
-    container_name: mainflux-auth-redis
+    container_name: cocos-auth-redis
     restart: on-failure
     networks:
-      - mainflux-base-net
+      - cocos-base-net
     volumes:
-      - mainflux-auth-redis-volume:/data
+      - cocos-auth-redis-volume:/data
