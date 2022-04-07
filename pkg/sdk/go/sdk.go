@@ -9,12 +9,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	mfx "github.com/mainflux/mainflux/pkg/sdk/go"
 )
 
-const (
-	// CTJSON represents JSON content type.
-	CTJSON ContentType = "application/json"
-)
+const computationsEndpoint = "computations"
+
+// CTJSON represents JSON content type.
+const CTJSON ContentType = "application/json"
 
 type ContentType string
 
@@ -45,9 +47,9 @@ type cSDK struct {
 	mf              mfx.SDK
 }
 
-func NewSDK(URL string) SDK {
+func NewSDK(URL string, mf mfx.SDK) SDK {
 	return &cSDK{
-		mf:              mfsdk,
+		mf:              mf,
 		computationsURL: URL,
 		client: &http.Client{
 			Transport: &http.Transport{
@@ -58,9 +60,6 @@ func NewSDK(URL string) SDK {
 		},
 	}
 }
-
-const computationsEndpoint = "computations"
-const connectEndpoint = "connect"
 
 func (sdk cSDK) CreateComputation(c Computation, token string) (string, error) {
 	data, err := json.Marshal(c)
