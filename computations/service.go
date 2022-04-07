@@ -7,13 +7,16 @@ type Service interface {
 }
 
 type service struct {
+	repo Repository
 }
 
-func New() Service {
-	return service{}
+func NewService(repo Repository) Service {
+	return service{
+		repo: repo,
+	}
 }
 
 // CreateComputation implements Service
-func (service) CreateComputation(ctx context.Context, token string, computation Computation) (string, error) {
-	panic("unimplemented")
+func (svc service) CreateComputation(ctx context.Context, token string, computation Computation) (string, error) {
+	return svc.repo.Save(ctx, computation)
 }

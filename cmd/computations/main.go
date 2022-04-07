@@ -8,6 +8,7 @@ import (
 
 func main() {
 	fmt.Println("hello")
-	c := computations.New()
+	repo := computations.NewRepository()
+	c := computations.NewService(repo)
 	fmt.Println("hello:", c)
 }

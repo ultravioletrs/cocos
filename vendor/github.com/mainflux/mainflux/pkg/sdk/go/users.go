@@ -21,15 +21,19 @@ const (
 	membersEndpoint  = "members"
 )
 
-func (sdk mfSDK) CreateUser(u User) (string, error) {
+func (sdk mfSDK) CreateUser(token string, u User) (string, error) {
 	data, err := json.Marshal(u)
 	if err != nil {
 		return "", err
 	}
 
-	url := createURL(sdk.baseURL, sdk.usersPrefix, usersEndpoint)
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, usersEndpoint)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
 
-	resp, err := sdk.client.Post(url, string(CTJSON), bytes.NewReader(data))
+	resp, err := sdk.sendRequest(req, token, string(CTJSON))
 	if err != nil {
 		return "", err
 	}
@@ -43,8 +47,7 @@ func (sdk mfSDK) CreateUser(u User) (string, error) {
 }
 
 func (sdk mfSDK) User(token string) (User, error) {
-	url := createURL(sdk.baseURL, sdk.usersPrefix, usersEndpoint)
-
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, usersEndpoint)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return User{}, err
@@ -79,8 +82,7 @@ func (sdk mfSDK) CreateToken(user User) (string, error) {
 		return "", err
 	}
 
-	url := createURL(sdk.baseURL, sdk.usersPrefix, tokensEndpoint)
-
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, tokensEndpoint)
 	resp, err := sdk.client.Post(url, string(CTJSON), bytes.NewReader(data))
 	if err != nil {
 		return "", err
@@ -110,8 +112,7 @@ func (sdk mfSDK) UpdateUser(u User, token string) error {
 		return err
 	}
 
-	url := createURL(sdk.baseURL, sdk.usersPrefix, usersEndpoint)
-
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, usersEndpoint)
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
 	if err != nil {
 		return err
@@ -139,8 +140,7 @@ func (sdk mfSDK) UpdatePassword(oldPass, newPass, token string) error {
 		return err
 	}
 
-	url := createURL(sdk.baseURL, sdk.usersPrefix, passwordEndpoint)
-
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, passwordEndpoint)
 	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewReader(data))
 	if err != nil {
 		return err
@@ -156,34 +156,4 @@ func (sdk mfSDK) UpdatePassword(oldPass, newPass, token string) error {
 	}
 
 	return nil
-}
-func (sdk mfSDK) Memberships(memberID, token string, offset, limit uint64) (GroupsPage, error) {
-	endpoint := fmt.Sprintf("%s/%s/groups?offset=%d&limit=%d&", membersEndpoint, memberID, offset, limit)
-	url := createURL(sdk.baseURL, sdk.groupsPrefix, endpoint)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return GroupsPage{}, err
-	}
-
-	resp, err := sdk.sendRequest(req, token, string(CTJSON))
-	if err != nil {
-		return GroupsPage{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return GroupsPage{}, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return GroupsPage{}, errors.Wrap(ErrFailedFetch, errors.New(resp.Status))
-	}
-
-	var tp GroupsPage
-	if err := json.Unmarshal(body, &tp); err != nil {
-		return GroupsPage{}, err
-	}
-
-	return tp, nil
 }

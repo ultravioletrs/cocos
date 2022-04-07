@@ -12,9 +12,10 @@ volumes:
   cocos-es-redis-volume:
 
 services:
+
   keto:
     image: oryd/keto:v0.6.0-alpha.3
-    container_name: coocs-keto
+    container_name: cocos-keto
     ports:
       - ${MF_KETO_READ_REMOTE_PORT}:${MF_KETO_READ_REMOTE_PORT}
       - ${MF_KETO_WRITE_REMOTE_PORT}:${MF_KETO_WRITE_REMOTE_PORT}
@@ -33,7 +34,7 @@ services:
 
   keto-migrate:
     image: oryd/keto:v0.6.0-alpha.3
-    container_name: copcos-keto-migrate
+    container_name: cocos-keto-migrate
     environment:
       - KETO_WRITE_REMOTE=keto:${MF_KETO_WRITE_REMOTE_PORT}
       - KETO_READ_REMOTE=keto:${MF_KETO_READ_REMOTE_PORT}
