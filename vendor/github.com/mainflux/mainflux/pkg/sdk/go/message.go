@@ -13,7 +13,7 @@ import (
 	"github.com/mainflux/mainflux/pkg/errors"
 )
 
-func (sdk mfSDK) SendMessage(chanName, msg, token string) error {
+func (sdk mfSDK) SendMessage(chanName, msg, key string) error {
 	chanNameParts := strings.SplitN(chanName, ".", 2)
 	chanID := chanNameParts[0]
 	subtopicPart := ""
@@ -21,15 +21,14 @@ func (sdk mfSDK) SendMessage(chanName, msg, token string) error {
 		subtopicPart = fmt.Sprintf("/%s", strings.Replace(chanNameParts[1], ".", "/", -1))
 	}
 
-	endpoint := fmt.Sprintf("channels/%s/messages%s", chanID, subtopicPart)
-	url := createURL(sdk.baseURL, sdk.httpAdapterPrefix, endpoint)
+	url := fmt.Sprintf("%s/channels/%s/messages%s", sdk.httpAdapterURL, chanID, subtopicPart)
 
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(msg))
 	if err != nil {
 		return err
 	}
 
-	resp, err := sdk.sendRequest(req, token, string(sdk.msgContentType))
+	resp, err := sdk.sendThingRequest(req, key, string(sdk.msgContentType))
 	if err != nil {
 		return err
 	}
@@ -49,9 +48,7 @@ func (sdk mfSDK) ReadMessages(chanName, token string) (MessagesPage, error) {
 		subtopicPart = fmt.Sprintf("?subtopic=%s", strings.Replace(chanNameParts[1], ".", "/", -1))
 	}
 
-	endpoint := fmt.Sprintf("channels/%s/messages%s", chanID, subtopicPart)
-	url := createURL(sdk.readerURL, "", endpoint)
-
+	url := fmt.Sprintf("%s/channels/%s/messages%s", sdk.readerURL, chanID, subtopicPart)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return MessagesPage{}, err

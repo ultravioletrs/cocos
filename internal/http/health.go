@@ -52,11 +52,6 @@ func Health(service, description string) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-
-		if description == "" {
-			description = service
-		}
-
 		res := HealthInfo{
 			Status:      svcStatus,
 			Version:     Version,

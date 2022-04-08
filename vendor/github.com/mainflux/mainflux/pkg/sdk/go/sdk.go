@@ -6,10 +6,11 @@ package sdk
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/http"
+	"time"
 
-	"github.com/mainflux/mainflux/auth"
+	"github.com/mainflux/mainflux"
+	"github.com/mainflux/mainflux/internal/apiutil"
 )
 
 const (
@@ -23,12 +24,7 @@ const (
 	CTBinary ContentType = "application/octet-stream"
 )
 
-const minPassLen = 8
-
 var (
-	// ErrUnauthorized indicates that entity creation failed.
-	ErrUnauthorized = errors.New("unauthorized, missing credentials")
-
 	// ErrFailedCreation indicates that entity creation failed.
 	ErrFailedCreation = errors.New("failed to create entity")
 
@@ -57,8 +53,8 @@ var (
 	// was passed.
 	ErrInvalidContentType = errors.New("Unknown Content Type")
 
-	// ErrFetchVersion indicates that fetching of version failed.
-	ErrFetchVersion = errors.New("failed to fetch version")
+	// ErrFetchHealth indicates that fetching of health check failed.
+	ErrFetchHealth = errors.New("failed to fetch health check")
 
 	// ErrFailedWhitelist failed to whitelist configs
 	ErrFailedWhitelist = errors.New("failed to whitelist")
@@ -114,10 +110,25 @@ type Channel struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// Member represents group member.
+type Member struct {
+	ID   string
+	Type string
+}
+
+type Key struct {
+	ID        string
+	Type      uint32
+	IssuerID  string
+	Subject   string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+}
+
 // SDK contains Mainflux API.
 type SDK interface {
 	// CreateUser registers mainflux user.
-	CreateUser(user User) (string, error)
+	CreateUser(token string, user User) (string, error)
 
 	// User returns user object.
 	User(token string) (User, error)
@@ -160,13 +171,13 @@ type SDK interface {
 	DeleteGroup(id, token string) error
 
 	// Groups returns page of users groups.
-	Groups(offset, limit uint64, token string) (auth.GroupPage, error)
+	Groups(offset, limit uint64, token string) (GroupsPage, error)
 
 	// Parents returns page of users groups.
-	Parents(id string, offset, limit uint64, token string) (auth.GroupPage, error)
+	Parents(id string, offset, limit uint64, token string) (GroupsPage, error)
 
 	// Children returns page of users groups.
-	Children(id string, offset, limit uint64, token string) (auth.GroupPage, error)
+	Children(id string, offset, limit uint64, token string) (GroupsPage, error)
 
 	// Group returns users group object by id.
 	Group(id, token string) (Group, error)
@@ -178,7 +189,7 @@ type SDK interface {
 	Unassign(token, groupID string, memberIDs ...string) error
 
 	// Members lists members of a group.
-	Members(groupID, token string, offset, limit uint64) (auth.MemberPage, error)
+	Members(groupID, token string, offset, limit uint64) (MembersPage, error)
 
 	// Memberships lists groups for user.
 	Memberships(userID, token string, offset, limit uint64) (GroupsPage, error)
@@ -223,8 +234,8 @@ type SDK interface {
 	// SetContentType sets message content type.
 	SetContentType(ct ContentType) error
 
-	// Version returns used mainflux version.
-	Version() (string, error)
+	// Health returns things service health check.
+	Health() (mainflux.HealthInfo, error)
 
 	// AddBootstrap add bootstrap configuration
 	AddBootstrap(token string, cfg BootstrapConfig) (string, error)
@@ -255,55 +266,56 @@ type SDK interface {
 
 	// RevokeCert revokes certificate with certID for thing with thingID
 	RevokeCert(thingID, certID, token string) error
+
+	// Issue issues a new key, returning its token value alongside.
+	Issue(token string, duration time.Duration) (KeyRes, error)
+
+	// Revoke removes the key with the provided ID that is issued by the user identified by the provided key.
+	Revoke(token, id string) error
+
+	// RetrieveKey retrieves data for the key identified by the provided ID, that is issued by the user identified by the provided key.
+	RetrieveKey(token, id string) (retrieveKeyRes, error)
 }
 
 type mfSDK struct {
-	baseURL           string
-	readerURL         string
-	bootstrapURL      string
-	certsURL          string
-	readerPrefix      string
-	usersPrefix       string
-	groupsPrefix      string
-	thingsPrefix      string
-	certsPrefix       string
-	channelsPrefix    string
-	httpAdapterPrefix string
-	bootstrapPrefix   string
-	msgContentType    ContentType
-	client            *http.Client
+	authURL        string
+	bootstrapURL   string
+	certsURL       string
+	httpAdapterURL string
+	readerURL      string
+	thingsURL      string
+	usersURL       string
+
+	msgContentType ContentType
+	client         *http.Client
 }
 
 // Config contains sdk configuration parameters.
 type Config struct {
-	BaseURL           string
-	ReaderURL         string
-	BootstrapURL      string
-	CertsURL          string
-	ReaderPrefix      string
-	UsersPrefix       string
-	GroupsPrefix      string
-	ThingsPrefix      string
-	HTTPAdapterPrefix string
-	BootstrapPrefix   string
-	MsgContentType    ContentType
-	TLSVerification   bool
+	AuthURL        string
+	BootstrapURL   string
+	CertsURL       string
+	HTTPAdapterURL string
+	ReaderURL      string
+	ThingsURL      string
+	UsersURL       string
+
+	MsgContentType  ContentType
+	TLSVerification bool
 }
 
 // NewSDK returns new mainflux SDK instance.
 func NewSDK(conf Config) SDK {
 	return &mfSDK{
-		baseURL:           conf.BaseURL,
-		readerURL:         conf.ReaderURL,
-		bootstrapURL:      conf.BootstrapURL,
-		certsURL:          conf.CertsURL,
-		readerPrefix:      conf.ReaderPrefix,
-		usersPrefix:       conf.UsersPrefix,
-		groupsPrefix:      conf.GroupsPrefix,
-		thingsPrefix:      conf.ThingsPrefix,
-		httpAdapterPrefix: conf.HTTPAdapterPrefix,
-		bootstrapPrefix:   conf.BootstrapPrefix,
-		msgContentType:    conf.MsgContentType,
+		authURL:        conf.AuthURL,
+		bootstrapURL:   conf.BootstrapURL,
+		certsURL:       conf.CertsURL,
+		httpAdapterURL: conf.HTTPAdapterURL,
+		readerURL:      conf.ReaderURL,
+		thingsURL:      conf.ThingsURL,
+		usersURL:       conf.UsersURL,
+
+		msgContentType: conf.MsgContentType,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
@@ -316,7 +328,7 @@ func NewSDK(conf Config) SDK {
 
 func (sdk mfSDK) sendRequest(req *http.Request, token, contentType string) (*http.Response, error) {
 	if token != "" {
-		req.Header.Set("Authorization", token)
+		req.Header.Set("Authorization", apiutil.BearerPrefix+token)
 	}
 
 	if contentType != "" {
@@ -326,10 +338,14 @@ func (sdk mfSDK) sendRequest(req *http.Request, token, contentType string) (*htt
 	return sdk.client.Do(req)
 }
 
-func createURL(baseURL, prefix, endpoint string) string {
-	if prefix == "" {
-		return fmt.Sprintf("%s/%s", baseURL, endpoint)
+func (sdk mfSDK) sendThingRequest(req *http.Request, key, contentType string) (*http.Response, error) {
+	if key != "" {
+		req.Header.Set("Authorization", apiutil.ThingPrefix+key)
 	}
 
-	return fmt.Sprintf("%s/%s/%s", baseURL, prefix, endpoint)
+	if contentType != "" {
+		req.Header.Add("Content-Type", contentType)
+	}
+
+	return sdk.client.Do(req)
 }

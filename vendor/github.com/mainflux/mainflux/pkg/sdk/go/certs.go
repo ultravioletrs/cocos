@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/mainflux/mainflux/pkg/errors"
 )
 
 const certsEndpoint = "certs"
@@ -29,7 +31,8 @@ func (sdk mfSDK) IssueCert(thingID string, keyBits int, keyType, valid, token st
 	if err != nil {
 		return Cert{}, err
 	}
-	url := createURL(sdk.certsURL, sdk.certsPrefix, certsEndpoint)
+
+	url := fmt.Sprintf("%s/%s", sdk.certsURL, certsEndpoint)
 	res, err := request(http.MethodPost, token, url, d)
 	if err != nil {
 		return Cert{}, err
@@ -61,7 +64,7 @@ func (sdk mfSDK) RemoveCert(id, token string) error {
 	case http.StatusNoContent:
 		return nil
 	case http.StatusForbidden:
-		return ErrUnauthorized
+		return errors.ErrAuthorization
 	default:
 		return ErrCertsRemove
 	}
