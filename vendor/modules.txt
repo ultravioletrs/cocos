@@ -7,6 +7,9 @@ github.com/cespare/xxhash/v2
 # github.com/fxamacker/cbor/v2 v2.4.0
 ## explicit; go 1.12
 github.com/fxamacker/cbor/v2
+# github.com/go-gorp/gorp/v3 v3.0.2
+## explicit; go 1.13
+github.com/go-gorp/gorp/v3
 # github.com/go-kit/kit v0.12.0
 ## explicit; go 1.17
 github.com/go-kit/kit/endpoint
@@ -34,6 +37,15 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/jmoiron/sqlx v1.3.4
+## explicit; go 1.10
+github.com/jmoiron/sqlx
+github.com/jmoiron/sqlx/reflectx
+# github.com/lib/pq v1.10.4
+## explicit; go 1.13
+github.com/lib/pq
+github.com/lib/pq/oid
+github.com/lib/pq/scram
 # github.com/mainflux/mainflux v0.0.0-20220330145210-c6f7c69798ad
 ## explicit; go 1.17
 github.com/mainflux/mainflux
@@ -73,6 +85,10 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rubenv/sql-migrate v1.1.1
+## explicit; go 1.16
+github.com/rubenv/sql-migrate
+github.com/rubenv/sql-migrate/sqlparse
 # github.com/subosito/gotenv v1.2.0
 ## explicit
 github.com/subosito/gotenv

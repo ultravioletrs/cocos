@@ -32,6 +32,10 @@ type Repository interface {
 type computationRepo struct {
 }
 
+func NewRepository() Repository {
+	return computationRepo{}
+}
+
 // Delete implements Repository
 func (computationRepo) Delete(context.Context, Computation) (string, error) {
 	panic("unimplemented")
@@ -50,8 +54,4 @@ func (computationRepo) Update(context.Context, Computation) (string, error) {
 // View implements Repository
 func (computationRepo) View(context.Context, Computation) (string, error) {
 	panic("unimplemented")
-}
-
-func NewRepository() Repository {
-	return computationRepo{}
 }

@@ -38,7 +38,8 @@ type SDK interface {
 	// DeleteComputation removes existing computation.
 	DeleteComputation(id, token string) error
 
-	CreateUser(username, password string) (string, error)
+	// CreateUser creates a new User in underlying User Management platform.
+	CreateUser(token, username, password string) (string, error)
 }
 
 type cSDK struct {
