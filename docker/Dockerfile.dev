@@ -1,0 +1,4 @@
+FROM scratch
+ARG SVC
+COPY cocos-$SVC /exe
+ENTRYPOINT ["/exe"]

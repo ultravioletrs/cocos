@@ -10,6 +10,7 @@ volumes:
   cocos-keto-db-volume:
   cocos-auth-redis-volume:
   cocos-es-redis-volume:
+  cocos-computations-db-volume:
 
 services:
 
@@ -163,3 +164,39 @@ services:
       - cocos-base-net
     volumes:
       - cocos-auth-redis-volume:/data
+
+  computations-db:
+    image: postgres:13.3-alpine
+    container_name: cocos-computations-db
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${COCOS_COMPUTATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${COCOS_COMPUTATIONS_DB_PASS}
+      POSTGRES_DB: ${COCOS_COMPUTATIONS_DB}
+    networks:
+      - cocos-base-net
+    volumes:
+      - cocos-computations-db-volume:/var/lib/postgresql/data
+
+  computations:
+    image: cocos/computations:${COCOS_RELEASE_TAG}
+    container_name: cocos-computations
+    depends_on:
+      - computations-db
+      - auth
+    restart: on-failure
+    environment:
+      COCOS_COMPUTATIONS_LOG_LEVEL: ${COCOS_COMPUTATIONS_LOG_LEVEL}
+      COCOS_COMPUTATIONS_DB_HOST: computations-db
+      COCOS_COMPUTATIONS_DB_PORT: ${COCOS_COMPUTATIONS_DB_PORT}
+      COCOS_COMPUTATIONS_DB_USER: ${COCOS_COMPUTATIONS_DB_USER}
+      COCOS_COMPUTATIONS_DB_PASS: ${COCOS_COMPUTATIONS_DB_PASS}
+      COCOS_COMPUTATIONS_DB: ${COCOS_COMPUTATIONS_DB}
+      COCOS_COMPUTATIONS_HTTP_PORT: ${COCOS_COMPUTATIONS_HTTP_PORT}
+      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
+      MF_AUTH_GRPC_TIMEOUT: ${MF_AUTH_GRPC_TIMEOUT}
+    ports:
+      - ${COCOS_COMPUTATIONS_HTTP_PORT}:${COCOS_COMPUTATIONS_HTTP_PORT}
+    networks:
+      - cocos-base-net
+ 

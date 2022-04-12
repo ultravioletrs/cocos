@@ -34,7 +34,6 @@ func MakeHandler(svc computations.Service, tracer opentracing.Tracer, logger log
 	opts := []kithttp.ServerOption{
 		// kithttp.ServerErrorEncoder(apiutil.LoggingErrorEncoder(logger, encodeError)),
 	}
-
 	mux := bone.New()
 
 	mux.Post("/computations", kithttp.NewServer(
@@ -54,7 +53,6 @@ func decodeCreateComputation(_ context.Context, r *http.Request) (interface{}, e
 	req := createReq{
 		token: extractBearerToken(r),
 	}
-
 	return req, nil
 }
 
@@ -70,7 +68,6 @@ func encodeResponse(_ context.Context, w http.ResponseWriter, response interface
 			return nil
 		}
 	}
-
 	return json.NewEncoder(w).Encode(response)
 }
 
@@ -84,11 +81,9 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		errors.Contains(err, errors.ErrViewEntity),
 		errors.Contains(err, errors.ErrRemoveEntity):
 		w.WriteHeader(http.StatusInternalServerError)
-
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-
 	if errorVal, ok := err.(errors.Error); ok {
 		w.Header().Set("Content-Type", contentType)
 		if err := json.NewEncoder(w).Encode(errorRes{Err: errorVal.Msg()}); err != nil {
@@ -99,10 +94,8 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 
 func extractBearerToken(r *http.Request) string {
 	token := r.Header.Get("Authorization")
-
 	if !strings.HasPrefix(token, bearerPrefix) {
 		return ""
 	}
-
 	return strings.TrimPrefix(token, bearerPrefix)
 }
