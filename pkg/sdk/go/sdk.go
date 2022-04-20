@@ -20,6 +20,11 @@ const CTJSON ContentType = "application/json"
 
 type ContentType string
 
+type Member struct {
+	ID   string
+	Type string
+}
+
 var _ SDK = (*cSDK)(nil)
 
 type SDK interface {
@@ -40,6 +45,39 @@ type SDK interface {
 
 	// CreateUser creates a new User in underlying User Management platform.
 	CreateUser(token, username, password string) (string, error)
+
+	// CreateOrganization creates new organization and returns its id.
+	CreateOrganization(organization Organization, token string) (string, error)
+
+	// DeleteOrganization deletes users organization.
+	DeleteOrganization(id, token string) error
+
+	// Organizations returns page of users organizations.
+	Organizations(offset, limit uint64, token string) (OrganizationsPage, error)
+
+	// Parents returns page of users organizations.
+	GetConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error)
+
+	// Children returns page of users organizations.
+	GetOrganizationForConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error)
+
+	// Organization returns users organization object by id.
+	Organization(id, token string) (Organization, error)
+
+	// Assign assigns member of member type (thing or user) to a organization.
+	Assign(memberIDs []string, memberType, organizationID string, token string) error
+
+	// Unassign removes member from a organization.
+	Unassign(token, organizationID string, memberIDs string) error
+
+	// Members lists members of a organization.
+	Members(organizationID, token string, offset, limit uint64) (mfx.MembersPage, error)
+
+	// Memberships lists organizations for user.
+	Memberships(userID, token string, offset, limit uint64) (OrganizationsPage, error)
+
+	// UpdateOrganization updates existing organization.
+	UpdateOrganization(organization Organization, token string) error
 }
 
 type cSDK struct {
