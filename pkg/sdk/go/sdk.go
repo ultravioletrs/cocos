@@ -34,6 +34,18 @@ type SDK interface {
 	// CreateUser creates a new User in underlying User Management platform.
 	CreateUser(token, username, password string) (string, error)
 
+	// User returns user object.
+	User(token string) (User, error)
+
+	// CreateToken receives credentials and returns user token.
+	CreateToken(user User) (string, error)
+
+	// UpdateUser updates existing user.
+	UpdateUser(user User, token string) error
+
+	// UpdatePassword updates user password.
+	UpdatePassword(oldPass, newPass, token string) error
+
 	// CreateOrganization creates new organization and returns its id.
 	CreateOrganization(organization Organization, token string) (string, error)
 
