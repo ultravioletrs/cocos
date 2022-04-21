@@ -56,10 +56,10 @@ type SDK interface {
 	Organizations(offset, limit uint64, token string) (OrganizationsPage, error)
 
 	// Parents returns page of users organizations.
-	GetConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error)
+	GetConsortiumForOrganization(id string, offset, limit uint64, token string) (OrganizationsPage, error)
 
 	// Children returns page of users organizations.
-	GetOrganizationForConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error)
+	GetOrganizationsForConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error)
 
 	// Organization returns users organization object by id.
 	Organization(id, token string) (Organization, error)
@@ -68,7 +68,7 @@ type SDK interface {
 	Assign(memberIDs []string, memberType, organizationID string, token string) error
 
 	// Unassign removes member from a organization.
-	Unassign(token, organizationID string, memberIDs string) error
+	Unassign(token, organizationID string, memberIDs ...string) error
 
 	// Members lists members of a organization.
 	Members(organizationID, token string, offset, limit uint64) (mfx.MembersPage, error)
