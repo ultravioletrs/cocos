@@ -12,7 +12,12 @@ const (
 
 type Organization struct{ mfx.Group }
 
-func (sdk cSDK) CreateOrganization(o Organization, token string) (string, error) {
+type OrganizationsPage struct {
+	Organizations []Organization `json:"organizations"`
+	pageRes
+}
+
+func (sdk csdk) CreateOrganization(o Organization, token string) (string, error) {
 	g := mfx.Group{
 		Name:        o.Name,
 		Description: o.Description,
@@ -22,39 +27,39 @@ func (sdk cSDK) CreateOrganization(o Organization, token string) (string, error)
 	return sdk.mf.CreateGroup(g, token)
 }
 
-func (sdk cSDK) DeleteOrganization(id, token string) error {
+func (sdk csdk) DeleteOrganization(id, token string) error {
 	return sdk.mf.DeleteGroup(id, token)
 }
 
-func (sdk cSDK) Assign(memberIDs []string, memberType, organizationID string, token string) error {
+func (sdk csdk) Assign(memberIDs []string, memberType, organizationID string, token string) error {
 	return sdk.mf.Assign(memberIDs, memberType, organizationID, token)
 }
 
-func (sdk cSDK) Unassign(token, organizationID string, memberIDs ...string) error {
+func (sdk csdk) Unassign(token, organizationID string, memberIDs ...string) error {
 	return sdk.mf.Unassign(token, organizationID, memberIDs...)
 }
 
-func (sdk cSDK) Members(orgId, token string, offset, limit uint64) (mfx.MembersPage, error) {
+func (sdk csdk) Members(orgId, token string, offset, limit uint64) (mfx.MembersPage, error) {
 	return sdk.mf.Members(orgId, token, offset, limit)
 }
 
-func (sdk cSDK) Organizations(offset, limit uint64, token string) (OrganizationsPage, error) {
-	groupsPage, err := sdk.mf.Groups(offset, limit, token)
+func (sdk csdk) Organizations(offset, limit uint64, token string) (OrganizationsPage, error) {
+	gp, err := sdk.mf.Groups(offset, limit, token)
 	if err != nil {
 		return OrganizationsPage{}, err
 	}
-	orgPage := OrganizationsPage{
-		Organizations: make([]Organization, len(groupsPage.Groups)),
+	ret := OrganizationsPage{
+		Organizations: make([]Organization, len(gp.Groups)),
 	}
-	for _, group := range groupsPage.Groups {
-		orgPage.Organizations = append(orgPage.Organizations, Organization{group})
+	for _, group := range gp.Groups {
+		ret.Organizations = append(ret.Organizations, Organization{group})
 	}
 	// hack
-	orgPage.pageRes = pageRes{Total: uint64(len(groupsPage.Groups)), Offset: offset, Limit: limit}
-	return orgPage, nil
+	ret.pageRes = pageRes{Total: uint64(len(gp.Groups)), Offset: offset, Limit: limit}
+	return ret, nil
 }
 
-func (sdk cSDK) GetConsortiumForOrganization(orgId string, offset, limit uint64, token string) (OrganizationsPage, error) {
+func (sdk csdk) OrganizationConsortiums(orgId string, offset, limit uint64, token string) (OrganizationsPage, error) {
 	groupsPage, err := sdk.mf.Parents(orgId, offset, limit, token)
 	if err != nil {
 		return OrganizationsPage{}, err
@@ -65,13 +70,12 @@ func (sdk cSDK) GetConsortiumForOrganization(orgId string, offset, limit uint64,
 	for _, group := range groupsPage.Groups {
 		orgPage.Organizations = append(orgPage.Organizations, Organization{group})
 	}
-	// hack
-	orgPage.pageRes = pageRes{Total: uint64(len(groupsPage.Groups)), Offset: offset, Limit: limit}
+	orgPage.pageRes = pageRes{Total: groupsPage.Total, Offset: offset, Limit: limit}
 	return orgPage, nil
 }
 
-func (sdk cSDK) GetOrganizationForConsortium(id string, offset, limit uint64, token string) (OrganizationsPage, error) {
-	groupsPage, err := sdk.mf.Children(id, offset, limit, token)
+func (sdk csdk) ConsortiumOrganizations(consortiumID string, offset, limit uint64, token string) (OrganizationsPage, error) {
+	groupsPage, err := sdk.mf.Children(consortiumID, offset, limit, token)
 	if err != nil {
 		return OrganizationsPage{}, err
 	}
@@ -81,12 +85,11 @@ func (sdk cSDK) GetOrganizationForConsortium(id string, offset, limit uint64, to
 	for _, group := range groupsPage.Groups {
 		orgPage.Organizations = append(orgPage.Organizations, Organization{group})
 	}
-	// hack
-	orgPage.pageRes = pageRes{Total: uint64(len(groupsPage.Groups)), Offset: offset, Limit: limit}
+	orgPage.pageRes = pageRes{Total: groupsPage.Total, Offset: offset, Limit: limit}
 	return orgPage, nil
 }
 
-func (sdk cSDK) Organization(orgId, token string) (Organization, error) {
+func (sdk csdk) Organization(orgId, token string) (Organization, error) {
 	group, err := sdk.mf.Group(orgId, token)
 	if err != nil {
 		return Organization{}, err
@@ -96,7 +99,7 @@ func (sdk cSDK) Organization(orgId, token string) (Organization, error) {
 	}, nil
 }
 
-func (sdk cSDK) UpdateOrganization(o Organization, token string) error {
+func (sdk csdk) UpdateOrganization(o Organization, token string) error {
 	g := mfx.Group{
 		ID:          "",
 		Name:        "",
@@ -107,8 +110,7 @@ func (sdk cSDK) UpdateOrganization(o Organization, token string) error {
 	return sdk.mf.UpdateGroup(g, token)
 }
 
-func (sdk cSDK) Memberships(memberID, token string, offset, limit uint64) (OrganizationsPage, error) {
-
+func (sdk csdk) Memberships(memberID, token string, offset, limit uint64) (OrganizationsPage, error) {
 	groupsPage, err := sdk.mf.Memberships(memberID, token, offset, limit)
 	if err != nil {
 		return OrganizationsPage{}, err
@@ -120,6 +122,6 @@ func (sdk cSDK) Memberships(memberID, token string, offset, limit uint64) (Organ
 		orgPage.Organizations = append(orgPage.Organizations, Organization{group})
 	}
 	// hack
-	orgPage.pageRes = pageRes{Total: uint64(len(groupsPage.Groups)), Offset: offset, Limit: limit}
+	orgPage.pageRes = pageRes{Total: groupsPage.Total, Offset: offset, Limit: limit}
 	return orgPage, nil
 }
