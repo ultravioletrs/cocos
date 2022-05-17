@@ -11,7 +11,7 @@ const (
 	svcStatus       = "pass"
 )
 
-var (
+const (
 	// Version represents the last service git tag in git history.
 	// It's meant to be set using go build ldflags:
 	// -ldflags "-X 'github.com/mainflux/mainflux.Version=0.0.0'"

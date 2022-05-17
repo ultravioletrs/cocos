@@ -165,6 +165,7 @@ services:
     volumes:
       - cocos-auth-redis-volume:/data
 
+# CoCoS services
   computations-db:
     image: postgres:13.3-alpine
     container_name: cocos-computations-db
@@ -177,6 +178,8 @@ services:
       - cocos-base-net
     volumes:
       - cocos-computations-db-volume:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
 
   computations:
     image: cocos/computations:${COCOS_RELEASE_TAG}

@@ -1,0 +1,84 @@
+{
+	"info": {
+		"_postman_id": "5ed31077-ca87-496e-9b98-b8793ce7c5d2",
+		"name": "CoCoS",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Computation",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Calculate salary\",\n    \"description\": \"my test computation\",\n    \"ttl\": 1243\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9000/computations",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"computations"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "View Computation",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9000/computations/c89b53d3-c088-4b5a-addd-51a90ea94325",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"computations",
+						"c89b53d3-c088-4b5a-addd-51a90ea94325"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "jwt",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

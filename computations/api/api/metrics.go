@@ -29,9 +29,40 @@ func MetricsMiddleware(svc computations.Service, counter metrics.Counter, latenc
 
 func (ms *metricsMiddleware) CreateComputation(ctx context.Context, token string, computation computations.Computation) (string, error) {
 	defer func(begin time.Time) {
-		ms.counter.With("method", "register").Add(1)
-		ms.latency.With("method", "register").Observe(time.Since(begin).Seconds())
+		ms.counter.With("method", "create_computation").Add(1)
+		ms.latency.With("method", "create_computation").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
 	return ms.svc.CreateComputation(ctx, token, computation)
+}
+
+func (ms *metricsMiddleware) ViewComputation(ctx context.Context, token, id string) (computations.Computation, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "view_computation").Add(1)
+		ms.latency.With("method", "view_computation").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return ms.svc.ViewComputation(ctx, token, id)
+}
+
+func (ms *metricsMiddleware) ListComputations(ctx context.Context, token string, meta computations.PageMetadata) (page computations.Page, err error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "list_computations").Add(1)
+		ms.latency.With("method", "list_computations").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return ms.svc.ListComputations(ctx, token, meta)
+}
+
+func (ms *metricsMiddleware) UpdateComputation(ctx context.Context, token string, computation computations.Computation) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "update_computations").Add(1)
+		ms.latency.With("method", "update_computations").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return ms.svc.UpdateComputation(ctx, token, computation)
+}
+
+func (ms *metricsMiddleware) RemoveComputation(ctx context.Context, token, id string) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "remove_computation").Add(1)
+		ms.latency.With("method", "remove_computation").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return ms.svc.RemoveComputation(ctx, token, id)
 }

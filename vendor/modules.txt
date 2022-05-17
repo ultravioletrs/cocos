@@ -15,9 +15,6 @@ github.com/go-gorp/gorp/v3
 github.com/go-kit/kit/endpoint
 github.com/go-kit/kit/log
 github.com/go-kit/kit/metrics
-github.com/go-kit/kit/sd
-github.com/go-kit/kit/sd/lb
-github.com/go-kit/kit/tracing/opentracing
 github.com/go-kit/kit/transport
 github.com/go-kit/kit/transport/http
 # github.com/go-kit/log v0.2.0
@@ -29,6 +26,9 @@ github.com/go-logfmt/logfmt
 # github.com/go-zoo/bone v1.3.0
 ## explicit; go 1.9
 github.com/go-zoo/bone
+# github.com/gofrs/uuid v4.2.0+incompatible
+## explicit
+github.com/gofrs/uuid
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
@@ -46,7 +46,7 @@ github.com/jmoiron/sqlx/reflectx
 github.com/lib/pq
 github.com/lib/pq/oid
 github.com/lib/pq/scram
-# github.com/mainflux/mainflux v0.0.0-20220330145210-c6f7c69798ad
+# github.com/mainflux/mainflux v0.0.0-20220411115220-48d6a95a2178
 ## explicit; go 1.17
 github.com/mainflux/mainflux
 github.com/mainflux/mainflux/internal/apiutil
@@ -56,6 +56,7 @@ github.com/mainflux/mainflux/pkg/messaging
 github.com/mainflux/mainflux/pkg/sdk/go
 github.com/mainflux/mainflux/pkg/transformers
 github.com/mainflux/mainflux/pkg/transformers/senml
+github.com/mainflux/mainflux/pkg/uuid
 # github.com/mainflux/senml v1.5.0
 ## explicit; go 1.13
 github.com/mainflux/senml
@@ -65,7 +66,6 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/opentracing/opentracing-go v1.2.0
 ## explicit; go 1.14
 github.com/opentracing/opentracing-go
-github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
 # github.com/prometheus/client_golang v1.12.1
 ## explicit; go 1.13

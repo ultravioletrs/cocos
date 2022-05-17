@@ -182,7 +182,7 @@ components:
             type: string
         algorithms:
           type: array
-          description: An array of alorithms.
+          description: An array of algorithms.
           minItems: 1
           uniqueItems: true
           items:
@@ -206,9 +206,9 @@ components:
           uniqueItems: true
           items:
             type: string
-        alorithmProviders:
+        algorithmProviders:
           type: array
-          description: List of IDs of users who provided alogirthms
+          description: List of IDs of users who provided algorithms
           minItems: 1
           uniqueItems: true
           items:

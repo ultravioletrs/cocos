@@ -1,10 +1,9 @@
-package postgres
+package db
 
 import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // required for SQL access
 	migrate "github.com/rubenv/sql-migrate"
 )
 

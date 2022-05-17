@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mainflux/mainflux/logger"
+	log "github.com/mainflux/mainflux/logger"
 )
 
 const stopWaitTime = 5 * time.Second
 
-func StartHTTPServer(ctx context.Context, name, port, cert, key string, handler http.Handler, logger logger.Logger) error {
+func StartServer(ctx context.Context, name, port, cert, key string, handler http.Handler, logger log.Logger) error {
 	p := fmt.Sprintf(":%s", port)
 	errCh := make(chan error)
 	server := &http.Server{Addr: p, Handler: handler}
@@ -35,13 +35,12 @@ func StartHTTPServer(ctx context.Context, name, port, cert, key string, handler 
 		ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), stopWaitTime)
 		defer cancelShutdown()
 		if err := server.Shutdown(ctxShutdown); err != nil {
-			logger.Error(fmt.Sprintf("%s service error occurred during shutdown at %s: %s", name, p, err))
+			logger.Error(fmt.Sprintf("%s service error occurred during shutdown at %s: %s", name, port, err))
 			return fmt.Errorf("%s service occurred during shutdown at %s: %w", name, p, err)
 		}
-		logger.Info(fmt.Sprintf("%s service shutdown of http at %s", name, p))
+		logger.Info(fmt.Sprintf("%s service shutdown at %s", name, port))
 		return nil
 	case err := <-errCh:
 		return err
 	}
-
 }
