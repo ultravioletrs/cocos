@@ -61,8 +61,8 @@ func MakeHandler(svc computations.Service, tracer opentracing.Tracer, logger log
 	))
 
 	mux.Put("/computations/:id", kithttp.NewServer(
-		view(svc),
-		decodeComputationUpdate,
+		update(svc),
+		decodeUpdate,
 		encodeResponse,
 		opts...,
 	))
@@ -139,7 +139,7 @@ func decodeView(_ context.Context, r *http.Request) (interface{}, error) {
 	return req, nil
 }
 
-func decodeComputationUpdate(_ context.Context, r *http.Request) (interface{}, error) {
+func decodeUpdate(_ context.Context, r *http.Request) (interface{}, error) {
 	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
 		return nil, errors.ErrUnsupportedContentType
 	}
@@ -148,6 +148,11 @@ func decodeComputationUpdate(_ context.Context, r *http.Request) (interface{}, e
 		token: extractBearerToken(r),
 		id:    bone.GetValue(r, "id"),
 	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, errors.Wrap(errors.ErrMalformedEntity, err)
+	}
+
 	return req, nil
 }
 

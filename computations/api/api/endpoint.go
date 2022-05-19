@@ -61,7 +61,7 @@ func list(svc computations.Service) endpoint.Endpoint {
 	}
 }
 
-func updateComputationEndpoint(svc computations.Service) endpoint.Endpoint {
+func update(svc computations.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(updateReq)
 		if err := req.validate(); err != nil {
@@ -72,6 +72,7 @@ func updateComputationEndpoint(svc computations.Service) endpoint.Endpoint {
 			ID:          req.id,
 			Name:        req.Name,
 			Description: req.Description,
+			Metadata:    req.Metadata,
 		}
 
 		if err := svc.UpdateComputation(ctx, req.token, computation); err != nil {

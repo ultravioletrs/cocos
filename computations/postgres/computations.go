@@ -162,13 +162,13 @@ func (repo computationRepo) RetrieveAll(ctx context.Context, owner string, pm co
 }
 
 func (repo computationRepo) Update(ctx context.Context, c computations.Computation) error {
-	q := `UPDATE computation SET name = :name, metadata = :metadata WHERE id = :id;`
-
+	fmt.Println("UPDATING_COMPUTATION", c)
+	q := `UPDATE computations SET name = :name, metadata = :metadata, description = :description WHERE id = :id;`
 	dbcpt, err := toDBComputation(c)
 	if err != nil {
 		return errors.Wrap(errors.ErrUpdateEntity, err)
 	}
-
+	fmt.Println(dbcpt)
 	res, errdb := repo.db.NamedExecContext(ctx, q, dbcpt)
 	if errdb != nil {
 		pqErr, ok := errdb.(*pq.Error)
@@ -178,8 +178,8 @@ func (repo computationRepo) Update(ctx context.Context, c computations.Computati
 				return errors.Wrap(errors.ErrMalformedEntity, errdb)
 			}
 		}
-
 		return errors.Wrap(errors.ErrUpdateEntity, errdb)
+
 	}
 
 	cnt, errdb := res.RowsAffected()
@@ -347,16 +347,17 @@ func getMetadataQuery(m computations.Metadata) ([]byte, string, error) {
 }
 
 type dbComputation struct {
-	ID       string `db:"id"`
-	Owner    string `db:"owner"`
-	Name     string `db:"name"`
-	Metadata []byte `db:"metadata"`
+	ID          string `db:"id"`
+	Owner       string `db:"owner"`
+	Name        string `db:"name"`
+	Description string `db:"description"`
+	Metadata    []byte `db:"metadata"`
 }
 
-func toDBComputation(th computations.Computation) (dbComputation, error) {
+func toDBComputation(cpt computations.Computation) (dbComputation, error) {
 	data := []byte("{}")
-	if len(th.Metadata) > 0 {
-		b, err := json.Marshal(th.Metadata)
+	if len(cpt.Metadata) > 0 {
+		b, err := json.Marshal(cpt.Metadata)
 		if err != nil {
 			return dbComputation{}, errors.Wrap(errors.ErrMalformedEntity, err)
 		}
@@ -364,9 +365,10 @@ func toDBComputation(th computations.Computation) (dbComputation, error) {
 	}
 
 	return dbComputation{
-		ID:       th.ID,
-		Owner:    th.Owner,
-		Name:     th.Name,
-		Metadata: data,
+		ID:          cpt.ID,
+		Owner:       cpt.Owner,
+		Name:        cpt.Name,
+		Description: cpt.Description,
+		Metadata:    data,
 	}, nil
 }

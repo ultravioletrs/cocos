@@ -30,14 +30,13 @@ func (req listReq) validate() error {
 }
 
 type updateReq struct {
-	computation computations.Computation
 	token       string
 	id          string
-	Name        string
-	Description string
-	meta        computations.PageMetadata
+	Name        string                 `json:"name,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (req updateReq) validate() error {
-	return req.computation.Validate()
+	return nil
 }
