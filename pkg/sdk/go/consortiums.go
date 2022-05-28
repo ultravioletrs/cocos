@@ -11,7 +11,7 @@ const (
 type Consortium struct{ mfx.Group }
 
 type ConsortiumsPage struct {
-	Consortiums []Consortium `json:"consortium"`
+	Consortiums []Consortium `json:"consortiums"`
 	pageRes
 }
 
