@@ -46,38 +46,65 @@ type SDK interface {
 	// UpdatePassword updates user password.
 	UpdatePassword(oldPass, newPass, token string) error
 
+	// CreateConsortium creates new consortium and returns its id.
+	CreateConsortium(consortium Consortium, token string) (string, error)
+
+	// Consortiums returns page of users consortiums.
+	Consortiums(offset, limit uint64, token string) (ConsortiumsPage, error)
+
+	// All the consortiums the given consortium belongs to.
+	OrganizationByConsortiums(conID string, offset, limit uint64, token string) (ConsortiumsPage, error)
+
+	// All the consortiums that belong to the given organization.
+	ConsortiumByOrganizations(consortiumID string, offset, limit uint64, token string) (ConsortiumsPage, error)
+
+	// Consortiums returns users consortium object by id.
+	Consortium(id, token string) (Consortium, error)
+
+	// Members lists members of a consortium.
+	ConsortiumMembers(consortiumID, token string, offset, limit uint64) (mfx.MembersPage, error)
+
+	// Memberships lists consortiums for user.
+	ConsortiumMemberships(userID, token string, offset, limit uint64) (ConsortiumsPage, error)
+
+	// UpdateConsortium updates existing consortium.
+	UpdateConsortium(consortium Consortium, token string) error
+
+	// DeleteConsortium deletes users consortium.
+	DeleteConsortium(id, token string) error
+
+	// Assign assigns member of member type (computation or user or organization) to a consortium.
+	AssignToConsortium(memberIDs []string, memberType, consortiumID string, token string) error
+
+	// Unassign removes member from a consortium.
+	UnassignFromConsortium(token, consortiumID string, memberIDs ...string) error
+
 	// CreateOrganization creates new organization and returns its id.
 	CreateOrganization(organization Organization, token string) (string, error)
-
-	// DeleteOrganization deletes users organization.
-	DeleteOrganization(id, token string) error
 
 	// Organizations returns page of users organizations.
 	Organizations(offset, limit uint64, token string) (OrganizationsPage, error)
 
-	// All the consortiums the given organization belongs to.
-	OrganizationConsortiums(orgID string, offset, limit uint64, token string) (OrganizationsPage, error)
-
-	// All the organizations that belong to the given consortium.
-	ConsortiumOrganizations(consortiumID string, offset, limit uint64, token string) (OrganizationsPage, error)
-
 	// Organization returns users organization object by id.
 	Organization(id, token string) (Organization, error)
 
-	// Assign assigns member of member type (thing or user) to a organization.
-	Assign(memberIDs []string, memberType, organizationID string, token string) error
-
-	// Unassign removes member from a organization.
-	Unassign(token, organizationID string, memberIDs ...string) error
-
 	// Members lists members of a organization.
-	Members(organizationID, token string, offset, limit uint64) (mfx.MembersPage, error)
+	OrganizationMembers(organizationID, token string, offset, limit uint64) (mfx.MembersPage, error)
 
 	// Memberships lists organizations for user.
-	Memberships(userID, token string, offset, limit uint64) (OrganizationsPage, error)
+	OrganizationMemberships(userID, token string, offset, limit uint64) (OrganizationsPage, error)
 
 	// UpdateOrganization updates existing organization.
 	UpdateOrganization(organization Organization, token string) error
+
+	// DeleteOrganization deletes users organization.
+	DeleteOrganization(id, token string) error
+
+	// Assign assigns member of member type (computation or user or consortium) to a organization.
+	AssignToOrganization(memberIDs []string, memberType, organizationID string, token string) error
+
+	// Unassign removes member from a organization.
+	UnassignFromOrganization(token, organizationID string, memberIDs ...string) error
 }
 
 type csdk struct {
