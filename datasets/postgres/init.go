@@ -5,7 +5,7 @@ import migrate "github.com/rubenv/sql-migrate"
 var Migrations = &migrate.MemoryMigrationSource{
 	Migrations: []*migrate.Migration{
 		{
-			Id: "datasets",
+			Id: "datasets_01",
 			Up: []string{
 				`CREATE TABLE IF NOT EXISTS datasets (
 						id       		UUID,
