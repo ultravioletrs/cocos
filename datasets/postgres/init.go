@@ -1,6 +1,10 @@
 package postgres
 
-import migrate "github.com/rubenv/sql-migrate"
+import (
+	// used to register Postgres driver
+	_ "github.com/lib/pq"
+	migrate "github.com/rubenv/sql-migrate"
+)
 
 var Migrations = &migrate.MemoryMigrationSource{
 	Migrations: []*migrate.Migration{

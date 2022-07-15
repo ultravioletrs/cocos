@@ -6,6 +6,18 @@ import (
 	"github.com/mainflux/mainflux"
 )
 
+type service struct {
+	repo DatasetRepository
+	idp  mainflux.IDProvider
+}
+
+func NewService(repo DatasetRepository, idp mainflux.IDProvider) Service {
+	return service{
+		repo: repo,
+		idp:  idp,
+	}
+}
+
 // Service specifies an API that must be fulfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
@@ -27,18 +39,6 @@ type Service interface {
 	// RemoveDataset removes the dataset identified with the provided ID, that
 	// belongs to the user identified by the provided token.
 	RemoveDataset(ctx context.Context, token, id string) error
-}
-
-type service struct {
-	repo DatasetRepository
-	idp  mainflux.IDProvider
-}
-
-func NewService(repo DatasetRepository, idp mainflux.IDProvider) Service {
-	return service{
-		repo: repo,
-		idp:  idp,
-	}
 }
 
 func (svc service) CreateDataset(ctx context.Context, token string, dataset Dataset) (string, error) {

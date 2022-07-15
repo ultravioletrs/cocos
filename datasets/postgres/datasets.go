@@ -11,7 +11,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/mainflux/mainflux/pkg/errors"
 	"github.com/ultravioletrs/cocos/datasets"
-	"github.com/ultravioletrs/cocos/internal/db"
+	db "github.com/ultravioletrs/cocos/internal/db"
 )
 
 const (

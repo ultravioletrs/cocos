@@ -1,6 +1,6 @@
 MF_DOCKER_IMAGE_NAME_PREFIX ?= cocos
 BUILD_DIR = build
-SERVICES = computations
+SERVICES = computations datasets
 DOCKERS = $(addprefix docker_,$(SERVICES))
 DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 CGO_ENABLED ?= 0

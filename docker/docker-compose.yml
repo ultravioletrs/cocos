@@ -11,6 +11,7 @@ volumes:
   cocos-auth-redis-volume:
   cocos-es-redis-volume:
   cocos-computations-db-volume:
+  cocos-datasets-db-volume:
 
 services:
 
@@ -202,4 +203,40 @@ services:
       - ${COCOS_COMPUTATIONS_HTTP_PORT}:${COCOS_COMPUTATIONS_HTTP_PORT}
     networks:
       - cocos-base-net
- 
+
+  datasets-db:
+    image: postgres:13.3-alpine
+    container_name: cocos-datasets-db
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${COCOS_DATASETS_DB_USER}
+      POSTGRES_PASSWORD: ${COCOS_DATASETS_DB_PASS}
+      POSTGRES_DB: ${COCOS_DATASETS_DB}
+    networks:
+      - cocos-base-net
+    volumes:
+      - cocos-datasets-db-volume:/var/lib/postgresql/data
+    ports:
+      - 5433:5433
+
+  datasets:
+    image: cocos/datasets:${COCOS_RELEASE_TAG}
+    container_name: cocos-datasets
+    depends_on:
+      - datasets-db
+      - auth
+    restart: on-failure
+    environment:
+      COCOS_DATASETS_LOG_LEVEL: ${COCOS_DATASETS_LOG_LEVEL}
+      COCOS_DATASETS_DB_HOST: datasets-db
+      COCOS_DATASETS_DB_PORT: ${COCOS_DATASETS_DB_PORT}
+      COCOS_DATASETS_DB_USER: ${COCOS_DATASETS_DB_USER}
+      COCOS_DATASETS_DB_PASS: ${COCOS_DATASETS_DB_PASS}
+      COCOS_DATASETS_DB: ${COCOS_DATASETS_DB}
+      COCOS_DATASETS_HTTP_PORT: ${COCOS_DATASETS_HTTP_PORT}
+      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
+      MF_AUTH_GRPC_TIMEOUT: ${MF_AUTH_GRPC_TIMEOUT}
+    ports:
+      - ${COCOS_DATASETS_HTTP_PORT}:${COCOS_DATASETS_HTTP_PORT}
+    networks:
+      - cocos-base-net
