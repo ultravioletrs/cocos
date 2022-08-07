@@ -18,7 +18,19 @@ The following prerequisites are needed to run Cocos:
 - [Docker](https://docs.docker.com/install/)
 - [Docker compose](https://docs.docker.com/compose/install/)
 
-Once the prerequisites are installed, execute the following commands from the project's root:
+### Build Docker Images
+Currenty, there is no Docker registry, so Cocos images must be built by hand:
+```
+make dockers
+```
+
+For this you might be needing to setup DNS servers in your `/etc/resolf.conf` as explained
+[here](https://github.com/docker/cli/issues/2618) (i.e. add Google's `nameserver 8.8.8.8`).
+
+### Run Composition
+
+Once the images are built (`docker images` command should show you `cocos/computations` and `cocos/datasets`),
+composition can be run:
 
 ```bash
 docker-compose -f docker/docker-compose.yml up
@@ -29,22 +41,6 @@ This will bring up the Cocos docker services and interconnect them. This command
 ```bash
 make run
 ```
-
-If you want to run services from specific release checkout code from github and make sure that
-`COCOS_RELEASE_TAG` in [.env](.env) is being set to match the release version
-
-```bash
-git checkout tags/<release_number> -b <release_number>
-# e.g. `git checkout tags/0.13.0 -b 0.13.0`
-```
-
-Check that `.env` file contains:
-
-```bash
-COCOS_RELEASE_TAG=<release_number>
-```
-
->`docker-compose` should be used for development and testing deployments. For production Kubernetes will be used.
 
 ## Usage
 

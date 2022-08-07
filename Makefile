@@ -1,4 +1,4 @@
-MF_DOCKER_IMAGE_NAME_PREFIX ?= cocos
+COCOS_DOCKER_IMAGE_NAME_PREFIX ?= cocos
 BUILD_DIR = build
 SERVICES = computations datasets
 DOCKERS = $(addprefix docker_,$(SERVICES))
@@ -29,7 +29,7 @@ define make_docker
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg TIME=$(TIME) \
-		--tag=$(MF_DOCKER_IMAGE_NAME_PREFIX)/$(svc) \
+		--tag=$(COCOS_DOCKER_IMAGE_NAME_PREFIX)/$(svc) \
 		-f docker/Dockerfile .
 endef
 
@@ -65,10 +65,6 @@ install:
 test:
 	go test -mod=vendor -v -race -count 1 -tags test $(shell go list ./... | grep -v 'vendor\|cmd')
 
-proto:
-	protoc --gofast_out=plugins=grpc:. *.proto
-	protoc --gofast_out=plugins=grpc:. pkg/messaging/*.proto
-
 $(SERVICES):
 	$(call compile_service,$(@))
 
@@ -80,30 +76,6 @@ $(DOCKERS_DEV):
 
 dockers: $(DOCKERS)
 dockers_dev: $(DOCKERS_DEV)
-
-define docker_push
-	for svc in $(SERVICES); do \
-		docker push $(MF_DOCKER_IMAGE_NAME_PREFIX)/$$svc:$(1); \
-	done
-endef
-
-changelog:
-	git log $(shell git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s"
-
-latest: dockers
-	$(call docker_push,latest)
-
-release:
-	$(eval version = $(shell git describe --abbrev=0 --tags))
-	git checkout $(version)
-	$(MAKE) dockers
-	for svc in $(SERVICES); do \
-		docker tag $(MF_DOCKER_IMAGE_NAME_PREFIX)/$$svc $(MF_DOCKER_IMAGE_NAME_PREFIX)/$$svc:$(version); \
-	done
-	$(call docker_push,$(version))
-
-rundev:
-	cd scripts && ./run.sh
 
 run:
 	docker-compose -f docker/docker-compose.yml up
