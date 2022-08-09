@@ -1,0 +1,446 @@
+openapi: 3.0.1
+info:
+  title: Datasets service
+  description: HTTP API for managing datasets
+  version: "1.0.0"
+
+paths:
+  /datasets:
+    post:
+      summary: Add new dataset
+      description: |
+        Adds new dataset to the list of datasets owned by user identified using
+        the provided access token.
+      tags:
+        - datasets
+      requestBody:
+        $ref: "#/components/requestBodies/DatasetCreateReq"
+      responses:
+        '201':
+          $ref: "#/components/responses/DatasetRes"
+        '400':
+          description: Failed due to malformed JSON.
+        '401':
+          description: Missing or invalid access token provided.
+        '409':
+          description: Entity already exist.
+        '415':
+          description: Missing or invalid content type.
+        '422':
+          description: Database can't process request.
+        '500':
+          $ref: "#/components/responses/ServiceError"
+    get:
+      summary: Retrieves datasets
+      description: |
+        Retrieves a list of datasets. Due to performance concerns, data
+        is retrieved in subsets. The API user must ensure that the entire
+        dataset is consumed either by making subsequent requests, or by
+        increasing the subset size of the initial request.
+      tags:
+        - datasets
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Name"
+        - $ref: "#/components/parameters/Order"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/Metadata"
+      responses:
+        '200':
+          $ref: "#/components/responses/DatasetsPageRes"
+        '400':
+          description: Failed due to malformed query parameters.
+        '401':
+          description: Missing or invalid access token provided.
+        '404':
+          description: A non-existent entity request.
+        '422':
+          description: Database can't process request.
+        '500':
+          $ref: "#/components/responses/ServiceError"
+  /datasets/search:
+    post:
+      summary: Search and retrieves datasets
+      description: |
+        Retrieves a list of datasets with name and metadata filtering.
+        Due to performance concerns, data is retrieved in subsets.
+        The API user must ensure that the entire
+        dataset is consumed either by making subsequent requests, or by
+        increasing the subset size of the initial request.
+      tags:
+        - datasets
+      requestBody:
+        $ref: "#/components/requestBodies/DatasetsSearchReq"
+      responses:
+        '200':
+          $ref: "#/components/responses/DatasetsPageRes"
+        '400':
+          description: Failed due to malformed query parameters.
+        '401':
+          description: Missing or invalid access token provided.
+        '404':
+          description: A non-existent entity request.
+        '422':
+          description: Unprocessable Entity
+        '500':
+          $ref: "#/components/responses/ServiceError"
+  /datasets/{Id}:
+    get:
+      summary: Retrieves dataset info
+      tags:
+        - dataset
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        '200':
+          $ref: "#/components/responses/DatasetRes"
+        '401':
+          description: Missing or invalid access token provided.
+        '404':
+          description: Dataset does not exist.
+        '422':
+          description: Database can't process request.
+        '500':
+          $ref: "#/components/responses/ServiceError"
+    put:
+      summary: Updates dataset info
+      description: |
+        Update is performed by replacing the current resource data with values
+        provided in a request payload.
+      tags:
+        - datasets
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        $ref: "#/components/requestBodies/DatasetUpdateReq"
+      responses:
+        '200':
+          description: dataset updated.
+        '400':
+          description: Failed due to malformed JSON.
+        '401':
+          description: Missing or invalid access token provided.
+        '404':
+          description: Dataset does not exist.
+        '415':
+          description: Missing or invalid content type.
+        '500':
+          $ref: "#/components/responses/ServiceError"
+    delete:
+      summary: Removes a dataset
+      description: |
+        Removes a dataset.
+      tags:
+        - dataset
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        '204':
+          description: Dataset removed.
+        '400':
+          description: Failed due to malformed ID.
+        '401':
+          description: Missing or invalid access token provided.
+        '500':
+          $ref: "#/components/responses/ServiceError"
+  
+components:
+  schemas:
+    DatasetReqSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Free-form name.
+        description:
+          type: string
+          description: Free-form description
+        datasets:
+          type: array
+          description: An array of datasets.
+          minItems: 0
+          uniqueItems: true
+          items:
+            type: string
+        algorithms:
+          type: array
+          description: An array of algorithms.
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+        startTime:
+          type: number
+          description: Start timestamp of the datasets
+        endTime:
+          type: number
+          description: End of the dataset
+        status:
+          type: string
+          description: Current status of the dataset
+        owner:
+          type: string
+          description: ID of the user who started dataset
+        datasetProviders:
+          type: array
+          description: List of IDs of users who provided datasets
+          minItems: 0
+          uniqueItems: true
+          items:
+            type: string
+        algorithmProviders:
+          type: array
+          description: List of IDs of users who provided algorithms
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+        ttl:
+          type: number
+          description: Period for dataset to live in an inactive state
+        metadata:
+          type: object
+          description: Arbitrary, object-encoded data.
+    DatasetsReqSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name filter. Filtering is performed as a case-insensitive partial match.
+        metadata:
+          type: object
+          description: Metadata filter. Filtering is performed matching the parameter with metadata on top level. Parameter is json.
+        total:
+          type: integer
+          description: Total number of items.
+        offset:
+          type: integer
+          description: Number of items to skip during retrieval.
+          default: 0
+          minimum: 0
+        limit:
+          type: integer
+          description: Size of the subset to retrieve.
+          default: 10
+          maximum: 100
+          minimum: 1
+        order:
+          type: string
+          description: Order type.
+          default: id
+          enum:
+            - name
+            - id
+        dir:
+          type: string
+          description: Order direction.
+          default: desc
+          enum:
+            - asc
+            - desc
+    DatasetResSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier generated by the service.
+        name:
+          type: string
+          description: Free-form name.
+        key:
+          type: string
+          format: uuid
+          description: Auto-generated access key.
+        metadata:
+          type: object
+          description: Arbitrary, object-encoded data.
+      required:
+        - id
+        - type
+        - key
+    DatasetsPage:
+      type: object
+      properties:
+        datasets:
+          type: array
+          minItems: 0
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/DatasetResSchema"
+        total:
+          type: integer
+          description: Total number of items.
+        offset:
+          type: integer
+          description: Number of items to skip during retrieval.
+        limit:
+          type: integer
+          description: Maximum number of items to return in one page.
+      required:
+        - datasets
+  parameters:
+    Id:
+      name: Id
+      description: Unique identifier.
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+    Limit:
+      name: limit
+      description: Size of the subset to retrieve.
+      in: query
+      schema:
+        type: integer
+        default: 10
+        maximum: 100
+        minimum: 1
+      required: false
+    Offset:
+      name: offset
+      description: Number of items to skip during retrieval.
+      in: query
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      required: false
+    Name:
+      name: name
+      description: Name filter. Filtering is performed as a case-insensitive partial match.
+      in: query
+      schema:
+        type: string
+      required: false
+    Order:
+      name: order
+      description: Order type.
+      in: query
+      schema:
+        type: string
+        default: id
+        enum:
+          - name
+          - id
+      required: false
+    Direction:
+      name: dir
+      description: Order direction.
+      in: query
+      schema:
+        type: string
+        default: desc
+        enum:
+          - asc
+          - desc
+      required: false
+    Metadata:
+      name: metadata
+      description: Metadata filter. Filtering is performed matching the parameter with metadata on top level. Parameter is json.
+      in: query
+      required: false
+      schema:
+        type: object
+        additionalProperties: {}
+
+  requestBodies:
+    DatasetCreateReq:
+      description: JSON-formatted document describing the new dataset.
+      required: true
+      content:
+        application/json:
+          schema:
+           $ref: "#/components/schemas/DatasetReqSchema"
+    DatasetsCreateReq:
+      description: JSON-formatted document describing the new dataset.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              datasets:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DatasetsReqSchema"
+    DatasetUpdateReq:
+      description: Arbitrary, object-encoded data.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Free-form name.
+              metadata:
+                type: object
+    DatasetsSearchReq:
+      description: JSON-formatted document describing search parameters.
+      required: true
+      content:
+        application/json:
+          schema:
+           $ref: "#/components/schemas/DatasetReqSchema"
+    KeyUpdateReq:
+      required: true
+      description: JSON containing datasets.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              key:
+                type: string
+                format: uuid
+                description: Thing key that is used for thing auth.
+  responses:
+    CreateDatasetRes:
+      description: Dataset registered.
+      headers:
+        Location:
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Created dataset's relative URL.
+                example: /datasets/{id}
+    DatasetRes:
+      description: Data retrieved.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DatasetResSchema"
+    DatasetsPageRes:
+      description: Data retrieved.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DatasetsPage"
+    ServiceError:
+      description: Unexpected server-side error occurred.
+      content:
+        application/json:
+          schema:
+            type: string
+            format: byte
+    HealthRes:
+      description: Service Health Check.
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/HealthInfo.yml"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        * Users access: "Authorization: Bearer <user_token>"
+security:
+  - bearerAuth: []
