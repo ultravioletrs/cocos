@@ -5,166 +5,11 @@ networks:
     driver: bridge
 
 volumes:
-  cocos-auth-db-volume:
-  cocos-users-db-volume:
-  cocos-keto-db-volume:
-  cocos-auth-redis-volume:
-  cocos-es-redis-volume:
   cocos-computations-db-volume:
   cocos-datasets-db-volume:
+  cocos-clients-db-volume:
 
 services:
-
-  keto:
-    image: oryd/keto:v0.6.0-alpha.3
-    container_name: cocos-keto
-    ports:
-      - ${MF_KETO_READ_REMOTE_PORT}:${MF_KETO_READ_REMOTE_PORT}
-      - ${MF_KETO_WRITE_REMOTE_PORT}:${MF_KETO_WRITE_REMOTE_PORT}
-    environment:
-      - DSN=postgresql://${MF_KETO_DB_USER}:${MF_KETO_DB_PASS}@keto-db:${MF_KETO_DB_PORT}/${MF_KETO_DB}?sslmode=disable
-    command: serve -c /home/ory/keto.yml
-    restart: on-failure
-    volumes:
-      - type: bind
-        source: ./keto
-        target: /home/ory
-    networks:
-      - cocos-base-net
-    depends_on:
-      - keto-db
-
-  keto-migrate:
-    image: oryd/keto:v0.6.0-alpha.3
-    container_name: cocos-keto-migrate
-    environment:
-      - KETO_WRITE_REMOTE=keto:${MF_KETO_WRITE_REMOTE_PORT}
-      - KETO_READ_REMOTE=keto:${MF_KETO_READ_REMOTE_PORT}
-      - DSN=postgresql://${MF_KETO_DB_USER}:${MF_KETO_DB_PASS}@keto-db:${MF_KETO_DB_PORT}/${MF_KETO_DB}?sslmode=disable
-    volumes:
-      - type: bind
-        source: ./keto
-        target: /home/ory
-    command: migrate up --all-namespaces -c /home/ory/keto.yml --yes
-    restart: on-failure
-    networks:
-      - cocos-base-net
-    depends_on:
-      - keto-db
-
-  keto-db:
-    image: postgres:13.3-alpine
-    container_name: cocos-keto-db
-    restart: on-failure
-    environment:
-      POSTGRES_USER: ${MF_KETO_DB_USER}
-      POSTGRES_PASSWORD: ${MF_KETO_DB_PASS}
-      POSTGRES_DB: ${MF_KETO_DB}
-    networks:
-      - cocos-base-net
-    volumes:
-      - cocos-keto-db-volume:/var/lib/postgresql/data
-
-  auth-db:
-    image: postgres:13.3-alpine
-    container_name: cocos-auth-db
-    restart: on-failure
-    environment:
-      POSTGRES_USER: ${MF_AUTH_DB_USER}
-      POSTGRES_PASSWORD: ${MF_AUTH_DB_PASS}
-      POSTGRES_DB: ${MF_AUTH_DB}
-    networks:
-      - cocos-base-net
-    volumes:
-      - cocos-auth-db-volume:/var/lib/postgresql/data
-
-  auth:
-    image: mainflux/auth:${MF_RELEASE_TAG}
-    container_name: cocos-auth
-    depends_on:
-      - auth-db
-      - keto
-    expose:
-      - ${MF_AUTH_GRPC_PORT}
-    restart: on-failure
-    environment:
-      MF_AUTH_LOG_LEVEL: ${MF_AUTH_LOG_LEVEL}
-      MF_AUTH_DB_HOST: auth-db
-      MF_AUTH_DB_PORT: ${MF_AUTH_DB_PORT}
-      MF_AUTH_DB_USER: ${MF_AUTH_DB_USER}
-      MF_AUTH_DB_PASS: ${MF_AUTH_DB_PASS}
-      MF_AUTH_DB: ${MF_AUTH_DB}
-      MF_AUTH_HTTP_PORT: ${MF_AUTH_HTTP_PORT}
-      MF_AUTH_GRPC_PORT: ${MF_AUTH_GRPC_PORT}
-      MF_AUTH_SECRET: ${MF_AUTH_SECRET}
-      MF_AUTH_LOGIN_TOKEN_DURATION: ${MF_AUTH_LOGIN_TOKEN_DURATION}
-      MF_JAEGER_URL: ${MF_JAEGER_URL}
-      MF_KETO_READ_REMOTE_HOST: ${MF_KETO_READ_REMOTE_HOST}
-      MF_KETO_READ_REMOTE_PORT: ${MF_KETO_READ_REMOTE_PORT}
-      MF_KETO_WRITE_REMOTE_HOST: ${MF_KETO_WRITE_REMOTE_HOST}
-      MF_KETO_WRITE_REMOTE_PORT: ${MF_KETO_WRITE_REMOTE_PORT}
-    ports:
-      - ${MF_AUTH_HTTP_PORT}:${MF_AUTH_HTTP_PORT}
-      - ${MF_AUTH_GRPC_PORT}:${MF_AUTH_GRPC_PORT}
-    networks:
-      - cocos-base-net
-
-  users-db:
-    image: postgres:13.3-alpine
-    container_name: cocos-users-db
-    restart: on-failure
-    environment:
-      POSTGRES_USER: ${MF_USERS_DB_USER}
-      POSTGRES_PASSWORD: ${MF_USERS_DB_PASS}
-      POSTGRES_DB: ${MF_USERS_DB}
-    networks:
-      - cocos-base-net
-    volumes:
-      - cocos-users-db-volume:/var/lib/postgresql/data
-
-  users:
-    image: mainflux/users:${MF_RELEASE_TAG}
-    container_name: cocos-users
-    volumes:
-      - ./templates/${MF_USERS_RESET_PWD_TEMPLATE}:/${MF_EMAIL_TEMPLATE}
-    depends_on:
-      - users-db
-      - auth
-    restart: on-failure
-    environment:
-      MF_USERS_LOG_LEVEL: ${MF_USERS_LOG_LEVEL}
-      MF_USERS_DB_HOST: users-db
-      MF_USERS_DB_PORT: ${MF_USERS_DB_PORT}
-      MF_USERS_DB_USER: ${MF_USERS_DB_USER}
-      MF_USERS_DB_PASS: ${MF_USERS_DB_PASS}
-      MF_USERS_DB: ${MF_USERS_DB}
-      MF_USERS_HTTP_PORT: ${MF_USERS_HTTP_PORT}
-      MF_JAEGER_URL: ${MF_JAEGER_URL}
-      MF_EMAIL_HOST: ${MF_EMAIL_HOST}
-      MF_EMAIL_PORT: ${MF_EMAIL_PORT}
-      MF_EMAIL_USERNAME: ${MF_EMAIL_USERNAME}
-      MF_EMAIL_PASSWORD: ${MF_EMAIL_PASSWORD}
-      MF_EMAIL_FROM_ADDRESS: ${MF_EMAIL_FROM_ADDRESS}
-      MF_EMAIL_FROM_NAME: ${MF_EMAIL_FROM_NAME}
-      MF_EMAIL_TEMPLATE: ${MF_EMAIL_TEMPLATE}
-      MF_TOKEN_RESET_ENDPOINT: ${MF_TOKEN_RESET_ENDPOINT}
-      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
-      MF_AUTH_GRPC_TIMEOUT: ${MF_AUTH_GRPC_TIMEOUT}
-      MF_USERS_ADMIN_EMAIL: ${MF_USERS_ADMIN_EMAIL}
-      MF_USERS_ADMIN_PASSWORD: ${MF_USERS_ADMIN_PASSWORD}
-      MF_USERS_ALLOW_SELF_REGISTER: ${MF_USERS_ALLOW_SELF_REGISTER}
-    ports:
-      - ${MF_USERS_HTTP_PORT}:${MF_USERS_HTTP_PORT}
-    networks:
-      - cocos-base-net
-  auth-redis:
-    image: redis:6.2.2-alpine
-    container_name: cocos-auth-redis
-    restart: on-failure
-    networks:
-      - cocos-base-net
-    volumes:
-      - cocos-auth-redis-volume:/data
 
 # CoCoS services
   computations-db:
@@ -179,15 +24,13 @@ services:
       - cocos-base-net
     volumes:
       - cocos-computations-db-volume:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
 
   computations:
     image: cocos/computations:${COCOS_RELEASE_TAG}
     container_name: cocos-computations
     depends_on:
       - computations-db
-      - auth
+      - clients
     restart: on-failure
     environment:
       COCOS_COMPUTATIONS_LOG_LEVEL: ${COCOS_COMPUTATIONS_LOG_LEVEL}
@@ -197,8 +40,8 @@ services:
       COCOS_COMPUTATIONS_DB_PASS: ${COCOS_COMPUTATIONS_DB_PASS}
       COCOS_COMPUTATIONS_DB: ${COCOS_COMPUTATIONS_DB}
       COCOS_COMPUTATIONS_HTTP_PORT: ${COCOS_COMPUTATIONS_HTTP_PORT}
-      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
-      MF_AUTH_GRPC_TIMEOUT: ${MF_AUTH_GRPC_TIMEOUT}
+      COCOS_COMPUTATIONS_AUTH_GRPC_URL: clients:${UV_CLIENTS_GRPC_PORT}
+      COCO_COMPUTATIONS_AUTH_GRPC_TIMEOUT: ${UV_CLIENTS_GRPC_TIMEOUT}
     ports:
       - ${COCOS_COMPUTATIONS_HTTP_PORT}:${COCOS_COMPUTATIONS_HTTP_PORT}
     networks:
@@ -216,15 +59,13 @@ services:
       - cocos-base-net
     volumes:
       - cocos-datasets-db-volume:/var/lib/postgresql/data
-    ports:
-      - 5433:5433
 
   datasets:
     image: cocos/datasets:${COCOS_RELEASE_TAG}
     container_name: cocos-datasets
     depends_on:
       - datasets-db
-      - auth
+      - clients
     restart: on-failure
     environment:
       COCOS_DATASETS_LOG_LEVEL: ${COCOS_DATASETS_LOG_LEVEL}
@@ -234,9 +75,54 @@ services:
       COCOS_DATASETS_DB_PASS: ${COCOS_DATASETS_DB_PASS}
       COCOS_DATASETS_DB: ${COCOS_DATASETS_DB}
       COCOS_DATASETS_HTTP_PORT: ${COCOS_DATASETS_HTTP_PORT}
-      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
-      MF_AUTH_GRPC_TIMEOUT: ${MF_AUTH_GRPC_TIMEOUT}
+      COCOS_DATASETS_AUTH_GRPC_URL: clients:${UV_CLIENTS_GRPC_PORT}
+      COCOS_DATASETS_AUTH_GRPC_TIMEOUT: ${UV_CLIENTS_GRPC_TIMEOUT}
     ports:
       - ${COCOS_DATASETS_HTTP_PORT}:${COCOS_DATASETS_HTTP_PORT}
+    networks:
+      - cocos-base-net
+  clients-db:
+    image: postgres:13.3-alpine
+    container_name: cocos-clients-db
+    restart: on-failure
+    expose:
+      - ${UV_CLIENTS_DB_PORT}
+    environment:
+      POSTGRES_USER: ${UV_CLIENTS_DB_USER}
+      POSTGRES_PASSWORD: ${UV_CLIENTS_DB_PASS}
+      POSTGRES_DB: ${UV_CLIENTS_DB}
+    networks:
+      - cocos-base-net
+    command: -p ${UV_CLIENTS_DB_PORT}
+    volumes:
+      - cocos-clients-db-volume:/var/lib/postgresql/data
+
+  clients:
+    image: ultraviolet/clients:${MF_RELEASE_TAG}
+    container_name: cocos-clients
+    depends_on:
+      - clients-db
+    restart: on-failure
+    expose:
+      - ${UV_CLIENTS_GRPC_PORT}
+    environment:
+      UV_CLIENTS_LOG_LEVEL: ${UV_CLIENTS_LOG_LEVEL}
+      UV_CLIENTS_DB_HOST: ${UV_CLIENTS_DB_HOST}
+      UV_CLIENTS_DB_PORT: ${UV_CLIENTS_DB_PORT}
+      UV_CLIENTS_DB_USER: ${UV_CLIENTS_DB_USER}
+      UV_CLIENTS_DB_PASS: ${UV_CLIENTS_DB_PASS}
+      UV_CLIENTS_DB: ${UV_CLIENTS_DB}
+      UV_CLIENTS_DB_SSL_MODE: ${UV_CLIENTS_DB_SSL_MODE}
+      UV_CLIENTS_DB_SSL_CERT: ${UV_CLIENTS_DB_SSL_CERT}
+      UV_CLIENTS_DB_SSL_KEY: ${UV_CLIENTS_DB_SSL_KEY}
+      UV_CLIENTS_DB_SSL_ROOT_CERT: ${UV_CLIENTS_DB_SSL_ROOT_CERT}
+      UV_CLIENTS_HTTP_PORT: ${UV_CLIENTS_HTTP_PORT}
+      UV_CLIENTS_GRPC_PORT: ${UV_CLIENTS_GRPC_PORT}
+      UV_CLIENTS_GRPC_TIMEOUT: ${UV_CLIENTS_GRPC_TIMEOUT}
+      UV_CLIENTS_SERVER_CERT: ${UV_CLIENTS_SERVER_CERT}
+      UV_CLIENTS_SERVER_KEY: ${UV_CLIENTS_SERVER_KEY}
+    ports:
+      - ${UV_CLIENTS_HTTP_PORT}:${UV_CLIENTS_HTTP_PORT}
+      - ${UV_CLIENTS_GRPC_PORT}:${UV_CLIENTS_GRPC_PORT}
     networks:
       - cocos-base-net

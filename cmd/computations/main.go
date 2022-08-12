@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -11,6 +13,10 @@ import (
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
+	"github.com/opentracing/opentracing-go"
+	jconfig "github.com/uber/jaeger-client-go/config"
+	"github.com/ultravioletrs/clients"
+	authapi "github.com/ultravioletrs/clients/api/grpc"
 	"github.com/ultravioletrs/cocos/computations"
 	"github.com/ultravioletrs/cocos/computations/api/api"
 	"github.com/ultravioletrs/cocos/computations/postgres"
@@ -19,6 +25,8 @@ import (
 	"github.com/ultravioletrs/cocos/internal/errors"
 	"github.com/ultravioletrs/cocos/internal/http"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -36,10 +44,12 @@ const (
 	defServerCert    = ""
 	defServerKey     = ""
 
-	defAuthTLS     = "false"
-	defAuthCACerts = ""
-	defAuthURL     = "localhost:8181"
-	defAuthTimeout = "1s"
+	defJaegerURL      = ""
+	defAuthTLS        = "false"
+	defAuthCACerts    = ""
+	defAuthURL        = "localhost:8181"
+	defClientsGrpcURL = "clients:9192"
+	defAuthTimeout    = "1s"
 
 	envLogLevel      = "COCOS_COMPUTATIONS_LOG_LEVEL"
 	envDBHost        = "COCOS_COMPUTATIONS_DB_HOST"
@@ -55,10 +65,11 @@ const (
 	envServerCert    = "COCOS_COMPUTATIONS_SERVER_CERT"
 	envServerKey     = "COCOS_COMPUTATIONS_SERVER_KEY"
 
-	envAuthTLS     = "MF_AUTH_CLIENT_TLS"
-	envAuthCACerts = "MF_AUTH_CA_CERTS"
-	envAuthURL     = "MF_AUTH_GRPC_URL"
-	envAuthTimeout = "MF_AUTH_GRPC_TIMEOUT"
+	envJaegerURL   = "MF_JAEGER_URL"
+	envAuthTLS     = "COCOS_COMPUTATIONS_AUTH_CLIENT_TLS"
+	envAuthCACerts = "COCOS_COMPUTATIONS_AUTH_CA_CERTS"
+	envAuthURL     = "COCOS_COMPUTATIONS_AUTH_GRPC_URL"
+	envAuthTimeout = "COCOS_COMPUTATIONS_AUTH_GRPC_TIMEOUT"
 )
 
 const svcName = "Computations"
@@ -69,6 +80,7 @@ type config struct {
 	httpPort    string
 	serverCert  string
 	serverKey   string
+	jaegerURL   string
 	authTLS     bool
 	authCACerts string
 	authURL     string
@@ -107,6 +119,7 @@ func loadConfig() config {
 		serverCert:  env.Load(envServerCert, defServerCert),
 		serverKey:   env.Load(envServerKey, defServerKey),
 		authCACerts: env.Load(envAuthCACerts, defAuthCACerts),
+		jaegerURL:   env.Load(envJaegerURL, defJaegerURL),
 		authURL:     env.Load(envAuthURL, defAuthURL),
 	}
 }
@@ -124,10 +137,17 @@ func main() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+	authTracer, closer := initJaeger("auth", cfg.jaegerURL, l)
+	defer closer.Close()
+
+	auth, close := connectToAuth(cfg, authTracer, l)
+	if close != nil {
+		defer close()
+	}
 
 	repo := postgres.NewRepository(db)
 	idp := uuid.New()
-	svc := computations.NewService(repo, idp)
+	svc := computations.NewService(repo, idp, auth)
 	svc = api.LoggingMiddleware(svc, l)
 	h := api.MakeHandler(svc, nil, l)
 
@@ -138,4 +158,52 @@ func main() {
 	if err := g.Wait(); err != nil {
 		l.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
+}
+
+func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {
+	if url == "" {
+		return opentracing.NoopTracer{}, ioutil.NopCloser(nil)
+	}
+
+	tracer, closer, err := jconfig.Configuration{
+		ServiceName: svcName,
+		Sampler: &jconfig.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &jconfig.ReporterConfig{
+			LocalAgentHostPort: url,
+			LogSpans:           true,
+		},
+	}.NewTracer()
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to init Jaeger: %s", err))
+		os.Exit(1)
+	}
+
+	return tracer, closer
+}
+
+func connectToAuth(cfg config, tracer opentracing.Tracer, logger logger.Logger) (clients.AuthServiceClient, func() error) {
+	var opts []grpc.DialOption
+	if cfg.authTLS {
+		if cfg.authCACerts != "" {
+			tpc, err := credentials.NewClientTLSFromFile(cfg.authCACerts, "")
+			if err != nil {
+				logger.Error(fmt.Sprintf("Failed to create tls credentials: %s", err))
+				os.Exit(1)
+			}
+			opts = append(opts, grpc.WithTransportCredentials(tpc))
+		}
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+		logger.Info("gRPC communication is not encrypted")
+	}
+
+	conn, err := grpc.Dial(cfg.authURL, opts...)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to connect to auth service: %s", err))
+		os.Exit(1)
+	}
+	return authapi.NewClient(tracer, conn, cfg.authTimeout), conn.Close
 }

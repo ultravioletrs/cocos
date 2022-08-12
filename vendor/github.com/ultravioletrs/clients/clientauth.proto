@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package clients;
+
+service AuthService {
+    rpc Authorize(AuthorizeReq) returns (AuthorizeRes) {}
+}
+
+message AuthorizeReq {
+    string sub = 1;
+    string obj = 2;
+    string act = 3;
+}
+message AuthorizeRes {
+    bool authorized = 1;
+}

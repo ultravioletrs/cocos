@@ -7,19 +7,31 @@ package messaging
 type Publisher interface {
 	// Publishes message to the stream.
 	Publish(topic string, msg Message) error
+
+	// Close gracefully closes message publisher's connection.
+	Close() error
 }
 
 // MessageHandler represents Message handler for Subscriber.
-type MessageHandler func(msg Message) error
+type MessageHandler interface {
+	// Handle handles messages passed by underlying implementation.
+	Handle(msg Message) error
+
+	// Cancel is used for cleanup during unsubscribing and it's optional.
+	Cancel() error
+}
 
 // Subscriber specifies message subscription API.
 type Subscriber interface {
 	// Subscribe subscribes to the message stream and consumes messages.
-	Subscribe(topic string, handler MessageHandler) error
+	Subscribe(id, topic string, handler MessageHandler) error
 
 	// Unsubscribe unsubscribes from the message stream and
 	// stops consuming messages.
-	Unsubscribe(topic string) error
+	Unsubscribe(id, topic string) error
+
+	// Close gracefully closes message subscriber's connection.
+	Close() error
 }
 
 // PubSub  represents aggregation interface for publisher and subscriber.

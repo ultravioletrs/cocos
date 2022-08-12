@@ -55,10 +55,10 @@ const (
 	envServerCert    = "COCOS_DATASETS_SERVER_CERT"
 	envServerKey     = "COCOS_DATASETS_SERVER_KEY"
 
-	envAuthTLS     = "MF_AUTH_CLIENT_TLS"
-	envAuthCACerts = "MF_AUTH_CA_CERTS"
-	envAuthURL     = "MF_AUTH_GRPC_URL"
-	envAuthTimeout = "MF_AUTH_GRPC_TIMEOUT"
+	envAuthTLS     = "COCOS_DATASETS_AUTH_CLIENT_TLS"
+	envAuthCACerts = "COCOS_DATASETS_AUTH_CA_CERTS"
+	envAuthURL     = "COCOS_DATASETS_AUTH_GRPC_URL"
+	envAuthTimeout = "COCOS_DATASETS_AUTH_GRPC_TIMEOUT"
 )
 
 const svcName = "Datasets"
