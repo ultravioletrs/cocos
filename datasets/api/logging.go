@@ -22,62 +22,74 @@ func LoggingMiddleware(svc datasets.Service, logger log.Logger) datasets.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) CreateDataset(ctx context.Context, token string, dataset datasets.Dataset) (id string, err error) {
+func (lm *loggingMiddleware) CreateDataset(ctx context.Context, dts datasets.Dataset) (id string, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method create_dataset for user %s took %s to complete", token, time.Since(begin))
+		message := fmt.Sprintf("Method create_dataset took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
 		}
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
-	return lm.svc.CreateDataset(ctx, token, dataset)
+	return lm.svc.CreateDataset(ctx, dts)
 }
 
-func (lm *loggingMiddleware) ViewDataset(ctx context.Context, token, id string) (c datasets.Dataset, err error) {
+func (lm *loggingMiddleware) ViewDataset(ctx context.Context, owner, id string) (d datasets.Dataset, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method view_dataset for user %s took %s to complete", token, time.Since(begin))
+		message := fmt.Sprintf("Method view_dataset took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
 		}
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
-	return lm.svc.ViewDataset(ctx, token, id)
+	return lm.svc.ViewDataset(ctx, owner, id)
 }
 
-func (lm *loggingMiddleware) ListDatasets(ctx context.Context, token string, meta datasets.PageMetadata) (page datasets.Page, err error) {
+func (lm *loggingMiddleware) ListDatasets(ctx context.Context, owner string, meta datasets.PageMetadata) (page datasets.Page, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method list_datasets for user %s took %s to complete", token, time.Since(begin))
+		message := fmt.Sprintf("Method list_datasets took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
 		}
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
-	return lm.svc.ListDatasets(ctx, token, meta)
+	return lm.svc.ListDatasets(ctx, owner, meta)
 }
 
-func (lm *loggingMiddleware) UpdateDataset(ctx context.Context, token string, dataset datasets.Dataset) (err error) {
+func (lm *loggingMiddleware) UpdateDataset(ctx context.Context, dataset datasets.Dataset) (err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method update_dataset for user %s took %s to complete", token, time.Since(begin))
+		message := fmt.Sprintf("Method update_dataset took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
 		}
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
-	return lm.svc.UpdateDataset(ctx, token, dataset)
+	return lm.svc.UpdateDataset(ctx, dataset)
 }
 
-func (lm *loggingMiddleware) RemoveDataset(ctx context.Context, token, id string) (err error) {
+func (lm *loggingMiddleware) UploadDataset(ctx context.Context, id, owner string, payload []byte) (err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method remove_dataset for user %s took %s to complete", token, time.Since(begin))
+		message := fmt.Sprintf("Method upload_dataset took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
 		}
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
-	return lm.svc.RemoveDataset(ctx, token, id)
+	return lm.svc.UploadDataset(ctx, id, owner, payload)
+}
+
+func (lm *loggingMiddleware) RemoveDataset(ctx context.Context, id string) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method remove_dataset took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
+	}(time.Now())
+	return lm.svc.RemoveDataset(ctx, id)
 }

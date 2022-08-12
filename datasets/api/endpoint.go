@@ -4,100 +4,109 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/mainflux/mainflux/pkg/errors"
 	"github.com/ultravioletrs/cocos/datasets"
 )
 
 func createDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createReq)
-		if err := req.validate(); err != nil {
-			return createRes{}, err
-		}
-		uid, err := svc.CreateDataset(ctx, req.token, req.dataset)
+		id, err := svc.CreateDataset(ctx, req.dataset)
 		if err != nil {
 			return createRes{}, err
 		}
-		ret := createRes{
-			ID:      uid,
+
+		res := datasetRes{
+			ID:      id,
 			created: true,
 		}
-		return ret, nil
+
+		return res, nil
 	}
 }
 
 func viewDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(viewReq)
-		if err := req.validate(); err != nil {
-			return viewRes{}, err
-		}
-		dataset, err := svc.ViewDataset(ctx, req.token, req.id)
-		if err != nil {
-			return createRes{}, err
-		}
-		ret := viewRes{
-			Dataset: dataset,
-		}
+		req := request.(viewRequest)
 
-		return ret, nil
+		ds, err := svc.ViewDataset(ctx, req.owner, req.id)
+		if err != nil {
+			return nil, err
+		}
+		res := viewRes{
+			Dataset: ds,
+		}
+		return res, nil
 	}
 }
 
 func listDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listReq)
-		if err := req.validate(); err != nil {
-			return listRes{}, err
-		}
-		res, err := svc.ListDatasets(ctx, req.token, req.meta)
+		req := request.(listResourcesReq)
+
+		page, err := svc.ListDatasets(ctx, req.owner, req.pageMetadata)
 		if err != nil {
-			return listRes{}, err
-		}
-		ret := listRes{
-			Page: res,
-		}
-		return ret, nil
-	}
-}
-
-func updateDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(updateReq)
-		if err := req.validate(); err != nil {
 			return nil, err
 		}
 
-		dataset := datasets.Dataset{
-			ID:          req.id,
-			Name:        req.Name,
-			Description: req.Description,
-			Metadata:    req.Metadata,
+		res := datasetsPageRes{
+			pageRes: pageRes{
+				Total:  page.Total,
+				Offset: page.Offset,
+				Limit:  page.Limit,
+				Order:  page.Order,
+				Dir:    page.Dir,
+			},
+			Datasets: []datasets.Dataset{},
+		}
+		for _, ds := range page.Datasets {
+			res.Datasets = append(res.Datasets, ds)
 		}
 
-		if err := svc.UpdateDataset(ctx, req.token, dataset); err != nil {
-			return nil, err
-		}
-
-		res := createRes{ID: req.id, created: false}
 		return res, nil
 	}
 }
 
-func removeDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
+func updateDatasetEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(viewReq)
+		req := request.(updateDatasetReq)
 
-		err := req.validate()
-		if err == errors.ErrNotFound {
-			return removeRes{}, nil
+		dataset := datasets.Dataset{
+			ID:       req.id,
+			Name:     req.Name,
+			Metadata: req.Metadata,
 		}
 
-		if err != nil {
+		if err := svc.UpdateDataset(ctx, dataset); err != nil {
 			return nil, err
 		}
 
-		if err := svc.RemoveDataset(ctx, req.token, req.id); err != nil {
+		res := datasetRes{ID: req.id, created: false}
+		return res, nil
+	}
+}
+
+func uploadDatasetEndpoint(svc datasets.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(uploadReq)
+
+		if err := req.validate(); err != nil {
+			return nil, err
+		}
+
+		if err := svc.UploadDataset(ctx, req.id, req.owner, req.Payload); err != nil {
+			return nil, err
+		}
+
+		res := datasetRes{ID: req.id, created: false}
+		return res, nil
+	}
+}
+
+func removeDatasetEndpoint(svc datasets.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(viewRequest)
+
+		if err := svc.RemoveDataset(ctx, req.id); err != nil {
 			return nil, err
 		}
 

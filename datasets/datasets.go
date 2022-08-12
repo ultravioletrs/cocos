@@ -7,28 +7,30 @@ import (
 
 type Dataset struct {
 	ID          string    `json:"id,omitempty" db:"id"`
+	Token       string    `json:"token,omitempty" db:"token"`
 	Name        string    `json:"name,omitempty" db:"name"`
 	Description string    `json:"description,omitempty" db:"description"`
 	Owner       string    `json:"owner,omitempty" db:"owner"`
 	Size        uint64    `json:"size,omitempty" db:"size"`
-	Type        string    `json:"type,omitempty" db:"type"`
-	CreatedAt   time.Time `json:"createdat,omitempty" db:"createdat"`
-	UpdatedAt   time.Time `json:"updatedat,omitempty" db:"updatedat"`
+	CreatedAt   time.Time `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at,omitempty" db:"updated_at"`
 	Location    string    `json:"location,omitempty" db:"location"`
 	Format      string    `json:"format,omitempty" db:"format"`
 	Metadata    Metadata  `json:"metadata,omitempty" db:"metadata"`
+	Path        string    `json:"Path,omitempty" db:"path"`
 }
 
 type Metadata map[string]interface{}
 
 type PageMetadata struct {
-	Total    uint64   `json:"total,omitempty"`
-	Offset   uint64   `json:"offset,omitempty"`
-	Limit    uint64   `json:"limit,omitempty"`
-	Name     string   `json:"name,omitempty"`
-	Order    string   `json:"order,omitempty"`
-	Dir      string   `json:"dir,omitempty"`
-	Metadata Metadata `json:"metadata,omitempty"`
+	Total               uint64   `json:"total,omitempty"`
+	Offset              uint64   `json:"offset,omitempty"`
+	Limit               uint64   `json:"limit,omitempty"`
+	Name                string   `json:"name,omitempty"`
+	Order               string   `json:"order,omitempty"`
+	Dir                 string   `json:"dir,omitempty"`
+	Metadata            Metadata `json:"metadata,omitempty"`
+	FetchSharedDatasets bool
 }
 
 type Page struct {
@@ -45,10 +47,10 @@ type DatasetRepository interface {
 	// Save persists multiple datasets. Datasets are saved using a transaction. If one dataset
 	// fails then none will be saved. Successful operation is indicated by non-nil
 	// error response.
-	Save(ctx context.Context, d Dataset) (string, error)
+	Save(ctx context.Context, dts Dataset) (string, error)
 
-	// View returns Dataset with given ID belonging to the user identified by the given token.
-	View(ctx context.Context, id string) (Dataset, error)
+	// RetrieveAll retrieves the subset of datasets owned by the specified user
+	RetrieveByID(ctx context.Context, owner, id string) (Dataset, error)
 
 	// RetrieveAll retrieves the subset of datasets owned by the specified user
 	RetrieveAll(ctx context.Context, owner string, pm PageMetadata) (Page, error)

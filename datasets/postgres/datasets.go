@@ -18,6 +18,8 @@ const (
 	errInvalidText    = "invalid_text_representation"
 	errDataTruncation = "string_data_right_truncation"
 	errDuplicate      = "unique_violation"
+	errInvalid        = "invalid_text_representation"
+	errTruncation     = "string_data_right_truncation"
 )
 
 var _ datasets.DatasetRepository = (*datasetRepo)(nil)
@@ -26,33 +28,36 @@ type datasetRepo struct {
 	db db.Database
 }
 
+// NewRepository returns a new Datasets repository implementation.
 func NewRepository(db db.Database) datasets.DatasetRepository {
 	return datasetRepo{
 		db: db,
 	}
 }
 
-func (repo datasetRepo) Save(ctx context.Context, d datasets.Dataset) (string, error) {
-	q := `INSERT INTO datasets (id, name, description, owner, size, type, created_at, updated_at, location, format, metadata)
-	VALUES (:id, :name, :description, :owner, :size, :type, :created_at, :updated_at, :location, :format, :metadata) RETURNING id`
-	ds, err := fromDataset(d)
+func (repo datasetRepo) Save(ctx context.Context, dataset datasets.Dataset) (string, error) {
+	q := `INSERT INTO datasets (id, owner, name, metadata, description, format, location, created_at, updated_at)
+		  VALUES (:id, :owner, :name, :metadata, :description, :format, :location, :created_at, :updated_at) RETURNING id;`
+
+	ds, err := toDBDataset(dataset)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(errors.ErrCreateEntity, err)
 	}
+
 	row, err := repo.db.NamedQueryContext(ctx, q, ds)
 	if err != nil {
 		pqErr, ok := err.(*pq.Error)
 		if ok {
 			switch pqErr.Code.Name() {
-			case errInvalidText, errDataTruncation:
+			case errInvalid, errTruncation:
 				return "", errors.Wrap(errors.ErrMalformedEntity, err)
 			case errDuplicate:
 				return "", errors.Wrap(errors.ErrConflict, err)
 			}
 		}
+
 		return "", errors.Wrap(errors.ErrCreateEntity, err)
 	}
-
 	defer row.Close()
 	row.Next()
 	var id string
@@ -62,25 +67,20 @@ func (repo datasetRepo) Save(ctx context.Context, d datasets.Dataset) (string, e
 	return id, nil
 }
 
-func (repo datasetRepo) View(ctx context.Context, id string) (datasets.Dataset, error) {
-	q := `SELECT id, name, description, owner, size, type, created_at, 
-				updated_at, location, format, metadata
-				FROM datasets
-				WHERE id = $1`
+func (repo datasetRepo) RetrieveByID(ctx context.Context, owner, id string) (datasets.Dataset, error) {
+	q := `SELECT id, name, owner, metadata, description, location, format, created_at, updated_at FROM datasets WHERE id = $1;`
 
-	d := dataset{
-		ID: id,
-	}
+	dbds := dbDataset{ID: id}
 
-	if err := repo.db.QueryRowxContext(ctx, q, id).StructScan(&d); err != nil {
-		if err == sql.ErrNoRows {
+	if err := repo.db.QueryRowxContext(ctx, q, id).StructScan(&dbds); err != nil {
+		pqErr, ok := err.(*pq.Error)
+		if err == sql.ErrNoRows || ok && errInvalid == pqErr.Code.Name() {
 			return datasets.Dataset{}, errors.Wrap(errors.ErrNotFound, err)
-
 		}
 		return datasets.Dataset{}, errors.Wrap(errors.ErrViewEntity, err)
 	}
 
-	return toDataset(d)
+	return toDataset(dbds)
 }
 
 func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datasets.PageMetadata) (datasets.Page, error) {
@@ -105,7 +105,7 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 		whereClause = fmt.Sprintf(" WHERE %s", strings.Join(query, " AND "))
 	}
 
-	q := `SELECT id, name, description, owner, size, type, created_at, 
+	q := `SELECT id, name, description, owner, created_at,
 	updated_at, location, format, metadata
 				FROM datasets %s
 				ORDER BY %s %s LIMIT :limit OFFSET :offset`
@@ -127,7 +127,7 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 
 	var items []datasets.Dataset
 	for rows.Next() {
-		dbds := dataset{Owner: owner}
+		dbds := dbDataset{Owner: owner}
 		if err := rows.StructScan(&dbds); err != nil {
 			return datasets.Page{}, errors.Wrap(errors.ErrViewEntity, err)
 		}
@@ -162,23 +162,24 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 }
 
 func (repo datasetRepo) Update(ctx context.Context, d datasets.Dataset) error {
-	q := `UPDATE datasets SET name = :name, metadata = :metadata, description = :description WHERE id = :id;`
-	dbds, err := todbDataset(d)
+	q := `UPDATE datasets SET name = :name, metadata = :metadata WHERE id = :id;`
+
+	dbdts, err := toDBDataset(d)
 	if err != nil {
 		return errors.Wrap(errors.ErrUpdateEntity, err)
 	}
-	fmt.Println(dbds)
-	res, errdb := repo.db.NamedExecContext(ctx, q, dbds)
+
+	res, errdb := repo.db.NamedExecContext(ctx, q, dbdts)
 	if errdb != nil {
 		pqErr, ok := errdb.(*pq.Error)
 		if ok {
 			switch pqErr.Code.Name() {
-			case errInvalidText, errDataTruncation:
+			case errInvalid, errTruncation:
 				return errors.Wrap(errors.ErrMalformedEntity, errdb)
 			}
 		}
-		return errors.Wrap(errors.ErrUpdateEntity, errdb)
 
+		return errors.Wrap(errors.ErrUpdateEntity, errdb)
 	}
 
 	cnt, errdb := res.RowsAffected()
@@ -196,7 +197,7 @@ func (repo datasetRepo) Update(ctx context.Context, d datasets.Dataset) error {
 func (repo datasetRepo) Delete(ctx context.Context, id string) error {
 	q := `DELETE FROM datasets WHERE id = :id`
 
-	ds := dataset{
+	ds := dbDataset{
 		ID: id,
 	}
 
@@ -226,63 +227,23 @@ func (repo datasetRepo) total(ctx context.Context, query string, params interfac
 	return total, nil
 }
 
-type dataset struct {
-	ID          string    `db:"id"`
-	Name        string    `db:"name"`
-	Description string    `db:"description"`
-	Owner       string    `db:"owner"`
-	Size        uint64    `db:"size"`
-	Type        string    `db:"type"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
-	Location    string    `db:"location"`
-	Format      string    `db:"format"`
-	Metadata    []byte    `db:"metadata"`
-}
-
-func toDataset(d dataset) (datasets.Dataset, error) {
+func toDataset(dbds dbDataset) (datasets.Dataset, error) {
 	var metadata map[string]interface{}
-	if d.Metadata != nil {
-		if err := json.Unmarshal([]byte(d.Metadata), &metadata); err != nil {
+	if dbds.Metadata != nil {
+		if err := json.Unmarshal([]byte(dbds.Metadata), &metadata); err != nil {
 			return datasets.Dataset{}, errors.Wrap(errors.ErrMalformedEntity, err)
 		}
 	}
 	ret := datasets.Dataset{
-		ID:          d.ID,
-		Name:        d.Name,
-		Description: d.Description,
-		Owner:       d.Owner,
-		Size:        d.Size,
-		Type:        d.Type,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
-		Location:    d.Location,
-		Format:      d.Format,
-		Metadata:    metadata,
-	}
-	return ret, nil
-}
-
-func fromDataset(d datasets.Dataset) (dataset, error) {
-	metadata := []byte("{}")
-	if len(d.Metadata) > 0 {
-		b, err := json.Marshal(d.Metadata)
-		if err != nil {
-			return dataset{}, errors.Wrap(errors.ErrMalformedEntity, err)
-		}
-		metadata = b
-	}
-	ret := dataset{
-		ID:          d.ID,
-		Name:        d.Name,
-		Description: d.Description,
-		Owner:       d.Owner,
-		Size:        d.Size,
-		Type:        d.Type,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
-		Location:    d.Location,
-		Format:      d.Format,
+		ID:          dbds.ID,
+		Name:        dbds.Name,
+		Description: dbds.Description.String,
+		Owner:       dbds.Owner,
+		Size:        dbds.Size,
+		CreatedAt:   dbds.CreatedAt,
+		UpdatedAt:   dbds.UpdatedAt,
+		Location:    dbds.Location,
+		Format:      dbds.Format,
 		Metadata:    metadata,
 	}
 	return ret, nil
@@ -330,21 +291,31 @@ func MetadataQuery(m datasets.Metadata) ([]byte, string, error) {
 	return mb, mq, nil
 }
 
-type dbDataset struct {
-	ID          string    `db:"id"`
-	Owner       string    `db:"owner"`
-	Name        string    `db:"name"`
-	Metadata    []byte    `db:"metadata"`
-	Description string    `db:"description"`
-	Size        uint64    `db:"size"`
-	Type        string    `db:"type"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
-	Location    string    `db:"location"`
-	Format      string    `db:"format"`
+func (repo datasetRepo) Remove(ctx context.Context, id string) error {
+	dbth := dbDataset{
+		ID: id,
+	}
+	q := `DELETE FROM datasets WHERE id = :id`
+	if _, err := repo.db.NamedExecContext(ctx, q, dbth); err != nil {
+		return errors.Wrap(errors.ErrRemoveEntity, err)
+	}
+	return nil
 }
 
-func todbDataset(ds datasets.Dataset) (dbDataset, error) {
+type dbDataset struct {
+	ID          string         `db:"id"`
+	Owner       string         `db:"owner"`
+	Name        string         `db:"name"`
+	Metadata    []byte         `db:"metadata"`
+	Description sql.NullString `db:"description"`
+	Size        uint64         `db:"size"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+	Location    string         `db:"location"`
+	Format      string         `db:"format"`
+}
+
+func toDBDataset(ds datasets.Dataset) (dbDataset, error) {
 	data := []byte("{}")
 	if len(ds.Metadata) > 0 {
 		b, err := json.Marshal(ds.Metadata)
@@ -358,7 +329,20 @@ func todbDataset(ds datasets.Dataset) (dbDataset, error) {
 		ID:          ds.ID,
 		Owner:       ds.Owner,
 		Name:        ds.Name,
-		Description: ds.Description,
+		Description: nullString(ds.Description),
 		Metadata:    data,
+		CreatedAt:   ds.CreatedAt,
+		UpdatedAt:   ds.UpdatedAt,
 	}, nil
+}
+
+func nullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+
+	return sql.NullString{
+		String: s,
+		Valid:  true,
+	}
 }

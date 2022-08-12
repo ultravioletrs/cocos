@@ -151,7 +151,7 @@ components:
       type: string
       format: uuid
       description: |
-        Thing key that is used for thing auth. If there is
+        Computation key that is used for computation auth. If there is
         not one provided service will generate one in UUID
         format.
     Identity:
@@ -160,7 +160,7 @@ components:
         id:
           type: string
           format: uuid
-          description: Thing unique identifier. This can be either
+          description: Computation unique identifier. This can be either
             provided by the user or left blank. If the user provides a UUID,
             it would be validated. If there is not one provided then
             the service will generate one in UUID format.
@@ -416,10 +416,10 @@ components:
               key:
                 type: string
                 format: uuid
-                description: Thing key that is used for thing auth.
+                description: Computation key that is used for computation auth.
   responses:
-    CreateThingRes:
-      description: Thing registered.
+    CreateComputationRes:
+      description: Computation registered.
       headers:
         Location:
           content:

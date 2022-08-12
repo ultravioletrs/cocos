@@ -12,19 +12,18 @@ var Migrations = &migrate.MemoryMigrationSource{
 			Id: "datasets_01",
 			Up: []string{
 				`CREATE TABLE IF NOT EXISTS datasets (
-						id       		UUID,
-						name                    VARCHAR(1025),
-						owner                   VARCHAR(255),
-						description             text,
-						created_at              TIMESTAMP,
-						updated_at              TIMESTAMP,
-						syze                	INT,
-						type                	VARCHAR(255),
-						location              	TEXT,
-						format       		VARCHAR(255),
-						metadata                JSON,
-						PRIMARY KEY (id, owner)
-						)`,
+                        id                      UUID,
+                        name                    VARCHAR(1025),
+                        owner                   VARCHAR(255),
+                        description             TEXT,
+                        created_at              TIMESTAMP,
+                        updated_at              TIMESTAMP,
+                        size                    INT,
+                        location                TEXT,
+                        format                  VARCHAR(255),
+                        metadata                JSON,
+                        PRIMARY KEY (id, owner)
+                        )`,
 			},
 			Down: []string{
 				"DROP TABLE datasets",

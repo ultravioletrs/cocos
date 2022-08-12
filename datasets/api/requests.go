@@ -1,42 +1,43 @@
 package api
 
-import "github.com/ultravioletrs/cocos/datasets"
+import (
+	"github.com/ultravioletrs/cocos/datasets"
+)
 
 type createReq struct {
 	dataset datasets.Dataset
-	token   string
 }
 
-func (req createReq) validate() error {
-	return req.dataset.Validate()
-}
-
-type listReq struct {
-	token string
-	meta  datasets.PageMetadata
-}
-
-func (req listReq) validate() error {
-	return nil
-}
-
-type viewReq struct {
-	token string
-	id    string
-}
-
-func (req viewReq) validate() error {
-	return nil
+type listResourcesReq struct {
+	owner        string
+	pageMetadata datasets.PageMetadata
 }
 
 type updateReq struct {
-	token       string
 	id          string
 	Name        string                 `json:"name,omitempty"`
 	Description string                 `json:"description,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
-func (req updateReq) validate() error {
+type uploadReq struct {
+	owner   string
+	token   string
+	id      string
+	Payload []byte
+}
+
+func (req uploadReq) validate() error {
 	return nil
+}
+
+type viewRequest struct {
+	id    string
+	owner string
+}
+
+type updateDatasetReq struct {
+	id       string
+	Name     string                 `json:"name,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }

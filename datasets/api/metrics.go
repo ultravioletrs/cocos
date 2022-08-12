@@ -25,42 +25,50 @@ func MetricsMiddleware(svc datasets.Service, counter metrics.Counter, latency me
 	}
 }
 
-func (ms *metricsMiddleware) CreateDataset(ctx context.Context, token string, dataset datasets.Dataset) (string, error) {
+func (ms *metricsMiddleware) CreateDataset(ctx context.Context, dts datasets.Dataset) (id string, err error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "create_dataset").Add(1)
 		ms.latency.With("method", "create_dataset").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return ms.svc.CreateDataset(ctx, token, dataset)
+	return ms.svc.CreateDataset(ctx, dts)
 }
 
-func (ms *metricsMiddleware) ViewDataset(ctx context.Context, token, id string) (datasets.Dataset, error) {
+func (ms *metricsMiddleware) ViewDataset(ctx context.Context, owner, id string) (datasets.Dataset, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "view_dataset").Add(1)
 		ms.latency.With("method", "view_dataset").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return ms.svc.ViewDataset(ctx, token, id)
+	return ms.svc.ViewDataset(ctx, owner, id)
 }
 
-func (ms *metricsMiddleware) ListDatasets(ctx context.Context, token string, meta datasets.PageMetadata) (page datasets.Page, err error) {
+func (ms *metricsMiddleware) ListDatasets(ctx context.Context, owner string, meta datasets.PageMetadata) (page datasets.Page, err error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "list_datasets").Add(1)
 		ms.latency.With("method", "list_datasets").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return ms.svc.ListDatasets(ctx, token, meta)
+	return ms.svc.ListDatasets(ctx, owner, meta)
 }
 
-func (ms *metricsMiddleware) UpdateDataset(ctx context.Context, token string, dataset datasets.Dataset) error {
+func (ms *metricsMiddleware) UpdateDataset(ctx context.Context, dataset datasets.Dataset) error {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "update_datasets").Add(1)
 		ms.latency.With("method", "update_datasets").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return ms.svc.UpdateDataset(ctx, token, dataset)
+	return ms.svc.UpdateDataset(ctx, dataset)
 }
 
-func (ms *metricsMiddleware) RemoveDataset(ctx context.Context, token, id string) error {
+func (ms *metricsMiddleware) UploadDataset(ctx context.Context, id, owner string, payload []byte) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "update_datasets").Add(1)
+		ms.latency.With("method", "update_datasets").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return ms.svc.UploadDataset(ctx, id, owner, payload)
+}
+
+func (ms *metricsMiddleware) RemoveDataset(ctx context.Context, id string) error {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "remove_dataset").Add(1)
 		ms.latency.With("method", "remove_dataset").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return ms.svc.RemoveDataset(ctx, token, id)
+	return ms.svc.RemoveDataset(ctx, id)
 }

@@ -3,10 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
@@ -20,15 +20,19 @@ import (
 )
 
 const (
-	contentType  = "application/json"
-	offsetKey    = "offset"
-	limitKey     = "limit"
-	orderKey     = "order"
-	dirKey       = "dir"
-	metadataKey  = "metadata"
-	defOffset    = 0
-	defLimit     = 10
-	bearerPrefix = "Bearer "
+	contentType         = "application/json"
+	offsetKey           = "offset"
+	nameKey             = "name"
+	limitKey            = "limit"
+	orderKey            = "order"
+	dirKey              = "dir"
+	metadataKey         = "metadata"
+	sharedKey           = "shared"
+	defOffset           = 0
+	defLimit            = 10
+	bearerPrefix        = "Bearer "
+	contentTypeJson     = "application/json"
+	contentTypeFormData = "multipart/form-data"
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
@@ -40,36 +44,43 @@ func MakeHandler(svc datasets.Service, tracer opentracing.Tracer, logger logger.
 	mux := bone.New()
 
 	mux.Post("/datasets", kithttp.NewServer(
-		kitot.TraceServer(tracer, "create_datasets")(createDatasetsEndpoint(svc)),
+		createDatasetsEndpoint(svc),
 		decodeCreateDatasets,
 		encodeResponse,
 		opts...,
 	))
 
 	mux.Get("/datasets", kithttp.NewServer(
-		kitot.TraceServer(tracer, "list_datasets")(listDatasetsEndpoint(svc)),
-		listDatasetsDataset,
+		listDatasetsEndpoint(svc),
+		decodeList,
 		encodeResponse,
 		opts...,
 	))
 
 	mux.Get("/datasets/:id", kithttp.NewServer(
-		kitot.TraceServer(tracer, "list_datasets")(viewDatasetsEndpoint(svc)),
-		viewDatasetsDataset,
+		viewDatasetsEndpoint(svc),
+		decodeView,
 		encodeResponse,
 		opts...,
 	))
 
 	mux.Put("/datasets/:id", kithttp.NewServer(
-		kitot.TraceServer(tracer, "list_datasets")(updateDatasetsEndpoint(svc)),
-		updateDatasetsDataset,
+		updateDatasetEndpoint(svc),
+		decodeUpdateDataset,
+		encodeResponse,
+		opts...,
+	))
+
+	mux.Patch("/datasets/payload/:id", kithttp.NewServer(
+		uploadDatasetEndpoint(svc),
+		decodeUploadDataset,
 		encodeResponse,
 		opts...,
 	))
 
 	mux.Delete("/datasets/:id", kithttp.NewServer(
-		kitot.TraceServer(tracer, "list_datasets")(removeDatasetsEndpoint(svc)),
-		viewDatasetsDataset,
+		removeDatasetEndpoint(svc),
+		decodeView,
 		encodeResponse,
 		opts...,
 	))
@@ -81,9 +92,7 @@ func MakeHandler(svc datasets.Service, tracer opentracing.Tracer, logger logger.
 }
 
 func decodeCreateDatasets(_ context.Context, r *http.Request) (interface{}, error) {
-	req := createReq{
-		token: extractBearerToken(r),
-	}
+	req := createReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req.dataset); err != nil {
 		return nil, errors.Wrap(errors.ErrMalformedEntity, err)
 	}
@@ -91,13 +100,18 @@ func decodeCreateDatasets(_ context.Context, r *http.Request) (interface{}, erro
 	return req, nil
 }
 
-func listDatasetsDataset(_ context.Context, r *http.Request) (interface{}, error) {
+func decodeList(_ context.Context, r *http.Request) (interface{}, error) {
 	o, err := apiutil.ReadUintQuery(r, offsetKey, defOffset)
 	if err != nil {
 		return nil, err
 	}
 
 	l, err := apiutil.ReadUintQuery(r, limitKey, defLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := apiutil.ReadStringQuery(r, nameKey, "")
 	if err != nil {
 		return nil, err
 	}
@@ -116,41 +130,64 @@ func listDatasetsDataset(_ context.Context, r *http.Request) (interface{}, error
 	if err != nil {
 		return nil, err
 	}
-	req := listReq{
+	shared, err := apiutil.ReadBoolQuery(r, sharedKey, false)
+	if err != nil {
+		return nil, err
+	}
 
-		token: extractBearerToken(r),
-		meta: datasets.PageMetadata{
-			Offset:   o,
-			Limit:    l,
-			Order:    or,
-			Dir:      d,
-			Metadata: m,
+	req := listResourcesReq{
+		pageMetadata: datasets.PageMetadata{
+			Offset:              o,
+			Limit:               l,
+			Name:                n,
+			Order:               or,
+			Dir:                 d,
+			Metadata:            m,
+			FetchSharedDatasets: shared,
 		},
 	}
 
 	return req, nil
 }
 
-func viewDatasetsDataset(_ context.Context, r *http.Request) (interface{}, error) {
-	req := viewReq{
-		token: extractBearerToken(r),
-		id:    bone.GetValue(r, "id"),
+func decodeView(_ context.Context, r *http.Request) (interface{}, error) {
+	req := viewRequest{
+		id: bone.GetValue(r, "id"),
 	}
 	return req, nil
 }
 
-func updateDatasetsDataset(_ context.Context, r *http.Request) (interface{}, error) {
+func decodeUpdateDataset(_ context.Context, r *http.Request) (interface{}, error) {
 	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
 		return nil, errors.ErrUnsupportedContentType
 	}
 
 	req := updateReq{
-		token: extractBearerToken(r),
-		id:    bone.GetValue(r, "id"),
+		id: bone.GetValue(r, "id"),
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, errors.Wrap(errors.ErrMalformedEntity, err)
+	}
+
+	return req, nil
+}
+
+func decodeUploadDataset(_ context.Context, r *http.Request) (interface{}, error) {
+	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
+		return nil, errors.ErrUnsupportedContentType
+	}
+
+	payload, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, errors.ErrMalformedEntity
+	}
+	defer r.Body.Close()
+
+	req := uploadReq{
+		token:   extractBearerToken(r),
+		id:      bone.GetValue(r, "id"),
+		Payload: payload,
 	}
 
 	return req, nil

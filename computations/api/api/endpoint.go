@@ -14,12 +14,12 @@ func create(svc computations.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return createRes{}, err
 		}
-		uid, err := svc.CreateComputation(ctx, req.token, req.computation)
+		cid, err := svc.CreateComputation(ctx, req.token, req.computation)
 		if err != nil {
 			return createRes{}, err
 		}
 		ret := createRes{
-			ID:      uid,
+			ID:      cid,
 			created: true,
 		}
 		return ret, nil
