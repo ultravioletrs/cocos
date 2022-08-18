@@ -1,25 +1,40 @@
-name: Go
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
 
-  build:
-    runs-on: ubuntu-latest
+  ci:
+    strategy:
+      matrix:
+        go-version: [1.17.x, 1.18.x, 1.19.x]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
 
-    - name: Set up Go
+    - name: Install Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: ${{ matrix.go-version }}
 
+    - name: Checkout code
+      uses: actions/checkout@v2
+    
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --no-config --disable-all --enable gosimple --enable govet --enable unused --enable deadcode --timeout 3m
+  
     - name: Build
       run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
+    
+    - name: Run tests
+      run: go test -mod=vendor -v --race -covermode=atomic -coverprofile cover.out ./...
