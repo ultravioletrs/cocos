@@ -7,12 +7,6 @@ import (
 	"github.com/ultravioletrs/cocos/computations"
 )
 
-type pageRes struct {
-	Total  uint64 `json:"total"`
-	Offset uint64 `json:"offset"`
-	Limit  uint64 `json:"limit"`
-}
-
 type createRes struct {
 	ID      string
 	created bool

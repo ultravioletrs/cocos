@@ -20,19 +20,17 @@ import (
 )
 
 const (
-	contentType         = "application/json"
-	offsetKey           = "offset"
-	nameKey             = "name"
-	limitKey            = "limit"
-	orderKey            = "order"
-	dirKey              = "dir"
-	metadataKey         = "metadata"
-	sharedKey           = "shared"
-	defOffset           = 0
-	defLimit            = 10
-	bearerPrefix        = "Bearer "
-	contentTypeJson     = "application/json"
-	contentTypeFormData = "multipart/form-data"
+	contentType  = "application/json"
+	offsetKey    = "offset"
+	nameKey      = "name"
+	limitKey     = "limit"
+	orderKey     = "order"
+	dirKey       = "dir"
+	metadataKey  = "metadata"
+	sharedKey    = "shared"
+	defOffset    = 0
+	defLimit     = 10
+	bearerPrefix = "Bearer "
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.

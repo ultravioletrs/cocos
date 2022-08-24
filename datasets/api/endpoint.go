@@ -58,9 +58,7 @@ func listDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 			},
 			Datasets: []datasets.Dataset{},
 		}
-		for _, ds := range page.Datasets {
-			res.Datasets = append(res.Datasets, ds)
-		}
+		res.Datasets = append(res.Datasets, page.Datasets...)
 
 		return res, nil
 	}

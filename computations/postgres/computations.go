@@ -313,15 +313,6 @@ func getOrderQuery(order string) string {
 	}
 }
 
-func getConnOrderQuery(order string, level string) string {
-	switch order {
-	case "name":
-		return level + ".name"
-	default:
-		return level + ".id"
-	}
-}
-
 func getDirQuery(dir string) string {
 	switch dir {
 	case "asc":

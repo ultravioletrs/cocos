@@ -15,11 +15,9 @@ import (
 )
 
 const (
-	errInvalidText    = "invalid_text_representation"
-	errDataTruncation = "string_data_right_truncation"
-	errDuplicate      = "unique_violation"
-	errInvalid        = "invalid_text_representation"
-	errTruncation     = "string_data_right_truncation"
+	errDuplicate  = "unique_violation"
+	errInvalid    = "invalid_text_representation"
+	errTruncation = "string_data_right_truncation"
 )
 
 var _ datasets.DatasetRepository = (*datasetRepo)(nil)

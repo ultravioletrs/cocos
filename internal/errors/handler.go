@@ -12,7 +12,7 @@ import (
 
 func Handle(svcName string, l log.Logger, ctx context.Context, cancel context.CancelFunc) func() error {
 	return func() error {
-		c := make(chan os.Signal)
+		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGABRT)
 		select {
 		case sig := <-c:
