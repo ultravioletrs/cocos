@@ -44,12 +44,11 @@ const (
 	defServerCert    = ""
 	defServerKey     = ""
 
-	defJaegerURL      = ""
-	defAuthTLS        = "false"
-	defAuthCACerts    = ""
-	defAuthURL        = "localhost:8181"
-	defClientsGrpcURL = "clients:9192"
-	defAuthTimeout    = "1s"
+	defJaegerURL   = ""
+	defAuthTLS     = "false"
+	defAuthCACerts = ""
+	defAuthURL     = "localhost:8181"
+	defAuthTimeout = "1s"
 
 	envLogLevel      = "COCOS_COMPUTATIONS_LOG_LEVEL"
 	envDBHost        = "COCOS_COMPUTATIONS_DB_HOST"
