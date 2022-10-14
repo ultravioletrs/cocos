@@ -57,11 +57,16 @@ type csdk struct {
 	mf              mfx.SDK
 }
 
-func NewSDK(URL string, mf mfx.SDK) SDK {
+type Config struct {
+	datasetsURL     string
+	computationsURL string
+}
+
+func NewSDK(conf Config, mf mfx.SDK) SDK {
 	return csdk{
 		mf:              mf,
-		computationsURL: URL,
-		datasetsURL:     URL,
+		computationsURL: conf.computationsURL,
+		datasetsURL:     conf.datasetsURL,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{

@@ -32,7 +32,7 @@ const (
 	defDBSSLCert     = ""
 	defDBSSLKey      = ""
 	defDBSSLRootCert = ""
-	defHTTPPort      = "9000"
+	defHTTPPort      = "9001"
 	defServerCert    = ""
 	defServerKey     = ""
 
