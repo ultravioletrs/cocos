@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const datasetsEndpoint = "datasets"
+
 type Dataset struct {
 	ID          string                 `json:"id,omitempty" db:"id"`
 	Name        string                 `json:"name,omitempty" db:"name"`

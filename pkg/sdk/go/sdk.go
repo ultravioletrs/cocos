@@ -3,18 +3,11 @@ package sdk
 import (
 	"crypto/tls"
 	"net/http"
-
-	mfx "github.com/mainflux/mainflux/pkg/sdk/go"
 )
 
 type ContentType string
 
 const ctJSON ContentType = "application/json"
-
-const (
-	computationsEndpoint = "computations"
-	datasetsEndpoint     = "datasets"
-)
 
 var _ SDK = (*csdk)(nil)
 
@@ -54,7 +47,6 @@ type csdk struct {
 	datasetsURL     string
 	computationsURL string
 	client          *http.Client
-	mf              mfx.SDK
 }
 
 type Config struct {
@@ -62,9 +54,8 @@ type Config struct {
 	computationsURL string
 }
 
-func NewSDK(conf Config, mf mfx.SDK) SDK {
+func NewSDK(conf Config) SDK {
 	return csdk{
-		mf:              mf,
 		computationsURL: conf.computationsURL,
 		datasetsURL:     conf.datasetsURL,
 		client: &http.Client{

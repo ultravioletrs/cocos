@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const computationsEndpoint = "computations"
+
 // Computation represents a Computation entity
 type Computation struct {
 	Name               string                 `json:"name,omitempty"`
