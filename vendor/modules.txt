@@ -4,8 +4,6 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.2
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/fxamacker/cbor/v2 v2.4.0
-## explicit; go 1.12
 # github.com/go-gorp/gorp/v3 v3.0.2
 ## explicit; go 1.13
 github.com/go-gorp/gorp/v3
@@ -56,8 +54,6 @@ github.com/mainflux/mainflux
 github.com/mainflux/mainflux/logger
 github.com/mainflux/mainflux/pkg/errors
 github.com/mainflux/mainflux/pkg/uuid
-# github.com/mainflux/senml v1.5.0
-## explicit; go 1.13
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 ## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil
@@ -122,8 +118,6 @@ github.com/uber/jaeger-lib/metrics
 github.com/ultravioletrs/clients
 github.com/ultravioletrs/clients/api/grpc
 github.com/ultravioletrs/clients/internal/apiutil
-# github.com/x448/float16 v0.8.4
-## explicit; go 1.11
 # go.uber.org/atomic v1.9.0
 ## explicit; go 1.13
 go.uber.org/atomic

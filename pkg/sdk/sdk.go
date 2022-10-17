@@ -49,15 +49,17 @@ type csdk struct {
 	client          *http.Client
 }
 
+// Config represents the SDK configuration.
 type Config struct {
-	datasetsURL     string
-	computationsURL string
+	DatasetsURL     string
+	ComputationsURL string
 }
 
+// NewSDK creates a new CoCoS SDK instance.
 func NewSDK(conf Config) SDK {
 	return csdk{
-		computationsURL: conf.computationsURL,
-		datasetsURL:     conf.datasetsURL,
+		computationsURL: conf.ComputationsURL,
+		datasetsURL:     conf.DatasetsURL,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
