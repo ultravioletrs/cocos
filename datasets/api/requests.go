@@ -6,6 +6,7 @@ import (
 
 type createReq struct {
 	dataset datasets.Dataset
+	token   string
 }
 
 type listResourcesReq struct {
@@ -34,10 +35,4 @@ func (req uploadReq) validate() error {
 type viewRequest struct {
 	id    string
 	owner string
-}
-
-type updateDatasetReq struct {
-	id       string
-	Name     string                 `json:"name,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }

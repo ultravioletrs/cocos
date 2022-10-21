@@ -90,7 +90,9 @@ func MakeHandler(svc datasets.Service, tracer opentracing.Tracer, logger logger.
 }
 
 func decodeCreateDatasets(_ context.Context, r *http.Request) (interface{}, error) {
-	req := createReq{}
+	req := createReq{
+		token: extractBearerToken(r),
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req.dataset); err != nil {
 		return nil, errors.Wrap(errors.ErrMalformedEntity, err)
 	}

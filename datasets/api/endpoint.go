@@ -10,12 +10,13 @@ import (
 func createDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createReq)
+
 		id, err := svc.CreateDataset(ctx, req.dataset)
 		if err != nil {
 			return createRes{}, err
 		}
 
-		res := datasetRes{
+		res := createRes{
 			ID:      id,
 			created: true,
 		}
@@ -66,19 +67,20 @@ func listDatasetsEndpoint(svc datasets.Service) endpoint.Endpoint {
 
 func updateDatasetEndpoint(svc datasets.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(updateDatasetReq)
+		req := request.(updateReq)
 
 		dataset := datasets.Dataset{
-			ID:       req.id,
-			Name:     req.Name,
-			Metadata: req.Metadata,
+			ID:          req.id,
+			Name:        req.Name,
+			Description: req.Description,
+			Metadata:    req.Metadata,
 		}
 
 		if err := svc.UpdateDataset(ctx, dataset); err != nil {
 			return nil, err
 		}
 
-		res := datasetRes{ID: req.id, created: false}
+		res := createRes{ID: req.id, created: false}
 		return res, nil
 	}
 }
@@ -95,7 +97,7 @@ func uploadDatasetEndpoint(svc datasets.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		res := datasetRes{ID: req.id, created: false}
+		res := createRes{ID: req.id, created: false}
 		return res, nil
 	}
 }

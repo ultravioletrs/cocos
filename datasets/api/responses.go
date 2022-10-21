@@ -7,19 +7,6 @@ import (
 	"github.com/ultravioletrs/cocos/datasets"
 )
 
-type datasetRes struct {
-	ID      string `json:"id"`
-	created bool
-}
-
-func (res datasetRes) Code() int {
-	if res.created {
-		return http.StatusCreated
-	}
-
-	return http.StatusOK
-}
-
 type createRes struct {
 	ID      string
 	created bool
@@ -65,7 +52,7 @@ func (res removeRes) Empty() bool {
 }
 
 type viewRes struct {
-	datasets.Dataset `json:"dataset,omitempty"`
+	datasets.Dataset
 }
 
 func (res viewRes) Code() int {

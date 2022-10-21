@@ -68,7 +68,7 @@ func (repo computationRepo) View(ctx context.Context, id string) (computations.C
 				FROM computations
 				WHERE id = $1`
 
-	c := computation{
+	c := dbComputation{
 		ID: id,
 	}
 
@@ -127,7 +127,7 @@ func (repo computationRepo) RetrieveAll(ctx context.Context, owner string, pm co
 
 	var items []computations.Computation
 	for rows.Next() {
-		dbc := computation{Owner: owner}
+		dbc := dbComputation{Owner: owner}
 		if err := rows.StructScan(&dbc); err != nil {
 			return computations.Page{}, errors.Wrap(errors.ErrViewEntity, err)
 		}
@@ -162,13 +162,11 @@ func (repo computationRepo) RetrieveAll(ctx context.Context, owner string, pm co
 }
 
 func (repo computationRepo) Update(ctx context.Context, c computations.Computation) error {
-	fmt.Println("UPDATING_COMPUTATION", c)
 	q := `UPDATE computations SET name = :name, metadata = :metadata, description = :description WHERE id = :id;`
 	dbcpt, err := toDBComputation(c)
 	if err != nil {
 		return errors.Wrap(errors.ErrUpdateEntity, err)
 	}
-	fmt.Println(dbcpt)
 	res, errdb := repo.db.NamedExecContext(ctx, q, dbcpt)
 	if errdb != nil {
 		pqErr, ok := errdb.(*pq.Error)
@@ -197,7 +195,7 @@ func (repo computationRepo) Update(ctx context.Context, c computations.Computati
 func (repo computationRepo) Delete(ctx context.Context, id string) error {
 	q := `DELETE FROM computations WHERE id = :id`
 
-	c := computation{
+	c := dbComputation{
 		ID: id,
 	}
 
@@ -227,7 +225,7 @@ func (repo computationRepo) total(ctx context.Context, query string, params inte
 	return total, nil
 }
 
-type computation struct {
+type dbComputation struct {
 	ID                 string         `db:"id"`
 	Name               string         `db:"name"`
 	Description        string         `db:"description"`
@@ -243,7 +241,7 @@ type computation struct {
 	Metadata           []byte         `db:"metadata"`
 }
 
-func toComputation(c computation) (computations.Computation, error) {
+func toComputation(c dbComputation) (computations.Computation, error) {
 	var metadata map[string]interface{}
 	if c.Metadata != nil {
 		if err := json.Unmarshal([]byte(c.Metadata), &metadata); err != nil {
@@ -268,16 +266,16 @@ func toComputation(c computation) (computations.Computation, error) {
 	return ret, nil
 }
 
-func fromComputation(c computations.Computation) (computation, error) {
+func fromComputation(c computations.Computation) (dbComputation, error) {
 	metadata := []byte("{}")
 	if len(c.Metadata) > 0 {
 		b, err := json.Marshal(c.Metadata)
 		if err != nil {
-			return computation{}, errors.Wrap(errors.ErrMalformedEntity, err)
+			return dbComputation{}, errors.Wrap(errors.ErrMalformedEntity, err)
 		}
 		metadata = b
 	}
-	ret := computation{
+	ret := dbComputation{
 		ID:                 c.ID,
 		Name:               c.Name,
 		Description:        c.Description,
@@ -335,14 +333,6 @@ func getMetadataQuery(m computations.Metadata) ([]byte, string, error) {
 		mb = b
 	}
 	return mb, mq, nil
-}
-
-type dbComputation struct {
-	ID          string `db:"id"`
-	Owner       string `db:"owner"`
-	Name        string `db:"name"`
-	Description string `db:"description"`
-	Metadata    []byte `db:"metadata"`
 }
 
 func toDBComputation(cpt computations.Computation) (dbComputation, error) {

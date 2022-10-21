@@ -37,7 +37,7 @@ func (repo datasetRepo) Save(ctx context.Context, dataset datasets.Dataset) (str
 	q := `INSERT INTO datasets (id, owner, name, metadata, description, format, location, created_at, updated_at)
 		  VALUES (:id, :owner, :name, :metadata, :description, :format, :location, :created_at, :updated_at) RETURNING id;`
 
-	ds, err := toDBDataset(dataset)
+	ds, err := fromDataset(dataset)
 	if err != nil {
 		return "", errors.Wrap(errors.ErrCreateEntity, err)
 	}
@@ -103,7 +103,7 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 		whereClause = fmt.Sprintf(" WHERE %s", strings.Join(query, " AND "))
 	}
 
-	q := `SELECT id, name, description, owner, created_at,
+	q := `SELECT id, name, COALESCE(description, '') AS description, owner, created_at,
 	updated_at, location, format, metadata
 				FROM datasets %s
 				ORDER BY %s %s LIMIT :limit OFFSET :offset`
@@ -125,19 +125,17 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 
 	var items []datasets.Dataset
 	for rows.Next() {
-		dbds := dbDataset{Owner: owner}
-		if err := rows.StructScan(&dbds); err != nil {
+		dbd := dbDataset{Owner: owner}
+		if err := rows.StructScan(&dbd); err != nil {
 			return datasets.Page{}, errors.Wrap(errors.ErrViewEntity, err)
 		}
 
-		ds, err := toDataset(dbds)
+		ds, err := toDataset(dbd)
 		if err != nil {
 			return datasets.Page{}, err
 		}
-
 		items = append(items, ds)
 	}
-
 	cq := fmt.Sprintf(`SELECT COUNT(*) FROM datasets %s;`, whereClause)
 
 	total, err := repo.total(ctx, cq, params)
@@ -155,18 +153,16 @@ func (repo datasetRepo) RetrieveAll(ctx context.Context, owner string, pm datase
 			Dir:    pm.Dir,
 		},
 	}
-
 	return page, nil
 }
 
 func (repo datasetRepo) Update(ctx context.Context, d datasets.Dataset) error {
-	q := `UPDATE datasets SET name = :name, metadata = :metadata WHERE id = :id;`
+	q := `UPDATE datasets SET name = :name, metadata = :metadata, description = :description WHERE id = :id;`
 
 	dbdts, err := toDBDataset(d)
 	if err != nil {
 		return errors.Wrap(errors.ErrUpdateEntity, err)
 	}
-
 	res, errdb := repo.db.NamedExecContext(ctx, q, dbdts)
 	if errdb != nil {
 		pqErr, ok := errdb.(*pq.Error)
@@ -225,24 +221,67 @@ func (repo datasetRepo) total(ctx context.Context, query string, params interfac
 	return total, nil
 }
 
-func toDataset(dbds dbDataset) (datasets.Dataset, error) {
+type dbDataset struct {
+	ID          string    `db:"id"`
+	Token       string    `db:"token"`
+	Name        string    `db:"name"`
+	Description string    `db:"description"`
+	Owner       string    `db:"owner"`
+	Size        uint64    `db:"size"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+	Location    string    `db:"location"`
+	Format      string    `db:"format"`
+	Metadata    []byte    `db:"metadata"`
+	Path        string    `db:"path"`
+}
+
+func toDataset(d dbDataset) (datasets.Dataset, error) {
 	var metadata map[string]interface{}
-	if dbds.Metadata != nil {
-		if err := json.Unmarshal([]byte(dbds.Metadata), &metadata); err != nil {
+	if d.Metadata != nil {
+		if err := json.Unmarshal([]byte(d.Metadata), &metadata); err != nil {
 			return datasets.Dataset{}, errors.Wrap(errors.ErrMalformedEntity, err)
 		}
 	}
 	ret := datasets.Dataset{
-		ID:          dbds.ID,
-		Name:        dbds.Name,
-		Description: dbds.Description.String,
-		Owner:       dbds.Owner,
-		Size:        dbds.Size,
-		CreatedAt:   dbds.CreatedAt,
-		UpdatedAt:   dbds.UpdatedAt,
-		Location:    dbds.Location,
-		Format:      dbds.Format,
+		ID:          d.ID,
+		Token:       d.Token,
+		Name:        d.Name,
+		Description: d.Description,
+		Owner:       d.Owner,
+		Size:        d.Size,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
+		Location:    d.Location,
+		Format:      d.Format,
 		Metadata:    metadata,
+		Path:        d.Path,
+	}
+	return ret, nil
+}
+
+func fromDataset(d datasets.Dataset) (dbDataset, error) {
+	metadata := []byte("{}")
+	if len(d.Metadata) > 0 {
+		b, err := json.Marshal(d.Metadata)
+		if err != nil {
+			return dbDataset{}, errors.Wrap(errors.ErrMalformedEntity, err)
+		}
+		metadata = b
+	}
+	ret := dbDataset{
+		ID:          d.ID,
+		Token:       d.Token,
+		Name:        d.Name,
+		Description: d.Description,
+		Owner:       d.Owner,
+		Size:        d.Size,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
+		Location:    d.Location,
+		Format:      d.Format,
+		Metadata:    metadata,
+		Path:        d.Path,
 	}
 	return ret, nil
 }
@@ -300,19 +339,6 @@ func (repo datasetRepo) Remove(ctx context.Context, id string) error {
 	return nil
 }
 
-type dbDataset struct {
-	ID          string         `db:"id"`
-	Owner       string         `db:"owner"`
-	Name        string         `db:"name"`
-	Metadata    []byte         `db:"metadata"`
-	Description sql.NullString `db:"description"`
-	Size        uint64         `db:"size"`
-	CreatedAt   time.Time      `db:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at"`
-	Location    string         `db:"location"`
-	Format      string         `db:"format"`
-}
-
 func toDBDataset(ds datasets.Dataset) (dbDataset, error) {
 	data := []byte("{}")
 	if len(ds.Metadata) > 0 {
@@ -327,20 +353,8 @@ func toDBDataset(ds datasets.Dataset) (dbDataset, error) {
 		ID:          ds.ID,
 		Owner:       ds.Owner,
 		Name:        ds.Name,
-		Description: nullString(ds.Description),
+		Description: ds.Description,
 		Metadata:    data,
-		CreatedAt:   ds.CreatedAt,
-		UpdatedAt:   ds.UpdatedAt,
+		Size:        ds.Size,
 	}, nil
-}
-
-func nullString(s string) sql.NullString {
-	if s == "" {
-		return sql.NullString{}
-	}
-
-	return sql.NullString{
-		String: s,
-		Valid:  true,
-	}
 }
