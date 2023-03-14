@@ -18,7 +18,7 @@ import (
 	"github.com/mainflux/mainflux"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	cckit "github.com/ultravioletrs/cocosvm/agent"
+	"github.com/ultravioletrs/cocosvm/agent"
 )
 
 const (
@@ -31,7 +31,7 @@ var (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(tracer opentracing.Tracer, svc cckit.Service) http.Handler {
+func MakeHandler(tracer opentracing.Tracer, svc agent.Service) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeError),
 	}
@@ -86,9 +86,9 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", contentType)
 
 	switch err {
-	case cckit.ErrMalformedEntity:
+	case agent.ErrMalformedEntity:
 		w.WriteHeader(http.StatusBadRequest)
-	case cckit.ErrUnauthorizedAccess:
+	case agent.ErrUnauthorizedAccess:
 		w.WriteHeader(http.StatusForbidden)
 	case errUnsupportedContentType:
 		w.WriteHeader(http.StatusUnsupportedMediaType)

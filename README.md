@@ -9,7 +9,7 @@ Copy `mfxkit` directory to the `mainflux` root directory, e.g. `~/go/src/github.
 In `mainflux` root directory run
 
 ```
-MF_MFXKIT_LOG_LEVEL=info go run cmd/mfxkit/main.go
+CC_MFXKIT_LOG_LEVEL=info go run cmd/mfxkit/main.go
 ```
 
 You should get a message similar to this one
@@ -38,7 +38,7 @@ Content-Length: 30
 To change the secret or the port, prefix the `go run` command with environment variable assignments, e.g.
 
 ```
-MF_MFXKIT_LOG_LEVEL=info MF_MFXKIT_SECRET=secret2 MF_MFXKIT_HTTP_PORT=9022 go run cmd/mfxkit/main.go
+CC_MFXKIT_LOG_LEVEL=info CC_MFXKIT_SECRET=secret2 CC_MFXKIT_HTTP_PORT=9022 go run cmd/mfxkit/main.go
 ```
 
 To see the change in action, run

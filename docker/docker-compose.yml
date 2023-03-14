@@ -13,18 +13,18 @@ networks:
     external: true
 
 services:
-  mfxkit:
-    image: mainflux/mfxkit:latest
-    container_name: mainflux-mfxkit
+  agent:
+    image: mainflux/agent:latest
+    container_name: mainflux-agent
     restart: on-failure
     environment:
-      MF_MFXKIT_LOG_LEVEL: ${MF_MFXKIT_LOG_LEVEL}
-      MF_MFXKIT_HTTP_PORT: ${MF_MFXKIT_HTTP_PORT}
-      MF_MFXKIT_SERVER_CERT: ${MF_MFXKIT_SERVER_CERT}
-      MF_MFXKIT_SERVER_KEY: ${MF_MFXKIT_SERVER_KEY}
-      MF_JAEGER_URL: ${MF_JAEGER_URL}
-      MF_MFXKIT_SECRET: ${MF_MFXKIT_SECRET}
+      CC_AGENT_LOG_LEVEL: ${CC_AGENT_LOG_LEVEL}
+      CC_AGENT_HTTP_PORT: ${CC_AGENT_HTTP_PORT}
+      CC_AGENT_SERVER_CERT: ${CC_AGENT_SERVER_CERT}
+      CC_AGENT_SERVER_KEY: ${CC_AGENT_SERVER_KEY}
+      CC_JAEGER_URL: ${CC_JAEGER_URL}
+      CC_AGENT_SECRET: ${CC_AGENT_SECRET}
     ports:
-      - ${MF_MFXKIT_HTTP_PORT}:${MF_MFXKIT_HTTP_PORT}
+      - ${CC_AGENT_HTTP_PORT}:${CC_AGENT_HTTP_PORT}
     networks:
       - docker_mainflux-base-net
