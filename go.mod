@@ -3,6 +3,7 @@ module github.com/ultravioletrs/cocosvm
 go 1.19
 
 require (
+	github.com/digitalocean/go-libvirt v0.0.0-20221205150000-2939327a8519
 	github.com/go-kit/kit v0.12.0
 	github.com/go-zoo/bone v1.3.0
 	github.com/mainflux/mainflux v0.12.0
@@ -25,8 +26,8 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 // indirect
 	google.golang.org/grpc v1.40.0 // indirect

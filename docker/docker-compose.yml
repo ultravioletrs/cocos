@@ -13,18 +13,18 @@ networks:
     external: true
 
 services:
-  agent:
-    image: mainflux/agent:latest
-    container_name: mainflux-agent
+  manager:
+    image: mainflux/manager:latest
+    container_name: mainflux-manager
     restart: on-failure
     environment:
-      CC_AGENT_LOG_LEVEL: ${CC_AGENT_LOG_LEVEL}
-      CC_AGENT_HTTP_PORT: ${CC_AGENT_HTTP_PORT}
-      CC_AGENT_SERVER_CERT: ${CC_AGENT_SERVER_CERT}
-      CC_AGENT_SERVER_KEY: ${CC_AGENT_SERVER_KEY}
+      CC_MANAGER_LOG_LEVEL: ${CC_MANAGER_LOG_LEVEL}
+      CC_MANAGER_HTTP_PORT: ${CC_MANAGER_HTTP_PORT}
+      CC_MANAGER_SERVER_CERT: ${CC_MANAGER_SERVER_CERT}
+      CC_MANAGER_SERVER_KEY: ${CC_MANAGER_SERVER_KEY}
       CC_JAEGER_URL: ${CC_JAEGER_URL}
-      CC_AGENT_SECRET: ${CC_AGENT_SECRET}
+      CC_MANAGER_SECRET: ${CC_MANAGER_SECRET}
     ports:
-      - ${CC_AGENT_HTTP_PORT}:${CC_AGENT_HTTP_PORT}
+      - ${CC_MANAGER_HTTP_PORT}:${CC_MANAGER_HTTP_PORT}
     networks:
       - docker_mainflux-base-net
