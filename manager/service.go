@@ -42,22 +42,14 @@ func New(secret string, libvirtConn *libvirt.Libvirt) Service {
 }
 
 func (ks *managerService) Ping(secret string) (string, error) {
+	dom, err := createDomain(ks.libvirt, poolXML, volXML, domXML)
+	if err != nil {
+		return "", ErrMalformedEntity
+	}
+	_ = dom
+
 	if ks.secret != secret {
 		return "", ErrUnauthorizedAccess
 	}
 	return "Hello World :)", nil
-}
-
-func (ks *managerService) CreateDomain(XML string) (libvirt.Domain, error) {
-	dom, err := ks.libvirt.DomainDefineXMLFlags(XML, 0)
-	if err != nil {
-		return libvirt.Domain{}, err
-	}
-
-	err = ks.libvirt.DomainCreate(dom)
-	if err != nil {
-		return libvirt.Domain{}, err
-	}
-
-	return dom, nil
 }

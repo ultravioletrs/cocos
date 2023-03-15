@@ -46,3 +46,18 @@ To see the change in action, run
 ```
 curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"secret":"secret2"}'
 ```
+
+## cURL
+```sh
+curl -i -X POST -H "Content-Type: application/json" localhost:9021/mfxkit -d '{"secret":"secret"}'
+```
+
+## Virsh
+
+```sh
+virsh undefine QEmu-alpine-standard-x86_64
+virsh shutdown QEmu-alpine-standard-x86_64
+virsh destroy QEmu-alpine-standard-x86_64
+rm -rf ~/go/src/github.com/ultravioletrs/cocosvm/cmd/manager/img/boot.img
+virsh pool-destroy --pool virtimages
+```
