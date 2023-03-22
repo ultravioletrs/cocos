@@ -1,0 +1,6 @@
+<pool type="dir">
+<name>virtimages</name>
+<target>
+  <path>/home/darko/go/src/github.com/ultravioletrs/cocosvm/cmd/manager/img</path>
+</target>
+</pool>

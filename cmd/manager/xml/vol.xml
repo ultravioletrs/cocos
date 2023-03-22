@@ -1,0 +1,14 @@
+<volume>
+<name>boot.img</name>
+<allocation>0</allocation>
+<capacity unit="T">1</capacity>
+<target>
+  <path>/home/darko/go/src/github.com/ultravioletrs/cocosvm/cmd/manager/img/boot.img</path>
+  <permissions>
+	<owner>107</owner>
+	<group>107</group>
+	<mode>0744</mode>
+	<label>virt_image_t</label>
+  </permissions>
+</target>
+</volume>

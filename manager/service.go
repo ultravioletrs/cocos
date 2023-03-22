@@ -5,8 +5,15 @@ package manager
 
 import (
 	"errors"
+	"os"
 
 	"github.com/digitalocean/go-libvirt"
+)
+
+const (
+	poolXML = "xml/pool.xml"
+	volXML  = "xml/vol.xml"
+	domXML  = "xml/dom.xml"
 )
 
 var (
@@ -17,6 +24,9 @@ var (
 	// ErrUnauthorizedAccess indicates missing or invalid credentials provided
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
+
+	// ErrNotFound indicates a non-existent entity request.
+	ErrNotFound = errors.New("entity not found")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -42,7 +52,25 @@ func New(secret string, libvirtConn *libvirt.Libvirt) Service {
 }
 
 func (ks *managerService) Ping(secret string) (string, error) {
-	dom, err := createDomain(ks.libvirt, poolXML, volXML, domXML)
+	bytes, err := os.ReadFile(poolXML)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	poolStr := string(bytes)
+
+	bytes, err = os.ReadFile(volXML)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	volStr := string(bytes)
+
+	bytes, err = os.ReadFile(domXML)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	domStr := string(bytes)
+
+	dom, err := createDomain(ks.libvirt, poolStr, volStr, domStr)
 	if err != nil {
 		return "", ErrMalformedEntity
 	}
