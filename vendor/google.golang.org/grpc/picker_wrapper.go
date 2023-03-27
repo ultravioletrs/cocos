@@ -25,8 +25,8 @@ import (
 
 	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/internal/channelz"
+	istatus "google.golang.org/grpc/internal/status"
 	"google.golang.org/grpc/internal/transport"
 	"google.golang.org/grpc/status"
 )
@@ -130,9 +130,13 @@ func (pw *pickerWrapper) pick(ctx context.Context, failfast bool, info balancer.
 			if err == balancer.ErrNoSubConnAvailable {
 				continue
 			}
-			if _, ok := status.FromError(err); ok {
+			if st, ok := status.FromError(err); ok {
 				// Status error: end the RPC unconditionally with this status.
-				return nil, nil, err
+				// First restrict the code to the list allowed by gRFC A54.
+				if istatus.IsRestrictedControlPlaneCode(st) {
+					err = status.Errorf(codes.Internal, "received picker error with illegal status: %v", err)
+				}
+				return nil, nil, dropError{error: err}
 			}
 			// For all other errors, wait for ready RPCs should block and other
 			// RPCs should fail with unavailable.
@@ -145,10 +149,10 @@ func (pw *pickerWrapper) pick(ctx context.Context, failfast bool, info balancer.
 
 		acw, ok := pickResult.SubConn.(*acBalancerWrapper)
 		if !ok {
-			grpclog.Error("subconn returned from pick is not *acBalancerWrapper")
+			logger.Errorf("subconn returned from pick is type %T, not *acBalancerWrapper", pickResult.SubConn)
 			continue
 		}
-		if t, ok := acw.getAddrConn().getReadyTransport(); ok {
+		if t := acw.getAddrConn().getReadyTransport(); t != nil {
 			if channelz.IsOn() {
 				return t, doneChannelzWrapper(acw, pickResult.Done), nil
 			}
@@ -159,7 +163,7 @@ func (pw *pickerWrapper) pick(ctx context.Context, failfast bool, info balancer.
 			// DoneInfo with default value works.
 			pickResult.Done(balancer.DoneInfo{})
 		}
-		grpclog.Infof("blockingPicker: the picked transport is not ready, loop back to repick")
+		logger.Infof("blockingPicker: the picked transport is not ready, loop back to repick")
 		// If ok == false, ac.state is not READY.
 		// A valid picker always returns READY subConn. This means the state of ac
 		// just changed, and picker will be updated shortly.
@@ -175,4 +179,10 @@ func (pw *pickerWrapper) close() {
 	}
 	pw.done = true
 	close(pw.blockingCh)
+}
+
+// dropError is a wrapper error that indicates the LB policy wishes to drop the
+// RPC and not retry it.
+type dropError struct {
+	error
 }
