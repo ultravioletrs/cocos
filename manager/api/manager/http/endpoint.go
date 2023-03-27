@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/ultravioletrs/cocosvm/manager"
+	"github.com/ultravioletrs/manager/manager"
 )
 
 func pingEndpoint(svc manager.Service) endpoint.Endpoint {

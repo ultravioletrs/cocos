@@ -11,12 +11,12 @@
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     <disk type='file' device='cdrom'>
-      <source file='/home/darko/go/src/github.com/ultravioletrs/cocosvm/cmd/manager/iso/alpine-standard-3.17.2-x86_64.iso'/>
+      <source file='/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/iso/alpine-standard-3.17.2-x86_64.iso'/>
       <target dev='hdc'/>
       <readonly/>
     </disk>
     <disk type='file' device='disk'>
-      <source file='/home/darko/go/src/github.com/ultravioletrs/cocosvm/cmd/manager/img/boot.img'/>
+      <source file='/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img'/>
       <target dev='hda'/>
     </disk>
     <interface type='network'>

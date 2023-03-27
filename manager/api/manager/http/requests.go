@@ -3,7 +3,7 @@
 
 package http
 
-import "github.com/ultravioletrs/cocosvm/manager"
+import "github.com/ultravioletrs/manager/manager"
 
 type apiReq interface {
 	validate() error

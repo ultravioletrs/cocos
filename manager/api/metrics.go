@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
-	"github.com/ultravioletrs/cocosvm/manager"
+	"github.com/ultravioletrs/manager/manager"
 )
 
 var _ manager.Service = (*metricsMiddleware)(nil)

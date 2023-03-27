@@ -18,7 +18,7 @@ import (
 	"github.com/mainflux/mainflux"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/ultravioletrs/cocosvm/manager"
+	"github.com/ultravioletrs/manager/manager"
 )
 
 const (

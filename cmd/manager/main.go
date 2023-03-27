@@ -21,9 +21,9 @@ import (
 
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/cocosvm/manager"
-	"github.com/ultravioletrs/cocosvm/manager/api"
-	managerhttpapi "github.com/ultravioletrs/cocosvm/manager/api/manager/http"
+	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/manager/manager/api"
+	managerhttpapi "github.com/ultravioletrs/manager/manager/api/manager/http"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/opentracing/opentracing-go"

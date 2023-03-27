@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/cocosvm/manager"
+	"github.com/ultravioletrs/manager/manager"
 )
 
 var _ manager.Service = (*loggingMiddleware)(nil)
