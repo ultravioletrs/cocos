@@ -1,6 +1,7 @@
 // Copyright (c) Mainflux
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build !test
 // +build !test
 
 package api
@@ -10,18 +11,18 @@ import (
 	"time"
 
 	log "github.com/mainflux/mainflux/logger"
-	"github.com/mainflux/mfxkit/mfxkit"
+	"github.com/ultravioletrs/agent/agent"
 )
 
-var _ mfxkit.Service = (*loggingMiddleware)(nil)
+var _ agent.Service = (*loggingMiddleware)(nil)
 
 type loggingMiddleware struct {
 	logger log.Logger
-	svc    mfxkit.Service
+	svc    agent.Service
 }
 
 // LoggingMiddleware adds logging facilities to the core service.
-func LoggingMiddleware(svc mfxkit.Service, logger log.Logger) mfxkit.Service {
+func LoggingMiddleware(svc agent.Service, logger log.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 

@@ -54,11 +54,6 @@ github.com/magiconair/properties
 ## explicit; go 1.14
 github.com/mainflux/mainflux
 github.com/mainflux/mainflux/logger
-# github.com/mainflux/mfxkit v0.0.0-20210414105055-bc327eee2816
-## explicit; go 1.16
-github.com/mainflux/mfxkit/mfxkit
-github.com/mainflux/mfxkit/mfxkit/api
-github.com/mainflux/mfxkit/mfxkit/api/mfxkit/http
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 ## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil

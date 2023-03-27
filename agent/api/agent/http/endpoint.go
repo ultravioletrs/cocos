@@ -7,10 +7,10 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/mainflux/mfxkit/mfxkit"
+	agent "github.com/ultravioletrs/agent/agent"
 )
 
-func pingEndpoint(svc mfxkit.Service) endpoint.Endpoint {
+func pingEndpoint(svc agent.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(pingReq)
 

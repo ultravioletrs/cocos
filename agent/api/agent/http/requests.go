@@ -3,7 +3,7 @@
 
 package http
 
-import "github.com/mainflux/mfxkit/mfxkit"
+import agent "github.com/ultravioletrs/agent/agent"
 
 type apiReq interface {
 	validate() error
@@ -15,7 +15,7 @@ type pingReq struct {
 
 func (req pingReq) validate() error {
 	if req.Secret == "" {
-		return mfxkit.ErrMalformedEntity
+		return agent.ErrMalformedEntity
 	}
 
 	return nil

@@ -19,9 +19,9 @@ import (
 
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
-	"github.com/mainflux/mfxkit/mfxkit"
-	"github.com/mainflux/mfxkit/mfxkit/api"
-	mfxkithttpapi "github.com/mainflux/mfxkit/mfxkit/api/mfxkit/http"
+	agent "github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/agent/agent/api"
+	agenthttpapi "github.com/ultravioletrs/agent/agent/api/agent/http"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -37,11 +37,11 @@ const (
 	defServerKey  = ""
 	defSecret     = "secret"
 
-	envLogLevel   = "MF_MFXKIT_LOG_LEVEL"
-	envHTTPPort   = "MF_MFXKIT_HTTP_PORT"
-	envServerCert = "MF_MFXKIT_SERVER_CERT"
-	envServerKey  = "MF_MFXKIT_SERVER_KEY"
-	envSecret     = "MF_MFXKIT_SECRET"
+	envLogLevel   = "MF_AGENT_LOG_LEVEL"
+	envHTTPPort   = "MF_AGENT_HTTP_PORT"
+	envServerCert = "MF_AGENT_SERVER_CERT"
+	envServerKey  = "MF_AGENT_SERVER_KEY"
+	envSecret     = "MF_AGENT_SECRET"
 	envJaegerURL  = "MF_JAEGER_URL"
 )
 
@@ -64,13 +64,13 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	mfxkitTracer, mfxkitCloser := initJaeger("mfxkit", cfg.jaegerURL, logger)
-	defer mfxkitCloser.Close()
+	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	defer agentCloser.Close()
 
 	svc := newService(cfg.secret, logger)
 	errs := make(chan error, 2)
 
-	go startHTTPServer(mfxkithttpapi.MakeHandler(mfxkitTracer, svc), cfg.httpPort, cfg, logger, errs)
+	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.httpPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal)
@@ -79,7 +79,7 @@ func main() {
 	}()
 
 	err = <-errs
-	logger.Error(fmt.Sprintf("Mfxkit service terminated: %s", err))
+	logger.Error(fmt.Sprintf("Agent service terminated: %s", err))
 }
 
 func loadConfig() config {
@@ -117,20 +117,20 @@ func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, 
 	return tracer, closer
 }
 
-func newService(secret string, logger logger.Logger) mfxkit.Service {
-	svc := mfxkit.New(secret)
+func newService(secret string, logger logger.Logger) agent.Service {
+	svc := agent.New(secret)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	svc = api.MetricsMiddleware(
 		svc,
 		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "mfxkit",
+			Namespace: "agent",
 			Subsystem: "api",
 			Name:      "request_count",
 			Help:      "Number of requests received.",
 		}, []string{"method"}),
 		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "mfxkit",
+			Namespace: "agent",
 			Subsystem: "api",
 			Name:      "request_latency_microseconds",
 			Help:      "Total duration of requests in microseconds.",
@@ -143,11 +143,11 @@ func newService(secret string, logger logger.Logger) mfxkit.Service {
 func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
 	p := fmt.Sprintf(":%s", port)
 	if cfg.serverCert != "" || cfg.serverKey != "" {
-		logger.Info(fmt.Sprintf("Mfxkit service started using https on port %s with cert %s key %s",
+		logger.Info(fmt.Sprintf("Agent service started using https on port %s with cert %s key %s",
 			port, cfg.serverCert, cfg.serverKey))
 		errs <- http.ListenAndServeTLS(p, cfg.serverCert, cfg.serverKey, handler)
 		return
 	}
-	logger.Info(fmt.Sprintf("Mfxkit service started using http on port %s", cfg.httpPort))
+	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.httpPort))
 	errs <- http.ListenAndServe(p, handler)
 }

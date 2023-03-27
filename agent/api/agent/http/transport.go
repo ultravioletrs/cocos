@@ -16,9 +16,9 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
-	"github.com/mainflux/mfxkit/mfxkit"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	agent "github.com/ultravioletrs/agent/agent"
 )
 
 const (
@@ -31,14 +31,14 @@ var (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(tracer opentracing.Tracer, svc mfxkit.Service) http.Handler {
+func MakeHandler(tracer opentracing.Tracer, svc agent.Service) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeError),
 	}
 
 	r := bone.New()
 
-	r.Post("/mfxkit", kithttp.NewServer(
+	r.Post("/agent", kithttp.NewServer(
 		kitot.TraceServer(tracer, "ping")(pingEndpoint(svc)),
 		decodePing,
 		encodeResponse,
@@ -86,9 +86,9 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", contentType)
 
 	switch err {
-	case mfxkit.ErrMalformedEntity:
+	case agent.ErrMalformedEntity:
 		w.WriteHeader(http.StatusBadRequest)
-	case mfxkit.ErrUnauthorizedAccess:
+	case agent.ErrUnauthorizedAccess:
 		w.WriteHeader(http.StatusForbidden)
 	case errUnsupportedContentType:
 		w.WriteHeader(http.StatusUnsupportedMediaType)

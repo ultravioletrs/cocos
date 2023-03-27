@@ -1,6 +1,7 @@
 // Copyright (c) Mainflux
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build !test
 // +build !test
 
 package api
@@ -9,20 +10,20 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
-	"github.com/mainflux/mfxkit/mfxkit"
+	"github.com/ultravioletrs/agent/agent"
 )
 
-var _ mfxkit.Service = (*metricsMiddleware)(nil)
+var _ agent.Service = (*metricsMiddleware)(nil)
 
 type metricsMiddleware struct {
 	counter metrics.Counter
 	latency metrics.Histogram
-	svc     mfxkit.Service
+	svc     agent.Service
 }
 
 // MetricsMiddleware instruments core service by tracking request count and
 // latency.
-func MetricsMiddleware(svc mfxkit.Service, counter metrics.Counter, latency metrics.Histogram) mfxkit.Service {
+func MetricsMiddleware(svc agent.Service, counter metrics.Counter, latency metrics.Histogram) agent.Service {
 	return &metricsMiddleware{
 		counter: counter,
 		latency: latency,

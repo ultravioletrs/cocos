@@ -1,7 +1,7 @@
 // Copyright (c) Mainflux
 // SPDX-License-Identifier: Apache-2.0
 
-package mfxkit
+package agent
 
 import (
 	"errors"
@@ -24,20 +24,20 @@ type Service interface {
 	Ping(string) (string, error)
 }
 
-type mfxkitService struct {
+type agentService struct {
 	secret string
 }
 
-var _ Service = (*mfxkitService)(nil)
+var _ Service = (*agentService)(nil)
 
-// New instantiates the mfxkit service implementation.
+// New instantiates the agent service implementation.
 func New(secret string) Service {
-	return &mfxkitService{
+	return &agentService{
 		secret: secret,
 	}
 }
 
-func (ks *mfxkitService) Ping(secret string) (string, error) {
+func (ks *agentService) Ping(secret string) (string, error) {
 	if ks.secret != secret {
 		return "", ErrUnauthorizedAccess
 	}

@@ -6,7 +6,6 @@ require (
 	github.com/go-kit/kit v0.10.0
 	github.com/go-zoo/bone v1.3.0
 	github.com/mainflux/mainflux v0.12.0
-	github.com/mainflux/mfxkit v0.0.0-20210414105055-bc327eee2816
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/cobra v1.6.1
