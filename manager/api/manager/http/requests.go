@@ -20,3 +20,17 @@ func (req pingReq) validate() error {
 
 	return nil
 }
+
+type createDomainReq struct {
+	Pool   string `json:"pool"`
+	Volume string `json:"volume"`
+	Domain string `json:"domain"`
+}
+
+func (req createDomainReq) validate() error {
+	if req.Pool == "" || req.Volume == "" || req.Domain == "" {
+		return manager.ErrMalformedEntity
+	}
+
+	return nil
+}

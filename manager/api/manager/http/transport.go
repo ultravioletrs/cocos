@@ -38,9 +38,16 @@ func MakeHandler(tracer opentracing.Tracer, svc manager.Service) http.Handler {
 
 	r := bone.New()
 
-	r.Post("/mfxkit", kithttp.NewServer(
+	r.Post("/ping", kithttp.NewServer(
 		kitot.TraceServer(tracer, "ping")(pingEndpoint(svc)),
 		decodePing,
+		encodeResponse,
+		opts...,
+	))
+
+	r.Post("/domain", kithttp.NewServer(
+		kitot.TraceServer(tracer, "domain")(createDomainEndpoint(svc)),
+		decodeCreateDomain,
 		encodeResponse,
 		opts...,
 	))
@@ -57,6 +64,19 @@ func decodePing(_ context.Context, r *http.Request) (interface{}, error) {
 	}
 
 	req := pingReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+func decodeCreateDomain(_ context.Context, r *http.Request) (interface{}, error) {
+	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
+		return nil, errUnsupportedContentType
+	}
+
+	req := createDomainReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}

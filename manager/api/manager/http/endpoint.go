@@ -29,3 +29,23 @@ func pingEndpoint(svc manager.Service) endpoint.Endpoint {
 		return res, nil
 	}
 }
+
+func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createDomainReq)
+
+		if err := req.validate(); err != nil {
+			return nil, err
+		}
+
+		name, err := svc.CreateDomain(req.Pool, req.Volume, req.Domain)
+		if err != nil {
+			return nil, err
+		}
+
+		res := createDomainRes{
+			Name: name,
+		}
+		return res, nil
+	}
+}

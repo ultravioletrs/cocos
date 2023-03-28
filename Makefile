@@ -3,3 +3,7 @@ docker_mfxkit:
 
 run:
 	docker-compose -f docker/docker-compose.yml up
+
+protoc:
+	protoc --go_out=. proto/*.proto
+	protoc --go-grpc_out=. proto/*.proto

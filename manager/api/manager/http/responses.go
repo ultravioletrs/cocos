@@ -26,3 +26,19 @@ func (res pingRes) Headers() map[string]string {
 func (res pingRes) Empty() bool {
 	return false
 }
+
+type createDomainRes struct {
+	Name string `json:"name"`
+}
+
+func (res createDomainRes) Code() int {
+	return http.StatusOK
+}
+
+func (res createDomainRes) Headers() map[string]string {
+	return map[string]string{}
+}
+
+func (res createDomainRes) Empty() bool {
+	return false
+}

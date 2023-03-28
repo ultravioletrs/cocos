@@ -38,3 +38,17 @@ func (lm *loggingMiddleware) Ping(secret string) (response string, err error) {
 
 	return lm.svc.Ping(secret)
 }
+
+func (lm *loggingMiddleware) CreateDomain(pool, volume, domain string) (response string, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method CreateDomain for pool %s, volume %s, and domain %s took %s to complete",
+			pool, volume, domain, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
+	}(time.Now())
+
+	return lm.svc.CreateDomain(pool, volume, domain)
+}

@@ -34,6 +34,7 @@ var (
 type Service interface {
 	// Ping compares a given string with secret
 	Ping(string) (string, error)
+	CreateDomain(pool, volume, domain string) (string, error)
 }
 
 type managerService struct {
@@ -52,32 +53,35 @@ func New(secret string, libvirtConn *libvirt.Libvirt) Service {
 }
 
 func (ks *managerService) Ping(secret string) (string, error) {
-	bytes, err := os.ReadFile(poolXML)
-	if err != nil {
-		return "", ErrNotFound
+	if ks.secret != secret {
+		return "", ErrUnauthorizedAccess
 	}
-	poolStr := string(bytes)
+	return "Hello World :)", nil
+}
 
-	bytes, err = os.ReadFile(volXML)
+func (ks *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
+	poolBytes, err := os.ReadFile(poolXML)
 	if err != nil {
 		return "", ErrNotFound
 	}
-	volStr := string(bytes)
+	poolStr := string(poolBytes)
 
-	bytes, err = os.ReadFile(domXML)
+	volBytes, err := os.ReadFile(volXML)
 	if err != nil {
 		return "", ErrNotFound
 	}
-	domStr := string(bytes)
+	volStr := string(volBytes)
+
+	domBytes, err := os.ReadFile(domXML)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	domStr := string(domBytes)
 
 	dom, err := createDomain(ks.libvirt, poolStr, volStr, domStr)
 	if err != nil {
 		return "", ErrMalformedEntity
 	}
-	_ = dom
 
-	if ks.secret != secret {
-		return "", ErrUnauthorizedAccess
-	}
-	return "Hello World :)", nil
+	return dom.Name, nil
 }
