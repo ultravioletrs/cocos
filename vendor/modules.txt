@@ -23,6 +23,7 @@ github.com/go-kit/kit/sd
 github.com/go-kit/kit/sd/lb
 github.com/go-kit/kit/tracing/opentracing
 github.com/go-kit/kit/transport
+github.com/go-kit/kit/transport/grpc
 github.com/go-kit/kit/transport/http
 # github.com/go-kit/log v0.2.0
 ## explicit; go 1.17

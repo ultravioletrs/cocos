@@ -1,36 +1,36 @@
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
+// import "google/protobuf/timestamp.proto";
 
 package manager_proto;
 
 option go_package = "./manager";
 
 service ManagerService {
-  rpc Health(HealthRequest) returns (HealthResponse) {}
-  rpc Run(RunRequest) returns (RunResponse) {}
+  // rpc Health(HealthRequest) returns (HealthResponse) {}
+  // rpc Run(RunRequest) returns (RunResponse) {}
   rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse) {}
 }
 
-message HealthRequest {}
-message HealthResponse { string status = 1; }
+// message HealthRequest {}
+// message HealthResponse { string status = 1; }
 
-message RunRequest {
-  string name = 2;
-  string description = 3;
-  string status = 4;
-  string owner = 5;
-  google.protobuf.Timestamp start_time = 6;
-  google.protobuf.Timestamp end_time = 7;
-  repeated string datasets = 8;
-  repeated string algorithms = 9;
-  repeated string dataset_providers = 10;
-  repeated string algorithm_providers = 11;
-  repeated string result_consumers = 13;
-  int32 ttl = 12;
-}
+// message RunRequest {
+//   string name = 2;
+//   string description = 3;
+//   string status = 4;
+//   string owner = 5;
+//   google.protobuf.Timestamp start_time = 6;
+//   google.protobuf.Timestamp end_time = 7;
+//   repeated string datasets = 8;
+//   repeated string algorithms = 9;
+//   repeated string dataset_providers = 10;
+//   repeated string algorithm_providers = 11;
+//   repeated string result_consumers = 13;
+//   int32 ttl = 12;
+// }
 
-message RunResponse { string message = 1; }
+// message RunResponse { string message = 1; }
 
 message CreateDomainRequest {
   string pool = 1;
