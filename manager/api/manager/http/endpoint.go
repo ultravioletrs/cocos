@@ -10,26 +10,6 @@ import (
 	"github.com/ultravioletrs/manager/manager"
 )
 
-func pingEndpoint(svc manager.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(pingReq)
-
-		if err := req.validate(); err != nil {
-			return nil, err
-		}
-
-		greeting, err := svc.Ping(req.Secret)
-		if err != nil {
-			return nil, err
-		}
-
-		res := pingRes{
-			Greeting: greeting,
-		}
-		return res, nil
-	}
-}
-
 func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createDomainReq)

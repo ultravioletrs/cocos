@@ -9,6 +9,7 @@ option go_package = "./manager";
 service ManagerService {
   rpc Health(HealthRequest) returns (HealthResponse) {}
   rpc Run(RunRequest) returns (RunResponse) {}
+  rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse) {}
 }
 
 message HealthRequest {}
@@ -30,3 +31,11 @@ message RunRequest {
 }
 
 message RunResponse { string message = 1; }
+
+message CreateDomainRequest {
+  string pool = 1;
+  string volume = 2;
+  string domain = 3;
+}
+
+message CreateDomainResponse { string name = 1; }

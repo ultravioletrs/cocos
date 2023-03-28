@@ -49,10 +49,6 @@ curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"
 
 ## cURL
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/ping -d '{"secret":"secret"}'
-```
-
-```sh
 curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/pool.xml", "volume":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/vol.xml", "domain":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/dom.xml"}'
 ```
 

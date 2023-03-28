@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ManagerServiceClient interface {
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error)
+	CreateDomain(ctx context.Context, in *CreateDomainRequest, opts ...grpc.CallOption) (*CreateDomainResponse, error)
 }
 
 type managerServiceClient struct {
@@ -48,12 +49,22 @@ func (c *managerServiceClient) Run(ctx context.Context, in *RunRequest, opts ...
 	return out, nil
 }
 
+func (c *managerServiceClient) CreateDomain(ctx context.Context, in *CreateDomainRequest, opts ...grpc.CallOption) (*CreateDomainResponse, error) {
+	out := new(CreateDomainResponse)
+	err := c.cc.Invoke(ctx, "/manager_proto.ManagerService/CreateDomain", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility
 type ManagerServiceServer interface {
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	Run(context.Context, *RunRequest) (*RunResponse, error)
+	CreateDomain(context.Context, *CreateDomainRequest) (*CreateDomainResponse, error)
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -66,6 +77,9 @@ func (UnimplementedManagerServiceServer) Health(context.Context, *HealthRequest)
 }
 func (UnimplementedManagerServiceServer) Run(context.Context, *RunRequest) (*RunResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Run not implemented")
+}
+func (UnimplementedManagerServiceServer) CreateDomain(context.Context, *CreateDomainRequest) (*CreateDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateDomain not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 
@@ -116,6 +130,24 @@ func _ManagerService_Run_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ManagerService_CreateDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateDomainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).CreateDomain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/manager_proto.ManagerService/CreateDomain",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).CreateDomain(ctx, req.(*CreateDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -130,6 +162,10 @@ var ManagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Run",
 			Handler:    _ManagerService_Run_Handler,
+		},
+		{
+			MethodName: "CreateDomain",
+			Handler:    _ManagerService_CreateDomain_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

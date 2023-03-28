@@ -9,18 +9,6 @@ type apiReq interface {
 	validate() error
 }
 
-type pingReq struct {
-	Secret string `json:"secret"`
-}
-
-func (req pingReq) validate() error {
-	if req.Secret == "" {
-		return manager.ErrMalformedEntity
-	}
-
-	return nil
-}
-
 type createDomainReq struct {
 	Pool   string `json:"pool"`
 	Volume string `json:"volume"`

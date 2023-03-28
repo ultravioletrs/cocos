@@ -32,8 +32,6 @@ var (
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	// Ping compares a given string with secret
-	Ping(string) (string, error)
 	CreateDomain(pool, volume, domain string) (string, error)
 }
 
@@ -50,13 +48,6 @@ func New(secret string, libvirtConn *libvirt.Libvirt) Service {
 		secret:  secret,
 		libvirt: libvirtConn,
 	}
-}
-
-func (ks *managerService) Ping(secret string) (string, error) {
-	if ks.secret != secret {
-		return "", ErrUnauthorizedAccess
-	}
-	return "Hello World :)", nil
 }
 
 func (ks *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
