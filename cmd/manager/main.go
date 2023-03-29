@@ -23,7 +23,9 @@ import (
 	"github.com/mainflux/mainflux/logger"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
+	managergrpc "github.com/ultravioletrs/manager/manager/api/manager/grpc"
 	managerhttpapi "github.com/ultravioletrs/manager/manager/api/manager/http"
+	"google.golang.org/grpc"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -40,6 +42,7 @@ const (
 	defServerCert = ""
 	defServerKey  = ""
 	defSecret     = "secret"
+	defGRPCAddr   = "localhost:7001"
 
 	envLogLevel   = "CC_MANAGER_LOG_LEVEL"
 	envHTTPPort   = "CC_MANAGER_HTTP_PORT"
@@ -47,6 +50,7 @@ const (
 	envServerKey  = "CC_MANAGER_SERVER_KEY"
 	envSecret     = "CC_MANAGER_SECRET"
 	envJaegerURL  = "CC_JAEGER_URL"
+	envGRPCAddr   = "CC_MANAGER_GRPC_PORT"
 )
 
 type config struct {
@@ -58,6 +62,7 @@ type config struct {
 	serverKey    string
 	secret       string
 	jaegerURL    string
+	GRPCAddr     string
 }
 
 func main() {
@@ -77,6 +82,7 @@ func main() {
 	svc := newService(cfg.secret, libvirtConn, logger)
 
 	errs := make(chan error, 2)
+	go startgRPCServer(cfg, &svc, logger, errs)
 	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc), cfg.httpPort, cfg, logger, errs)
 
 	go func() {
@@ -87,6 +93,7 @@ func main() {
 
 	err = <-errs
 	logger.Error(fmt.Sprintf("Manager service terminated: %s", err))
+
 }
 
 func loadConfig() config {
@@ -97,6 +104,7 @@ func loadConfig() config {
 		serverKey:  mainflux.Env(envServerKey, defServerKey),
 		jaegerURL:  mainflux.Env(envJaegerURL, defJaegerURL),
 		secret:     mainflux.Env(envSecret, defSecret),
+		GRPCAddr:   mainflux.Env(envGRPCAddr, defGRPCAddr),
 	}
 }
 
@@ -157,6 +165,21 @@ func startHTTPServer(handler http.Handler, port string, cfg config, logger logge
 	}
 	logger.Info(fmt.Sprintf("Manager service started using http on port %s", cfg.httpPort))
 	errs <- http.ListenAndServe(p, handler)
+}
+
+func startgRPCServer(cfg config, svc *manager.Service, logger logger.Logger, errs chan error) {
+	// Create a gRPC server object
+	tracer := opentracing.GlobalTracer()
+	server := grpc.NewServer()
+	// Register the implementation of the service with the server
+	manager.RegisterManagerServiceServer(server, managergrpc.NewServer(tracer, *svc))
+	// Listen to a port and serve incoming requests
+	listener, err := net.Listen("tcp", cfg.GRPCAddr)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	logger.Info(fmt.Sprintf("Manager service started using gRPC on address %s", cfg.GRPCAddr))
+	errs <- server.Serve(listener)
 }
 
 func initLibvirt(logger logger.Logger) *libvirt.Libvirt {

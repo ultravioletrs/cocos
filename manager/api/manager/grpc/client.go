@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	svcName = "manager.ManagerService"
+	svcName = "manager_proto.ManagerService"
 )
 
 type grpcClient struct {
@@ -31,7 +31,7 @@ func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Du
 			"CreateDomain",
 			encodeCreateDomainRequest,
 			decodeCreateDomainResponse,
-			nil,
+			manager.CreateDomainResponse{},
 		).Endpoint()),
 
 		timeout: timeout,

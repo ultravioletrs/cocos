@@ -40,5 +40,6 @@ func (s *grpcServer) CreateDomain(ctx context.Context, req *manager.CreateDomain
 	if err != nil {
 		return nil, err
 	}
-	return res.(*manager.CreateDomainResponse), nil
+	cdr := res.(manager.CreateDomainResponse)
+	return &cdr, nil
 }
