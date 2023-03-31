@@ -30,7 +30,7 @@ message RunRequest {
   int32 ttl = 12;
 }
 
-// message RunResponse { string message = 1; }
+message RunResponse { string ID = 1; }
 
 message CreateDomainRequest {
   string pool = 1;
