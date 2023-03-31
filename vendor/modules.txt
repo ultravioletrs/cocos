@@ -34,6 +34,9 @@ github.com/go-logfmt/logfmt
 # github.com/go-zoo/bone v1.3.0
 ## explicit; go 1.9
 github.com/go-zoo/bone
+# github.com/gofrs/uuid v4.2.0+incompatible
+## explicit
+github.com/gofrs/uuid
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/jsonpb
@@ -47,6 +50,8 @@ github.com/golang/protobuf/ptypes/timestamp
 ## explicit; go 1.17
 github.com/mainflux/mainflux
 github.com/mainflux/mainflux/logger
+github.com/mainflux/mainflux/pkg/errors
+github.com/mainflux/mainflux/pkg/uuid
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 ## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil

@@ -19,18 +19,18 @@ import (
 	"syscall"
 	"time"
 
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
+	"github.com/mainflux/mainflux/pkg/uuid"
+	opentracing "github.com/opentracing/opentracing-go"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	jconfig "github.com/uber/jaeger-client-go/config"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/manager/grpc"
 	managerhttpapi "github.com/ultravioletrs/manager/manager/api/manager/http"
 	"google.golang.org/grpc"
-
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	opentracing "github.com/opentracing/opentracing-go"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	jconfig "github.com/uber/jaeger-client-go/config"
 
 	"github.com/digitalocean/go-libvirt"
 )
@@ -79,7 +79,9 @@ func main() {
 	libvirtConn := initLibvirt(logger)
 	defer libvirtConn.Disconnect()
 
-	svc := newService(cfg.secret, libvirtConn, logger)
+	idProvider := uuid.New()
+
+	svc := newService(cfg.secret, libvirtConn, idProvider, logger)
 
 	errs := make(chan error, 2)
 	go startgRPCServer(cfg, &svc, logger, errs)
@@ -132,8 +134,8 @@ func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, 
 	return tracer, closer
 }
 
-func newService(secret string, libvirtConn *libvirt.Libvirt, logger logger.Logger) manager.Service {
-	svc := manager.New(secret, libvirtConn)
+func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, logger logger.Logger) manager.Service {
+	svc := manager.New(secret, libvirtConn, idp)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	svc = api.MetricsMiddleware(

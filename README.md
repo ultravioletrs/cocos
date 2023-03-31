@@ -52,6 +52,23 @@ curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"
 curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/pool.xml", "volume":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/vol.xml", "domain":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/dom.xml"}'
 ```
 
+```sh
+curl -X POST \
+  http://localhost:9021/run \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "my-run",
+        "description": "this is a test run",
+        "owner": "John Doe",
+        "datasets": ["dataset1", "dataset2"],
+        "algorithms": ["algorithm1", "algorithm2"],
+        "dataset_providers": ["provider1", "provider2"],
+        "algorithm_providers": ["provider3", "provider4"],
+        "result_consumers": ["consumer1", "consumer2"],
+        "ttl": 3600
+    }'
+```
+
 ## Virsh
 
 ```sh

@@ -26,3 +26,21 @@ func (res createDomainRes) Headers() map[string]string {
 func (res createDomainRes) Empty() bool {
 	return false
 }
+
+var _ mainflux.Response = (*runRes)(nil)
+
+type runRes struct {
+	ID string `json:"id"`
+}
+
+func (res runRes) Code() int {
+	return http.StatusOK
+}
+
+func (res runRes) Headers() map[string]string {
+	return map[string]string{}
+}
+
+func (res runRes) Empty() bool {
+	return false
+}

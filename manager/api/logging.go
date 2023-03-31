@@ -39,3 +39,16 @@ func (lm *loggingMiddleware) CreateDomain(pool, volume, domain string) (response
 
 	return lm.svc.CreateDomain(pool, volume, domain)
 }
+
+func (lm *loggingMiddleware) Run(comp manager.Computation) (id string, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Run for computation %v took %s to complete", comp, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s with ID: %s", message, id))
+	}(time.Now())
+
+	return lm.svc.Run(comp)
+}

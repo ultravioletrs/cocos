@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/digitalocean/go-libvirt"
+	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/mainflux/mainflux"
 )
 
 const (
@@ -33,24 +35,27 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	CreateDomain(pool, volume, domain string) (string, error)
+	Run(comp Computation) (string, error)
 }
 
 type managerService struct {
-	secret  string
-	libvirt *libvirt.Libvirt
+	secret     string
+	libvirt    *libvirt.Libvirt
+	idProvider mainflux.IDProvider
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(secret string, libvirtConn *libvirt.Libvirt) Service {
+func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider) Service {
 	return &managerService{
-		secret:  secret,
-		libvirt: libvirtConn,
+		secret:     secret,
+		libvirt:    libvirtConn,
+		idProvider: idp,
 	}
 }
 
-func (ks *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
+func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
 	poolBytes, err := os.ReadFile(poolXML)
 	if err != nil {
 		return "", ErrNotFound
@@ -69,10 +74,34 @@ func (ks *managerService) CreateDomain(poolXML, volXML, domXML string) (string, 
 	}
 	domStr := string(domBytes)
 
-	dom, err := createDomain(ks.libvirt, poolStr, volStr, domStr)
+	dom, err := createDomain(ms.libvirt, poolStr, volStr, domStr)
 	if err != nil {
 		return "", ErrMalformedEntity
 	}
 
 	return dom.Name, nil
+}
+
+func (ms *managerService) Run(comp Computation) (string, error) {
+	// Generate a unique ID for the computation
+	runID, err := ms.idProvider.ID()
+	if err != nil {
+		return "", err
+	}
+
+	// Initialize the Computation object
+	comp.ID = runID
+	comp.Status = ""
+	comp.StartTime = &timestamp.Timestamp{}
+	comp.EndTime = &timestamp.Timestamp{}
+
+	// // Save the Computation object to the database
+	// if err := ms.db.SaveComputation(comp); err != nil {
+	// 	return "", err
+	// }
+
+	// // Start the computation process
+	// go ms.processComputation(comp)
+
+	return runID, nil
 }

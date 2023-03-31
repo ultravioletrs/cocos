@@ -29,3 +29,41 @@ func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 		return res, nil
 	}
 }
+
+func runEndpoint(svc manager.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(runReq)
+
+		if err := req.validate(); err != nil {
+			return nil, err
+		}
+
+		// Create the computation
+		computation := manager.Computation{
+			Name:               req.Name,
+			Description:        req.Description,
+			Status:             "",
+			Owner:              req.Owner,
+			Datasets:           req.Datasets,
+			Algorithms:         req.Algorithms,
+			DatasetProviders:   req.DatasetProviders,
+			AlgorithmProviders: req.AlgorithmProviders,
+			ResultConsumers:    req.ResultConsumers,
+			TTL:                req.TTL,
+			StartTime:          nil,
+			EndTime:            nil,
+		}
+
+		// Call the Run method on the service
+		runID, err := svc.Run(computation)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the response
+		res := runRes{
+			ID: runID,
+		}
+		return res, nil
+	}
+}
