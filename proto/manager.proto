@@ -8,7 +8,7 @@ option go_package = "./manager";
 
 service ManagerService {
   // rpc Health(HealthRequest) returns (HealthResponse) {}
-  // rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Run(RunRequest) returns (RunResponse) {}
   rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse) {}
 }
 

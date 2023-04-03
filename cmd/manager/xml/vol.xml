@@ -1,7 +1,7 @@
 <volume>
 <name>boot.img</name>
 <allocation>0</allocation>
-<capacity unit="T">1</capacity>
+<capacity unit="G">2</capacity>
 <target>
   <path>/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img</path>
   <permissions>

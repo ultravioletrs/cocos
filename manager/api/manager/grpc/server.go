@@ -38,7 +38,7 @@ func decodeCreateDomainRequest(_ context.Context, grpcReq interface{}) (interfac
 
 func encodeCreateDomainResponse(_ context.Context, response interface{}) (interface{}, error) {
 	res := response.(createDomainRes)
-	return manager.CreateDomainResponse{Name: res.Name}, nil
+	return &manager.CreateDomainResponse{Name: res.Name}, nil
 }
 
 func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
@@ -68,8 +68,8 @@ func (s *grpcServer) CreateDomain(ctx context.Context, req *manager.CreateDomain
 	if err != nil {
 		return nil, err
 	}
-	cdr := res.(manager.CreateDomainResponse)
-	return &cdr, nil
+	cdr := res.(*manager.CreateDomainResponse)
+	return cdr, nil
 }
 
 func (s *grpcServer) Run(ctx context.Context, req *manager.RunRequest) (*manager.RunResponse, error) {
@@ -77,8 +77,6 @@ func (s *grpcServer) Run(ctx context.Context, req *manager.RunRequest) (*manager
 	if err != nil {
 		return nil, err
 	}
-	rr := res.(runRes)
-	return &manager.RunResponse{
-		ID: rr.ID,
-	}, nil
+	rr := res.(*manager.RunResponse)
+	return rr, nil
 }
