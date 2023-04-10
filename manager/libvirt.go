@@ -8,11 +8,10 @@ func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, d
 		return libvirt.Domain{}, err
 	}
 
-	vol, err := libvirtConn.StorageVolCreateXML(pool, volXML, 0)
+	_, err = libvirtConn.StorageVolCreateXML(pool, volXML, 0)
 	if err != nil {
 		return libvirt.Domain{}, err
 	}
-	_ = vol
 
 	dom, err := libvirtConn.DomainDefineXMLFlags(domXML, 0)
 	if err != nil {
