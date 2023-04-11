@@ -54,3 +54,13 @@ curl -X POST \
     }'
 ```
 
+## Agent
+
+```sh
+sudo apt install guestfish
+
+QCOW2_PATH=~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
+HOST_AGENT_PATH=~/Development/go-playground/hello_world/main
+GUEST_AGENT_PATH=/root/agent
+sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_PATH $GUEST_AGENT_PATH
+```
