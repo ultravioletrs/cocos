@@ -22,10 +22,15 @@ $(SERVICES):
 
 
 QCOW2_PATH = ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
+
 HOST_AGENT_PATH = ~/ultravioletrs/agent/build/cocos-agent
 GUEST_AGENT_PATH = /root/agent
+
 HOST_AGENT_SH_PATH = ~/go/src/github.com/ultravioletrs/agent/alpine/agent.sh
 GUEST_AGENT_SH_PATH = /root/agent/
+
+HOST_AGENT_RC_SH_PATH = ~/go/src/github.com/ultravioletrs/agent/alpine/agent
+GUEST_AGENT_RC_SH_PATH=/etc/init.d/
 
 # Copy the agent binary to the guest VM
 copy-agent:
@@ -34,6 +39,11 @@ copy-agent:
 # Copy the agent init sh script to the guest VM
 copy-agent-sh:
 	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_SH_PATH) $(GUEST_AGENT_SH_PATH)
+
+# Copy the agent-rc init sh script to the guest VM
+copy-agent-rc-sh:
+	chmod +x $(HOST_AGENT_RC_SH_PATH)
+	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_RC_SH_PATH) $(GUEST_AGENT_RC_SH_PATH)
 
 # docker_mfxkit:
 # 	docker build --no-cache --tag=mainflux/mfxkit -f docker/Dockerfile .

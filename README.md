@@ -47,7 +47,9 @@ To see the change in action, run
 curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"secret":"secret2"}'
 ```
 
-## Alpine linux
+## Alpine
+
+### cron
 
 To schedula a task _via_ `cron`
 
@@ -63,4 +65,22 @@ and enter this line in order to execute `agent.sh` script every minute (that's `
 To check whether the program is executing, run
 ```sh
 cat /var/log/messages
+```
+
+### OpenRC
+
+OpenRC is an Alpine's service manager.
+
+Once the `agent` script is copied in `/etc/init.d/` on the guest system, log into the guest system and run
+
+```sh
+rc-update add agent default
+```
+
+and reboot.
+
+### curl
+
+```sh
+curl -i -X POST -H "Content-Type: application/json" 192.168.122.251:9021/agent -d '{"secret":"secret"}'
 ```

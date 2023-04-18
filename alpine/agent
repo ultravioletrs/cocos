@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+
+command="/root/agent/cocos-agent"
+command_args=""
+
+depend() {
+    need net
+}
+
+start() {
+    ebegin "Starting cocos-agent"
+    start-stop-daemon -S -q -b -m -p /run/cocos-agent.pid -x $command -- $command_args
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping cocos-agent"
+    start-stop-daemon -K -q -p /run/cocos-agent.pid
+    eend $?
+}
