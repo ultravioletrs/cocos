@@ -46,3 +46,21 @@ To see the change in action, run
 ```
 curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"secret":"secret2"}'
 ```
+
+## Alpine linux
+
+To schedula a task _via_ `cron`
+
+```sh
+crontab -e
+```
+
+and enter this line in order to execute `agent.sh` script every minute (that's `cron`'s minimal repeating delay of execution):
+```
+*   *   *   *   *   sh /root/agent/agent.sh
+```
+
+To check whether the program is executing, run
+```sh
+cat /var/log/messages
+```
