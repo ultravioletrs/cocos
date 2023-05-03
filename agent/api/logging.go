@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -37,4 +38,17 @@ func (lm *loggingMiddleware) Ping(secret string) (response string, err error) {
 	}(time.Now())
 
 	return lm.svc.Ping(secret)
+}
+
+func (lm *loggingMiddleware) Run(ctx context.Context, cmp agent.Computation) (response string, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Run for computation %s took %s to complete", cmp.ID, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
+	}(time.Now())
+
+	return lm.svc.Run(ctx, cmp)
 }

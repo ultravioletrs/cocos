@@ -1,6 +1,6 @@
 #!/sbin/openrc-run
 
-command="/root/agent/cocos-agent"
+command="/root/cocos-agent"
 command_args=""
 
 depend() {

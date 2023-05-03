@@ -3,7 +3,9 @@
 
 package http
 
-import agent "github.com/ultravioletrs/agent/agent"
+import (
+	agent "github.com/ultravioletrs/agent/agent"
+)
 
 type apiReq interface {
 	validate() error
@@ -18,5 +20,13 @@ func (req pingReq) validate() error {
 		return agent.ErrMalformedEntity
 	}
 
+	return nil
+}
+
+type runReq struct {
+	computation agent.Computation
+}
+
+func (req runReq) validate() error {
 	return nil
 }

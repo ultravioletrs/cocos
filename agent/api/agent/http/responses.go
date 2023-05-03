@@ -26,3 +26,19 @@ func (res pingRes) Headers() map[string]string {
 func (res pingRes) Empty() bool {
 	return false
 }
+
+type runRes struct {
+	Computation string `json:"computation"`
+}
+
+func (res runRes) Code() int {
+	return http.StatusOK
+}
+
+func (res runRes) Headers() map[string]string {
+	return map[string]string{}
+}
+
+func (res runRes) Empty() bool {
+	return false
+}
