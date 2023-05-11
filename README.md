@@ -2,7 +2,12 @@
 
 ## Setup
 
-Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-standard-3.17.2-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-standard-3.17.2-x86_64.iso) in `cmd/manager/iso` directory.
+Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-standard-3.17.2-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.2-x86_64.iso) in `cmd/manager/iso` directory.
+
+```sh
+cd cmd/manager/iso
+wget https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.2-x86_64.iso
+```
 
 ## Run
 

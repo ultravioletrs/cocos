@@ -16,9 +16,9 @@ type createDomainReq struct {
 }
 
 func (req createDomainReq) validate() error {
-	if req.Pool == "" || req.Volume == "" || req.Domain == "" {
-		return manager.ErrMalformedEntity
-	}
+	// if req.Pool == "" || req.Volume == "" || req.Domain == "" {
+	// 	return manager.ErrMalformedEntity
+	// }
 
 	return nil
 }

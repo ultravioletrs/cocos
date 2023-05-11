@@ -3,7 +3,7 @@
 
 MF_DOCKER_IMAGE_NAME_PREFIX ?= mainflux
 BUILD_DIR = build
-SERVICES = users things http coap lora influxdb-writer influxdb-reader mongodb-writer \
+SERVICES = users things http coap ws lora influxdb-writer influxdb-reader mongodb-writer \
 	mongodb-reader cassandra-writer cassandra-reader postgres-writer postgres-reader timescale-writer timescale-reader cli \
 	bootstrap opcua auth twins mqtt provision certs smtp-notifier smpp-notifier
 DOCKERS = $(addprefix docker_,$(SERVICES))
@@ -14,9 +14,15 @@ VERSION ?= $(shell git describe --abbrev=0 --tags)
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 
+ifneq ($(MF_BROKER_TYPE),)
+    MF_BROKER_TYPE := $(MF_BROKER_TYPE)
+else
+    MF_BROKER_TYPE=nats
+endif
+
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
-	go build -mod=vendor -ldflags "-s -w \
+	go build -mod=vendor -tags $(MF_BROKER_TYPE) -ldflags "-s -w \
 	-X 'github.com/mainflux/mainflux.BuildTime=$(TIME)' \
 	-X 'github.com/mainflux/mainflux.Version=$(VERSION)' \
 	-X 'github.com/mainflux/mainflux.Commit=$(COMMIT)'" \
@@ -111,4 +117,6 @@ rundev:
 	cd scripts && ./run.sh
 
 run:
+	sed -i "s,file: brokers/.*.yml,file: brokers/${MF_BROKER_TYPE}.yml," docker/docker-compose.yml
+	sed -i "s,MF_BROKER_URL=.*,MF_BROKER_URL=$$\{MF_$(shell echo ${MF_BROKER_TYPE} | tr 'a-z' 'A-Z')_URL\}," docker/.env
 	docker-compose -f docker/docker-compose.yml up

@@ -56,23 +56,20 @@ func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider) S
 }
 
 func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
-	poolBytes, err := os.ReadFile(poolXML)
+	poolStr, err := readXMLFile(poolXML, "pool.xml")
 	if err != nil {
-		return "", ErrNotFound
+		return "", err
 	}
-	poolStr := string(poolBytes)
 
-	volBytes, err := os.ReadFile(volXML)
+	volStr, err := readXMLFile(volXML, "vol.xml")
 	if err != nil {
-		return "", ErrNotFound
+		return "", err
 	}
-	volStr := string(volBytes)
 
-	domBytes, err := os.ReadFile(domXML)
+	domStr, err := readXMLFile(domXML, "dom.xml")
 	if err != nil {
-		return "", ErrNotFound
+		return "", err
 	}
-	domStr := string(domBytes)
 
 	dom, err := createDomain(ms.libvirt, poolStr, volStr, domStr)
 	if err != nil {
@@ -104,4 +101,17 @@ func (ms *managerService) Run(comp Computation) (string, error) {
 	// go ms.processComputation(comp)
 
 	return runID, nil
+}
+
+func readXMLFile(filename string, defaultFilename string) (string, error) {
+	if filename == "" {
+		filename = defaultFilename
+	}
+
+	xmlBytes, err := os.ReadFile("./xml/" + filename)
+	if err != nil {
+		return "", ErrNotFound
+	}
+
+	return string(xmlBytes), nil
 }

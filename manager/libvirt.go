@@ -63,15 +63,18 @@ vol_exists:
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 55 {
-			goto already_running
+			return dom, nil
 		}
 		return libvirt.Domain{}, err
 	}
-already_running:
 
 	// extra flags; not used yet, so callers should always pass 0
 	current, err := libvirtConn.DomainSnapshotCurrent(dom, 0)
 	if err != nil {
+		lvErr := err.(libvirt.Error)
+		if lvErr.Code == 72 {
+			goto no_snapshot
+		}
 		return libvirt.Domain{}, err
 	}
 
@@ -79,6 +82,8 @@ already_running:
 	if err != nil {
 		return libvirt.Domain{}, err
 	}
+
+no_snapshot:
 
 	return dom, nil
 }

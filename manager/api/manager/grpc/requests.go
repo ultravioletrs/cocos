@@ -13,15 +13,15 @@ type createDomainReq struct {
 }
 
 func (req createDomainReq) validate() error {
-	if req.Pool == "" {
-		return manager.ErrMalformedEntity
-	}
-	if req.Volume == "" {
-		return manager.ErrMalformedEntity
-	}
-	if req.Domain == "" {
-		return manager.ErrMalformedEntity
-	}
+	// if req.Pool == "" {
+	// 	return manager.ErrMalformedEntity
+	// }
+	// if req.Volume == "" {
+	// 	return manager.ErrMalformedEntity
+	// }
+	// if req.Domain == "" {
+	// 	return manager.ErrMalformedEntity
+	// }
 	return nil
 }
 

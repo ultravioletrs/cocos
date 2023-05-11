@@ -25,7 +25,7 @@ github.com/go-kit/kit/tracing/opentracing
 github.com/go-kit/kit/transport
 github.com/go-kit/kit/transport/grpc
 github.com/go-kit/kit/transport/http
-# github.com/go-kit/log v0.2.0
+# github.com/go-kit/log v0.2.1
 ## explicit; go 1.17
 github.com/go-kit/log
 # github.com/go-logfmt/logfmt v0.5.1
@@ -34,7 +34,7 @@ github.com/go-logfmt/logfmt
 # github.com/go-zoo/bone v1.3.0
 ## explicit; go 1.9
 github.com/go-zoo/bone
-# github.com/gofrs/uuid v4.2.0+incompatible
+# github.com/gofrs/uuid v4.3.0+incompatible
 ## explicit
 github.com/gofrs/uuid
 # github.com/golang/protobuf v1.5.2
@@ -46,14 +46,14 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/mainflux/mainflux v0.0.0-20220415135135-92d8fb99bf82
-## explicit; go 1.17
+# github.com/mainflux/mainflux v0.0.0-20221221180352-57e3c25d3de3
+## explicit; go 1.19
 github.com/mainflux/mainflux
 github.com/mainflux/mainflux/logger
 github.com/mainflux/mainflux/pkg/errors
 github.com/mainflux/mainflux/pkg/uuid
-# github.com/matttproud/golang_protobuf_extensions v1.0.1
-## explicit
+# github.com/matttproud/golang_protobuf_extensions v1.0.4
+## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/opentracing/opentracing-go v1.2.0
 ## explicit; go 1.14
@@ -107,8 +107,8 @@ github.com/uber/jaeger-client-go/utils
 # github.com/uber/jaeger-lib v2.4.1+incompatible
 ## explicit
 github.com/uber/jaeger-lib/metrics
-# go.uber.org/atomic v1.9.0
-## explicit; go 1.13
+# go.uber.org/atomic v1.10.0
+## explicit; go 1.18
 go.uber.org/atomic
 # golang.org/x/net v0.4.0
 ## explicit; go 1.17
