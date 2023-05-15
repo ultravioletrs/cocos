@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,7 +22,9 @@ import (
 	"github.com/mainflux/mainflux/logger"
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
+	agentgrpc "github.com/ultravioletrs/agent/agent/api/agent/grpc"
 	agenthttpapi "github.com/ultravioletrs/agent/agent/api/agent/http"
+	"google.golang.org/grpc"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -36,6 +39,7 @@ const (
 	defServerCert = ""
 	defServerKey  = ""
 	defSecret     = "secret"
+	defGRPCAddr   = "localhost:7002"
 
 	envLogLevel   = "MF_AGENT_LOG_LEVEL"
 	envHTTPPort   = "MF_AGENT_HTTP_PORT"
@@ -43,17 +47,17 @@ const (
 	envServerKey  = "MF_AGENT_SERVER_KEY"
 	envSecret     = "MF_AGENT_SECRET"
 	envJaegerURL  = "MF_JAEGER_URL"
+	envGRPCAddr   = "CC_AGENT_GRPC_PORT"
 )
 
 type config struct {
-	logLevel     string
-	httpPort     string
-	authHTTPPort string
-	authGRPCPort string
-	serverCert   string
-	serverKey    string
-	secret       string
-	jaegerURL    string
+	logLevel   string
+	httpPort   string
+	serverCert string
+	serverKey  string
+	secret     string
+	jaegerURL  string
+	GRPCAddr   string
 }
 
 func main() {
@@ -70,6 +74,7 @@ func main() {
 	svc := newService(cfg.secret, logger)
 	errs := make(chan error, 2)
 
+	go startgRPCServer(cfg, &svc, logger, errs)
 	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.httpPort, cfg, logger, errs)
 
 	go func() {
@@ -90,6 +95,7 @@ func loadConfig() config {
 		serverKey:  mainflux.Env(envServerKey, defServerKey),
 		jaegerURL:  mainflux.Env(envJaegerURL, defJaegerURL),
 		secret:     mainflux.Env(envSecret, defSecret),
+		GRPCAddr:   mainflux.Env(envGRPCAddr, defGRPCAddr),
 	}
 }
 
@@ -150,4 +156,19 @@ func startHTTPServer(handler http.Handler, port string, cfg config, logger logge
 	}
 	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.httpPort))
 	errs <- http.ListenAndServe(p, handler)
+}
+
+func startgRPCServer(cfg config, svc *agent.Service, logger logger.Logger, errs chan error) {
+	// Create a gRPC server object
+	tracer := opentracing.GlobalTracer()
+	server := grpc.NewServer()
+	// Register the implementation of the service with the server
+	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(tracer, *svc))
+	// Listen to a port and serve incoming requests
+	listener, err := net.Listen("tcp", cfg.GRPCAddr)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.GRPCAddr))
+	errs <- server.Serve(listener)
 }

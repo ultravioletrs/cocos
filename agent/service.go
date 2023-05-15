@@ -34,7 +34,7 @@ type Computation struct {
 	DatasetProviders   []string  `json:"dataset_providers,omitempty" db:"dataset_providers"`
 	AlgorithmProviders []string  `json:"algorithm_providers,omitempty" db:"algorithm_providers"`
 	ResultConsumers    []string  `json:"result_consumers,omitempty" db:"result_consumers"`
-	Ttl                int       `json:"ttl,omitempty" db:"ttl"`
+	Ttl                int32     `json:"ttl,omitempty" db:"ttl"`
 	Metadata           Metadata  `json:"metadata,omitempty" db:"metadata"`
 }
 
