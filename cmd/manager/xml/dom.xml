@@ -36,14 +36,14 @@
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     <disk type="file" device="disk">
       <driver name="qemu" type="qcow2" discard="unmap"/>
-      <source file="/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img"/>
+      <source file="./img/boot.img"/>
       <target dev="vda" bus="virtio"/>
       <address type="pci" domain="0x0000" bus="0x04" slot="0x00" function="0x0"/>
       <!-- <snapshot name="snapshot1"/> -->
       <boot order="1"/>
     </disk>
     <disk type="file" device="cdrom">
-      <source file='/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/iso/alpine-standard-3.17.2-x86_64.iso'/>    
+      <source file='./iso/alpine-standard-3.17.2-x86_64.iso'/>    
       <driver name="qemu" type="raw"/>
       <target dev="sda" bus="sata"/>
       <readonly/>

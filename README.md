@@ -2,6 +2,21 @@
 
 ## Setup
 
+### Libvirt
+
+```sh
+sudo apt update
+sudo apt install qemu-kvm libvirt-daemon-system
+```
+
+After installing `libvirt-daemon-system`, the user that will be used to manage virtual machines needs to be added to the `libvirt` group. This is done automatically for members of the sudo group, otherwise
+
+```sh
+sudo adduser $USER libvirt
+```
+
+### iso & img
+
 Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-standard-3.17.2-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.2-x86_64.iso) in `cmd/manager/iso` directory.
 
 ```sh
@@ -13,7 +28,7 @@ wget https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard
 
 `cd` to `cmd/manager` and run
 ```sh
-go run main.go
+CC_MANAGER_LOG_LEVEL=info go run main.go
 ```
 
 This will start an HTTP server on port `9021`, a gRPC server on port `7001` and will establish a connection to [libvirtd](https://libvirt.org/manpages/libvirtd.html).
@@ -23,7 +38,7 @@ This will start an HTTP server on port `9021`, a gRPC server on port `7001` and 
 To create a `libvirt` domain - basically a QEMU instance or a virtual machine (VM) - run
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/pool.xml", "volume":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/vol.xml", "domain":"/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/xml/dom.xml"}'
+curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"<path/to/pool.xml>", "volume":"<path/to/vol.xml", "domain":"<path/to/dom.xml"}'
 ```
 
 If you have already created a domain, you can remove it with

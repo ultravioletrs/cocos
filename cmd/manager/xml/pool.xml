@@ -1,6 +1,6 @@
 <pool type="dir">
 <name>virtimages</name>
 <target>
-  <path>/home/darko/go/src/github.com/ultravioletrs/manager/cmd/manager/img</path>
+  <path>./img</path>
 </target>
 </pool>

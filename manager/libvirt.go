@@ -3,7 +3,7 @@ package manager
 import (
 	"regexp"
 
-	"github.com/digitalocean/go-libvirt"
+	libvirt "github.com/digitalocean/go-libvirt"
 )
 
 var re = regexp.MustCompile(`'([^']*)'`)

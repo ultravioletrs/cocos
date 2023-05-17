@@ -6,6 +6,7 @@ package manager
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -56,20 +57,25 @@ func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider) S
 }
 
 func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
+	wd, _ := os.Getwd()
+
 	poolStr, err := readXMLFile(poolXML, "pool.xml")
 	if err != nil {
 		return "", err
 	}
+	poolStr = replaceSubstring(poolStr, "./", wd+"/")
 
 	volStr, err := readXMLFile(volXML, "vol.xml")
 	if err != nil {
 		return "", err
 	}
+	volStr = replaceSubstring(volStr, "./", wd+"/")
 
 	domStr, err := readXMLFile(domXML, "dom.xml")
 	if err != nil {
 		return "", err
 	}
+	domStr = replaceSubstring(domStr, "./", wd+"/")
 
 	dom, err := createDomain(ms.libvirt, poolStr, volStr, domStr)
 	if err != nil {
@@ -114,4 +120,24 @@ func readXMLFile(filename string, defaultFilename string) (string, error) {
 	}
 
 	return string(xmlBytes), nil
+}
+
+func replaceSubstring(xml, substring, replacement string) string {
+	// Split the file text into lines
+	lines := strings.Split(xml, "\n")
+
+	// Create a variable to hold the resulting string
+	var result strings.Builder
+
+	// Iterate over each line
+	for _, line := range lines {
+		// Replace the substring with the replacement
+		newLine := strings.ReplaceAll(line, substring, replacement)
+
+		// Append the modified line to the resulting string
+		result.WriteString(newLine)
+		result.WriteString("\n")
+	}
+
+	return result.String()
 }
