@@ -47,7 +47,7 @@ const (
 	envServerKey  = "MF_AGENT_SERVER_KEY"
 	envSecret     = "MF_AGENT_SECRET"
 	envJaegerURL  = "MF_JAEGER_URL"
-	envGRPCAddr   = "CC_AGENT_GRPC_PORT"
+	envGRPCAddr   = "CC_AGENT_GRPC_ADDR"
 )
 
 type config struct {
