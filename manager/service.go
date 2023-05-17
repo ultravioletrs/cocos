@@ -105,10 +105,10 @@ func (ms *managerService) Run(comp Computation) (string, error) {
 
 func readXMLFile(filename string, defaultFilename string) (string, error) {
 	if filename == "" {
-		filename = defaultFilename
+		filename = "./xml/" + defaultFilename
 	}
 
-	xmlBytes, err := os.ReadFile("./xml/" + filename)
+	xmlBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return "", ErrNotFound
 	}

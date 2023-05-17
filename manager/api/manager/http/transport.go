@@ -108,6 +108,8 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	switch err {
 	case manager.ErrMalformedEntity:
 		w.WriteHeader(http.StatusBadRequest)
+	case manager.ErrNotFound:
+		w.WriteHeader(http.StatusNotFound)
 	case manager.ErrUnauthorizedAccess:
 		w.WriteHeader(http.StatusForbidden)
 	case errUnsupportedContentType:
