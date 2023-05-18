@@ -17,11 +17,11 @@ sudo adduser $USER libvirt
 
 ### CD iso & hard drive img for virtual machine (VM)
 
-Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-standard-3.17.2-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.2-x86_64.iso) in `cmd/manager/iso` directory:
+Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [aalpine-virt-3.18.0-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso) in `cmd/manager/iso` directory:
 
 ```sh
 cd cmd/manager/iso
-wget https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.2-x86_64.iso
+wget https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso
 ```
 
 ## Run
@@ -29,7 +29,7 @@ wget https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard
 We need to run `manager` in the directory where `img`, `iso` and `xml` directories are. `cd` to `cmd/manager` and run
 
 ```sh
-CC_MANAGER_LOG_LEVEL=info go run main.go
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 go run main.go
 ```
 
 This will start an HTTP server on port `9021`, a gRPC server on port `7001` and will establish a connection to [libvirtd](https://libvirt.org/manpages/libvirtd.html).
@@ -61,27 +61,6 @@ This will destroy the domain together with volumes and a pool where the volume w
 sudo apt-get install virt-manager
 ```
 
-Start virtual manager. Open `QEmu-alpine-standard-x86_64` virtual machine. Log in as root, no password needed, and follow instructions to install and set up Alpine Linux on virtual drive.
+Start virtual manager. Open `QEmu-alpine-standard-x86_64` virtual machine. Log in as root, no password needed, and follow instructions to install and set up Alpine Linux on virtual drive. Basically, you need to run `setup-alpine` script. Use `vda` as a virtual disk drive and `sys` to install Alpine Linux on the virtual disk drive.
 
 Once you have installed and set up Alpine Linux, follow the instructions in `Agent` [README.md](https://github.com/ultravioletrs/agent) in order to see how to set up `Cocos.ai` `Agent` in the virtual machine.
-
-## Computation
-
-To run a computation, run
-
-```sh
-curl -X POST \
-  http://localhost:9021/run \
-  -H 'Content-Type: application/json' \
-  -d '{
-        "name": "my-run",
-        "description": "this is a test run",
-        "owner": "John Doe",
-        "datasets": ["dataset1", "dataset2"],
-        "algorithms": ["algorithm1", "algorithm2"],
-        "dataset_providers": ["provider1", "provider2"],
-        "algorithm_providers": ["provider3", "provider4"],
-        "result_consumers": ["consumer1", "consumer2"],
-        "ttl": 3600
-    }'
-```
