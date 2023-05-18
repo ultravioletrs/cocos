@@ -1,7 +1,7 @@
 <volume>
 <name>boot.img</name>
 <allocation>0</allocation>
-<capacity unit="G">2</capacity>
+<capacity unit="G">1</capacity>
 <target>
   <format type="qcow2"/>
   <path>./img/boot.img</path>

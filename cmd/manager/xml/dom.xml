@@ -43,7 +43,7 @@
       <boot order="1"/>
     </disk>
     <disk type="file" device="cdrom">
-      <source file='./iso/alpine-standard-3.17.2-x86_64.iso'/>    
+      <source file='./iso/alpine-virt-3.18.0-x86_64.iso'/>    
       <driver name="qemu" type="raw"/>
       <target dev="sda" bus="sata"/>
       <readonly/>
