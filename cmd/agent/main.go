@@ -41,12 +41,12 @@ const (
 	defSecret     = "secret"
 	defGRPCAddr   = "localhost:7002"
 
-	envLogLevel   = "MF_AGENT_LOG_LEVEL"
-	envHTTPPort   = "MF_AGENT_HTTP_PORT"
-	envServerCert = "MF_AGENT_SERVER_CERT"
-	envServerKey  = "MF_AGENT_SERVER_KEY"
-	envSecret     = "MF_AGENT_SECRET"
-	envJaegerURL  = "MF_JAEGER_URL"
+	envLogLevel   = "CC_AGENT_LOG_LEVEL"
+	envHTTPPort   = "CC_AGENT_HTTP_PORT"
+	envServerCert = "CC_AGENT_SERVER_CERT"
+	envServerKey  = "CC_AGENT_SERVER_KEY"
+	envSecret     = "CC_AGENT_SECRET"
+	envJaegerURL  = "CC_JAEGER_URL"
 	envGRPCAddr   = "CC_AGENT_GRPC_ADDR"
 )
 

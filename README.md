@@ -1,70 +1,30 @@
-# Mfxkit - Mainflux Starter Kit
+# Agent
 
-Mfxkit service provides a barebones HTTP API and Service interface implementation for development of a core Mainflux service.
-
-## How-to
-
-Copy `mfxkit` directory to the `mainflux` root directory, e.g. `~/go/src/github.com/mainflux/mainflux/`. Copy `cmd/mfxkit` directory to `mainflux/cmd` directory.
-
-In `mainflux` root directory run
-
-```
-MF_MFXKIT_LOG_LEVEL=info go run cmd/mfxkit/main.go
-```
-
-You should get a message similar to this one
-
-```
-{"level":"info","message":"Mfxkit service started using http on port 9021","ts":"2021-03-03T11:16:27.027381203Z"}
-```
-
-In the other terminal window run 
-
-```
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/mfxkit -d '{"secret":"secret"}'
-```
-
-If everything goes well, you should get
-
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-Date: Wed, 03 Mar 2021 11:17:10 GMT
-Content-Length: 30
-
-{"greeting":"Hello World :)"}
-```
-
-To change the secret or the port, prefix the `go run` command with environment variable assignments, e.g.
-
-```
-MF_MFXKIT_LOG_LEVEL=info MF_MFXKIT_SECRET=secret2 MF_MFXKIT_HTTP_PORT=9022 go run cmd/mfxkit/main.go
-```
-
-To see the change in action, run
-
-```
-curl -i -X POST -H "Content-Type: application/json" localhost:9022/mfxkit -d '{"secret":"secret2"}'
-```
-
-## Alpine
-
-### cron
-
-To schedula a task _via_ `cron`
+## Build Agent
+On the host machine in the root of `agent` repository
 
 ```sh
-crontab -e
+go build -o ./bin/cocos-agent -ldflags="-linkmode=external -extldflags=-static -s -w" cmd/agent/main.go
 ```
 
-and enter this line in order to execute `agent.sh` script every minute (that's `cron`'s minimal repeating delay of execution):
-```
-*   *   *   *   *   sh /root/agent/agent.sh
-```
+## Copy files to virtual drive
 
-To check whether the program is executing, run
+Shut down `QEmu-alpine-standard-x86_64` virtual machine. 
+
+On the host machine
+
 ```sh
-cat /var/log/messages
+sudo apt-get install libguestfs-tools
+
+QCOW2_PATH=~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
+
+HOST_AGENT_PATH=~/go/src/github.com/ultravioletrs/agent/bin/cocos-agent; \
+GUEST_AGENT_PATH=/root/; \
+sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_PATH $GUEST_AGENT_PATH
+
+HOST_AGENT_PATH=~/go/src/github.com/ultravioletrs/agent/alpine/agent; \
+GUEST_AGENT_PATH=/etc/init.d/; \
+sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_PATH $GUEST_AGENT_PATH
 ```
 
 ### OpenRC
@@ -79,8 +39,57 @@ rc-update add agent default
 
 and reboot.
 
-### curl
+To see if the service is running, inside Alpine linux run
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" 192.168.122.251:9021/agent -d '{"secret":"secret"}'
+ps aux | grep cocos
+```
+
+To see if the ports are correctly configured, , inside Alpine linux run
+
+```sh
+netstat -tuln | grep 9031
+netstat -tuln | grep 7002
+```
+
+### cURL
+
+To check if the `cocos-agent` deamon is running in the virtual machine Alpine linux
+
+```sh
+GUEST_ADDR=192.168.122.251:9031
+```
+
+```sh
+curl -i -X POST -H "Content-Type: application/json" ${GUEST_ADDR}/agent -d '{"secret":"secret"}'
+```
+
+To run a computation
+
+```sh
+curl -sSi -X POST ${GUEST_ADDR}/run -H "Content-Type: application/json" -d @- <<EOF 
+{
+  "name": "computation_24",
+  "description": "this_computes_the_number_24",
+  "datasets": [
+    "red", "green", "blue", "black", "white", "grey"
+  ],
+  "algorithms": [
+    "toHSV", "toRGB"
+  ],
+  "status": "executed",
+  "owner": "Hector",
+  "dataset_providers": [
+    "Maxi", "Idea", "Lidl"
+  ],
+  "algorithm_providers": [
+    "ETF", "FON", "FTN"
+  ],
+  "result_consumers": [
+    "Intesa", "KomBank", "OTP"
+  ],
+  "ttl": 32,
+  "metadata": {}
+}
+EOF
 ```
