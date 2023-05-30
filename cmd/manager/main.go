@@ -27,10 +27,11 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	jconfig "github.com/uber/jaeger-client-go/config"
 	"github.com/ultravioletrs/agent/agent"
+	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
-	managergrpc "github.com/ultravioletrs/manager/manager/api/manager/grpc"
-	managerhttpapi "github.com/ultravioletrs/manager/manager/api/manager/http"
+	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
+	managerhttpapi "github.com/ultravioletrs/manager/manager/api/http"
 	"google.golang.org/grpc"
 
 	"github.com/digitalocean/go-libvirt"
@@ -47,15 +48,15 @@ const (
 	defAgentURL     = "localhost:7002"
 	defAgentTimeout = "1s"
 
-	envLogLevel     = "CC_MANAGER_LOG_LEVEL"
-	envHTTPPort     = "CC_MANAGER_HTTP_PORT"
-	envServerCert   = "CC_MANAGER_SERVER_CERT"
-	envServerKey    = "CC_MANAGER_SERVER_KEY"
-	envSecret       = "CC_MANAGER_SECRET"
-	envJaegerURL    = "CC_JAEGER_URL"
-	envGRPCAddr     = "CC_MANAGER_GRPC_PORT"
-	envAgentURL     = "COCOS_COMPUTATIONS_AGENT_GRPC_URL"
-	envAgentTimeout = "COCOS_COMPUTATIONS_AGENT_GRPC_TIMEOUT"
+	envLogLevel     = "MANAGER_LOG_LEVEL"
+	envHTTPPort     = "MANAGER_HTTP_PORT"
+	envServerCert   = "MANAGER_SERVER_CERT"
+	envServerKey    = "MANAGER_SERVER_KEY"
+	envSecret       = "MANAGER_SECRET"
+	envJaegerURL    = "JAEGER_URL"
+	envGRPCAddr     = "MANAGER_GRPC_PORT"
+	envAgentURL     = "MANAGER_AGENT_GRPC_URL"
+	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
 )
 
 type config struct {
@@ -88,8 +89,10 @@ func main() {
 
 	idProvider := uuid.New()
 
+	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	defer agentCloser.Close()
 	conn := connectToGrpc("agent", cfg.agentURL, logger)
-	agent := agent.NewAgentServiceClient(conn)
+	agent := agentgrpc.NewClient(agentTracer, conn, cfg.agentTimeout)
 
 	svc := newService(cfg.secret, libvirtConn, idProvider, agent, logger)
 
@@ -240,7 +243,7 @@ func connectToGrpc(name string, url string, logger logger.Logger) *grpc.ClientCo
 
 	conn, err := grpc.Dial(url, opts...)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to connect to things service: %s", err))
+		logger.Error(fmt.Sprintf("Failed to connect to %s service: %s", name, err))
 		os.Exit(1)
 	}
 	logger.Info(fmt.Sprintf("connected to %s gRPC server on %s", name, url))
