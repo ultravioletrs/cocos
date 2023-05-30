@@ -40,12 +40,12 @@ func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Du
 // encodeRunRequest is a transport/grpc.EncodeRequestFunc that
 // converts a user-domain runReq to a gRPC request.
 func encodeRunRequest(_ context.Context, request interface{}) (interface{}, error) {
-	req, ok := request.(runReq)
+	req, ok := request.(*agent.RunRequest)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", request)
 	}
 
-	return &req, nil
+	return req, nil
 }
 
 // decodeRunResponse is a transport/grpc.DecodeResponseFunc that

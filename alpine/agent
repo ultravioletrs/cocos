@@ -8,9 +8,9 @@ depend() {
 }
 
 start() {
-    CC_AGENT_GRPC_ADDR=$(ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1):7002
+    AGENT_GRPC_ADDR=$(ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1):7002
     ebegin "Starting cocos-agent"
-    env CC_AGENT_GRPC_ADDR="${CC_AGENT_GRPC_ADDR}" start-stop-daemon -S -q -b -m -p /run/cocos-agent.pid -x $command -- $command_args
+    env AGENT_GRPC_ADDR="${AGENT_GRPC_ADDR}" start-stop-daemon -S -q -b -m -p /run/cocos-agent.pid -x $command -- $command_args
     eend $?
 }
 

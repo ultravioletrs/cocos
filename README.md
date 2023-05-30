@@ -18,13 +18,13 @@ sudo apt-get install libguestfs-tools
 
 QCOW2_PATH=~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
 
-HOST_AGENT_PATH=~/go/src/github.com/ultravioletrs/agent/bin/cocos-agent; \
-GUEST_AGENT_PATH=/root/; \
-sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_PATH $GUEST_AGENT_PATH
+HOST_AGENT_BIN_PATH=~/go/src/github.com/ultravioletrs/agent/bin/cocos-agent; \
+GUEST_AGENT_BIN_PATH=/root/; \
+sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_BIN_PATH $GUEST_AGENT_BIN_PATH
 
-HOST_AGENT_PATH=~/go/src/github.com/ultravioletrs/agent/alpine/agent; \
-GUEST_AGENT_PATH=/etc/init.d/; \
-sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_PATH $GUEST_AGENT_PATH
+HOST_AGENT_SCRIPT_PATH=~/go/src/github.com/ultravioletrs/agent/alpine/agent; \
+GUEST_AGENT_SCRIPT_PATH=/etc/init.d/; \
+sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_SCRIPT_PATH $GUEST_AGENT_SCRIPT_PATH
 ```
 
 ### OpenRC

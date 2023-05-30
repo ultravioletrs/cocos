@@ -22,8 +22,8 @@ import (
 	"github.com/mainflux/mainflux/logger"
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
-	agentgrpc "github.com/ultravioletrs/agent/agent/api/agent/grpc"
-	agenthttpapi "github.com/ultravioletrs/agent/agent/api/agent/http"
+	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
+	agenthttpapi "github.com/ultravioletrs/agent/agent/api/http"
 	"google.golang.org/grpc"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -41,13 +41,13 @@ const (
 	defSecret     = "secret"
 	defGRPCAddr   = "localhost:7002"
 
-	envLogLevel   = "CC_AGENT_LOG_LEVEL"
-	envHTTPPort   = "CC_AGENT_HTTP_PORT"
-	envServerCert = "CC_AGENT_SERVER_CERT"
-	envServerKey  = "CC_AGENT_SERVER_KEY"
-	envSecret     = "CC_AGENT_SECRET"
-	envJaegerURL  = "CC_JAEGER_URL"
-	envGRPCAddr   = "CC_AGENT_GRPC_ADDR"
+	envLogLevel   = "AGENT_LOG_LEVEL"
+	envHTTPPort   = "AGENT_HTTP_PORT"
+	envServerCert = "AGENT_SERVER_CERT"
+	envServerKey  = "AGENT_SERVER_KEY"
+	envSecret     = "AGENT_SECRET"
+	envJaegerURL  = "JAEGER_URL"
+	envGRPCAddr   = "AGENT_GRPC_ADDR"
 )
 
 type config struct {
