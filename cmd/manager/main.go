@@ -26,6 +26,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	jconfig "github.com/uber/jaeger-client-go/config"
+	"github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/manager/grpc"
@@ -36,21 +37,25 @@ import (
 )
 
 const (
-	defLogLevel   = "error"
-	defHTTPPort   = "9021"
-	defJaegerURL  = ""
-	defServerCert = ""
-	defServerKey  = ""
-	defSecret     = "secret"
-	defGRPCAddr   = "localhost:7001"
+	defLogLevel     = "error"
+	defHTTPPort     = "9021"
+	defJaegerURL    = ""
+	defServerCert   = ""
+	defServerKey    = ""
+	defSecret       = "secret"
+	defGRPCAddr     = "localhost:7001"
+	defAgentURL     = "localhost:7002"
+	defAgentTimeout = "1s"
 
-	envLogLevel   = "CC_MANAGER_LOG_LEVEL"
-	envHTTPPort   = "CC_MANAGER_HTTP_PORT"
-	envServerCert = "CC_MANAGER_SERVER_CERT"
-	envServerKey  = "CC_MANAGER_SERVER_KEY"
-	envSecret     = "CC_MANAGER_SECRET"
-	envJaegerURL  = "CC_JAEGER_URL"
-	envGRPCAddr   = "CC_MANAGER_GRPC_PORT"
+	envLogLevel     = "CC_MANAGER_LOG_LEVEL"
+	envHTTPPort     = "CC_MANAGER_HTTP_PORT"
+	envServerCert   = "CC_MANAGER_SERVER_CERT"
+	envServerKey    = "CC_MANAGER_SERVER_KEY"
+	envSecret       = "CC_MANAGER_SECRET"
+	envJaegerURL    = "CC_JAEGER_URL"
+	envGRPCAddr     = "CC_MANAGER_GRPC_PORT"
+	envAgentURL     = "COCOS_COMPUTATIONS_AGENT_GRPC_URL"
+	envAgentTimeout = "COCOS_COMPUTATIONS_AGENT_GRPC_TIMEOUT"
 )
 
 type config struct {
@@ -63,6 +68,8 @@ type config struct {
 	secret       string
 	jaegerURL    string
 	GRPCAddr     string
+	agentURL     string
+	agentTimeout time.Duration
 }
 
 func main() {
@@ -81,7 +88,10 @@ func main() {
 
 	idProvider := uuid.New()
 
-	svc := newService(cfg.secret, libvirtConn, idProvider, logger)
+	conn := connectToGrpc("agent", cfg.agentURL, logger)
+	agent := agent.NewAgentServiceClient(conn)
+
+	svc := newService(cfg.secret, libvirtConn, idProvider, agent, logger)
 
 	errs := make(chan error, 2)
 	go startgRPCServer(cfg, &svc, logger, errs)
@@ -99,14 +109,21 @@ func main() {
 }
 
 func loadConfig() config {
+	agentTimeout, err := time.ParseDuration(mainflux.Env(envAgentTimeout, defAgentTimeout))
+	if err != nil {
+		log.Fatalf("Invalid %s value: %s", agentTimeout, err.Error())
+	}
+
 	return config{
-		logLevel:   mainflux.Env(envLogLevel, defLogLevel),
-		httpPort:   mainflux.Env(envHTTPPort, defHTTPPort),
-		serverCert: mainflux.Env(envServerCert, defServerCert),
-		serverKey:  mainflux.Env(envServerKey, defServerKey),
-		jaegerURL:  mainflux.Env(envJaegerURL, defJaegerURL),
-		secret:     mainflux.Env(envSecret, defSecret),
-		GRPCAddr:   mainflux.Env(envGRPCAddr, defGRPCAddr),
+		agentTimeout: agentTimeout,
+		logLevel:     mainflux.Env(envLogLevel, defLogLevel),
+		httpPort:     mainflux.Env(envHTTPPort, defHTTPPort),
+		serverCert:   mainflux.Env(envServerCert, defServerCert),
+		serverKey:    mainflux.Env(envServerKey, defServerKey),
+		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
+		secret:       mainflux.Env(envSecret, defSecret),
+		GRPCAddr:     mainflux.Env(envGRPCAddr, defGRPCAddr),
+		agentURL:     mainflux.Env(envAgentURL, defAgentURL),
 	}
 }
 
@@ -134,8 +151,8 @@ func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, 
 	return tracer, closer
 }
 
-func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, logger logger.Logger) manager.Service {
-	svc := manager.New(secret, libvirtConn, idp)
+func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient, logger logger.Logger) manager.Service {
+	svc := manager.New(secret, libvirtConn, idp, agent)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	svc = api.MetricsMiddleware(
@@ -215,4 +232,18 @@ func initLibvirt(logger logger.Logger) *libvirt.Libvirt {
 	}
 
 	return l
+}
+
+func connectToGrpc(name string, url string, logger logger.Logger) *grpc.ClientConn {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+
+	conn, err := grpc.Dial(url, opts...)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to connect to things service: %s", err))
+		os.Exit(1)
+	}
+	logger.Info(fmt.Sprintf("connected to %s gRPC server on %s", name, url))
+
+	return conn
 }

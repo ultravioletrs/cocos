@@ -32,19 +32,7 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			return runRes{}, err
 		}
 
-		comp := manager.Computation{
-			Name:               req.Name,
-			Description:        req.Description,
-			Owner:              req.Owner,
-			Datasets:           req.Datasets,
-			Algorithms:         req.Algorithms,
-			DatasetProviders:   req.DatasetProviders,
-			AlgorithmProviders: req.AlgorithmProviders,
-			ResultConsumers:    req.ResultConsumers,
-			TTL:                req.TTL,
-		}
-
-		id, err := svc.Run(comp)
+		id, err := svc.Run(req.Computation)
 		if err != nil {
 			return runRes{}, err
 		}

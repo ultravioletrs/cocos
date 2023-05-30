@@ -4,13 +4,14 @@
 package manager
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
 
 	"github.com/digitalocean/go-libvirt"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mainflux/mainflux"
+	"github.com/ultravioletrs/agent/agent"
 )
 
 const (
@@ -36,23 +37,25 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	CreateDomain(pool, volume, domain string) (string, error)
-	Run(comp Computation) (string, error)
+	Run(computation []byte) (string, error)
 }
 
 type managerService struct {
 	secret     string
 	libvirt    *libvirt.Libvirt
 	idProvider mainflux.IDProvider
+	agent      agent.AgentServiceClient
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider) Service {
+func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient) Service {
 	return &managerService{
 		secret:     secret,
 		libvirt:    libvirtConn,
 		idProvider: idp,
+		agent:      agent,
 	}
 }
 
@@ -85,28 +88,13 @@ func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, 
 	return dom.Name, nil
 }
 
-func (ms *managerService) Run(comp Computation) (string, error) {
-	// Generate a unique ID for the computation
-	runID, err := ms.idProvider.ID()
+func (ms *managerService) Run(computation []byte) (string, error) {
+	res, err := ms.agent.Run(context.Background(), &agent.RunRequest{Computation: computation})
 	if err != nil {
 		return "", err
 	}
 
-	// Initialize the Computation object
-	comp.ID = runID
-	comp.Status = ""
-	comp.StartTime = &timestamp.Timestamp{}
-	comp.EndTime = &timestamp.Timestamp{}
-
-	// // Save the Computation object to the database
-	// if err := ms.db.SaveComputation(comp); err != nil {
-	// 	return "", err
-	// }
-
-	// // Start the computation process
-	// go ms.processComputation(comp)
-
-	return runID, nil
+	return res.Computation, nil
 }
 
 func readXMLFile(filename string, defaultFilename string) (string, error) {

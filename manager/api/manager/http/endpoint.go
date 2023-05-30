@@ -38,24 +38,8 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		// Create the computation
-		computation := manager.Computation{
-			Name:               req.Name,
-			Description:        req.Description,
-			Status:             "",
-			Owner:              req.Owner,
-			Datasets:           req.Datasets,
-			Algorithms:         req.Algorithms,
-			DatasetProviders:   req.DatasetProviders,
-			AlgorithmProviders: req.AlgorithmProviders,
-			ResultConsumers:    req.ResultConsumers,
-			TTL:                req.TTL,
-			StartTime:          nil,
-			EndTime:            nil,
-		}
-
 		// Call the Run method on the service
-		runID, err := svc.Run(computation)
+		runID, err := svc.Run(req.Computation)
 		if err != nil {
 			return nil, err
 		}

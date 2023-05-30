@@ -44,15 +44,7 @@ func encodeCreateDomainResponse(_ context.Context, response interface{}) (interf
 func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*manager.RunRequest)
 	return runReq{
-		Name:               req.GetName(),
-		Description:        req.GetDescription(),
-		Owner:              req.GetOwner(),
-		Datasets:           req.GetDatasets(),
-		Algorithms:         req.GetAlgorithms(),
-		DatasetProviders:   req.GetDatasetProviders(),
-		AlgorithmProviders: req.GetAlgorithmProviders(),
-		ResultConsumers:    req.GetResultConsumers(),
-		TTL:                req.GetTtl(),
+		Computation: req.GetComputation(),
 	}, nil
 }
 

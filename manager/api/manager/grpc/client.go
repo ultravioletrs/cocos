@@ -94,15 +94,7 @@ func encodeRunRequest(_ context.Context, request interface{}) (interface{}, erro
 		return nil, fmt.Errorf("invalid request type: %T", request)
 	}
 	return &manager.RunRequest{
-		Name:               req.Name,
-		Description:        req.Description,
-		Owner:              req.Owner,
-		Datasets:           req.Datasets,
-		Algorithms:         req.Algorithms,
-		DatasetProviders:   req.DatasetProviders,
-		AlgorithmProviders: req.AlgorithmProviders,
-		ResultConsumers:    req.ResultConsumers,
-		Ttl:                req.TTL,
+		Computation: req.Computation,
 	}, nil
 }
 
@@ -123,15 +115,7 @@ func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...
 	defer close()
 
 	runReq := runReq{
-		Name:               req.GetName(),
-		Description:        req.GetDescription(),
-		Owner:              req.GetOwner(),
-		Datasets:           req.GetDatasets(),
-		Algorithms:         req.GetAlgorithms(),
-		DatasetProviders:   req.GetDatasetProviders(),
-		AlgorithmProviders: req.GetAlgorithmProviders(),
-		ResultConsumers:    req.GetResultConsumers(),
-		TTL:                req.GetTtl(),
+		Computation: req.GetComputation(),
 	}
 
 	res, err := client.run(ctx, runReq)

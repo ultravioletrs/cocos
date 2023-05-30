@@ -40,11 +40,11 @@ func (ms *metricsMiddleware) CreateDomain(pool, volume, domain string) (response
 	return ms.svc.CreateDomain(pool, volume, domain)
 }
 
-func (ms *metricsMiddleware) Run(comp manager.Computation) (string, error) {
+func (ms *metricsMiddleware) Run(computation []byte) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Run(comp)
+	return ms.svc.Run(computation)
 }
