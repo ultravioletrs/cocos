@@ -44,17 +44,8 @@ func encodeRunRequest(_ context.Context, request interface{}) (interface{}, erro
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", request)
 	}
-	return &agent.RunRequest{
-		Name:               req.Name,
-		Description:        req.Description,
-		Owner:              req.Owner,
-		Datasets:           req.Datasets,
-		Algorithms:         req.Algorithms,
-		DatasetProviders:   req.DatasetProviders,
-		AlgorithmProviders: req.AlgorithmProviders,
-		ResultConsumers:    req.ResultConsumers,
-		Ttl:                req.TTL,
-	}, nil
+
+	return &req, nil
 }
 
 // decodeRunResponse is a transport/grpc.DecodeResponseFunc that
@@ -69,23 +60,11 @@ func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}
 	}, nil
 }
 
-func (client grpcClient) Run(ctx context.Context, req *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
+func (client grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
 	ctx, close := context.WithTimeout(ctx, client.timeout)
 	defer close()
 
-	runReq := runReq{
-		Name:               req.GetName(),
-		Description:        req.GetDescription(),
-		Owner:              req.GetOwner(),
-		Datasets:           req.GetDatasets(),
-		Algorithms:         req.GetAlgorithms(),
-		DatasetProviders:   req.GetDatasetProviders(),
-		AlgorithmProviders: req.GetAlgorithmProviders(),
-		ResultConsumers:    req.GetResultConsumers(),
-		TTL:                req.GetTtl(),
-	}
-
-	res, err := client.run(ctx, runReq)
+	res, err := client.run(ctx, request)
 	if err != nil {
 		return nil, err
 	}

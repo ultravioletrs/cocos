@@ -15,19 +15,7 @@ func runEndpoint(svc agent.Service) endpoint.Endpoint {
 			return runRes{}, err
 		}
 
-		comp := agent.Computation{
-			Name:               req.Name,
-			Description:        req.Description,
-			Owner:              req.Owner,
-			Datasets:           req.Datasets,
-			Algorithms:         req.Algorithms,
-			DatasetProviders:   req.DatasetProviders,
-			AlgorithmProviders: req.AlgorithmProviders,
-			ResultConsumers:    req.ResultConsumers,
-			Ttl:                req.TTL,
-		}
-
-		computation, err := svc.Run(context.TODO(), comp)
+		computation, err := svc.Run(context.TODO(), req.computation)
 		if err != nil {
 			return runRes{}, err
 		}
