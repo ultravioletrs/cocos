@@ -39,22 +39,43 @@ rc-update add agent default
 
 and reboot.
 
-To see if the service is running, inside Alpine linux run
+To see if the `cocos-agent` service (or deamon) is running, inside Alpine linux run
 
 ```sh
 ps aux | grep cocos
 ```
 
-To see if the ports are correctly configured, inside Alpine linux run
+To see if the ports are correctly configured, inside Alpine linux, i.e. *guest machine*, run
 
 ```sh
 netstat -tuln | grep 9031
 netstat -tuln | grep 7002
 ```
 
+In the *host machine*, you can check if the ports of the guest machine are open and reachable from the host machine with
+
+```sh
+nc -zv 192.168.122.251 9031
+nc -zv 192.168.122.251 7002
+```
+
+NB: to find out `192.168.122.251`, i.e. the concrete address of the guest machine, you need to 
+
+```sh
+ip addr show eth0
+```
+
+in the guest machine and
+
+```sh
+ip addr show virbr0
+```
+
+on the host machine. In both cases, you will get something like inet `192.168.122.x/24`, where `192.168.122` stands for the network part of the machine's virtual network interface address.
+
 ### cURL
 
-To check if the `cocos-agent` deamon is running in the virtual machine Alpine Linux, run on the host
+To check if the `cocos-agent` deamon is responding to the requests, run on the host
 
 ```sh
 GUEST_ADDR=192.168.122.251:9031
