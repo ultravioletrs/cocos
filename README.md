@@ -15,13 +15,19 @@ On the host machine
 
 ```sh
 sudo apt-get install libguestfs-tools
+```
 
+```sh
 QCOW2_PATH=~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
+```
 
+```sh
 HOST_AGENT_BIN_PATH=~/go/src/github.com/ultravioletrs/agent/bin/cocos-agent; \
 GUEST_AGENT_BIN_PATH=/root/; \
 sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_BIN_PATH $GUEST_AGENT_BIN_PATH
+```
 
+```sh
 HOST_AGENT_SCRIPT_PATH=~/go/src/github.com/ultravioletrs/agent/alpine/agent; \
 GUEST_AGENT_SCRIPT_PATH=/etc/init.d/; \
 sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_SCRIPT_PATH $GUEST_AGENT_SCRIPT_PATH
@@ -65,7 +71,7 @@ NB: to find out `192.168.122.251`, i.e. the concrete address of the guest machin
 ip addr show eth0
 ```
 
-in the guest machine and
+in the host machine and
 
 ```sh
 ip addr show virbr0
