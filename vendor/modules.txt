@@ -107,7 +107,7 @@ github.com/uber/jaeger-client-go/utils
 # github.com/uber/jaeger-lib v2.4.1+incompatible
 ## explicit
 github.com/uber/jaeger-lib/metrics
-# github.com/ultravioletrs/agent v0.0.0-20230530113322-0e66a3bff779
+# github.com/ultravioletrs/agent v0.0.0-20230612135417-49feeb96eefb
 ## explicit; go 1.18
 github.com/ultravioletrs/agent/agent
 github.com/ultravioletrs/agent/agent/api/grpc
