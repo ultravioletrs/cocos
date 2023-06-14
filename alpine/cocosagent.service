@@ -1,0 +1,12 @@
+[Unit]
+Description=Cocos AI agent
+After=network.target
+
+[Service]
+StandardOutput=file:/root/out.log
+StandardError=file:/root/err.log
+ExecStartPre=/root/setup-cocosagent.sh
+ExecStart=/root/cocos-agent
+
+[Install]
+WantedBy=default.target
