@@ -3,13 +3,13 @@ Description=Cocos AI agent
 After=network.target
 
 [Service]
-StandardOutput=file:/root/out.log
-StandardError=file:/root/err.log
+StandardOutput=file:/var/log/agent/out.log
+StandardError=file:/var/log/agent/err.log
 
 ExecStartPre=ip link set dev enp0s2 up
 ExecStartPre=dhclient enp0s2
 
-ExecStart=/root/cocos-agent
+ExecStart=/cocos/agent
 
 Environment=AGENT_LOG_LEVEL=info
 Environment=AGENT_GRPC_ADDR=10.0.2.15:7002
