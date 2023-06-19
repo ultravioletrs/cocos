@@ -4,126 +4,55 @@ info:
   version: 1.0.0
 servers:
   - url: https://api.example.com/v1
-
 paths:
-  /computation:
+  /algo:
     post:
-      summary: Submit computation metadata
+      summary: Upload algorithm binary
       requestBody:
         required: true
         content:
-          application/json:
+          application/octet-stream:
             schema:
-              type: object
-              properties:
-                algorithms:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of algorithms
-                  example: ["algorithm1", "algorithm2"]
-                datasets:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of datasets
-                  example: ["dataset1", "dataset2"]
-                algorithmProviders:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of algorithm providers
-                  example: ["provider1", "provider2"]
-                datasetProviders:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of dataset providers
-                  example: ["provider1", "provider2"]
-                resultConsumer:
-                  type: string
-                  description: Consumer of the computation result
+              type: string
+              format: binary
+              description: The algorithm binary file (Linux executable)
       responses:
         "200":
-          description: Computation metadata accepted
+          description: Algorithm binary uploaded
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  metadataId:
+                  algorithmId:
                     type: string
-                    description: Identifier for the computation metadata
+                    description: Identifier for the uploaded algorithm binary
 
-/algorithms:
-  post:
-    summary: Upload algorithm binaries
-    requestBody:
-      required: true
-      content:
-        multipart/form-data:
-          schema:
-            type: object
-            properties:
-              algorithms:
-                type: array
-                items:
-                  type: string
-                  format: binary
-                description: Array of algorithm binary files (Linux executables)
-    responses:
-      "200":
-        description: Algorithm binaries uploaded
+  /data:
+    post:
+      summary: Upload dataset CSV file
+      requestBody:
+        required: true
         content:
-          application/json:
+          text/plain:
             schema:
-              type: object
-              properties:
-                algorithmIds:
-                  type: array
-                  items:
+              type: string
+              description: The dataset CSV file as a plain text string
+      responses:
+        "200":
+          description: Dataset CSV uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datasetId:
                     type: string
-                  description: Identifiers for the uploaded algorithm binaries
-
-/datasets:
-  post:
-    summary: Upload dataset CSV files
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              datasets:
-                type: array
-                items:
-                  type: string
-                  description: Dataset CSV file or string
-    responses:
-      "200":
-        description: Dataset CSV files uploaded
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                datasetIds:
-                  type: array
-                  items:
-                    type: string
-                  description: Identifiers for the uploaded dataset CSV files
+                    description: Identifier for the uploaded dataset CSV
 
   /status:
     get:
       summary: Get computation status
-      parameters:
-        - in: query
-          name: metadataId
-          required: true
-          schema:
-            type: string
-            description: Identifier for the computation metadata
       responses:
         "200":
           description: Success
@@ -135,3 +64,16 @@ paths:
                   status:
                     type: string
                     description: Current status of the computation
+
+  /result:
+    get:
+      summary: Retrieve computation result file
+      responses:
+        "200":
+          description: Computation result file retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: The computation result file
