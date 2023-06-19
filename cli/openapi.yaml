@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Computation Service API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /computation:
+    post:
+      summary: Submit computation metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                algorithm:
+                  type: string
+                  description: Algorithm description
+                dataset:
+                  type: string
+                  description: Dataset description
+                algorithmOwner:
+                  type: string
+                  description: Owner of the algorithm
+                datasetOwner:
+                  type: string
+                  description: Owner of the dataset
+                resultConsumer:
+                  type: string
+                  description: Consumer of the computation result
+      responses:
+        "200":
+          description: Computation metadata accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metadataId:
+                    type: string
+                    description: Identifier for the computation metadata
+
+  /algorithm:
+    post:
+      summary: Upload algorithm binary
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The algorithm binary file (Linux executable)
+      responses:
+        "200":
+          description: Algorithm binary uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  algorithmId:
+                    type: string
+                    description: Identifier for the uploaded algorithm binary
+
+  /dataset:
+    post:
+      summary: Upload dataset CSV file
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+              description: The dataset CSV file
+      responses:
+        "200":
+          description: Dataset CSV uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datasetId:
+                    type: string
+                    description: Identifier for the uploaded dataset CSV
+
+  /status:
+    get:
+      summary: Get computation status
+      parameters:
+        - in: query
+          name: metadataId
+          required: true
+          schema:
+            type: string
+            description: Identifier for the computation metadata
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Current status of the computation
