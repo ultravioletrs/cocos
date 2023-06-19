@@ -5,7 +5,7 @@ info:
 servers:
   - url: https://api.example.com/v1
 paths:
-  /algo:
+  /algorithm:
     post:
       summary: Upload algorithm binary
       requestBody:
@@ -28,7 +28,7 @@ paths:
                     type: string
                     description: Identifier for the uploaded algorithm binary
 
-  /data:
+  /dataset:
     post:
       summary: Upload dataset CSV file
       requestBody:
@@ -49,21 +49,6 @@ paths:
                   datasetId:
                     type: string
                     description: Identifier for the uploaded dataset CSV
-
-  /status:
-    get:
-      summary: Get computation status
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: Current status of the computation
 
   /result:
     get:
