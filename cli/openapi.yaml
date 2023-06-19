@@ -4,6 +4,7 @@ info:
   version: 1.0.0
 servers:
   - url: https://api.example.com/v1
+
 paths:
   /computation:
     post:
@@ -15,18 +16,30 @@ paths:
             schema:
               type: object
               properties:
-                algorithm:
-                  type: string
-                  description: Algorithm description
-                dataset:
-                  type: string
-                  description: Dataset description
-                algorithmOwner:
-                  type: string
-                  description: Owner of the algorithm
-                datasetOwner:
-                  type: string
-                  description: Owner of the dataset
+                algorithms:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of algorithms
+                  example: ["algorithm1", "algorithm2"]
+                datasets:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of datasets
+                  example: ["dataset1", "dataset2"]
+                algorithmProviders:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of algorithm providers
+                  example: ["provider1", "provider2"]
+                datasetProviders:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of dataset providers
+                  example: ["provider1", "provider2"]
                 resultConsumer:
                   type: string
                   description: Consumer of the computation result
@@ -42,51 +55,64 @@ paths:
                     type: string
                     description: Identifier for the computation metadata
 
-  /algorithm:
-    post:
-      summary: Upload algorithm binary
-      requestBody:
-        required: true
+/algorithms:
+  post:
+    summary: Upload algorithm binaries
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              algorithms:
+                type: array
+                items:
+                  type: string
+                  format: binary
+                description: Array of algorithm binary files (Linux executables)
+    responses:
+      "200":
+        description: Algorithm binaries uploaded
         content:
-          application/octet-stream:
+          application/json:
             schema:
-              type: string
-              format: binary
-              description: The algorithm binary file (Linux executable)
-      responses:
-        "200":
-          description: Algorithm binary uploaded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  algorithmId:
+              type: object
+              properties:
+                algorithmIds:
+                  type: array
+                  items:
                     type: string
-                    description: Identifier for the uploaded algorithm binary
+                  description: Identifiers for the uploaded algorithm binaries
 
-  /dataset:
-    post:
-      summary: Upload dataset CSV file
-      requestBody:
-        required: true
+/datasets:
+  post:
+    summary: Upload dataset CSV files
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              datasets:
+                type: array
+                items:
+                  type: string
+                  description: Dataset CSV file or string
+    responses:
+      "200":
+        description: Dataset CSV files uploaded
         content:
-          text/csv:
+          application/json:
             schema:
-              type: string
-              format: binary
-              description: The dataset CSV file
-      responses:
-        "200":
-          description: Dataset CSV uploaded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  datasetId:
+              type: object
+              properties:
+                datasetIds:
+                  type: array
+                  items:
                     type: string
-                    description: Identifier for the uploaded dataset CSV
+                  description: Identifiers for the uploaded dataset CSV files
 
   /status:
     get:
