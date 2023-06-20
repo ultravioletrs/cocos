@@ -1,31 +1,38 @@
 # Agent
 
 ## Build Agent
-On the host machine in the root of `agent` repository run
+
+To create a stand-alone `agent` executable, on the host machine, in the root of the `agent` repository run
 
 ```sh
-go build -o ./bin/cocos-agent -ldflags="-linkmode=external -extldflags=-static -s -w" cmd/agent/main.go
+go build -o ./bin/agent -ldflags="-linkmode=external -extldflags=-static -s -w" cmd/agent/main.go
 ```
 
 ## Copy files to virtual drive
 
-Shut down `QEmu-alpine-standard-x86_64` virtual machine. 
+Log in the VM and create `/cocos` directory. Shut down `QEmu-alpine-standard-x86_64` virtual machine. 
 
-On the host machine
+On the host machine install [libguestfs-tools](https://libguestfs.org/). `libguestfs-tools` is "a set of tools for accessing and modifying virtual machine (VM) disk images".
 
 ```sh
 sudo apt-get install libguestfs-tools
 ```
 
+Set path to the VM disk image:
+
 ```sh
 QCOW2_PATH=~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
 ```
 
+Set path to the `agent` executable and its VM image path, and copy `agent` to the VM disk image.
+
 ```sh
-HOST_AGENT_BIN_PATH=~/go/src/github.com/ultravioletrs/agent/bin/cocos-agent; \
-GUEST_AGENT_BIN_PATH=/root/; \
+HOST_AGENT_BIN_PATH=~/go/src/github.com/ultravioletrs/agent/bin/agent; \
+GUEST_AGENT_BIN_PATH=/cocos/; \
 sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_BIN_PATH $GUEST_AGENT_BIN_PATH
 ```
+
+Copy [OpenRC](https://wiki.alpinelinux.org/wiki/OpenRC) init script to the VM disk image:
 
 ```sh
 HOST_AGENT_SCRIPT_PATH=~/go/src/github.com/ultravioletrs/agent/alpine/agent; \
@@ -33,11 +40,11 @@ GUEST_AGENT_SCRIPT_PATH=/etc/init.d/; \
 sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_SCRIPT_PATH $GUEST_AGENT_SCRIPT_PATH
 ```
 
+OpenRC init script is used to start `agent` executable as a system service (daemon) on the Alpine Linux boot. 
+
 ### OpenRC
 
-OpenRC is an Alpine's service manager.
-
-Once the `agent` script is copied in `/etc/init.d/` on the guest system, log into the guest system and run
+Once the OpenRC `agent` script is copied into the `/etc/init.d/`, i.e. on the guest system, log into the guest system and run
 
 ```sh
 rc-update add agent default
@@ -45,10 +52,10 @@ rc-update add agent default
 
 and reboot.
 
-To see if the `cocos-agent` service (or deamon) is running, inside Alpine linux run
+To see if the `agent` service (or deamon) is running, inside Alpine linux run
 
 ```sh
-ps aux | grep cocos
+ps aux | grep agent
 ```
 
 To see if the ports are correctly configured, inside Alpine linux, i.e. *guest machine*, run
@@ -81,7 +88,7 @@ on the host machine. In both cases, you will get something like inet `192.168.12
 
 ### cURL
 
-To check if the `cocos-agent` deamon is responding to the requests, run on the host
+To check if the `agent` deamon is responding to the requests, run on the host
 
 ```sh
 GUEST_ADDR=192.168.122.251:9031
