@@ -3,8 +3,8 @@ Description=Cocos AI agent
 After=network.target
 
 [Service]
-StandardOutput=file:/var/log/agent/out.log
-StandardError=file:/var/log/agent/err.log
+StandardOutput=file:/var/log/cocos/agent.stdout
+StandardError=file:/var/log/cocos/agent.stderr
 
 ExecStartPre=ip link set dev enp0s2 up
 ExecStartPre=dhclient enp0s2
