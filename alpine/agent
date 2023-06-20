@@ -1,6 +1,6 @@
 #!/sbin/openrc-run
 
-command="/root/cocos-agent"
+command="/cocos/agent"
 command_args=""
 
 depend() {
@@ -9,13 +9,13 @@ depend() {
 
 start() {
     AGENT_GRPC_ADDR=$(ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1):7002
-    ebegin "Starting cocos-agent"
+    ebegin "Starting cocos agent"
     env AGENT_GRPC_ADDR="${AGENT_GRPC_ADDR}" start-stop-daemon -S -q -b -m -p /run/cocos-agent.pid -x $command -- $command_args
     eend $?
 }
 
 stop() {
-    ebegin "Stopping cocos-agent"
+    ebegin "Stopping cocos agent"
     start-stop-daemon -K -q -p /run/cocos-agent.pid
     eend $?
 }
