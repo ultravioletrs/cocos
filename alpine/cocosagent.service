@@ -8,6 +8,7 @@ StandardError=file:/var/log/cocos/agent.stderr
 
 ExecStartPre=ip link set dev enp0s2 up
 ExecStartPre=dhclient enp0s2
+ExecStartPre=mkdir -p /var/log/cocos
 
 ExecStart=/cocos/agent
 
