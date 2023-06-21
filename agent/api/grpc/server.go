@@ -97,3 +97,21 @@ func (s *grpcServer) Run(ctx context.Context, req *agent.RunRequest) (*agent.Run
 	rr := res.(*agent.RunResponse)
 	return rr, nil
 }
+
+func (s *grpcServer) Algo(ctx context.Context, req *agent.AlgoRequest) (*agent.AlgoResponse, error) {
+	_, res, err := s.algo.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	ar := res.(*agent.AlgoResponse)
+	return ar, nil
+}
+
+func (s *grpcServer) Data(ctx context.Context, req *agent.DataRequest) (*agent.DataResponse, error) {
+	_, res, err := s.data.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	dr := res.(*agent.DataResponse)
+	return dr, nil
+}
