@@ -23,3 +23,37 @@ func runEndpoint(svc agent.Service) endpoint.Endpoint {
 		return runRes{Computation: computation}, nil
 	}
 }
+
+func algoEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(algoReq)
+
+		if err := req.validate(); err != nil {
+			return algoRes{}, err
+		}
+
+		algorithmID, err := svc.Algo(ctx, req.Algorithm)
+		if err != nil {
+			return algoRes{}, err
+		}
+
+		return algoRes{AlgorithmID: algorithmID}, nil
+	}
+}
+
+func dataEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(dataReq)
+
+		if err := req.validate(); err != nil {
+			return dataRes{}, err
+		}
+
+		datasetID, err := svc.Data(ctx, req.Dataset)
+		if err != nil {
+			return dataRes{}, err
+		}
+
+		return dataRes{DatasetID: datasetID}, nil
+	}
+}

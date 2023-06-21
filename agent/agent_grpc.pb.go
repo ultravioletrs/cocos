@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type AgentServiceClient interface {
 	// rpc Health(HealthRequest) returns (HealthResponse) {}
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error)
+	Algo(ctx context.Context, in *AlgoRequest, opts ...grpc.CallOption) (*AlgoResponse, error)
+	Data(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error)
 }
 
 type agentServiceClient struct {
@@ -39,12 +41,32 @@ func (c *agentServiceClient) Run(ctx context.Context, in *RunRequest, opts ...gr
 	return out, nil
 }
 
+func (c *agentServiceClient) Algo(ctx context.Context, in *AlgoRequest, opts ...grpc.CallOption) (*AlgoResponse, error) {
+	out := new(AlgoResponse)
+	err := c.cc.Invoke(ctx, "/agent_proto.AgentService/Algo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) Data(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error) {
+	out := new(DataResponse)
+	err := c.cc.Invoke(ctx, "/agent_proto.AgentService/Data", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility
 type AgentServiceServer interface {
 	// rpc Health(HealthRequest) returns (HealthResponse) {}
 	Run(context.Context, *RunRequest) (*RunResponse, error)
+	Algo(context.Context, *AlgoRequest) (*AlgoResponse, error)
+	Data(context.Context, *DataRequest) (*DataResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -54,6 +76,12 @@ type UnimplementedAgentServiceServer struct {
 
 func (UnimplementedAgentServiceServer) Run(context.Context, *RunRequest) (*RunResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Run not implemented")
+}
+func (UnimplementedAgentServiceServer) Algo(context.Context, *AlgoRequest) (*AlgoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Algo not implemented")
+}
+func (UnimplementedAgentServiceServer) Data(context.Context, *DataRequest) (*DataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Data not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 
@@ -86,6 +114,42 @@ func _AgentService_Run_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_Algo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AlgoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).Algo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agent_proto.AgentService/Algo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).Algo(ctx, req.(*AlgoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_Data_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).Data(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agent_proto.AgentService/Data",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).Data(ctx, req.(*DataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -96,6 +160,14 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Run",
 			Handler:    _AgentService_Run_Handler,
+		},
+		{
+			MethodName: "Algo",
+			Handler:    _AgentService_Algo_Handler,
+		},
+		{
+			MethodName: "Data",
+			Handler:    _AgentService_Data_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -49,3 +49,21 @@ func (ms *metricsMiddleware) Run(ctx context.Context, cmp agent.Computation) (st
 
 	return ms.svc.Run(ctx, cmp)
 }
+
+func (ms *metricsMiddleware) Algo(ctx context.Context, algorithm []byte) (string, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "algo").Add(1)
+		ms.latency.With("method", "algo").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.Algo(ctx, algorithm)
+}
+
+func (ms *metricsMiddleware) Data(ctx context.Context, dataset string) (string, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "data").Add(1)
+		ms.latency.With("method", "data").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.Data(ctx, dataset)
+}

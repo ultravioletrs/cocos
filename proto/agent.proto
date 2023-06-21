@@ -9,6 +9,8 @@ option go_package = "./agent";
 service AgentService {
   // rpc Health(HealthRequest) returns (HealthResponse) {}
   rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Algo(AlgoRequest) returns (AlgoResponse) {}
+  rpc Data(DataRequest) returns (DataResponse) {}
 }
 
 // message HealthRequest {}
@@ -17,3 +19,11 @@ service AgentService {
 message RunRequest { bytes computation = 1; }
 
 message RunResponse { string Computation = 1; }
+
+message AlgoRequest { bytes algorithm = 1; }
+
+message AlgoResponse { string algorithmID = 1; }
+
+message DataRequest { string dataset = 1; }
+
+message DataResponse { string datasetID = 1; }

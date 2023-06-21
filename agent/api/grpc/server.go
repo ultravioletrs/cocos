@@ -11,17 +11,29 @@ import (
 )
 
 type grpcServer struct {
-	run kitgrpc.Handler
+	run  kitgrpc.Handler
+	algo kitgrpc.Handler
+	data kitgrpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
-// NewServer returns new AuthServiceServer instance.
+// NewServer returns new AgentServiceServer instance.
 func NewServer(tracer opentracing.Tracer, svc agent.Service) agent.AgentServiceServer {
 	return &grpcServer{
 		run: kitgrpc.NewServer(
 			kitot.TraceServer(tracer, "run")(runEndpoint(svc)),
 			decodeRunRequest,
 			encodeRunResponse,
+		),
+		algo: kitgrpc.NewServer(
+			kitot.TraceServer(tracer, "algo")(algoEndpoint(svc)),
+			decodeAlgoRequest,
+			encodeAlgoResponse,
+		),
+		data: kitgrpc.NewServer(
+			kitot.TraceServer(tracer, "data")(dataEndpoint(svc)),
+			decodeDataRequest,
+			encodeDataResponse,
 		),
 	}
 }
@@ -44,6 +56,36 @@ func encodeRunResponse(_ context.Context, response interface{}) (interface{}, er
 	res := response.(runRes)
 	return &agent.RunResponse{
 		Computation: res.Computation,
+	}, nil
+}
+
+func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	req := grpcReq.(*agent.AlgoRequest)
+
+	return algoReq{
+		Algorithm: req.Algorithm,
+	}, nil
+}
+
+func encodeAlgoResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(algoRes)
+	return &agent.AlgoResponse{
+		AlgorithmID: res.AlgorithmID,
+	}, nil
+}
+
+func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	req := grpcReq.(*agent.DataRequest)
+
+	return dataReq{
+		Dataset: req.Dataset,
+	}, nil
+}
+
+func encodeDataResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(dataRes)
+	return &agent.DataResponse{
+		DatasetID: res.DatasetID,
 	}, nil
 }
 

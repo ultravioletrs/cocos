@@ -28,6 +28,8 @@ type Service interface {
 	// Ping compares a given string with secret
 	Ping(string) (string, error)
 	Run(ctx context.Context, cmp Computation) (string, error)
+	Algo(ctx context.Context, algorithm []byte) (string, error)
+	Data(ctx context.Context, dataset string) (string, error)
 }
 
 type agentService struct {
@@ -59,4 +61,28 @@ func (ks *agentService) Run(ctx context.Context, cmp Computation) (string, error
 	fmt.Println(string(cmpJSON)) // log the JSON string to console
 
 	return string(cmpJSON), nil // return the JSON string as the function's string return value
+}
+
+func (as *agentService) Algo(ctx context.Context, algorithm []byte) (string, error) {
+	// Implement the logic for the Algo method based on your requirements
+	// Use the provided ctx and algorithm parameters as needed
+
+	// Perform some processing on the algorithm byte array
+	// For example, generate a unique ID for the algorithm
+	algorithmID := "algo123"
+
+	// Return the algorithm ID or an error
+	return algorithmID, nil
+}
+
+func (as *agentService) Data(ctx context.Context, dataset string) (string, error) {
+	// Implement the logic for the Data method based on your requirements
+	// Use the provided ctx and dataset parameters as needed
+
+	// Perform some processing on the dataset string
+	// For example, generate a unique ID for the dataset
+	datasetID := "dataset456"
+
+	// Return the dataset ID or an error
+	return datasetID, nil
 }
