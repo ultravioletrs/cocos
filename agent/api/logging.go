@@ -78,3 +78,16 @@ func (lm *loggingMiddleware) Data(ctx context.Context, dataset string) (response
 
 	return lm.svc.Data(ctx, dataset)
 }
+
+func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Result took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.Result(ctx)
+}

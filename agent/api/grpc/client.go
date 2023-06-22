@@ -21,6 +21,7 @@ type grpcClient struct {
 	run     endpoint.Endpoint
 	algo    endpoint.Endpoint
 	data    endpoint.Endpoint
+	result  endpoint.Endpoint
 	timeout time.Duration
 }
 
@@ -50,6 +51,14 @@ func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Du
 			encodeDataRequest,
 			decodeDataResponse,
 			agent.DataResponse{},
+		).Endpoint()),
+		result: kitot.TraceClient(tracer, "result")(kitgrpc.NewClient(
+			conn,
+			svcName,
+			"Result",
+			encodeResultRequest,
+			decodeResultResponse,
+			agent.ResultResponse{},
 		).Endpoint()),
 		timeout: timeout,
 	}
@@ -132,6 +141,26 @@ func decodeDataResponse(_ context.Context, grpcResponse interface{}) (interface{
 	}, nil
 }
 
+// encodeResultRequest is a transport/grpc.EncodeRequestFunc that
+// converts a user-domain resultReq to a gRPC request.
+func encodeResultRequest(_ context.Context, request interface{}) (interface{}, error) {
+	// No request parameters needed for retrieving computation result file
+	return &agent.ResultRequest{}, nil
+}
+
+// decodeResultResponse is a transport/grpc.DecodeResponseFunc that
+// converts a gRPC ResultResponse to a user-domain response.
+func decodeResultResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
+	response, ok := grpcResponse.(*agent.ResultResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
+	}
+
+	return resultRes{
+		File: response.File,
+	}, nil
+}
+
 // Run implements the Run method of the agent.AgentServiceClient interface.
 func (client grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
 	ctx, close := context.WithTimeout(ctx, client.timeout)
@@ -172,4 +201,18 @@ func (client grpcClient) Data(ctx context.Context, request *agent.DataRequest, _
 
 	dataRes := res.(dataRes)
 	return &agent.DataResponse{DatasetID: dataRes.DatasetID}, nil
+}
+
+// Result implements the Result method of the agent.AgentServiceClient interface.
+func (client grpcClient) Result(ctx context.Context, request *agent.ResultRequest, _ ...grpc.CallOption) (*agent.ResultResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+	defer cancel()
+
+	res, err := client.result(ctx, &resultReq{})
+	if err != nil {
+		return nil, err
+	}
+
+	resultRes := res.(resultRes)
+	return &agent.ResultResponse{File: resultRes.File}, nil
 }

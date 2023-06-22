@@ -11,6 +11,7 @@ service AgentService {
   rpc Run(RunRequest) returns (RunResponse) {}
   rpc Algo(AlgoRequest) returns (AlgoResponse) {}
   rpc Data(DataRequest) returns (DataResponse) {}
+  rpc Result(ResultRequest) returns (ResultResponse) {}
 }
 
 // message HealthRequest {}
@@ -27,3 +28,9 @@ message AlgoResponse { string algorithmID = 1; }
 message DataRequest { string dataset = 1; }
 
 message DataResponse { string datasetID = 1; }
+
+message ResultRequest {}
+
+message ResultResponse {
+  bytes file = 1;
+}

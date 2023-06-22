@@ -38,3 +38,12 @@ func (req dataReq) validate() error {
 	}
 	return nil
 }
+
+type resultReq struct {
+	// No request parameters needed for retrieving computation result file
+}
+
+func (req resultReq) validate() error {
+	// No request parameters to validate, so no validation logic needed
+	return nil
+}

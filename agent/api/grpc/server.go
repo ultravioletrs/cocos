@@ -10,9 +10,10 @@ import (
 )
 
 type grpcServer struct {
-	run  kitgrpc.Handler
-	algo kitgrpc.Handler
-	data kitgrpc.Handler
+	run    kitgrpc.Handler
+	algo   kitgrpc.Handler
+	data   kitgrpc.Handler
+	result kitgrpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
@@ -33,6 +34,11 @@ func NewServer(tracer opentracing.Tracer, svc agent.Service) agent.AgentServiceS
 			kitot.TraceServer(tracer, "data")(dataEndpoint(svc)),
 			decodeDataRequest,
 			encodeDataResponse,
+		),
+		result: kitgrpc.NewServer(
+			kitot.TraceServer(tracer, "result")(resultEndpoint(svc)),
+			decodeResultRequest,
+			encodeResultResponse,
 		),
 	}
 }
@@ -82,6 +88,18 @@ func encodeDataResponse(_ context.Context, response interface{}) (interface{}, e
 	}, nil
 }
 
+func decodeResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	// No fields to extract from gRPC request, so returning an empty struct
+	return resultReq{}, nil
+}
+
+func encodeResultResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(resultRes)
+	return &agent.ResultResponse{
+		File: res.File,
+	}, nil
+}
+
 func (s *grpcServer) Run(ctx context.Context, req *agent.RunRequest) (*agent.RunResponse, error) {
 	_, res, err := s.run.ServeGRPC(ctx, req)
 	if err != nil {
@@ -107,4 +125,13 @@ func (s *grpcServer) Data(ctx context.Context, req *agent.DataRequest) (*agent.D
 	}
 	dr := res.(*agent.DataResponse)
 	return dr, nil
+}
+
+func (s *grpcServer) Result(ctx context.Context, req *agent.ResultRequest) (*agent.ResultResponse, error) {
+	_, res, err := s.result.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	rr := res.(*agent.ResultResponse)
+	return rr, nil
 }

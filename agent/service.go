@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 )
 
 var (
@@ -30,6 +29,7 @@ type Service interface {
 	Run(ctx context.Context, cmp Computation) (string, error)
 	Algo(ctx context.Context, algorithm []byte) (string, error)
 	Data(ctx context.Context, dataset string) (string, error)
+	Result(ctx context.Context) ([]byte, error)
 }
 
 type agentService struct {
@@ -58,8 +58,6 @@ func (ks *agentService) Run(ctx context.Context, cmp Computation) (string, error
 		return "", err
 	}
 
-	fmt.Println(string(cmpJSON)) // log the JSON string to console
-
 	return string(cmpJSON), nil // return the JSON string as the function's string return value
 }
 
@@ -85,4 +83,17 @@ func (as *agentService) Data(ctx context.Context, dataset string) (string, error
 
 	// Return the dataset ID or an error
 	return datasetID, nil
+}
+
+func (as *agentService) Result(ctx context.Context) ([]byte, error) {
+	// Implement the logic for the Result method based on your requirements
+	// Use the provided ctx parameter as needed
+
+	// Perform some processing to retrieve the computation result file
+	// For example, read the file from storage or generate a dummy result
+
+	result := []byte("This is the computation result file.")
+
+	// Return the result file or an error
+	return result, nil
 }

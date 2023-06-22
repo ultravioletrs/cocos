@@ -15,3 +15,7 @@ type algoRes struct {
 type dataRes struct {
 	DatasetID string `json:"datasetId,omitempty"`
 }
+
+type resultRes struct {
+	File []byte `json:"-"`
+}

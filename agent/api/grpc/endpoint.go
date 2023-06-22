@@ -64,3 +64,19 @@ func dataEndpoint(svc agent.Service) endpoint.Endpoint {
 		return dataRes{DatasetID: datasetID}, nil
 	}
 }
+
+func resultEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(resultReq)
+
+		if err := req.validate(); err != nil {
+			return resultRes{}, err
+		}
+		file, err := svc.Result(ctx)
+		if err != nil {
+			return resultRes{}, err
+		}
+
+		return resultRes{File: file}, nil
+	}
+}
