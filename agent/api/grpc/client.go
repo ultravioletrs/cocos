@@ -162,11 +162,11 @@ func decodeResultResponse(_ context.Context, grpcResponse interface{}) (interfac
 }
 
 // Run implements the Run method of the agent.AgentServiceClient interface.
-func (client grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
-	ctx, close := context.WithTimeout(ctx, client.timeout)
+func (c grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
+	ctx, close := context.WithTimeout(ctx, c.timeout)
 	defer close()
 
-	res, err := client.run(ctx, &runReq{Computation: request.Computation})
+	res, err := c.run(ctx, &runReq{Computation: request.Computation})
 	if err != nil {
 		return nil, err
 	}
@@ -176,11 +176,11 @@ func (client grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ .
 }
 
 // Algo implements the Algo method of the agent.AgentServiceClient interface.
-func (client grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _ ...grpc.CallOption) (*agent.AlgoResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+func (c grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _ ...grpc.CallOption) (*agent.AlgoResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := client.algo(ctx, &algoReq{Algorithm: request.Algorithm})
+	res, err := c.algo(ctx, &algoReq{Algorithm: request.Algorithm})
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +190,11 @@ func (client grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _
 }
 
 // Data implements the Data method of the agent.AgentServiceClient interface.
-func (client grpcClient) Data(ctx context.Context, request *agent.DataRequest, _ ...grpc.CallOption) (*agent.DataResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+func (c grpcClient) Data(ctx context.Context, request *agent.DataRequest, _ ...grpc.CallOption) (*agent.DataResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := client.data(ctx, &dataReq{Dataset: request.Dataset})
+	res, err := c.data(ctx, &dataReq{Dataset: request.Dataset})
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +204,11 @@ func (client grpcClient) Data(ctx context.Context, request *agent.DataRequest, _
 }
 
 // Result implements the Result method of the agent.AgentServiceClient interface.
-func (client grpcClient) Result(ctx context.Context, request *agent.ResultRequest, _ ...grpc.CallOption) (*agent.ResultResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+func (c grpcClient) Result(ctx context.Context, request *agent.ResultRequest, _ ...grpc.CallOption) (*agent.ResultResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := client.result(ctx, &resultReq{})
+	res, err := c.result(ctx, &resultReq{})
 	if err != nil {
 		return nil, err
 	}
