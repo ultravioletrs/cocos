@@ -58,12 +58,14 @@ func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Du
 // encodeRunRequest is a transport/grpc.EncodeRequestFunc that
 // converts a user-domain runReq to a gRPC request.
 func encodeRunRequest(_ context.Context, request interface{}) (interface{}, error) {
-	req, ok := request.(*agent.RunRequest)
+	req, ok := request.(*runReq)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", request)
 	}
 
-	return req, nil
+	return &agent.RunRequest{
+		Computation: req.Computation,
+	}, nil
 }
 
 // decodeRunResponse is a transport/grpc.DecodeResponseFunc that
@@ -135,7 +137,7 @@ func (client grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ .
 	ctx, close := context.WithTimeout(ctx, client.timeout)
 	defer close()
 
-	res, err := client.run(ctx, request)
+	res, err := client.run(ctx, &runReq{Computation: request.Computation})
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +151,7 @@ func (client grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _
 	ctx, cancel := context.WithTimeout(ctx, client.timeout)
 	defer cancel()
 
-	res, err := client.algo(ctx, request)
+	res, err := client.algo(ctx, &algoReq{Algorithm: request.Algorithm})
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +165,7 @@ func (client grpcClient) Data(ctx context.Context, request *agent.DataRequest, _
 	ctx, cancel := context.WithTimeout(ctx, client.timeout)
 	defer cancel()
 
-	res, err := client.data(ctx, request)
+	res, err := client.data(ctx, &dataReq{Dataset: request.Dataset})
 	if err != nil {
 		return nil, err
 	}

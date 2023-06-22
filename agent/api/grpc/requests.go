@@ -2,17 +2,18 @@ package grpc
 
 import (
 	"errors"
-
-	"github.com/ultravioletrs/agent/agent"
 )
 
 // type healthReq struct{}
 
 type runReq struct {
-	computation agent.Computation
+	Computation []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 }
 
 func (req runReq) validate() error {
+	if len(req.Computation) == 0 {
+		return errors.New("algorithm binary is required")
+	}
 	return nil
 }
 

@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"encoding/json"
 
 	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
@@ -41,14 +40,8 @@ func NewServer(tracer opentracing.Tracer, svc agent.Service) agent.AgentServiceS
 func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.RunRequest)
 
-	var computation agent.Computation
-	err := json.Unmarshal(req.Computation, &computation)
-	if err != nil {
-		return nil, err
-	}
-
 	return runReq{
-		computation: computation,
+		Computation: req.Computation,
 	}, nil
 }
 

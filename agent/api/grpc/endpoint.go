@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/agent/agent"
@@ -15,12 +16,18 @@ func runEndpoint(svc agent.Service) endpoint.Endpoint {
 			return runRes{}, err
 		}
 
-		computation, err := svc.Run(context.TODO(), req.computation)
+		var computation agent.Computation
+		err := json.Unmarshal(req.Computation, &computation)
+		if err != nil {
+			return nil, err
+		}
+
+		computationStr, err := svc.Run(context.TODO(), computation)
 		if err != nil {
 			return runRes{}, err
 		}
 
-		return runRes{Computation: computation}, nil
+		return runRes{Computation: computationStr}, nil
 	}
 }
 
