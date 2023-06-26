@@ -2,11 +2,14 @@ package manager
 
 import (
 	"regexp"
+	"time"
 
 	libvirt "github.com/digitalocean/go-libvirt"
 )
 
 var re = regexp.MustCompile(`'([^']*)'`)
+
+const bootTime = 12 * time.Second
 
 func entityName(msg string) (string, error) {
 	match := re.FindStringSubmatch(msg)
@@ -35,7 +38,7 @@ func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, d
 	}
 pool_exists:
 
-	vol, err := libvirtConn.StorageVolCreateXML(pool, volXML, 0)
+	_, err = libvirtConn.StorageVolCreateXML(pool, volXML, 0)
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 90 {
@@ -43,7 +46,7 @@ pool_exists:
 			if err != nil {
 				return libvirt.Domain{}, err
 			}
-			vol, err = libvirtConn.StorageVolLookupByName(pool, name)
+			_, err = libvirtConn.StorageVolLookupByName(pool, name)
 			if err != nil {
 				return libvirt.Domain{}, err
 			}
@@ -51,7 +54,7 @@ pool_exists:
 		}
 		return libvirt.Domain{}, err
 	}
-	_ = vol
+
 vol_exists:
 
 	dom, err := libvirtConn.DomainDefineXMLFlags(domXML, 0)
@@ -73,7 +76,8 @@ vol_exists:
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 72 {
-			goto no_snapshot
+			time.Sleep(bootTime)
+			return dom, nil
 		}
 		return libvirt.Domain{}, err
 	}
@@ -82,8 +86,6 @@ vol_exists:
 	if err != nil {
 		return libvirt.Domain{}, err
 	}
-
-no_snapshot:
 
 	return dom, nil
 }
