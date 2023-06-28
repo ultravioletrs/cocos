@@ -71,7 +71,7 @@ func main() {
 	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.httpPort, cfg, logger, errs)
 
 	go func() {
-		c := make(chan os.Signal)
+		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT)
 		errs <- fmt.Errorf("%s", <-c)
 	}()
