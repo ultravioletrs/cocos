@@ -26,6 +26,7 @@ func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 		res := createDomainRes{
 			Name: name,
 		}
+
 		return res, nil
 	}
 }
@@ -48,6 +49,7 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		res := runRes{
 			ID: runID,
 		}
+
 		return res, nil
 	}
 }

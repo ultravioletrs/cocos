@@ -4,8 +4,6 @@ import (
 	"github.com/ultravioletrs/manager/manager"
 )
 
-type healthReq struct{}
-
 type createDomainReq struct {
 	Pool   string `protobuf:"bytes,1,opt,name=pool,proto3" json:"pool,omitempty"`
 	Volume string `protobuf:"bytes,2,opt,name=volume,proto3" json:"volume,omitempty"`

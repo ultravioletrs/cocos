@@ -62,8 +62,6 @@ const (
 type config struct {
 	logLevel     string
 	httpPort     string
-	authHTTPPort string
-	authGRPCPort string
 	serverCert   string
 	serverKey    string
 	secret       string
@@ -85,7 +83,11 @@ func main() {
 	defer managerCloser.Close()
 
 	libvirtConn := initLibvirt(logger)
-	defer libvirtConn.Disconnect()
+	defer func() {
+		if err := libvirtConn.Disconnect(); err != nil {
+			logger.Error(fmt.Sprintf("Error disconnecting from libvirt: %s", err))
+		}
+	}()
 
 	idProvider := uuid.New()
 
@@ -101,14 +103,13 @@ func main() {
 	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc), cfg.httpPort, cfg, logger, errs)
 
 	go func() {
-		c := make(chan os.Signal)
+		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT)
 		errs <- fmt.Errorf("%s", <-c)
 	}()
 
 	err = <-errs
 	logger.Error(fmt.Sprintf("Manager service terminated: %s", err))
-
 }
 
 func loadConfig() config {

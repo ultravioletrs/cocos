@@ -14,12 +14,6 @@ import (
 	"github.com/ultravioletrs/agent/agent"
 )
 
-const (
-	poolXML = "xml/pool.xml"
-	volXML  = "xml/vol.xml"
-	domXML  = "xml/dom.xml"
-)
-
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).

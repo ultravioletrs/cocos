@@ -57,6 +57,7 @@ func (client grpcClient) CreateDomain(ctx context.Context, req *manager.CreateDo
 	}
 
 	cdr := res.(createDomainRes)
+	
 	return &manager.CreateDomainResponse{Name: cdr.Name}, nil
 }
 
