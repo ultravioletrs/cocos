@@ -3,6 +3,7 @@ package sdk
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -26,7 +27,9 @@ type Computation struct {
 }
 
 func (sdk *agentSDK) Ping(url string) (string, error) {
-	req, err := http.NewRequest("GET", sdk.agentURL+url, nil)
+	data := fmt.Sprintf("%s%s", sdk.agentURL, url)
+
+	req, err := http.NewRequest(http.MethodGet, data, nil)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +56,9 @@ func (sdk *agentSDK) Run(computation Computation) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, sdk.agentURL+"/run", bytes.NewBuffer(cmpJSON))
+	url := fmt.Sprintf("%s/run", sdk.agentURL)
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(cmpJSON))
 	if err != nil {
 		return "", err
 	}
@@ -74,8 +79,10 @@ func (sdk *agentSDK) Run(computation Computation) (string, error) {
 	return response, nil
 }
 
-func (sdk *agentSDK) Algo(algorithm []byte) (string, error) {
-	req, err := http.NewRequest(http.MethodPost, sdk.agentURL+"/algo", bytes.NewBuffer(algorithm))
+func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
+	url := fmt.Sprintf("%s/algo", sdk.agentURL)
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(algorithm))
 	if err != nil {
 		return "", err
 	}
@@ -96,12 +103,13 @@ func (sdk *agentSDK) Algo(algorithm []byte) (string, error) {
 	return response, nil
 }
 
-func (sdk *agentSDK) Data(dataset string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, sdk.agentURL+"/data/"+dataset, nil)
+func (sdk *agentSDK) UploadDataset(dataset string) (string, error) {
+	url := fmt.Sprintf("%s/data/%s", sdk.agentURL, dataset)
+
+	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		return "", err
 	}
-
 	resp, err := sdk.sendRequest(req, "", ctJSON)
 	if err != nil {
 		return "", err
@@ -119,7 +127,9 @@ func (sdk *agentSDK) Data(dataset string) (string, error) {
 }
 
 func (sdk *agentSDK) Result() ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, sdk.agentURL+"/result", nil)
+	url := fmt.Sprintf("%s/result", sdk.agentURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

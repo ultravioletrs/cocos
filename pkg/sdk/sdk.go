@@ -23,10 +23,19 @@ var (
 )
 
 type SDK interface {
+	// Ping sends a GET request to the specified URL and returns the response as a string.
 	Ping(url string) (string, error)
+
+	// Run sends a POST request with the provided computation and returns the response as a string.
 	Run(computation Computation) (string, error)
-	Algo(algorithm []byte) (string, error)
-	Data(dataset string) (string, error)
+
+	// UploadAlgorithm sends a POST request with the provided algorithm as bytes and returns the response as a string.
+	UploadAlgorithm(algorithm []byte) (string, error)
+
+	// UploadDataset sends a POST request with the provided dataset and returns the response as a string.
+	UploadDataset(dataset string) (string, error)
+
+	// Result sends a GET request to retrieve the computation result and returns the computation result file as a byte slice.
 	Result() ([]byte, error)
 }
 
