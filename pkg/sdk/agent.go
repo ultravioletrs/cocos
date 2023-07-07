@@ -1,6 +1,12 @@
 package sdk
 
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"time"
+)
 
 type Computation struct {
 	ID                 string    `json:"id,omitempty" db:"id"`
@@ -19,12 +25,115 @@ type Computation struct {
 	Metadata           Metadata  `json:"metadata,omitempty" db:"metadata"`
 }
 
-func (sdk agentSDK) Ping(url string) (string, error)
+func (sdk *agentSDK) Ping(url string) (string, error) {
+	req, err := http.NewRequest("GET", sdk.agentURL+url, nil)
+	if err != nil {
+		return "", err
+	}
 
-func (sdk agentSDK) Run(computation Computation) (string, error)
+	resp, err := sdk.sendRequest(req, "", ctJSON)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-func (sdk agentSDK) Algo(algorithm []byte) (string, error)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-func (sdk agentSDK) Data(dataset string) (string, error)
+	response := string(body)
 
-func (sdk agentSDK) Result() ([]byte, error)
+	return response, nil
+}
+
+func (sdk *agentSDK) Run(computation Computation) (string, error) {
+	cmpJSON, err := json.Marshal(computation)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, sdk.agentURL+"/run", bytes.NewBuffer(cmpJSON))
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := sdk.sendRequest(req, "", ctJSON)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	response := string(body)
+
+	return response, nil
+}
+
+func (sdk *agentSDK) Algo(algorithm []byte) (string, error) {
+	req, err := http.NewRequest(http.MethodPost, sdk.agentURL+"/algo", bytes.NewBuffer(algorithm))
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := sdk.sendRequest(req, "", ctJSON)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	response := string(body)
+
+	return response, nil
+}
+
+func (sdk *agentSDK) Data(dataset string) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, sdk.agentURL+"/data/"+dataset, nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := sdk.sendRequest(req, "", ctJSON)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	response := string(body)
+
+	return response, nil
+}
+
+func (sdk *agentSDK) Result() ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, sdk.agentURL+"/result", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := sdk.sendRequest(req, "", ctJSON)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}

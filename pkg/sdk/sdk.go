@@ -23,7 +23,7 @@ var (
 )
 
 type SDK interface {
-	Ping(string) (string, error)
+	Ping(url string) (string, error)
 	Run(computation Computation) (string, error)
 	Algo(algorithm []byte) (string, error)
 	Data(dataset string) (string, error)
@@ -36,24 +36,25 @@ type agentSDK struct {
 }
 
 type Config struct {
-	agentURL string
+	AgentURL string
 }
 
-// NewSDK creates a new CoCoS SDK instance.
 func NewSDK(conf Config) SDK {
-	return agentSDK{
-		agentURL: conf.agentURL,
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-			},
-		},
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{},
+	}
+
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	return &agentSDK{
+		agentURL: conf.AgentURL,
+		client:   client,
 	}
 }
 
-func (sdk agentSDK) sendRequest(req *http.Request, token string, ct ContentType) (*http.Response, error) {
+func (sdk *agentSDK) sendRequest(req *http.Request, token string, ct ContentType) (*http.Response, error) {
 	if token != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
