@@ -54,7 +54,10 @@ func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, a
 }
 
 func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
 
 	poolStr, err := readXMLFile(poolXML, "pool.xml")
 	if err != nil {
