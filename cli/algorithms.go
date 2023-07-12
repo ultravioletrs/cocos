@@ -1,12 +1,13 @@
 package cli
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
+	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
 )
 
-func NewAlgorithmsCmd() *cobra.Command {
+func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 	return &cobra.Command{
 		Use:   "upload-algorithm",
 		Short: "Upload an algorithm binary",
@@ -14,7 +15,15 @@ func NewAlgorithmsCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
-			fmt.Println("Uploading algorithm binary:", algorithmFile)
+			log.Println("Uploading algorithm binary:", algorithmFile)
+
+			_, err := sdk.UploadAlgorithm([]byte(algorithmFile))
+			if err != nil {
+				log.Println("Error uploading algorithm:", err)
+				return
+			}
+
+			log.Println("Algorithm uploaded successfully!")
 		},
 	}
 }

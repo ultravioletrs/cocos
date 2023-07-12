@@ -1,12 +1,14 @@
 package sdk
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
+	"context"
+	"log"
+
+	"google.golang.org/grpc"
+
 	"time"
+
+	pb "github.com/ultravioletrs/agent/agent"
 )
 
 type Computation struct {
@@ -26,124 +28,80 @@ type Computation struct {
 	Metadata           Metadata  `json:"metadata,omitempty" db:"metadata"`
 }
 
-func (sdk *agentSDK) Ping(url string) (string, error) {
-	data := fmt.Sprintf("%s%s", sdk.agentURL, url)
+type agentSDK struct {
+	client pb.AgentServiceClient
+	conn   *grpc.ClientConn
+}
 
-	req, err := http.NewRequest(http.MethodGet, data, nil)
+func NewAgentSDK(conf Config) (SDK, error) {
+	conn, err := grpc.Dial(conf.AgentURL, grpc.WithInsecure())
 	if err != nil {
-		return "", err
+		log.Fatalf("Failed to connect to the server: %v", err)
+		return nil, err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+	client := pb.NewAgentServiceClient(conn)
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
+	return &agentSDK{
+		client: client,
+		conn:   conn,
+	}, nil
 }
 
 func (sdk *agentSDK) Run(computation Computation) (string, error) {
-	cmpJSON, err := json.Marshal(computation)
+	request := &pb.RunRequest{
+		Computation: []byte("..."),
+	}
+
+	response, err := sdk.client.Run(context.Background(), request)
 	if err != nil {
+		log.Fatalf("Failed to call Run RPC: %v", err)
 		return "", err
 	}
 
-	url := fmt.Sprintf("%s/run", sdk.agentURL)
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(cmpJSON))
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
+	return response.Computation, nil
 }
 
 func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
-	url := fmt.Sprintf("%s/algo", sdk.agentURL)
+	request := &pb.AlgoRequest{
+		Algorithm: algorithm,
+	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(algorithm))
+	response, err := sdk.client.Algo(context.Background(), request)
 	if err != nil {
+		log.Fatalf("Failed to call Algo RPC: %v", err)
 		return "", err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
+	return response.AlgorithmID, nil
 }
 
 func (sdk *agentSDK) UploadDataset(dataset string) (string, error) {
-	url := fmt.Sprintf("%s/data/%s", sdk.agentURL, dataset)
-
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return "", err
+	request := &pb.DataRequest{
+		Dataset: dataset,
 	}
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	response, err := sdk.client.Data(context.Background(), request)
 	if err != nil {
+		log.Fatalf("Failed to call Data RPC: %v", err)
 		return "", err
 	}
 
-	response := string(body)
-
-	return response, nil
+	return response.DatasetID, nil
 }
 
 func (sdk *agentSDK) Result() ([]byte, error) {
-	url := fmt.Sprintf("%s/result", sdk.agentURL)
+	request := &pb.ResultRequest{}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	response, err := sdk.client.Result(context.Background(), request)
 	if err != nil {
+		log.Fatalf("Failed to call Result RPC: %v", err)
 		return nil, err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	return response.File, nil
+}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
+func (sdk *agentSDK) Close() {
+	sdk.conn.Close()
 }
