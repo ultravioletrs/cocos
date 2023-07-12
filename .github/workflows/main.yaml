@@ -28,7 +28,9 @@ jobs:
           args: --no-config --disable-all --enable gosimple --enable errcheck --enable govet --enable unused --enable deadcode --timeout 3m
 
       - name: Build
-        run: go build -v ./...
+        run: |
+          go build -mod=vendor -ldflags="-linkmode=external -extldflags=-static -s -w" cmd/agent/main.go
+          go build -mod=vendor -ldflags "-s -w" cmd/cli/main.go
 
       - name: Run tests
         run: go test -mod=vendor -v --race -covermode=atomic -coverprofile cover.out ./...
