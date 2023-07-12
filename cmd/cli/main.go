@@ -11,9 +11,12 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "cli-app",
 	Short: "CLI application for Computation Service API",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		// Display help if no subcommand is provided
-		cmd.Help()
+		if err := cmd.Help(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	},
 }
 

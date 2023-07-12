@@ -11,7 +11,7 @@ import (
 )
 
 func pingEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(_ context.Context, request interface{}) (interface{}, error) {
 		req := request.(pingReq)
 
 		if err := req.validate(); err != nil {

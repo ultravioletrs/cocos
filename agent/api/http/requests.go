@@ -7,10 +7,6 @@ import (
 	agent "github.com/ultravioletrs/agent/agent"
 )
 
-type apiReq interface {
-	validate() error
-}
-
 type pingReq struct {
 	Secret string `json:"secret"`
 }
