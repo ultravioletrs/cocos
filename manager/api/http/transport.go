@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	kitot "github.com/go-kit/kit/tracing/opentracing"
@@ -130,36 +129,4 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}
-}
-
-func readUintQuery(r *http.Request, key string, def uint64) (uint64, error) {
-	vals := bone.GetQuery(r, key)
-	if len(vals) > 1 {
-		return 0, errInvalidQueryParams
-	}
-
-	if len(vals) == 0 {
-		return def, nil
-	}
-
-	strval := vals[0]
-	val, err := strconv.ParseUint(strval, 10, 64)
-	if err != nil {
-		return 0, errInvalidQueryParams
-	}
-
-	return val, nil
-}
-
-func readStringQuery(r *http.Request, key string) (string, error) {
-	vals := bone.GetQuery(r, key)
-	if len(vals) > 1 {
-		return "", errInvalidQueryParams
-	}
-
-	if len(vals) == 0 {
-		return "", nil
-	}
-
-	return vals[0], nil
 }

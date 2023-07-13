@@ -16,6 +16,7 @@ func entityName(msg string) (string, error) {
 	if len(match) < 1 {
 		return "", ErrNotFound
 	}
+
 	return match[1], nil
 }
 
@@ -32,8 +33,10 @@ func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, d
 			if err != nil {
 				return libvirt.Domain{}, err
 			}
+
 			goto pool_exists
 		}
+
 		return libvirt.Domain{}, err
 	}
 pool_exists:
@@ -50,8 +53,10 @@ pool_exists:
 			if err != nil {
 				return libvirt.Domain{}, err
 			}
+
 			goto vol_exists
 		}
+
 		return libvirt.Domain{}, err
 	}
 
@@ -66,8 +71,10 @@ vol_exists:
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 55 {
+
 			return dom, nil
 		}
+
 		return libvirt.Domain{}, err
 	}
 
@@ -77,8 +84,10 @@ vol_exists:
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 72 {
 			time.Sleep(bootTime)
+
 			return dom, nil
 		}
+
 		return libvirt.Domain{}, err
 	}
 
