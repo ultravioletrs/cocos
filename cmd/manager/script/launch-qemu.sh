@@ -17,83 +17,101 @@ USE_VIRTIO="1"
 CBITPOS=51
 
 usage() {
-	echo "$0 [options]"
-	echo "Available <commands>:"
-	echo " -hda          hard disk ($HDA_FILE)"
-	echo " -nosev        disable sev support"
-	echo " -mem          guest memory"
-	echo " -smp          number of cpus"
-	echo " -console      display console to use (serial or gxl)"
-	echo " -vnc          VNC port to use"
-	echo " -bios         bios to use (default $UEFI_BIOS_CODE)"
-	echo " -kernel       kernel to use"
-	echo " -initrd       initrd to use"
-	echo " -cdrom        CDROM image"
-	echo " -virtio       use virtio devices"
-	echo " -gdb          start gdbserver"
-	exit 1
+    echo "$0 [options]"
+    echo "Available <commands>:"
+    echo " -hda          hard disk ($HDA_FILE)"
+    echo " -nosev        disable sev support"
+    echo " -mem          guest memory"
+    echo " -smp          number of cpus"
+    echo " -console      display console to use (serial or gxl)"
+    echo " -vnc          VNC port to use"
+    echo " -bios         bios to use (default $UEFI_BIOS_CODE)"
+    echo " -kernel       kernel to use"
+    echo " -initrd       initrd to use"
+    echo " -cdrom        CDROM image"
+    echo " -virtio       use virtio devices"
+    echo " -gdb          start gdbserver"
+    echo " -cbitpos      location of the C-bit"
+    exit 1
 }
 
 add_opts() {
-	echo -n "$* " >> ${QEMU_CMDLINE}
+    echo -n "$* " >> ${QEMU_CMDLINE}
 }
 
 run_cmd() {
-  if ! "$@"; then
-    echo "Command '$*' failed"
-    exit 1
-  fi
+    if ! "$@"; then
+        echo "Command '$*' failed"
+        exit 1
+    fi
 }
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root!"
-  exit 1
+    echo "This script must be run as root!"
+    exit 1
 fi
 
 while [[ $1 != "" ]]; do
-	case "$1" in
-		-hda) 		HDA_FILE="${2}"
-				shift
-				;;
-		-nosev) 	SEV_GUEST="0"
-				;;
-		-mem)  		GUEST_SIZE_IN_MB=${2}
-				shift
-				;;
-		-console)	CONSOLE=${2}
-				shift
-				;;
-		-smp)		SMP_NCPUS=$2
-				shift
-				;;
-		-vnc)		VNC_PORT=$2
-				shift
-				if [ "${VNC_PORT}" = "" ]; then
-					usage
-				fi
-				;;
-		-bios)		UEFI_BIOS_CODE="`readlink -f $2`"
-				shift
-				;;
-		-netconsole)	NETCONSOLE_PORT=$2
-				shift
-				;;
-		-initrd)	INITRD_FILE=$2
-				shift
-				;;
-		-kernel)	KERNEL_FILE=$2
-				shift
-				;;
-		-cdrom)		CDROM_FILE=$2
-				shift
-				;;
-		-virtio)        USE_VIRTIO="1"
-				;;
-		-gdb)      	USE_GDB="1"
-				;;
-		*) 		usage;;
-	esac
-	shift
+    case "$1" in
+        -hda)
+            HDA_FILE="${2}"
+            shift
+            ;;
+        -nosev)
+            SEV_GUEST="0"
+            ;;
+        -mem)
+            GUEST_SIZE_IN_MB=${2}
+            shift
+            ;;
+        -console)
+            CONSOLE=${2}
+            shift
+            ;;
+        -smp)
+            SMP_NCPUS=$2
+            shift
+            ;;
+        -vnc)
+            VNC_PORT=$2
+            shift
+            if [ "${VNC_PORT}" = "" ]; then
+                usage
+            fi
+            ;;
+        -bios)
+            UEFI_BIOS_CODE="`readlink -f $2`"
+            shift
+            ;;
+        -netconsole)
+            NETCONSOLE_PORT=$2
+            shift
+            ;;
+        -initrd)
+            INITRD_FILE=$2
+            shift
+            ;;
+        -kernel)
+            KERNEL_FILE=$2
+            shift
+            ;;
+        -cdrom)
+            CDROM_FILE=$2
+            shift
+            ;;
+        -virtio)
+            USE_VIRTIO="1"
+            ;;
+        -gdb)
+            USE_GDB="1"
+            ;;
+        -cbitpos)
+            CBITPOS=$2
+            ;;
+        *)
+            usage;;
+    esac
+    shift
 done
 
 # we add all the qemu command line options into a file
@@ -125,41 +143,41 @@ add_opts "-device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vm
 
 # If harddisk file is specified then add the HDD drive
 if [ ! -z ${HDA_FILE} ]; then
-	if [ "$USE_VIRTIO" = "1" ]; then
-		if [[ ${HDA_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=qcow2"
-		else
-			add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=raw"
-		fi
-		add_opts "-device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true"
-		add_opts "-device scsi-hd,drive=disk0"
-	else
-		if [[ ${HDA_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA_FILE},format=qcow2"
-		else
-			add_opts "-drive file=${HDA_FILE},format=raw"
-		fi
-	fi
+    if [ "$USE_VIRTIO" = "1" ]; then
+        if [[ ${HDA_FILE} = *"qcow2" ]]; then
+            add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=qcow2"
+        else
+            add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=raw"
+        fi
+        add_opts "-device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true"
+        add_opts "-device scsi-hd,drive=disk0"
+    else
+        if [[ ${HDA_FILE} = *"qcow2" ]]; then
+            add_opts "-drive file=${HDA_FILE},format=qcow2"
+        else
+            add_opts "-drive file=${HDA_FILE},format=raw"
+        fi
+    fi
 fi
 
 # If this is SEV guest then add the encryption device objects to enable support
 if [ ${SEV_GUEST} = "1" ]; then
-	add_opts "-object sev-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1"
-	add_opts "-machine memory-encryption=sev0"
+    add_opts "-object sev-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1"
+    add_opts "-machine memory-encryption=sev0"
 fi
 
 # if console is serial then disable graphical interface
 if [ "${CONSOLE}" = "serial" ]; then
-	add_opts "-nographic"
+    add_opts "-nographic"
 else
-	add_opts "-vga ${CONSOLE}"
+    add_opts "-vga ${CONSOLE}"
 fi
 
 # if -kernel arg is specified then use the kernel provided in command line for boot
 if [ "${KERNEL_FILE}" != "" ]; then
-	add_opts "-kernel $KERNEL_FILE"
-	add_opts "-append \"console=ttyS0 earlyprintk=serial root=/dev/sda2\""
-	[ ! -z ${INITRD_FILE} ] && add_opts "-initrd ${INITRD_FILE}"
+    add_opts "-kernel $KERNEL_FILE"
+    add_opts "-append \"console=ttyS0 earlyprintk=serial root=/dev/sda2\""
+    [ ! -z ${INITRD_FILE} ] && add_opts "-initrd ${INITRD_FILE}"
 fi
 
 # start vnc server
@@ -180,10 +198,10 @@ echo | tee -a ${QEMU_CONSOLE_LOG}
 echo "Mapping CTRL-C to CTRL-]"
 stty intr ^]
 
-echo "Launching VM ..."
-bash ${QEMU_CMDLINE} 2>&1 | tee -a ${QEMU_CONSOLE_LOG}
+            echo "Launching VM ..."
+            bash ${QEMU_CMDLINE} 2>&1 | tee -a ${QEMU_CONSOLE_LOG}
 
-# restore the mapping
-stty intr ^c
+            # restore the mapping
+            stty intr ^c
 
-rm -rf ${QEMU_CMDLINE}
+            rm -rf ${QEMU_CMDLINE}
