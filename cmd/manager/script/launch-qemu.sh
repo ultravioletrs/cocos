@@ -15,6 +15,10 @@ UEFI_BIOS_VARS="OVMF_VARS.fd"
 USE_VIRTIO="1"
 
 CBITPOS=51
+HOST_HTTP_PORT=9301
+GUEST_HTTP_PORT=9031
+HOST_GRPC_PORT=7020
+GUEST_GRPC_PORT=7002
 
 usage() {
     echo "$0 [options]"
@@ -32,6 +36,10 @@ usage() {
     echo " -virtio       use virtio devices"
     echo " -gdb          start gdbserver"
     echo " -cbitpos      location of the C-bit"
+    echo " -hosthttp     host http port"
+    echo " -guesthttp    guest http port"
+    echo " -hostgrpc     host grpc port"
+    echo " -guestgrpc    guest grpc port"
     exit 1
 }
 
@@ -80,7 +88,7 @@ while [[ $1 != "" ]]; do
             fi
             ;;
         -bios)
-            UEFI_BIOS_CODE="`readlink -f $2`"
+            UEFI_BIOS_CODE=$(readlink -f "$2")
             shift
             ;;
         -netconsole)
@@ -108,6 +116,18 @@ while [[ $1 != "" ]]; do
         -cbitpos)
             CBITPOS=$2
             ;;
+        -hosthttp)
+            HOST_HTTP_PORT=$2
+            ;;
+        -guesthttp)
+            GUEST_HTTP_PORT=$2
+            ;;
+        -hostgrpc)
+            HOST_GRPC_PORT=$2
+            ;;
+        -guestgrpc)
+            GUEST_GRPC_PORT=$2
+            ;;
         *)
             usage;;
     esac
@@ -124,7 +144,7 @@ add_opts "${QEMU_INSTALL_DIR}qemu-system-x86_64"
 add_opts "-enable-kvm -cpu EPYC -machine q35"
 
 # add number of VCPUs
-[ ! -z ${SMP_NCPUS} ] && add_opts "-smp ${SMP_NCPUS},maxcpus=64"
+[ -n "$SMP_NCPUS" ] && add_opts "-smp ${SMP_NCPUS},maxcpus=64"
 
 # define guest memory
 add_opts "-m ${GUEST_SIZE_IN_MB}M,slots=5,maxmem=30G"
@@ -136,13 +156,13 @@ add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_BIOS_CODE},readonly"
 add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_BIOS_VARS}"
 
 # add CDROM if specified
-[ ! -z ${CDROM_FILE} ] && add_opts "-drive file=${CDROM_FILE},media=cdrom -boot d"
+[ -n "$CDROM_FILE" ] && add_opts "-drive file=${CDROM_FILE},media=cdrom -boot d"
 
-add_opts "-netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002"
+add_opts "-netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::$HOST_HTTP_PORT-:$GUEST_HTTP_PORT,hostfwd=tcp::$HOST_GRPC_PORT-:$GUEST_GRPC_PORT"
 add_opts "-device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile="
 
 # If harddisk file is specified then add the HDD drive
-if [ ! -z ${HDA_FILE} ]; then
+if [ -n "$HDA_FILE" ]; then
     if [ "$USE_VIRTIO" = "1" ]; then
         if [[ ${HDA_FILE} = *"qcow2" ]]; then
             add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=qcow2"
@@ -177,21 +197,21 @@ fi
 if [ "${KERNEL_FILE}" != "" ]; then
     add_opts "-kernel $KERNEL_FILE"
     add_opts "-append \"console=ttyS0 earlyprintk=serial root=/dev/sda2\""
-    [ ! -z ${INITRD_FILE} ] && add_opts "-initrd ${INITRD_FILE}"
+    [ -n "$INITRD_FILE" ] && add_opts "-initrd ${INITRD_FILE}"
 fi
 
 # start vnc server
-[ ! -z ${VNC_PORT} ] && add_opts "-vnc :${VNC_PORT}" && echo "Starting VNC on port ${VNC_PORT}"
+[ -n "$VNC_PORT" ] && add_opts "-vnc :${VNC_PORT}" && echo "Starting VNC on port ${VNC_PORT}"
 
 # start monitor on pty
 add_opts "-monitor pty"
 
 # log the console  output in stdout.log
-QEMU_CONSOLE_LOG=`pwd`/stdout.log
+QEMU_CONSOLE_LOG=$(pwd)/stdout.log
 
 # save the command line args into log file
-cat $QEMU_CMDLINE | tee ${QEMU_CONSOLE_LOG}
-echo | tee -a ${QEMU_CONSOLE_LOG}
+cat $QEMU_CMDLINE | tee "${QEMU_CONSOLE_LOG}"
+echo | tee -a "${QEMU_CONSOLE_LOG}"
 
 
 # map CTRL-C to CTRL ]
@@ -199,7 +219,7 @@ echo "Mapping CTRL-C to CTRL-]"
 stty intr ^]
 
             echo "Launching VM ..."
-            bash ${QEMU_CMDLINE} 2>&1 | tee -a ${QEMU_CONSOLE_LOG}
+            bash ${QEMU_CMDLINE} 2>&1 | tee -a "${QEMU_CONSOLE_LOG}"
 
             # restore the mapping
             stty intr ^c
