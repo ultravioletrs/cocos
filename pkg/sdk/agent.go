@@ -101,8 +101,9 @@ func (sdk *AgentSDK) UploadDataset(dataset string) (string, error) {
 
 func (sdk *AgentSDK) Result() ([]byte, error) {
 	request := &agent.ResultRequest{}
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*100)
-	fmt.Println("asdhfgdkwehv")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
+	defer cancel()
+
 	response, err := sdk.client.Result(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Result RPC")

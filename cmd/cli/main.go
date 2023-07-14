@@ -48,7 +48,6 @@ func main() {
 		Use:   "cli-app",
 		Short: "CLI application for Computation Service API",
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
 		},
 	}
 
