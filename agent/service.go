@@ -91,7 +91,6 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 
 	// Perform some processing to retrieve the computation result file
 	// For example, read the file from storage or generate a dummy result
-
 	result := []byte("This is the computation result file.")
 
 	// Return the result file or an error

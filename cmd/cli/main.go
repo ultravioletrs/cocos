@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/mainflux/mainflux/logger"
 	"github.com/spf13/cobra"
@@ -11,8 +12,10 @@ import (
 )
 
 const (
-	defURL      string = "localhost:7002"
-	agentURLVar string = "COCOS_AGENT_URL"
+	defURL          string        = "localhost:7002"
+	defTimeout      time.Duration = time.Second
+	agentURLVar     string        = "COCOS_AGENT_URL"
+	agentTimeoutVar string        = "COCOS_AGENT_TIMEOUT"
 )
 
 func main() {
@@ -20,17 +23,25 @@ func main() {
 	if agentURL == "" {
 		agentURL = defURL
 	}
+	agentTimeout := defTimeout
+	if at := os.Getenv(agentTimeoutVar); at != "" {
+		to, err := time.ParseDuration(at)
+		if err != nil {
+			log.Fatalf("invalid timeout %s", at)
+		}
+		agentTimeout = to
+	}
 
 	logger, _ := logger.New(os.Stdout, "ERROR")
 
 	sdk, err := agentsdk.NewSDK(agentsdk.Config{
-		AgentURL: agentURL,
+		AgentURL:     agentURL,
+		AgentTimeout: agentTimeout,
 	}, logger)
 	if err != nil {
 		log.Println("Error creating SDK:", err)
 		os.Exit(1)
 	}
-
 	cli.SetSDK(sdk)
 
 	rootCmd := &cobra.Command{
