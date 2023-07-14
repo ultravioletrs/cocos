@@ -1,7 +1,15 @@
 package sdk
 
+import (
+	"time"
+
+	"github.com/mainflux/mainflux/logger"
+)
+
 type Config struct {
-	AgentURL string
+	AgentURL     string
+	AgentTimeout time.Duration
+	JaegerURL    string // Add JaegerURL field
 }
 
 type SDK interface {
@@ -9,9 +17,8 @@ type SDK interface {
 	UploadAlgorithm(algorithm []byte) (string, error)
 	UploadDataset(dataset string) (string, error)
 	Result() ([]byte, error)
-	Close()
 }
 
-func NewSDK(conf Config) (SDK, error) {
-	return NewAgentSDK(conf)
+func NewSDK(conf Config, log logger.Logger) (SDK, error) {
+	return NewAgentSDK(conf, log)
 }

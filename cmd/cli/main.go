@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/mainflux/mainflux/logger"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/agent/cli"
 	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
@@ -20,9 +21,11 @@ func main() {
 		agentURL = defURL
 	}
 
+	logger, _ := logger.New(os.Stdout, "ERROR")
+
 	sdk, err := agentsdk.NewSDK(agentsdk.Config{
 		AgentURL: agentURL,
-	})
+	}, logger)
 	if err != nil {
 		log.Println("Error creating SDK:", err)
 		os.Exit(1)

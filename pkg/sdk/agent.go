@@ -2,14 +2,20 @@ package sdk
 
 import (
 	"context"
-	"log"
-
-	"google.golang.org/grpc"
-
+	"encoding/json"
+	"fmt"
+	"os"
 	"time"
 
-	pb "github.com/ultravioletrs/agent/agent"
+	"github.com/mainflux/mainflux/logger"
+	"github.com/ultravioletrs/agent/agent"
+	ggrpc "google.golang.org/grpc"
 )
+
+type AgentSDK struct {
+	client agent.AgentServiceClient
+	logger logger.Logger
+}
 
 type Computation struct {
 	ID                 string    `json:"id,omitempty" db:"id"`
@@ -28,80 +34,86 @@ type Computation struct {
 	Metadata           Metadata  `json:"metadata,omitempty" db:"metadata"`
 }
 
-type agentSDK struct {
-	client pb.AgentServiceClient
-	conn   *grpc.ClientConn
-}
+type Metadata map[string]interface{}
 
-func NewAgentSDK(conf Config) (SDK, error) {
-	conn, err := grpc.Dial(conf.AgentURL, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("Failed to connect to the server: %v", err)
-		return nil, err
-	}
+func NewAgentSDK(conf Config, log logger.Logger) (*AgentSDK, error) {
+	conn := connectToGrpc("agent", conf.AgentURL, log)
+	agentClient := agent.NewAgentServiceClient(conn)
 
-	client := pb.NewAgentServiceClient(conn)
-
-	return &agentSDK{
-		client: client,
-		conn:   conn,
+	return &AgentSDK{
+		client: agentClient,
+		logger: log,
 	}, nil
 }
 
-func (sdk *agentSDK) Run(computation Computation) (string, error) {
-	request := &pb.RunRequest{
-		Computation: []byte("..."),
+func (sdk *AgentSDK) Run(computation Computation) (string, error) {
+	computationBytes, err := json.Marshal(computation)
+	if err != nil {
+		sdk.logger.Error("Failed to marshal computation")
+		return "", err
+	}
+
+	request := &agent.RunRequest{
+		Computation: computationBytes,
 	}
 
 	response, err := sdk.client.Run(context.Background(), request)
 	if err != nil {
-		log.Fatalf("Failed to call Run RPC: %v", err)
+		sdk.logger.Error("Failed to call Run RPC")
 		return "", err
 	}
 
 	return response.Computation, nil
 }
 
-func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
-	request := &pb.AlgoRequest{
+func (sdk *AgentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
+	request := &agent.AlgoRequest{
 		Algorithm: algorithm,
 	}
 
 	response, err := sdk.client.Algo(context.Background(), request)
 	if err != nil {
-		log.Fatalf("Failed to call Algo RPC: %v", err)
+		sdk.logger.Error("Failed to call Algo RPC")
 		return "", err
 	}
 
 	return response.AlgorithmID, nil
 }
 
-func (sdk *agentSDK) UploadDataset(dataset string) (string, error) {
-	request := &pb.DataRequest{
+func (sdk *AgentSDK) UploadDataset(dataset string) (string, error) {
+	request := &agent.DataRequest{
 		Dataset: dataset,
 	}
 
 	response, err := sdk.client.Data(context.Background(), request)
 	if err != nil {
-		log.Fatalf("Failed to call Data RPC: %v", err)
+		sdk.logger.Error("Failed to call Data RPC")
 		return "", err
 	}
 
 	return response.DatasetID, nil
 }
 
-func (sdk *agentSDK) Result() ([]byte, error) {
-	request := &pb.ResultRequest{}
+func (sdk *AgentSDK) Result() ([]byte, error) {
+	request := &agent.ResultRequest{}
 
 	response, err := sdk.client.Result(context.Background(), request)
 	if err != nil {
-		log.Fatalf("Failed to call Result RPC: %v", err)
+		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
 	}
 
 	return response.File, nil
 }
 
-func (sdk *agentSDK) Close() {
-	sdk.conn.Close()
+func connectToGrpc(name string, url string, logger logger.Logger) *ggrpc.ClientConn {
+	opts := []ggrpc.DialOption{ggrpc.WithInsecure()}
+	conn, err := ggrpc.Dial(url, opts...)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to connect to %s service: %s", name, err))
+		os.Exit(1)
+	}
+	logger.Info(fmt.Sprintf("Connected to %s gRPC server on %s", name, url))
+
+	return conn
 }
