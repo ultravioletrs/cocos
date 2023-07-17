@@ -21,16 +21,12 @@ import (
 
 const (
 	defAgentURL     = "localhost:7002"
-	defTimeout      = time.Second
 	defJaegerURL    = ""
 	defAgentTimeout = "1s"
-	defLogLevel     = "error"
 
 	envAgentURL     = "COCOS_AGENT_URL"
-	envTimeout      = "COCOS_AGENT_TIMEOUT"
 	envJaegerURL    = "JAEGER_URL"
 	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
-	envLogLevel     = "AGENT_LOG_LEVEL"
 )
 
 type config struct {
