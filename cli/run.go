@@ -33,7 +33,12 @@ func NewRunCmd(sdk agentsdk.SDK) *cobra.Command {
 		},
 	}
 
+	var err error
 	cmd.Flags().StringVar(&computationJSON, "computation", "", "JSON representation of the computation")
+
+	if err = cmd.MarkFlagRequired("computation"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
 
 	cmd.MarkFlagRequired("computation")
 
