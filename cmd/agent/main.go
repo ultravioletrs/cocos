@@ -158,7 +158,6 @@ func startgRPCServer(cfg config, svc *agent.Service, logger logger.Logger, errs 
 	// Register the implementation of the service with the server
 	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(tracer, *svc))
 	// Listen to a port and serve incoming requests
-	fmt.Println(cfg.GRPCAddr)
 	listener, err := net.Listen("tcp", cfg.GRPCAddr)
 	if err != nil {
 		log.Fatalf(err.Error())
