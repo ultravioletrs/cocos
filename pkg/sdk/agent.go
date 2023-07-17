@@ -1,13 +1,18 @@
 package sdk
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
+
+	"github.com/mainflux/mainflux/logger"
+	"github.com/ultravioletrs/agent/agent"
 )
+
+type AgentSDK struct {
+	client agent.AgentServiceClient
+	logger logger.Logger
+}
 
 type Computation struct {
 	ID                 string    `json:"id,omitempty" db:"id"`
@@ -26,124 +31,72 @@ type Computation struct {
 	Metadata           Metadata  `json:"metadata,omitempty" db:"metadata"`
 }
 
-func (sdk *agentSDK) Ping(url string) (string, error) {
-	data := fmt.Sprintf("%s%s", sdk.agentURL, url)
+type Metadata map[string]interface{}
 
-	req, err := http.NewRequest(http.MethodGet, data, nil)
-	if err != nil {
-		return "", err
+func NewAgentSDK(log logger.Logger, agentClient agent.AgentServiceClient) *AgentSDK {
+	return &AgentSDK{
+		client: agentClient,
+		logger: log,
 	}
-
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
 }
 
-func (sdk *agentSDK) Run(computation Computation) (string, error) {
-	cmpJSON, err := json.Marshal(computation)
+func (sdk *AgentSDK) Run(computation Computation) (string, error) {
+	computationBytes, err := json.Marshal(computation)
 	if err != nil {
+		sdk.logger.Error("Failed to marshal computation")
 		return "", err
 	}
 
-	url := fmt.Sprintf("%s/run", sdk.agentURL)
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(cmpJSON))
+	request := &agent.RunRequest{
+		Computation: computationBytes,
+	}
+	response, err := sdk.client.Run(context.Background(), request)
 	if err != nil {
+		sdk.logger.Error("Failed to call Run RPC")
 		return "", err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
+	return response.Computation, nil
 }
 
-func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
-	url := fmt.Sprintf("%s/algo", sdk.agentURL)
+func (sdk *AgentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
+	request := &agent.AlgoRequest{
+		Algorithm: algorithm,
+	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(algorithm))
+	response, err := sdk.client.Algo(context.Background(), request)
 	if err != nil {
+		sdk.logger.Error("Failed to call Algo RPC")
 		return "", err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	response := string(body)
-
-	return response, nil
+	return response.AlgorithmID, nil
 }
 
-func (sdk *agentSDK) UploadDataset(dataset string) (string, error) {
-	url := fmt.Sprintf("%s/data/%s", sdk.agentURL, dataset)
-
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return "", err
+func (sdk *AgentSDK) UploadDataset(dataset string) (string, error) {
+	request := &agent.DataRequest{
+		Dataset: dataset,
 	}
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	response, err := sdk.client.Data(context.Background(), request)
 	if err != nil {
+		sdk.logger.Error("Failed to call Data RPC")
 		return "", err
 	}
 
-	response := string(body)
-
-	return response, nil
+	return response.DatasetID, nil
 }
 
-func (sdk *agentSDK) Result() ([]byte, error) {
-	url := fmt.Sprintf("%s/result", sdk.agentURL)
+func (sdk *AgentSDK) Result() ([]byte, error) {
+	request := &agent.ResultRequest{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
+	defer cancel()
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	response, err := sdk.client.Result(ctx, request)
 	if err != nil {
+		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
 	}
 
-	resp, err := sdk.sendRequest(req, "", ctJSON)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
+	return response.File, nil
 }
