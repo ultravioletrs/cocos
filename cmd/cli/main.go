@@ -20,19 +20,24 @@ import (
 )
 
 const (
-	defAgentURL  = "localhost:7002"
-	defTimeout   = time.Second
-	defJaegerURL = ""
+	defAgentURL     = "localhost:7002"
+	defTimeout      = time.Second
+	defJaegerURL    = ""
+	defAgentTimeout = "1s"
+	defLogLevel     = "error"
 
-	envAgentURL  = "COCOS_AGENT_URL"
-	envTimeout   = "COCOS_AGENT_TIMEOUT"
-	envJaegerURL = "JAEGER_URL"
+	envAgentURL     = "COCOS_AGENT_URL"
+	envTimeout      = "COCOS_AGENT_TIMEOUT"
+	envJaegerURL    = "JAEGER_URL"
+	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
+	envLogLevel     = "AGENT_LOG_LEVEL"
 )
 
 type config struct {
 	jaegerURL    string
 	agentURL     string
 	agentTimeout time.Duration
+	logLevel     string
 }
 
 func loadConfig() (config, error) {
@@ -40,29 +45,35 @@ func loadConfig() (config, error) {
 		agentURL:  mainflux.Env(envAgentURL, defAgentURL),
 		jaegerURL: mainflux.Env(envJaegerURL, defJaegerURL),
 	}
-	at := mainflux.Env(envTimeout, defTimeout.String())
 
-	if at != "" {
-		to, err := time.ParseDuration(at)
-		if err != nil {
-			return config{}, err
-		}
-		cfg.agentTimeout = to
+	agentTimeoutStr := mainflux.Env(envAgentTimeout, defAgentTimeout)
+	agentTimeout, err := time.ParseDuration(agentTimeoutStr)
+	if err != nil {
+		return config{}, err
 	}
+
+	cfg.agentTimeout = agentTimeout
 	return cfg, nil
 }
 
 func main() {
 	cfg, err := loadConfig()
 	if err != nil {
-		log.Fatalf("Error: %s", err)
+		log.Fatalf("Error loading config: %s", err)
 	}
 
-	logger, _ := logger.New(os.Stdout, "ERROR")
+	logger, err := logger.New(os.Stdout, cfg.logLevel)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
 	conn := connectToGrpc("agent", cfg.agentURL, logger)
+
 	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
 	defer agentCloser.Close()
+
 	agentClient := agentgrpc.NewClient(agentTracer, conn, cfg.agentTimeout)
+
 	sdk := agentsdk.NewAgentSDK(logger, agentClient)
 
 	cli.SetSDK(sdk)
@@ -79,7 +90,7 @@ func main() {
 	rootCmd.AddCommand(cli.NewResultsCmd(sdk))
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Println(err)
+		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
 		os.Exit(1)
 	}
 }
