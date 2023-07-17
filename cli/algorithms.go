@@ -17,13 +17,13 @@ func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 
 			log.Println("Uploading algorithm binary:", algorithmFile)
 
-			_, err := sdk.UploadAlgorithm([]byte(algorithmFile))
+			response, err := sdk.UploadAlgorithm([]byte(algorithmFile))
 			if err != nil {
 				log.Println("Error uploading algorithm:", err)
 				return
 			}
 
-			log.Println("Algorithm uploaded successfully!")
+			log.Println("Response:", response)
 		},
 	}
 }

@@ -20,6 +20,7 @@ func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 				log.Println("Error retrieving computation result:", err)
 				return
 			}
+
 			err = ioutil.WriteFile("result.txt", result, 0644)
 			if err != nil {
 				log.Println("Error saving computation result:", err)
@@ -27,6 +28,7 @@ func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 			}
 
 			log.Println("Computation result retrieved and saved successfully!")
+			log.Println("Response:", string(result))
 		},
 	}
 }

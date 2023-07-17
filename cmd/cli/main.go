@@ -23,10 +23,12 @@ const (
 	defAgentURL     = "localhost:7002"
 	defJaegerURL    = ""
 	defAgentTimeout = "1s"
+	defLogLevel     = "info"
 
 	envAgentURL     = "COCOS_AGENT_URL"
 	envJaegerURL    = "JAEGER_URL"
 	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
+	envLogLevel     = "AGENT_LOG_LEVEL"
 )
 
 type config struct {
@@ -46,6 +48,7 @@ func loadConfig() (config, error) {
 	cfg := config{
 		agentURL:     mainflux.Env(envAgentURL, defAgentURL),
 		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
+		logLevel:     mainflux.Env(envLogLevel, defLogLevel),
 		agentTimeout: agentTimeout,
 	}
 
@@ -60,7 +63,7 @@ func main() {
 
 	logger, err := logger.New(os.Stdout, cfg.logLevel)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("Error creating logger: %s", err)
 	}
 
 	conn := connectToGrpc("agent", cfg.agentURL, logger)
@@ -84,6 +87,7 @@ func main() {
 	rootCmd.AddCommand(cli.NewAlgorithmsCmd(sdk))
 	rootCmd.AddCommand(cli.NewDatasetsCmd(sdk))
 	rootCmd.AddCommand(cli.NewResultsCmd(sdk))
+	rootCmd.AddCommand(cli.NewRunCmd(sdk))
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

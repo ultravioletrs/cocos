@@ -17,13 +17,13 @@ func NewDatasetsCmd(sdk agentsdk.SDK) *cobra.Command {
 
 			log.Println("Uploading dataset CSV:", datasetFile)
 
-			_, err := sdk.UploadDataset(datasetFile)
+			response, err := sdk.UploadDataset(datasetFile)
 			if err != nil {
 				log.Println("Error uploading dataset:", err)
 				return
 			}
 
-			log.Println("Dataset uploaded successfully!")
+			log.Println("Response:", response)
 		},
 	}
 }
