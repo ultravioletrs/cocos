@@ -37,18 +37,18 @@ type config struct {
 }
 
 func loadConfig() (config, error) {
-	cfg := config{
-		agentURL:  mainflux.Env(envAgentURL, defAgentURL),
-		jaegerURL: mainflux.Env(envJaegerURL, defJaegerURL),
-	}
-
 	agentTimeoutStr := mainflux.Env(envAgentTimeout, defAgentTimeout)
 	agentTimeout, err := time.ParseDuration(agentTimeoutStr)
 	if err != nil {
 		return config{}, err
 	}
 
-	cfg.agentTimeout = agentTimeout
+	cfg := config{
+		agentURL:     mainflux.Env(envAgentURL, defAgentURL),
+		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
+		agentTimeout: agentTimeout,
+	}
+
 	return cfg, nil
 }
 
