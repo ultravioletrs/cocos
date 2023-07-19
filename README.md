@@ -17,7 +17,7 @@ sudo adduser $USER libvirt
 
 ### CD iso & hard drive img for virtual machine (VM)
 
-Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [aalpine-virt-3.18.0-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso) in `cmd/manager/iso` directory:
+Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-virt-3.18.0-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso) in `cmd/manager/iso` directory:
 
 ```sh
 cd cmd/manager/iso
@@ -36,14 +36,22 @@ This will start an HTTP server on port `9021`, a gRPC server on port `7001` and 
 
 ## Domain 
 
-### Domain creation & destruction
+### Domain creation
 To create a `libvirt` domain - basically a QEMU instance or a virtual machine (VM) - run
 
 ```sh
 curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"<path/to/pool.xml>", "volume":"<path/to/vol.xml>", "domain":"<path/to/dom.xml>"}'
 ```
 
-If you have already created a domain, you can remove it with
+You can also use configuration `.xml` files in `cmd/manager/xml`. You can either specify a path to the files on your computer, or you can just leave the `pool`, `volume` and `domain` fields of the request body empty, like this
+
+```sh
+curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"", "volume":"", "domain":""}'
+```
+
+### Domain destruction
+
+Normally, you don't need to do anything manually. However, if need be, if you have already created a domain, you can remove it with
 
 ```sh
 virsh undefine QEmu-alpine-standard-x86_64; \
