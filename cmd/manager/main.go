@@ -28,6 +28,7 @@ import (
 	jconfig "github.com/uber/jaeger-client-go/config"
 	"github.com/ultravioletrs/agent/agent"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
+	"github.com/ultravioletrs/manager/internal/env"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
@@ -37,49 +38,32 @@ import (
 	"github.com/digitalocean/go-libvirt"
 )
 
-const (
-	defLogLevel     = "error"
-	defHTTPPort     = "9021"
-	defJaegerURL    = ""
-	defServerCert   = ""
-	defServerKey    = ""
-	defSecret       = "secret"
-	defGRPCAddr     = "localhost:7001"
-	defAgentURL     = "localhost:7002"
-	defAgentTimeout = "1s"
-
-	envLogLevel     = "MANAGER_LOG_LEVEL"
-	envHTTPPort     = "MANAGER_HTTP_PORT"
-	envServerCert   = "MANAGER_SERVER_CERT"
-	envServerKey    = "MANAGER_SERVER_KEY"
-	envSecret       = "MANAGER_SECRET"
-	envJaegerURL    = "JAEGER_URL"
-	envGRPCAddr     = "MANAGER_GRPC_PORT"
-	envAgentURL     = "MANAGER_AGENT_GRPC_URL"
-	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
-)
+const svcName = "manager"
 
 type config struct {
-	logLevel     string
-	httpPort     string
-	serverCert   string
-	serverKey    string
-	secret       string
-	jaegerURL    string
-	GRPCAddr     string
-	agentURL     string
-	agentTimeout time.Duration
+	LogLevel     string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
+	HTTPPort     string `env:"MANAGER_HTTP_PORT"   envDefault:"9021"`
+	ServerCert   string `env:"MANAGER_SERVER_CERT" envDefault:""`
+	ServerKey    string `env:"MANAGER_SERVER_KEY"  envDefault:""`
+	Secret       string `env:"MANAGER_SECRET"      envDefault:"secret"`
+	GRPCAddr     string `env:"MANAGER_GRPC_ADDR"   envDefault:"localhost:7001"`
+	AgentGRPCURL string `env:"AGENT_GRPC_URL"      envDefault:"localhost:7002"`
+	AgentTimeout string `env:"AGENT_GRPC_TIMEOUT"  envDefault:"1s"`
+	JaegerURL    string `env:"MANAGER_JAEGER_URL"  envDefault:""`
 }
 
 func main() {
-	cfg := loadConfig()
+	var cfg config
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
+	}
 
-	logger, err := logger.New(os.Stdout, cfg.logLevel)
+	logger, err := logger.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	managerTracer, managerCloser := initJaeger("manager", cfg.jaegerURL, logger)
+	managerTracer, managerCloser := initJaeger("manager", cfg.JaegerURL, logger)
 	defer managerCloser.Close()
 
 	libvirtConn := initLibvirt(logger)
@@ -91,16 +75,21 @@ func main() {
 
 	idProvider := uuid.New()
 
-	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
-	conn := connectToGrpc("agent", cfg.agentURL, logger)
-	agent := agentgrpc.NewClient(agentTracer, conn, cfg.agentTimeout)
+	conn := connectToGrpc("agent", cfg.AgentGRPCURL, logger)
 
-	svc := newService(cfg.secret, libvirtConn, idProvider, agent, logger)
+	timeout, err := time.ParseDuration(cfg.AgentTimeout)
+	if err != nil {
+		log.Fatalf("failed to parse agent timeout: %s", err)
+	}
+	agent := agentgrpc.NewClient(agentTracer, conn, timeout)
+
+	svc := newService(cfg.Secret, libvirtConn, idProvider, agent, logger)
 
 	errs := make(chan error, 2)
 	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc), cfg.httpPort, cfg, logger, errs)
+	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc), cfg.HTTPPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -110,25 +99,6 @@ func main() {
 
 	err = <-errs
 	logger.Error(fmt.Sprintf("Manager service terminated: %s", err))
-}
-
-func loadConfig() config {
-	agentTimeout, err := time.ParseDuration(mainflux.Env(envAgentTimeout, defAgentTimeout))
-	if err != nil {
-		log.Fatalf("Invalid %s value: %s", agentTimeout, err.Error())
-	}
-
-	return config{
-		agentTimeout: agentTimeout,
-		logLevel:     mainflux.Env(envLogLevel, defLogLevel),
-		httpPort:     mainflux.Env(envHTTPPort, defHTTPPort),
-		serverCert:   mainflux.Env(envServerCert, defServerCert),
-		serverKey:    mainflux.Env(envServerKey, defServerKey),
-		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
-		secret:       mainflux.Env(envSecret, defSecret),
-		GRPCAddr:     mainflux.Env(envGRPCAddr, defGRPCAddr),
-		agentURL:     mainflux.Env(envAgentURL, defAgentURL),
-	}
 }
 
 func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {
@@ -180,13 +150,13 @@ func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProv
 
 func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
 	p := fmt.Sprintf(":%s", port)
-	if cfg.serverCert != "" || cfg.serverKey != "" {
+	if cfg.ServerCert != "" || cfg.ServerKey != "" {
 		logger.Info(fmt.Sprintf("Manager service started using https on port %s with cert %s key %s",
-			port, cfg.serverCert, cfg.serverKey))
-		errs <- http.ListenAndServeTLS(p, cfg.serverCert, cfg.serverKey, handler)
+			port, cfg.ServerCert, cfg.ServerKey))
+		errs <- http.ListenAndServeTLS(p, cfg.ServerCert, cfg.ServerKey, handler)
 		return
 	}
-	logger.Info(fmt.Sprintf("Manager service started using http on port %s", cfg.httpPort))
+	logger.Info(fmt.Sprintf("Manager service started using http on port %s", cfg.HTTPPort))
 	errs <- http.ListenAndServe(p, handler)
 }
 
