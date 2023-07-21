@@ -28,13 +28,13 @@ import (
 const svcName = "agent"
 
 type config struct {
-	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	HTTPPort   string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
-	ServerCert string `env:"AGENT_SERVER_CERT" envDefault:""`
-	ServerKey  string `env:"AGENT_SERVER_KEY"  envDefault:""`
-	Secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
-	GRPCAddr   string `env:"AGENT_GRPC_ADDR"   envDefault:"localhost:7002"`
-	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:""`
+	LogLevel     string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	HTTPPort     string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
+	ServerCert   string `env:"AGENT_SERVER_CERT" envDefault:""`
+	ServerKey    string `env:"AGENT_SERVER_KEY"  envDefault:""`
+	Secret       string `env:"AGENT_SECRET"      envDefault:"secret"`
+	AgentGRPCURL string `env:"AGENT_GRPC_URL"    envDefault:"localhost:7002"`
+	JaegerURL    string `env:"AGENT_JAEGER_URL"  envDefault:""`
 }
 
 func main() {
@@ -133,10 +133,10 @@ func startgRPCServer(cfg config, svc *agent.Service, logger logger.Logger, errs 
 	// Register the implementation of the service with the server
 	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(tracer, *svc))
 	// Listen to a port and serve incoming requests
-	listener, err := net.Listen("tcp", cfg.GRPCAddr)
+	listener, err := net.Listen("tcp", cfg.AgentGRPCURL)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.GRPCAddr))
+	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.AgentGRPCURL))
 	errs <- server.Serve(listener)
 }
