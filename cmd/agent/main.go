@@ -16,12 +16,11 @@ import (
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	agenthttpapi "github.com/ultravioletrs/agent/agent/api/http"
+	"github.com/ultravioletrs/agent/internal"
 	"github.com/ultravioletrs/agent/internal/env"
 	"google.golang.org/grpc"
 
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/opentracing/opentracing-go"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	jconfig "github.com/uber/jaeger-client-go/config"
 )
 
@@ -95,21 +94,8 @@ func newService(secret string, logger logger.Logger) agent.Service {
 	svc := agent.New(secret)
 
 	svc = api.LoggingMiddleware(svc, logger)
-	svc = api.MetricsMiddleware(
-		svc,
-		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "agent",
-			Subsystem: "api",
-			Name:      "request_count",
-			Help:      "Number of requests received.",
-		}, []string{"method"}),
-		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "agent",
-			Subsystem: "api",
-			Name:      "request_latency_microseconds",
-			Help:      "Total duration of requests in microseconds.",
-		}, []string{"method"}),
-	)
+	counter, latency := internal.MakeMetrics(svcName, "api")
+	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
 }
