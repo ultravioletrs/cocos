@@ -11,12 +11,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	agenthttpapi "github.com/ultravioletrs/agent/agent/api/http"
+	"github.com/ultravioletrs/agent/internal/env"
 	"google.golang.org/grpc"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -25,50 +25,37 @@ import (
 	jconfig "github.com/uber/jaeger-client-go/config"
 )
 
-const (
-	defLogLevel   = "error"
-	defHTTPPort   = "9031"
-	defJaegerURL  = ""
-	defServerCert = ""
-	defServerKey  = ""
-	defSecret     = "secret"
-	defGRPCAddr   = "localhost:7002"
-
-	envLogLevel   = "AGENT_LOG_LEVEL"
-	envHTTPPort   = "AGENT_HTTP_PORT"
-	envServerCert = "AGENT_SERVER_CERT"
-	envServerKey  = "AGENT_SERVER_KEY"
-	envSecret     = "AGENT_SECRET"
-	envJaegerURL  = "JAEGER_URL"
-	envGRPCAddr   = "AGENT_GRPC_ADDR"
-)
+const svcName = "agent"
 
 type config struct {
-	logLevel   string
-	httpPort   string
-	serverCert string
-	serverKey  string
-	secret     string
-	jaegerURL  string
-	GRPCAddr   string
+	LogLevel     string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	HTTPPort     string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
+	ServerCert   string `env:"AGENT_SERVER_CERT" envDefault:""`
+	ServerKey    string `env:"AGENT_SERVER_KEY"  envDefault:""`
+	Secret       string `env:"AGENT_SECRET"      envDefault:"secret"`
+	AgentGRPCURL string `env:"AGENT_GRPC_URL"    envDefault:"localhost:7002"`
+	JaegerURL    string `env:"AGENT_JAEGER_URL"  envDefault:""`
 }
 
 func main() {
-	cfg := loadConfig()
+	var cfg config
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
+	}
 
-	logger, err := logger.New(os.Stdout, cfg.logLevel)
+	logger, err := logger.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
 
-	svc := newService(cfg.secret, logger)
+	svc := newService(cfg.Secret, logger)
 	errs := make(chan error, 2)
 
 	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.httpPort, cfg, logger, errs)
+	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.HTTPPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -78,18 +65,6 @@ func main() {
 
 	err = <-errs
 	logger.Error(fmt.Sprintf("Agent service terminated: %s", err))
-}
-
-func loadConfig() config {
-	return config{
-		logLevel:   mainflux.Env(envLogLevel, defLogLevel),
-		httpPort:   mainflux.Env(envHTTPPort, defHTTPPort),
-		serverCert: mainflux.Env(envServerCert, defServerCert),
-		serverKey:  mainflux.Env(envServerKey, defServerKey),
-		jaegerURL:  mainflux.Env(envJaegerURL, defJaegerURL),
-		secret:     mainflux.Env(envSecret, defSecret),
-		GRPCAddr:   mainflux.Env(envGRPCAddr, defGRPCAddr),
-	}
 }
 
 func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {
@@ -141,13 +116,13 @@ func newService(secret string, logger logger.Logger) agent.Service {
 
 func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
 	p := fmt.Sprintf(":%s", port)
-	if cfg.serverCert != "" || cfg.serverKey != "" {
+	if cfg.ServerCert != "" || cfg.ServerKey != "" {
 		logger.Info(fmt.Sprintf("Agent service started using https on port %s with cert %s key %s",
-			port, cfg.serverCert, cfg.serverKey))
-		errs <- http.ListenAndServeTLS(p, cfg.serverCert, cfg.serverKey, handler)
+			port, cfg.ServerCert, cfg.ServerKey))
+		errs <- http.ListenAndServeTLS(p, cfg.ServerCert, cfg.ServerKey, handler)
 		return
 	}
-	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.httpPort))
+	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.HTTPPort))
 	errs <- http.ListenAndServe(p, handler)
 }
 
@@ -158,10 +133,10 @@ func startgRPCServer(cfg config, svc *agent.Service, logger logger.Logger, errs 
 	// Register the implementation of the service with the server
 	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(tracer, *svc))
 	// Listen to a port and serve incoming requests
-	listener, err := net.Listen("tcp", cfg.GRPCAddr)
+	listener, err := net.Listen("tcp", cfg.AgentGRPCURL)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.GRPCAddr))
+	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.AgentGRPCURL))
 	errs <- server.Serve(listener)
 }
