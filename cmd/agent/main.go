@@ -28,13 +28,13 @@ import (
 const svcName = "agent"
 
 type config struct {
-	logLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	httpPort   string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
-	serverCert string `env:"AGENT_SERVER_CERT" envDefault:""`
-	serverKey  string `env:"AGENT_SERVER_KEY"  envDefault:""`
-	secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
+	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	HTTPPort   string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
+	ServerCert string `env:"AGENT_SERVER_CERT" envDefault:""`
+	ServerKey  string `env:"AGENT_SERVER_KEY"  envDefault:""`
+	Secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
 	GRPCAddr   string `env:"AGENT_GRPC_ADDR"   envDefault:"localhost:7002"`
-	jaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://jaeger:14268/api/traces"`
+	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:""`
 }
 
 func main() {
@@ -43,19 +43,19 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := logger.New(os.Stdout, cfg.logLevel)
+	logger, err := logger.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
 
-	svc := newService(cfg.secret, logger)
+	svc := newService(cfg.Secret, logger)
 	errs := make(chan error, 2)
 
 	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.httpPort, cfg, logger, errs)
+	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.HTTPPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -116,13 +116,13 @@ func newService(secret string, logger logger.Logger) agent.Service {
 
 func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
 	p := fmt.Sprintf(":%s", port)
-	if cfg.serverCert != "" || cfg.serverKey != "" {
+	if cfg.ServerCert != "" || cfg.ServerKey != "" {
 		logger.Info(fmt.Sprintf("Agent service started using https on port %s with cert %s key %s",
-			port, cfg.serverCert, cfg.serverKey))
-		errs <- http.ListenAndServeTLS(p, cfg.serverCert, cfg.serverKey, handler)
+			port, cfg.ServerCert, cfg.ServerKey))
+		errs <- http.ListenAndServeTLS(p, cfg.ServerCert, cfg.ServerKey, handler)
 		return
 	}
-	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.httpPort))
+	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.HTTPPort))
 	errs <- http.ListenAndServe(p, handler)
 }
 

@@ -22,10 +22,10 @@ import (
 const svcName = "cli"
 
 type config struct {
-	logLevel         string `env:"AGENT_LOG_LEVEL"      envDefault:"info"`
-	agentGRPCURL     string `env:"AGENT_GRPC_URL"       envDefault:"localhost:7002"`
-	agentGRPCTimeout string `env:"AGENT_GRPC_TIMEOUT"   envDefault:"1s"`
-	jaegerURL        string `env:"AGENT_JAEGER_URL"     envDefault:"http://jaeger:14268/api/traces"`
+	LogLevel         string `env:"AGENT_LOG_LEVEL"      envDefault:"info"`
+	AgentGRPCURL     string `env:"AGENT_GRPC_URL"       envDefault:"localhost:7002"`
+	AgentGRPCTimeout string `env:"AGENT_GRPC_TIMEOUT"   envDefault:"1s"`
+	JaegerURL        string `env:"AGENT_JAEGER_URL"     envDefault:""`
 }
 
 func main() {
@@ -34,17 +34,17 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := logger.New(os.Stdout, cfg.logLevel)
+	logger, err := logger.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf("Error creating logger: %s", err)
 	}
 
-	conn := connectToGrpc("agent", cfg.agentGRPCURL, logger)
+	conn := connectToGrpc("agent", cfg.AgentGRPCURL, logger)
 
-	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
+	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
 
-	timeout, err := time.ParseDuration(cfg.agentGRPCTimeout)
+	timeout, err := time.ParseDuration(cfg.AgentGRPCTimeout)
 	if err != nil {
 		log.Fatalf("Error parsing timeout: %s", err)
 	}
