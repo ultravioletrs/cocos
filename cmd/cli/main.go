@@ -29,7 +29,7 @@ type config struct {
 }
 
 func main() {
-	cfg := config{}
+	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}

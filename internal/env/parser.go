@@ -20,7 +20,7 @@ type Options struct {
 }
 
 func Parse(v interface{}, opts ...Options) error {
-	actOpts := []env.Options{}
+	var actOpts []env.Options
 
 	for _, opt := range opts {
 		actOpts = append(actOpts, env.Options{
