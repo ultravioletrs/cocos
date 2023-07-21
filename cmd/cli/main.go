@@ -8,57 +8,30 @@ import (
 	"os"
 	"time"
 
-	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 	jconfig "github.com/uber/jaeger-client-go/config"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	"github.com/ultravioletrs/agent/cli"
+	"github.com/ultravioletrs/agent/internal/env"
 	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
 	ggrpc "google.golang.org/grpc"
 )
 
-const (
-	defAgentURL     = "localhost:7002"
-	defJaegerURL    = ""
-	defAgentTimeout = "1s"
-	defLogLevel     = "info"
-
-	envAgentURL     = "COCOS_AGENT_URL"
-	envJaegerURL    = "JAEGER_URL"
-	envAgentTimeout = "MANAGER_AGENT_GRPC_TIMEOUT"
-	envLogLevel     = "AGENT_LOG_LEVEL"
-)
+const svcName = "cli"
 
 type config struct {
-	jaegerURL    string
-	agentURL     string
-	agentTimeout time.Duration
-	logLevel     string
-}
-
-func loadConfig() (config, error) {
-	agentTimeoutStr := mainflux.Env(envAgentTimeout, defAgentTimeout)
-	agentTimeout, err := time.ParseDuration(agentTimeoutStr)
-	if err != nil {
-		return config{}, err
-	}
-
-	cfg := config{
-		agentURL:     mainflux.Env(envAgentURL, defAgentURL),
-		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
-		logLevel:     mainflux.Env(envLogLevel, defLogLevel),
-		agentTimeout: agentTimeout,
-	}
-
-	return cfg, nil
+	logLevel         string `env:"AGENT_LOG_LEVEL"      envDefault:"info"`
+	agentGRPCURL     string `env:"AGENT_GRPC_URL"       envDefault:"localhost:7002"`
+	agentGRPCTimeout string `env:"AGENT_GRPC_TIMEOUT"   envDefault:"1s"`
+	jaegerURL        string `env:"AGENT_JAEGER_URL"     envDefault:"http://jaeger:14268/api/traces"`
 }
 
 func main() {
-	cfg, err := loadConfig()
-	if err != nil {
-		log.Fatalf("Error loading config: %s", err)
+	cfg := config{}
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
 	logger, err := logger.New(os.Stdout, cfg.logLevel)
@@ -66,12 +39,16 @@ func main() {
 		log.Fatalf("Error creating logger: %s", err)
 	}
 
-	conn := connectToGrpc("agent", cfg.agentURL, logger)
+	conn := connectToGrpc("agent", cfg.agentGRPCURL, logger)
 
 	agentTracer, agentCloser := initJaeger("agent", cfg.jaegerURL, logger)
 	defer agentCloser.Close()
 
-	agentClient := agentgrpc.NewClient(agentTracer, conn, cfg.agentTimeout)
+	timeout, err := time.ParseDuration(cfg.agentGRPCTimeout)
+	if err != nil {
+		log.Fatalf("Error parsing timeout: %s", err)
+	}
+	agentClient := agentgrpc.NewClient(agentTracer, conn, timeout)
 
 	sdk := agentsdk.NewAgentSDK(logger, agentClient)
 

@@ -11,12 +11,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	agenthttpapi "github.com/ultravioletrs/agent/agent/api/http"
+	"github.com/ultravioletrs/agent/internal/env"
 	"google.golang.org/grpc"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -25,36 +25,23 @@ import (
 	jconfig "github.com/uber/jaeger-client-go/config"
 )
 
-const (
-	defLogLevel   = "error"
-	defHTTPPort   = "9031"
-	defJaegerURL  = ""
-	defServerCert = ""
-	defServerKey  = ""
-	defSecret     = "secret"
-	defGRPCAddr   = "localhost:7002"
-
-	envLogLevel   = "AGENT_LOG_LEVEL"
-	envHTTPPort   = "AGENT_HTTP_PORT"
-	envServerCert = "AGENT_SERVER_CERT"
-	envServerKey  = "AGENT_SERVER_KEY"
-	envSecret     = "AGENT_SECRET"
-	envJaegerURL  = "JAEGER_URL"
-	envGRPCAddr   = "AGENT_GRPC_ADDR"
-)
+const svcName = "agent"
 
 type config struct {
-	logLevel   string
-	httpPort   string
-	serverCert string
-	serverKey  string
-	secret     string
-	jaegerURL  string
-	GRPCAddr   string
+	logLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	httpPort   string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
+	serverCert string `env:"AGENT_SERVER_CERT" envDefault:""`
+	serverKey  string `env:"AGENT_SERVER_KEY"  envDefault:""`
+	secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
+	GRPCAddr   string `env:"AGENT_GRPC_ADDR"   envDefault:"localhost:7002"`
+	jaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://jaeger:14268/api/traces"`
 }
 
 func main() {
-	cfg := loadConfig()
+	cfg := config{}
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
+	}
 
 	logger, err := logger.New(os.Stdout, cfg.logLevel)
 	if err != nil {
@@ -78,18 +65,6 @@ func main() {
 
 	err = <-errs
 	logger.Error(fmt.Sprintf("Agent service terminated: %s", err))
-}
-
-func loadConfig() config {
-	return config{
-		logLevel:   mainflux.Env(envLogLevel, defLogLevel),
-		httpPort:   mainflux.Env(envHTTPPort, defHTTPPort),
-		serverCert: mainflux.Env(envServerCert, defServerCert),
-		serverKey:  mainflux.Env(envServerKey, defServerKey),
-		jaegerURL:  mainflux.Env(envJaegerURL, defJaegerURL),
-		secret:     mainflux.Env(envSecret, defSecret),
-		GRPCAddr:   mainflux.Env(envGRPCAddr, defGRPCAddr),
-	}
 }
 
 func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {

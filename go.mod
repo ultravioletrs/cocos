@@ -3,6 +3,7 @@ module github.com/ultravioletrs/agent
 go 1.18
 
 require (
+	github.com/caarlos0/env/v7 v7.1.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-zoo/bone v1.3.0
 	github.com/mainflux/mainflux v0.0.0-20221221180352-57e3c25d3de3
