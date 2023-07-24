@@ -19,15 +19,14 @@ import (
 	"syscall"
 	"time"
 
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
 	opentracing "github.com/opentracing/opentracing-go"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	jconfig "github.com/uber/jaeger-client-go/config"
 	"github.com/ultravioletrs/agent/agent"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
+	"github.com/ultravioletrs/manager/internal"
 	"github.com/ultravioletrs/manager/internal/env"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
@@ -129,21 +128,8 @@ func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProv
 	svc := manager.New(secret, libvirtConn, idp, agent)
 
 	svc = api.LoggingMiddleware(svc, logger)
-	svc = api.MetricsMiddleware(
-		svc,
-		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "manager",
-			Subsystem: "api",
-			Name:      "request_count",
-			Help:      "Number of requests received.",
-		}, []string{"method"}),
-		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "manager",
-			Subsystem: "api",
-			Name:      "request_latency_microseconds",
-			Help:      "Total duration of requests in microseconds.",
-		}, []string{"method"}),
-	)
+	counter, latency := internal.MakeMetrics(svcName, "api")
+	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
 }
