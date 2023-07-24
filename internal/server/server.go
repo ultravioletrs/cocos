@@ -33,17 +33,18 @@ type BaseServer struct {
 }
 
 func stopAllServer(servers ...Server) error {
-	var err error
+	var errs []error
 	for _, server := range servers {
-		if err1 := server.Stop(); err1 != nil {
-			if err == nil {
-				err = err1
-			} else {
-				err = fmt.Errorf("%v; %w", err, err1)
-			}
+		if err := server.Stop(); err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return err
+
+	if len(errs) > 0 {
+		return fmt.Errorf("encountered errors while stopping servers: %v", errs)
+	}
+
+	return nil
 }
 
 func StopHandler(ctx context.Context, cancel context.CancelFunc, logger logger.Logger, svcName string, servers ...Server) error {
