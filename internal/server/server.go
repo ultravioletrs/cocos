@@ -35,12 +35,11 @@ type BaseServer struct {
 func stopAllServer(servers ...Server) error {
 	var err error
 	for _, server := range servers {
-		err1 := server.Stop()
-		if err1 != nil {
+		if err1 := server.Stop(); err1 != nil {
 			if err == nil {
-				err = fmt.Errorf("%w", err1)
+				err = err1
 			} else {
-				err = fmt.Errorf("%v ; %w", err, err1)
+				err = fmt.Errorf("%v; %w", err, err1)
 			}
 		}
 	}
