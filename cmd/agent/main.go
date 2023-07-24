@@ -92,7 +92,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return server.StopSignalHandler(ctx, cancel, logger, svcName, hs, gs)
+		return server.StopHandler(ctx, cancel, logger, svcName, hs, gs)
 	})
 
 	if err := g.Wait(); err != nil {
