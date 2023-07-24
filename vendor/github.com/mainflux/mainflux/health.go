@@ -18,15 +18,15 @@ const (
 var (
 	// Version represents the last service git tag in git history.
 	// It's meant to be set using go build ldflags:
-	// -ldflags "-X 'github.com/mainflux/mainflux.Version=0.0.0'"
+	// -ldflags "-X 'github.com/mainflux/mainflux.Version=0.0.0'".
 	Version = "0.0.0"
 	// Commit represents the service git commit hash.
 	// It's meant to be set using go build ldflags:
-	// -ldflags "-X 'github.com/mainflux/mainflux.Commit=ffffffff'"
+	// -ldflags "-X 'github.com/mainflux/mainflux.Commit=ffffffff'".
 	Commit = "ffffffff"
 	// BuildTime represetns the service build time.
 	// It's meant to be set using go build ldflags:
-	// -ldflags "-X 'github.com/mainflux/mainflux.BuildTime=1970-01-01_00:00:00'"
+	// -ldflags "-X 'github.com/mainflux/mainflux.BuildTime=1970-01-01_00:00:00'".
 	BuildTime = "1970-01-01_00:00:00"
 )
 
@@ -46,10 +46,13 @@ type HealthInfo struct {
 
 	// BuildTime contains service build time.
 	BuildTime string `json:"build_time"`
+
+	// InstanceID contains the ID of the current service instance
+	InstanceID string `json:"instance_id"`
 }
 
 // Health exposes an HTTP handler for retrieving service health.
-func Health(service string) http.HandlerFunc {
+func Health(service, instanceID string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add(contentType, contentTypeJSON)
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -63,6 +66,7 @@ func Health(service string) http.HandlerFunc {
 			Commit:      Commit,
 			Description: service + description,
 			BuildTime:   BuildTime,
+			InstanceID:  instanceID,
 		}
 
 		w.WriteHeader(http.StatusOK)
