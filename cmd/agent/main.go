@@ -37,7 +37,7 @@ const (
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
 	Secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
-	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:""`
+	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"localhost:14268/api/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
 
@@ -73,20 +73,20 @@ func main() {
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(agentTracer, svc, cfg.InstanceID), logger)
 
-	registerAgentServiceServer := func(srv *grpc.Server) {
-		reflection.Register(srv)
-		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(agentTracer, svc))
-	}
-
 	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+	}
+	registerAgentServiceServer := func(srv *grpc.Server) {
+		reflection.Register(srv)
+		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(agentTracer, svc))
 	}
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
 
 	g.Go(func() error {
 		return hs.Start()
 	})
+
 	g.Go(func() error {
 		return gs.Start()
 	})
