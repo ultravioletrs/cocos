@@ -49,7 +49,7 @@ func stopAllServer(servers ...Server) error {
 
 func StopHandler(ctx context.Context, cancel context.CancelFunc, logger logger.Logger, svcName string, servers ...Server) error {
 	var err error
-	var c = make(chan os.Signal, 2)
+	var c = make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGABRT)
 	select {
 	case sig := <-c:
