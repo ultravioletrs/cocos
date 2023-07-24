@@ -49,6 +49,7 @@ type config struct {
 	AgentGRPCURL string `env:"AGENT_GRPC_URL"      envDefault:"localhost:7002"`
 	AgentTimeout string `env:"AGENT_GRPC_TIMEOUT"  envDefault:"1s"`
 	JaegerURL    string `env:"MANAGER_JAEGER_URL"  envDefault:""`
+	InstanceID   string `env:"MANAGER_INSTANCE_ID" envDefault:""`
 }
 
 func main() {
@@ -60,6 +61,13 @@ func main() {
 	logger, err := logger.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
+	}
+
+	if cfg.InstanceID == "" {
+		cfg.InstanceID, err = uuid.New().ID()
+		if err != nil {
+			logger.Fatal(fmt.Sprintf("Failed to generate instance ID: %s", err))
+		}
 	}
 
 	managerTracer, managerCloser := initJaeger("manager", cfg.JaegerURL, logger)
@@ -88,7 +96,7 @@ func main() {
 
 	errs := make(chan error, 2)
 	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc), cfg.HTTPPort, cfg, logger, errs)
+	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc, cfg.InstanceID), cfg.HTTPPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal, 1)
