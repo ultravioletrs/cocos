@@ -5,7 +5,7 @@ MF_DOCKER_IMAGE_NAME_PREFIX ?= mainflux
 BUILD_DIR = build
 SERVICES = users things http coap ws lora influxdb-writer influxdb-reader mongodb-writer \
 	mongodb-reader cassandra-writer cassandra-reader postgres-writer postgres-reader timescale-writer timescale-reader cli \
-	bootstrap opcua auth twins mqtt provision certs smtp-notifier smpp-notifier
+	bootstrap opcua twins mqtt provision certs smtp-notifier smpp-notifier
 DOCKERS = $(addprefix docker_,$(SERVICES))
 DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 CGO_ENABLED ?= 0
@@ -77,8 +77,9 @@ test:
 	go test -mod=vendor -v -race -count 1 -tags test $(shell go list ./... | grep -v 'vendor\|cmd')
 
 proto:
-	protoc --gofast_out=plugins=grpc:. *.proto
-	protoc --gofast_out=plugins=grpc:. pkg/messaging/*.proto
+	protoc -I. --go_out=. --go_opt=paths=source_relative pkg/messaging/*.proto
+	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative users/policies/*.proto
+	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative things/policies/*.proto
 
 $(SERVICES):
 	$(call compile_service,$(@))

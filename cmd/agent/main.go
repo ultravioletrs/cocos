@@ -11,7 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mainflux/mainflux/logger"
+	mflog "github.com/mainflux/mainflux/logger"
+	"github.com/mainflux/mainflux/pkg/uuid"
+	opentracing "github.com/opentracing/opentracing-go"
+	jconfig "github.com/uber/jaeger-client-go/config"
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
@@ -19,9 +22,6 @@ import (
 	"github.com/ultravioletrs/agent/internal"
 	"github.com/ultravioletrs/agent/internal/env"
 	"google.golang.org/grpc"
-
-	opentracing "github.com/opentracing/opentracing-go"
-	jconfig "github.com/uber/jaeger-client-go/config"
 )
 
 const svcName = "agent"
@@ -34,6 +34,7 @@ type config struct {
 	Secret       string `env:"AGENT_SECRET"      envDefault:"secret"`
 	AgentGRPCURL string `env:"AGENT_GRPC_URL"    envDefault:"localhost:7002"`
 	JaegerURL    string `env:"AGENT_JAEGER_URL"  envDefault:""`
+	InstanceID   string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
 
 func main() {
@@ -42,9 +43,16 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := logger.New(os.Stdout, cfg.LogLevel)
+	logger, err := mflog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
+	}
+
+	if cfg.InstanceID == "" {
+		cfg.InstanceID, err = uuid.New().ID()
+		if err != nil {
+			log.Fatalf("Failed to generate instanceID: %s", err)
+		}
 	}
 
 	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
@@ -54,7 +62,7 @@ func main() {
 	errs := make(chan error, 2)
 
 	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc), cfg.HTTPPort, cfg, logger, errs)
+	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc, cfg.InstanceID), cfg.HTTPPort, cfg, logger, errs)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -66,7 +74,7 @@ func main() {
 	logger.Error(fmt.Sprintf("Agent service terminated: %s", err))
 }
 
-func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {
+func initJaeger(svcName, url string, logger mflog.Logger) (opentracing.Tracer, io.Closer) {
 	if url == "" {
 		return opentracing.NoopTracer{}, ioutil.NopCloser(nil)
 	}
@@ -90,7 +98,7 @@ func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, 
 	return tracer, closer
 }
 
-func newService(secret string, logger logger.Logger) agent.Service {
+func newService(secret string, logger mflog.Logger) agent.Service {
 	svc := agent.New(secret)
 
 	svc = api.LoggingMiddleware(svc, logger)
@@ -100,7 +108,7 @@ func newService(secret string, logger logger.Logger) agent.Service {
 	return svc
 }
 
-func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
+func startHTTPServer(handler http.Handler, port string, cfg config, logger mflog.Logger, errs chan error) {
 	p := fmt.Sprintf(":%s", port)
 	if cfg.ServerCert != "" || cfg.ServerKey != "" {
 		logger.Info(fmt.Sprintf("Agent service started using https on port %s with cert %s key %s",
@@ -112,7 +120,7 @@ func startHTTPServer(handler http.Handler, port string, cfg config, logger logge
 	errs <- http.ListenAndServe(p, handler)
 }
 
-func startgRPCServer(cfg config, svc *agent.Service, logger logger.Logger, errs chan error) {
+func startgRPCServer(cfg config, svc *agent.Service, logger mflog.Logger, errs chan error) {
 	// Create a gRPC server object
 	tracer := opentracing.GlobalTracer()
 	server := grpc.NewServer()
