@@ -30,7 +30,7 @@ var (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(tracer opentracing.Tracer, svc agent.Service) http.Handler {
+func MakeHandler(tracer opentracing.Tracer, svc agent.Service, instanceID string) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeError),
 	}
@@ -50,7 +50,7 @@ func MakeHandler(tracer opentracing.Tracer, svc agent.Service) http.Handler {
 		opts...,
 	))
 
-	r.GetFunc("/version", mainflux.Health("things"))
+	r.GetFunc("/version", mainflux.Health("things", instanceID))
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r
