@@ -32,7 +32,7 @@ type BaseServer struct {
 	Protocol string
 }
 
-func stopAllServer(servers ...Server) error {
+func stopAllServers(servers ...Server) error {
 	var errs []error
 	for _, server := range servers {
 		if err := server.Stop(); err != nil {
@@ -54,7 +54,7 @@ func StopHandler(ctx context.Context, cancel context.CancelFunc, logger logger.L
 	select {
 	case sig := <-c:
 		defer cancel()
-		err = stopAllServer(servers...)
+		err = stopAllServers(servers...)
 		if err != nil {
 			logger.Error(fmt.Sprintf("%s service error during shutdown: %v", svcName, err))
 		}
