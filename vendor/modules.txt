@@ -115,10 +115,11 @@ github.com/uber/jaeger-client-go/utils
 # github.com/uber/jaeger-lib v2.4.1+incompatible
 ## explicit
 github.com/uber/jaeger-lib/metrics
-# github.com/ultravioletrs/agent v0.0.0-20230612135417-49feeb96eefb
+# github.com/ultravioletrs/agent v0.0.0-20230725115543-a903ca23cd75
 ## explicit; go 1.18
 github.com/ultravioletrs/agent/agent
 github.com/ultravioletrs/agent/agent/api/grpc
+github.com/ultravioletrs/agent/pkg/clients/grpc
 # go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 ## explicit; go 1.19
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
