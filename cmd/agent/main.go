@@ -16,11 +16,13 @@ import (
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	httpapi "github.com/ultravioletrs/agent/agent/api/http"
+	"github.com/ultravioletrs/agent/agent/tracing"
 	"github.com/ultravioletrs/agent/internal"
 	"github.com/ultravioletrs/agent/internal/env"
 	"github.com/ultravioletrs/agent/internal/server"
 	grpcserver "github.com/ultravioletrs/agent/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/agent/internal/server/http"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -65,7 +67,7 @@ func main() {
 	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
 
-	svc := newService(cfg.Secret, logger)
+	svc := newService(cfg.Secret, logger, trace.NewNoopTracerProvider().Tracer(svcName))
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -124,12 +126,13 @@ func initJaeger(svcName, url string, logger mflog.Logger) (opentracing.Tracer, i
 	return tracer, closer
 }
 
-func newService(secret string, logger mflog.Logger) agent.Service {
+func newService(secret string, logger mflog.Logger, tracer trace.Tracer) agent.Service {
 	svc := agent.New(secret)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
+	svc = tracing.New(svc, tracer)
 
 	return svc
 }
