@@ -34,12 +34,12 @@ func main() {
 		log.Fatalf("Error creating logger: %s", err)
 	}
 
-	userGRPCConfig := grpc.Config{}
-	if err := env.Parse(&userGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
+	agentGRPCConfig := grpc.Config{}
+	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 	}
 
-	agentGRPCClient, agentClient, err := grpc.NewClient(userGRPCConfig)
+	agentGRPCClient, agentClient, err := grpc.NewClient(agentGRPCConfig)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
