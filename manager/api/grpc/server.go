@@ -3,9 +3,7 @@ package grpc
 import (
 	"context"
 
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ultravioletrs/manager/manager"
 )
 
@@ -16,15 +14,15 @@ type grpcServer struct {
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(tracer opentracing.Tracer, svc manager.Service) manager.ManagerServiceServer {
+func NewServer(svc manager.Service) manager.ManagerServiceServer {
 	return &grpcServer{
 		createDomain: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "createDomain")(createDomainEndpoint(svc)),
+			createDomainEndpoint(svc),
 			decodeCreateDomainRequest,
 			encodeCreateDomainResponse,
 		),
 		run: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "run")(runEndpoint(svc)),
+			runEndpoint(svc),
 			decodeRunRequest,
 			encodeRunResponse,
 		),
