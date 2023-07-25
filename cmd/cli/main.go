@@ -20,7 +20,7 @@ const (
 
 type config struct {
 	LogLevel  string `env:"AGENT_LOG_LEVEL"      envDefault:"info"`
-	JaegerURL string `env:"AGENT_JAEGER_URL"     envDefault:""`
+	JaegerURL string `env:"AGENT_JAEGER_URL"     envDefault:"http://localhost:14268/api/traces"`
 }
 
 func main() {

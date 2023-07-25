@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ultravioletrs/agent/agent"
 	"google.golang.org/grpc"
 )
@@ -26,40 +24,40 @@ type grpcClient struct {
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceClient {
+func NewClient(conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceClient {
 	return &grpcClient{
-		run: kitot.TraceClient(tracer, "run")(kitgrpc.NewClient(
+		run: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"Run",
 			encodeRunRequest,
 			decodeRunResponse,
 			agent.RunResponse{},
-		).Endpoint()),
-		algo: kitot.TraceClient(tracer, "algo")(kitgrpc.NewClient(
+		).Endpoint(),
+		algo: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"Algo",
 			encodeAlgoRequest,
 			decodeAlgoResponse,
 			agent.AlgoResponse{},
-		).Endpoint()),
-		data: kitot.TraceClient(tracer, "data")(kitgrpc.NewClient(
+		).Endpoint(),
+		data: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"Data",
 			encodeDataRequest,
 			decodeDataResponse,
 			agent.DataResponse{},
-		).Endpoint()),
-		result: kitot.TraceClient(tracer, "result")(kitgrpc.NewClient(
+		).Endpoint(),
+		result: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"Result",
 			encodeResultRequest,
 			decodeResultResponse,
 			agent.ResultResponse{},
-		).Endpoint()),
+		).Endpoint(),
 		timeout: timeout,
 	}
 }

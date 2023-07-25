@@ -11,13 +11,12 @@ import (
 	"net/http"
 	"strings"
 
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	agent "github.com/ultravioletrs/agent/agent"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -30,27 +29,27 @@ var (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(tracer opentracing.Tracer, svc agent.Service, instanceID string) http.Handler {
+func MakeHandler(svc agent.Service, instanceID string) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeError),
 	}
 
 	r := bone.New()
 
-	r.Post("/agent", kithttp.NewServer(
-		kitot.TraceServer(tracer, "ping")(pingEndpoint(svc)),
+	r.Post("/agent", otelhttp.NewHandler(kithttp.NewServer(
+		pingEndpoint(svc),
 		decodePing,
 		encodeResponse,
 		opts...,
-	))
-	r.Post("/run", kithttp.NewServer(
-		kitot.TraceServer(tracer, "run")(runEndpoint(svc)),
+	), "ping"))
+	r.Post("/run", otelhttp.NewHandler(kithttp.NewServer(
+		runEndpoint(svc),
 		decodeRun,
 		encodeResponse,
 		opts...,
-	))
+	), "run"))
 
-	r.GetFunc("/version", mainflux.Health("things", instanceID))
+	r.GetFunc("/version", mainflux.Health("agent", instanceID))
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r
