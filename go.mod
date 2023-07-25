@@ -12,7 +12,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
-	github.com/ultravioletrs/agent v0.0.0-20230612135417-49feeb96eefb
+	github.com/ultravioletrs/agent v0.0.0-20230725115543-a903ca23cd75
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	golang.org/x/sync v0.3.0
 	google.golang.org/grpc v1.56.1

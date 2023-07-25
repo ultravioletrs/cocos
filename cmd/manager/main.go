@@ -24,7 +24,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	jconfig "github.com/uber/jaeger-client-go/config"
 	"github.com/ultravioletrs/agent/agent"
-	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
+	agentgrpc "github.com/ultravioletrs/agent/pkg/clients/grpc"
 	"github.com/ultravioletrs/manager/internal"
 	"github.com/ultravioletrs/manager/internal/env"
 	"github.com/ultravioletrs/manager/internal/server"
@@ -40,20 +40,19 @@ import (
 )
 
 const (
-	svcName        = "manager"
-	envPrefixHTTP  = "MANAGER_HTTP_"
-	envPrefixGRPC  = "MANAGER_GRPC_"
-	defSvcGRPCPort = "7001"
-	defSvcHTTPPort = "9021"
+	svcName            = "manager"
+	envPrefixHTTP      = "MANAGER_HTTP_"
+	envPrefixGRPC      = "MANAGER_GRPC_"
+	envPrefixAgentGRPC = "AGENT_GRPC_"
+	defSvcGRPCPort     = "7001"
+	defSvcHTTPPort     = "9021"
 )
 
 type config struct {
-	LogLevel     string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
-	Secret       string `env:"MANAGER_SECRET"      envDefault:"secret"`
-	AgentGRPCURL string `env:"AGENT_GRPC_URL"      envDefault:"localhost:7002"`
-	AgentTimeout string `env:"AGENT_GRPC_TIMEOUT"  envDefault:"1s"`
-	JaegerURL    string `env:"MANAGER_JAEGER_URL"  envDefault:"localhost:14268/api/traces"`
-	InstanceID   string `env:"MANAGER_INSTANCE_ID" envDefault:""`
+	LogLevel   string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
+	Secret     string `env:"MANAGER_SECRET"      envDefault:"secret"`
+	JaegerURL  string `env:"MANAGER_JAEGER_URL"  envDefault:"localhost:14268/api/traces"`
+	InstanceID string `env:"MANAGER_INSTANCE_ID" envDefault:""`
 }
 
 func main() {
@@ -89,18 +88,19 @@ func main() {
 
 	idProvider := uuid.New()
 
-	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
-	defer agentCloser.Close()
-
-	conn := connectToGrpc("agent", cfg.AgentGRPCURL, logger)
-
-	timeout, err := time.ParseDuration(cfg.AgentTimeout)
-	if err != nil {
-		log.Fatalf("failed to parse agent timeout: %s", err)
+	agentGRPCConfig := agentgrpc.Config{}
+	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 	}
-	agent := agentgrpc.NewClient(agentTracer, conn, timeout)
+	agentGRPCClient, agentClient, err := agentgrpc.NewClient(agentGRPCConfig)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+	defer agentGRPCClient.Close()
 
-	svc := newService(cfg.Secret, libvirtConn, idProvider, agent, logger)
+	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
+
+	svc := newService(cfg.Secret, libvirtConn, idProvider, agentClient, logger)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -200,18 +200,4 @@ func initLibvirt(logger logger.Logger) *libvirt.Libvirt {
 	}
 
 	return l
-}
-
-func connectToGrpc(name string, url string, logger logger.Logger) *grpc.ClientConn {
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-
-	conn, err := grpc.Dial(url, opts...)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to connect to %s service: %s", name, err))
-		os.Exit(1)
-	}
-	logger.Info(fmt.Sprintf("connected to %s gRPC server on %s", name, url))
-
-	return conn
 }
