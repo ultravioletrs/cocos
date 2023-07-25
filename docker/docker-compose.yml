@@ -9,22 +9,18 @@
 version: "3.7"
 
 networks:
-  docker_mainflux-base-net:
-    external: true
+  agent-net:
+    driver: bridge
 
 services:
-  mfxkit:
-    image: mainflux/mfxkit:latest
-    container_name: mainflux-mfxkit
-    restart: on-failure
-    environment:
-      MF_MFXKIT_LOG_LEVEL: ${MF_MFXKIT_LOG_LEVEL}
-      MF_MFXKIT_HTTP_PORT: ${MF_MFXKIT_HTTP_PORT}
-      MF_MFXKIT_SERVER_CERT: ${MF_MFXKIT_SERVER_CERT}
-      MF_MFXKIT_SERVER_KEY: ${MF_MFXKIT_SERVER_KEY}
-      MF_JAEGER_URL: ${MF_JAEGER_URL}
-      MF_MFXKIT_SECRET: ${MF_MFXKIT_SECRET}
+  jaeger:
+    image: jaegertracing/all-in-one:1.38.0
+    container_name: mainflux-jaeger
     ports:
-      - ${MF_MFXKIT_HTTP_PORT}:${MF_MFXKIT_HTTP_PORT}
+      - ${AGENT_JAEGER_PORT}:${AGENT_JAEGER_PORT}/udp
+      - ${AGENT_JAEGER_FRONTEND}:${AGENT_JAEGER_FRONTEND}
+      - ${AGENT_JAEGER_COLLECTOR}:${AGENT_JAEGER_COLLECTOR}
+      - ${AGENT_JAEGER_CONFIGS}:${AGENT_JAEGER_CONFIGS}
     networks:
-      - docker_mainflux-base-net
+      - agent-net
+
