@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ func LoggingMiddleware(svc manager.Service, logger log.Logger) manager.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) CreateDomain(pool, volume, domain string) (response string, err error) {
+func (lm *loggingMiddleware) CreateDomain(ctx context.Context, pool, volume, domain string) (response string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method CreateDomain for pool %s, volume %s, and domain %s took %s to complete",
 			pool, volume, domain, time.Since(begin))
@@ -37,10 +38,10 @@ func (lm *loggingMiddleware) CreateDomain(pool, volume, domain string) (response
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
 
-	return lm.svc.CreateDomain(pool, volume, domain)
+	return lm.svc.CreateDomain(ctx, pool, volume, domain)
 }
 
-func (lm *loggingMiddleware) Run(computation []byte) (id string, err error) {
+func (lm *loggingMiddleware) Run(ctx context.Context, computation []byte) (id string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Run for computation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -50,5 +51,5 @@ func (lm *loggingMiddleware) Run(computation []byte) (id string, err error) {
 		lm.logger.Info(fmt.Sprintf("%s with ID: %s", message, id))
 	}(time.Now())
 
-	return lm.svc.Run(computation)
+	return lm.svc.Run(ctx, computation)
 }
