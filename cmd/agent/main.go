@@ -1,15 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	mflog "github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
@@ -18,26 +15,36 @@ import (
 	agent "github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/agent/agent/api"
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
-	agenthttpapi "github.com/ultravioletrs/agent/agent/api/http"
+	httpapi "github.com/ultravioletrs/agent/agent/api/http"
 	"github.com/ultravioletrs/agent/internal"
 	"github.com/ultravioletrs/agent/internal/env"
+	"github.com/ultravioletrs/agent/internal/server"
+	grpcserver "github.com/ultravioletrs/agent/internal/server/grpc"
+	httpserver "github.com/ultravioletrs/agent/internal/server/http"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
-const svcName = "agent"
+const (
+	svcName        = "agent"
+	envPrefixHTTP  = "AGENT_HTTP_"
+	envPrefixGRPC  = "AGENT_GRPC_"
+	defSvcHTTPPort = "9031"
+	defSvcGRPCPort = "7002"
+)
 
 type config struct {
-	LogLevel     string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	HTTPPort     string `env:"AGENT_HTTP_PORT"   envDefault:"9031"`
-	ServerCert   string `env:"AGENT_SERVER_CERT" envDefault:""`
-	ServerKey    string `env:"AGENT_SERVER_KEY"  envDefault:""`
-	Secret       string `env:"AGENT_SECRET"      envDefault:"secret"`
-	AgentGRPCURL string `env:"AGENT_GRPC_URL"    envDefault:"localhost:7002"`
-	JaegerURL    string `env:"AGENT_JAEGER_URL"  envDefault:""`
-	InstanceID   string `env:"AGENT_INSTANCE_ID" envDefault:""`
+	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	Secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
+	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"localhost:14268/api/traces"`
+	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
+
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
@@ -59,19 +66,38 @@ func main() {
 	defer agentCloser.Close()
 
 	svc := newService(cfg.Secret, logger)
-	errs := make(chan error, 2)
 
-	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(agenthttpapi.MakeHandler(agentTracer, svc, cfg.InstanceID), cfg.HTTPPort, cfg, logger, errs)
+	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
+	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
+	}
+	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(agentTracer, svc, cfg.InstanceID), logger)
 
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT)
-		errs <- fmt.Errorf("%s", <-c)
-	}()
+	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
+	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
+		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+	}
+	registerAgentServiceServer := func(srv *grpc.Server) {
+		reflection.Register(srv)
+		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(agentTracer, svc))
+	}
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
 
-	err = <-errs
-	logger.Error(fmt.Sprintf("Agent service terminated: %s", err))
+	g.Go(func() error {
+		return hs.Start()
+	})
+
+	g.Go(func() error {
+		return gs.Start()
+	})
+
+	g.Go(func() error {
+		return server.StopHandler(ctx, cancel, logger, svcName, hs, gs)
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
+	}
 }
 
 func initJaeger(svcName, url string, logger mflog.Logger) (opentracing.Tracer, io.Closer) {
@@ -106,31 +132,4 @@ func newService(secret string, logger mflog.Logger) agent.Service {
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
-}
-
-func startHTTPServer(handler http.Handler, port string, cfg config, logger mflog.Logger, errs chan error) {
-	p := fmt.Sprintf(":%s", port)
-	if cfg.ServerCert != "" || cfg.ServerKey != "" {
-		logger.Info(fmt.Sprintf("Agent service started using https on port %s with cert %s key %s",
-			port, cfg.ServerCert, cfg.ServerKey))
-		errs <- http.ListenAndServeTLS(p, cfg.ServerCert, cfg.ServerKey, handler)
-		return
-	}
-	logger.Info(fmt.Sprintf("Agent service started using http on port %s", cfg.HTTPPort))
-	errs <- http.ListenAndServe(p, handler)
-}
-
-func startgRPCServer(cfg config, svc *agent.Service, logger mflog.Logger, errs chan error) {
-	// Create a gRPC server object
-	tracer := opentracing.GlobalTracer()
-	server := grpc.NewServer()
-	// Register the implementation of the service with the server
-	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(tracer, *svc))
-	// Listen to a port and serve incoming requests
-	listener, err := net.Listen("tcp", cfg.AgentGRPCURL)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	logger.Info(fmt.Sprintf("Agent service started using gRPC on address %s", cfg.AgentGRPCURL))
-	errs <- server.Serve(listener)
 }
