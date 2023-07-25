@@ -26,10 +26,6 @@ type Client interface {
 	// Close closes gRPC connection.
 	Close() error
 
-	// IsSecure is utility method for checking if
-	// the client is running with TLS enabled.
-	IsSecure() bool
-
 	// Secure is used for pretty printing TLS info.
 	Secure() string
 
@@ -64,10 +60,6 @@ func (c *client) Close() error {
 	}
 
 	return nil
-}
-
-func (c *client) IsSecure() bool {
-	return c.secure
 }
 
 func (c *client) Secure() string {
