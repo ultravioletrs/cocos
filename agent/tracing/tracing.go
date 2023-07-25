@@ -30,7 +30,7 @@ func (tm *tracingMiddleware) Ping(secret string) (string, error) {
 }
 
 func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (string, error) {
-	ctx, span := tm.tracer.Start(context.Background(), "run", trace.WithAttributes(
+	ctx, span := tm.tracer.Start(ctx, "run", trace.WithAttributes(
 		attribute.String("id", cmp.ID),
 		attribute.String("name", cmp.Name),
 		attribute.String("description", cmp.Description),
@@ -47,14 +47,14 @@ func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (st
 }
 
 func (tm *tracingMiddleware) Algo(ctx context.Context, algorithm []byte) (string, error) {
-	ctx, span := tm.tracer.Start(context.Background(), "algo")
+	ctx, span := tm.tracer.Start(ctx, "algo")
 	defer span.End()
 
 	return tm.svc.Algo(ctx, algorithm)
 }
 
 func (tm *tracingMiddleware) Data(ctx context.Context, dataset string) (string, error) {
-	ctx, span := tm.tracer.Start(context.Background(), "data", trace.WithAttributes(
+	ctx, span := tm.tracer.Start(ctx, "data", trace.WithAttributes(
 		attribute.String("dataset", dataset),
 	))
 	defer span.End()
@@ -63,7 +63,7 @@ func (tm *tracingMiddleware) Data(ctx context.Context, dataset string) (string, 
 }
 
 func (tm *tracingMiddleware) Result(ctx context.Context) ([]byte, error) {
-	ctx, span := tm.tracer.Start(context.Background(), "result")
+	ctx, span := tm.tracer.Start(ctx, "result")
 	defer span.End()
 
 	return tm.svc.Result(ctx)
