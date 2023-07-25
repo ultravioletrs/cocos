@@ -34,6 +34,8 @@ import (
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/manager/manager/api/http"
+	"github.com/ultravioletrs/manager/manager/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -100,7 +102,7 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
-	svc := newService(cfg.Secret, libvirtConn, idProvider, agentClient, logger)
+	svc := newService(cfg.Secret, libvirtConn, idProvider, agentClient, logger, trace.NewNoopTracerProvider().Tracer(svcName))
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -159,12 +161,13 @@ func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, 
 	return tracer, closer
 }
 
-func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient, logger logger.Logger) manager.Service {
+func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer) manager.Service {
 	svc := manager.New(secret, libvirtConn, idp, agent)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
+	svc = tracing.New(svc, tracer)
 
 	return svc
 }
