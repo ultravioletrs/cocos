@@ -8,17 +8,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/digitalocean/go-libvirt"
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
@@ -28,31 +27,39 @@ import (
 	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
 	"github.com/ultravioletrs/manager/internal"
 	"github.com/ultravioletrs/manager/internal/env"
+	"github.com/ultravioletrs/manager/internal/server"
+	grpcserver "github.com/ultravioletrs/manager/internal/server/grpc"
+	httpserver "github.com/ultravioletrs/manager/internal/server/http"
 	"github.com/ultravioletrs/manager/manager"
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
-	managerhttpapi "github.com/ultravioletrs/manager/manager/api/http"
+	httpapi "github.com/ultravioletrs/manager/manager/api/http"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-
-	"github.com/digitalocean/go-libvirt"
+	"google.golang.org/grpc/reflection"
 )
 
-const svcName = "manager"
+const (
+	svcName        = "manager"
+	envPrefixHTTP  = "MANAGER_HTTP_"
+	envPrefixGRPC  = "MANAGER_GRPC_"
+	defSvcGRPCPort = "7001"
+	defSvcHTTPPort = "9021"
+)
 
 type config struct {
 	LogLevel     string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
-	HTTPPort     string `env:"MANAGER_HTTP_PORT"   envDefault:"9021"`
-	ServerCert   string `env:"MANAGER_SERVER_CERT" envDefault:""`
-	ServerKey    string `env:"MANAGER_SERVER_KEY"  envDefault:""`
 	Secret       string `env:"MANAGER_SECRET"      envDefault:"secret"`
-	GRPCAddr     string `env:"MANAGER_GRPC_ADDR"   envDefault:"localhost:7001"`
 	AgentGRPCURL string `env:"AGENT_GRPC_URL"      envDefault:"localhost:7002"`
 	AgentTimeout string `env:"AGENT_GRPC_TIMEOUT"  envDefault:"1s"`
-	JaegerURL    string `env:"MANAGER_JAEGER_URL"  envDefault:""`
+	JaegerURL    string `env:"MANAGER_JAEGER_URL"  envDefault:"localhost:14268/api/traces"`
 	InstanceID   string `env:"MANAGER_INSTANCE_ID" envDefault:""`
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
+
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
@@ -84,6 +91,7 @@ func main() {
 
 	agentTracer, agentCloser := initJaeger("agent", cfg.JaegerURL, logger)
 	defer agentCloser.Close()
+
 	conn := connectToGrpc("agent", cfg.AgentGRPCURL, logger)
 
 	timeout, err := time.ParseDuration(cfg.AgentTimeout)
@@ -94,18 +102,37 @@ func main() {
 
 	svc := newService(cfg.Secret, libvirtConn, idProvider, agent, logger)
 
-	errs := make(chan error, 2)
-	go startgRPCServer(cfg, &svc, logger, errs)
-	go startHTTPServer(managerhttpapi.MakeHandler(managerTracer, svc, cfg.InstanceID), cfg.HTTPPort, cfg, logger, errs)
+	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
+	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
+	}
+	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(managerTracer, svc, cfg.InstanceID), logger)
 
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT)
-		errs <- fmt.Errorf("%s", <-c)
-	}()
+	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
+	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
+		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+	}
+	registerManagerServiceServer := func(srv *grpc.Server) {
+		reflection.Register(srv)
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(managerTracer, svc))
+	}
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerManagerServiceServer, logger)
 
-	err = <-errs
-	logger.Error(fmt.Sprintf("Manager service terminated: %s", err))
+	g.Go(func() error {
+		return hs.Start()
+	})
+
+	g.Go(func() error {
+		return gs.Start()
+	})
+
+	g.Go(func() error {
+		return server.StopHandler(ctx, cancel, logger, svcName, hs, gs)
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
+	}
 }
 
 func initJaeger(svcName, url string, logger logger.Logger) (opentracing.Tracer, io.Closer) {
@@ -140,33 +167,6 @@ func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProv
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
-}
-
-func startHTTPServer(handler http.Handler, port string, cfg config, logger logger.Logger, errs chan error) {
-	p := fmt.Sprintf(":%s", port)
-	if cfg.ServerCert != "" || cfg.ServerKey != "" {
-		logger.Info(fmt.Sprintf("Manager service started using https on port %s with cert %s key %s",
-			port, cfg.ServerCert, cfg.ServerKey))
-		errs <- http.ListenAndServeTLS(p, cfg.ServerCert, cfg.ServerKey, handler)
-		return
-	}
-	logger.Info(fmt.Sprintf("Manager service started using http on port %s", cfg.HTTPPort))
-	errs <- http.ListenAndServe(p, handler)
-}
-
-func startgRPCServer(cfg config, svc *manager.Service, logger logger.Logger, errs chan error) {
-	// Create a gRPC server object
-	tracer := opentracing.GlobalTracer()
-	server := grpc.NewServer()
-	// Register the implementation of the service with the server
-	manager.RegisterManagerServiceServer(server, managergrpc.NewServer(tracer, *svc))
-	// Listen to a port and serve incoming requests
-	listener, err := net.Listen("tcp", cfg.GRPCAddr)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	logger.Info(fmt.Sprintf("Manager service started using gRPC on address %s", cfg.GRPCAddr))
-	errs <- server.Serve(listener)
 }
 
 func initLibvirt(logger logger.Logger) *libvirt.Libvirt {
