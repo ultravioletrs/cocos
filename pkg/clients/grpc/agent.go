@@ -8,7 +8,7 @@ import (
 
 // NewClient creates new agent gRPC client instance.
 func NewClient(cfg Config) (Client, agent.AgentServiceClient, error) {
-	client, err := new(cfg)
+	client, err := newClient(cfg)
 	if err != nil {
 		return nil, nil, err
 	}

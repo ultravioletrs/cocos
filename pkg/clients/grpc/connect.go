@@ -45,7 +45,7 @@ type client struct {
 
 var _ Client = (*client)(nil)
 
-func new(cfg Config) (Client, error) {
+func newClient(cfg Config) (Client, error) {
 	conn, secure, err := connect(cfg)
 	if err != nil {
 		return nil, err
