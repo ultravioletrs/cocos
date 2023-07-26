@@ -15,13 +15,11 @@ import (
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	agent "github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/agent/agent"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-const (
-	contentType = "application/json"
-)
+const contentType = "application/json"
 
 var (
 	errUnsupportedContentType = errors.New("unsupported content type")
@@ -36,12 +34,6 @@ func MakeHandler(svc agent.Service, instanceID string) http.Handler {
 
 	r := bone.New()
 
-	r.Post("/agent", otelhttp.NewHandler(kithttp.NewServer(
-		pingEndpoint(svc),
-		decodePing,
-		encodeResponse,
-		opts...,
-	), "ping"))
 	r.Post("/run", otelhttp.NewHandler(kithttp.NewServer(
 		runEndpoint(svc),
 		decodeRun,
@@ -53,19 +45,6 @@ func MakeHandler(svc agent.Service, instanceID string) http.Handler {
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r
-}
-
-func decodePing(_ context.Context, r *http.Request) (interface{}, error) {
-	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
-		return nil, errUnsupportedContentType
-	}
-
-	req := pingReq{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 func decodeRun(_ context.Context, r *http.Request) (interface{}, error) {

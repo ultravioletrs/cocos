@@ -35,7 +35,6 @@ const (
 
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	Secret     string `env:"AGENT_SECRET"      envDefault:"secret"`
 	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://localhost:14268/api/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
@@ -72,7 +71,7 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	svc := newService(cfg.Secret, logger, tracer)
+	svc := newService(logger, tracer)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -107,8 +106,8 @@ func main() {
 	}
 }
 
-func newService(secret string, logger mflog.Logger, tracer trace.Tracer) agent.Service {
-	svc := agent.New(secret)
+func newService(logger mflog.Logger, tracer trace.Tracer) agent.Service {
+	svc := agent.New()
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

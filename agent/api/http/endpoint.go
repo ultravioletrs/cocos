@@ -10,26 +10,6 @@ import (
 	agent "github.com/ultravioletrs/agent/agent"
 )
 
-func pingEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(_ context.Context, request interface{}) (interface{}, error) {
-		req := request.(pingReq)
-
-		if err := req.validate(); err != nil {
-			return nil, err
-		}
-
-		greeting, err := svc.Ping(req.Secret)
-		if err != nil {
-			return nil, err
-		}
-
-		res := pingRes{
-			Greeting: greeting,
-		}
-		return res, nil
-	}
-}
-
 func runEndpoint(svc agent.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(runReq)

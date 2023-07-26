@@ -24,8 +24,6 @@ type Metadata map[string]interface{}
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	// Ping compares a given string with secret
-	Ping(string) (string, error)
 	Run(ctx context.Context, cmp Computation) (string, error)
 	Algo(ctx context.Context, algorithm []byte) (string, error)
 	Data(ctx context.Context, dataset string) (string, error)
@@ -33,23 +31,13 @@ type Service interface {
 }
 
 type agentService struct {
-	secret string
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(secret string) Service {
-	return &agentService{
-		secret: secret,
-	}
-}
-
-func (ks *agentService) Ping(secret string) (string, error) {
-	if ks.secret != secret {
-		return "", ErrUnauthorizedAccess
-	}
-	return "Hello World :)", nil
+func New() Service {
+	return &agentService{}
 }
 
 func (ks *agentService) Run(ctx context.Context, cmp Computation) (string, error) {

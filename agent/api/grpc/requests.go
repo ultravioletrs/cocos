@@ -1,10 +1,6 @@
 package grpc
 
-import (
-	"errors"
-)
-
-// type healthReq struct{}
+import "errors"
 
 type runReq struct {
 	Computation []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`

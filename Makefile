@@ -15,6 +15,8 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
+.PHONY: all $(SERVICES)
+
 all: $(SERVICES)
 
 $(SERVICES):
@@ -44,12 +46,6 @@ copy-agent-sh:
 copy-agent-rc-sh:
 	chmod +x $(HOST_AGENT_RC_SH_PATH)
 	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_RC_SH_PATH) $(GUEST_AGENT_RC_SH_PATH)
-
-# docker_mfxkit:
-# 	docker build --no-cache --tag=mainflux/mfxkit -f docker/Dockerfile .
-
-# run:
-# 	docker-compose -f docker/docker-compose.yml up
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto

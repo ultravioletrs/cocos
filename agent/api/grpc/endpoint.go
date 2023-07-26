@@ -22,7 +22,7 @@ func runEndpoint(svc agent.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		computationStr, err := svc.Run(context.TODO(), computation)
+		computationStr, err := svc.Run(ctx, computation)
 		if err != nil {
 			return runRes{}, err
 		}
