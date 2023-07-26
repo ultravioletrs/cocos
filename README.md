@@ -10,7 +10,7 @@ go build -o ./bin/agent -ldflags="-linkmode=external -extldflags=-static -s -w" 
 
 ## Copy files to virtual drive
 
-Log in the VM and create `/cocos` directory. Shut down `QEmu-alpine-standard-x86_64` virtual machine. 
+Log in the VM and create `/cocos` directory. Shut down `QEmu-alpine-standard-x86_64` virtual machine.
 
 On the host machine install [libguestfs-tools](https://libguestfs.org/). `libguestfs-tools` is "a set of tools for accessing and modifying virtual machine (VM) disk images".
 
@@ -40,7 +40,7 @@ GUEST_AGENT_SCRIPT_PATH=/etc/init.d/; \
 sudo virt-copy-in -a $QCOW2_PATH $HOST_AGENT_SCRIPT_PATH $GUEST_AGENT_SCRIPT_PATH
 ```
 
-OpenRC init script is used to start `agent` executable as a system service (daemon) on the Alpine Linux boot. 
+OpenRC init script is used to start `agent` executable as a system service (daemon) on the Alpine Linux boot.
 
 ### OpenRC
 
@@ -58,21 +58,21 @@ To see if the `agent` service (or deamon) is running, inside Alpine linux run
 ps aux | grep agent
 ```
 
-To see if the ports are correctly configured, inside Alpine linux, i.e. *guest machine*, run
+To see if the ports are correctly configured, inside Alpine linux, i.e. _guest machine_, run
 
 ```sh
 netstat -tuln | grep 9031
 netstat -tuln | grep 7002
 ```
 
-In the *host machine*, you can check if the ports of the guest machine are open and reachable from the host machine with
+In the _host machine_, you can check if the ports of the guest machine are open and reachable from the host machine with
 
 ```sh
 nc -zv 192.168.122.251 9031
 nc -zv 192.168.122.251 7002
 ```
 
-NB: to find out `192.168.122.251`, i.e. the concrete address of the guest machine, you need to 
+NB: to find out `192.168.122.251`, i.e. the concrete address of the guest machine, you need to
 
 ```sh
 ip addr show eth0
@@ -94,14 +94,10 @@ To check if the `agent` deamon is responding to the requests, run on the host
 GUEST_ADDR=192.168.122.251:9031
 ```
 
-```sh
-curl -i -X POST -H "Content-Type: application/json" ${GUEST_ADDR}/agent -d '{"secret":"secret"}'
-```
-
 To run a computation
 
 ```sh
-curl -sSi -X POST ${GUEST_ADDR}/run -H "Content-Type: application/json" -d @- <<EOF 
+curl -sSi -X POST ${GUEST_ADDR}/run -H "Content-Type: application/json" -d @- <<EOF
 {
   "name": "computation_24",
   "description": "this_computes_the_number_24",

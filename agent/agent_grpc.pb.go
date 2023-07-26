@@ -19,10 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	AgentService_Run_FullMethodName    = "/agent.agent.AgentService/Run"
-	AgentService_Algo_FullMethodName   = "/agent.agent.AgentService/Algo"
-	AgentService_Data_FullMethodName   = "/agent.agent.AgentService/Data"
-	AgentService_Result_FullMethodName = "/agent.agent.AgentService/Result"
+	AgentService_Run_FullMethodName    = "/agent.AgentService/Run"
+	AgentService_Algo_FullMethodName   = "/agent.AgentService/Algo"
+	AgentService_Data_FullMethodName   = "/agent.AgentService/Data"
+	AgentService_Result_FullMethodName = "/agent.AgentService/Result"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -195,7 +195,7 @@ func _AgentService_Result_Handler(srv interface{}, ctx context.Context, dec func
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AgentService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "agent.agent.AgentService",
+	ServiceName: "agent.AgentService",
 	HandlerType: (*AgentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

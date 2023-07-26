@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package agent.agent;
+package agent;
 
 option go_package = "./agent";
 

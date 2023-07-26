@@ -20,15 +20,6 @@ func New(svc agent.Service, tracer trace.Tracer) agent.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Ping(secret string) (string, error) {
-	_, span := tm.tracer.Start(context.Background(), "ping", trace.WithAttributes(
-		attribute.String("secret", secret),
-	))
-	defer span.End()
-
-	return tm.svc.Ping(secret)
-}
-
 func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run", trace.WithAttributes(
 		attribute.String("id", cmp.ID),
