@@ -1,21 +1,15 @@
 syntax = "proto3";
 
-// import "google/protobuf/timestamp.proto";
-
-package agent_proto;
+package agent.agent;
 
 option go_package = "./agent";
 
 service AgentService {
-  // rpc Health(HealthRequest) returns (HealthResponse) {}
   rpc Run(RunRequest) returns (RunResponse) {}
   rpc Algo(AlgoRequest) returns (AlgoResponse) {}
   rpc Data(DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (ResultResponse) {}
 }
-
-// message HealthRequest {}
-// message HealthResponse { string status = 1; }
 
 message RunRequest { bytes computation = 1; }
 
