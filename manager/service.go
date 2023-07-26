@@ -30,8 +30,8 @@ var (
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	CreateDomain(pool, volume, domain string) (string, error)
-	Run(computation []byte) (string, error)
+	CreateDomain(ctx context.Context, pool, volume, domain string) (string, error)
+	Run(ctx context.Context, computation []byte) (string, error)
 }
 
 type managerService struct {
@@ -53,7 +53,7 @@ func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, a
 	}
 }
 
-func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, error) {
+func (ms *managerService) CreateDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -85,8 +85,8 @@ func (ms *managerService) CreateDomain(poolXML, volXML, domXML string) (string, 
 	return dom.Name, nil
 }
 
-func (ms *managerService) Run(computation []byte) (string, error) {
-	res, err := ms.agent.Run(context.Background(), &agent.RunRequest{Computation: computation})
+func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
+	res, err := ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
 	if err != nil {
 		return "", err
 	}

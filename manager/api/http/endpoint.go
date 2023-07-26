@@ -18,7 +18,7 @@ func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		name, err := svc.CreateDomain(req.Pool, req.Volume, req.Domain)
+		name, err := svc.CreateDomain(ctx, req.Pool, req.Volume, req.Domain)
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +40,7 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		}
 
 		// Call the Run method on the service
-		runID, err := svc.Run(req.Computation)
+		runID, err := svc.Run(ctx, req.Computation)
 		if err != nil {
 			return nil, err
 		}

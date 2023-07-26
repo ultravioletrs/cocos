@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ultravioletrs/manager/manager"
 	"google.golang.org/grpc"
 )
@@ -24,24 +22,24 @@ type grpcClient struct {
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(tracer opentracing.Tracer, conn *grpc.ClientConn, timeout time.Duration) manager.ManagerServiceClient {
+func NewClient(conn *grpc.ClientConn, timeout time.Duration) manager.ManagerServiceClient {
 	return &grpcClient{
-		createDomain: kitot.TraceClient(tracer, "createDomain")(kitgrpc.NewClient(
+		createDomain: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"CreateDomain",
 			encodeCreateDomainRequest,
 			decodeCreateDomainResponse,
 			manager.CreateDomainResponse{},
-		).Endpoint()),
-		run: kitot.TraceClient(tracer, "run")(kitgrpc.NewClient(
+		).Endpoint(),
+		run: kitgrpc.NewClient(
 			conn,
 			svcName,
 			"Run",
 			encodeRunRequest,
 			decodeRunResponse,
 			manager.RunResponse{},
-		).Endpoint()),
+		).Endpoint(),
 		timeout: timeout,
 	}
 }
@@ -57,7 +55,7 @@ func (client grpcClient) CreateDomain(ctx context.Context, req *manager.CreateDo
 	}
 
 	cdr := res.(createDomainRes)
-	
+
 	return &manager.CreateDomainResponse{Name: cdr.Name}, nil
 }
 

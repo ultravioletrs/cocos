@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -31,20 +32,20 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) CreateDomain(pool, volume, domain string) (response string, err error) {
+func (ms *metricsMiddleware) CreateDomain(ctx context.Context, pool, volume, domain string) (response string, err error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "CreateDomain").Add(1)
 		ms.latency.With("method", "CreateDomain").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.CreateDomain(pool, volume, domain)
+	return ms.svc.CreateDomain(ctx, pool, volume, domain)
 }
 
-func (ms *metricsMiddleware) Run(computation []byte) (string, error) {
+func (ms *metricsMiddleware) Run(ctx context.Context, computation []byte) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Run(computation)
+	return ms.svc.Run(ctx, computation)
 }
