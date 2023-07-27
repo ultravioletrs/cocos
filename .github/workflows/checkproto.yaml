@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "manager/manager.proto"
+      - "manager/*.pb.go"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "manager/manager.proto"
+      - "manager/*.pb.go"
+
+jobs:
+  checkproto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20.x
+
+      - name: Set up protoc
+        run: |
+          PROTOC_VERSION=23.3
+          PROTOC_GEN_VERSION=v1.31.0
+          PROTOC_GRPC_VERSION=v1.3.0
+
+          # Download and install protoc
+          PROTOC_ZIP=protoc-$PROTOC_VERSION-linux-x86_64.zip
+          curl -0L -o $PROTOC_ZIP https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/$PROTOC_ZIP
+          unzip -o $PROTOC_ZIP -d protoc3
+          sudo mv protoc3/bin/* /usr/local/bin/
+          sudo mv protoc3/include/* /usr/local/include/
+          rm -rf $PROTOC_ZIP protoc3
+
+          # Install protoc-gen-go and protoc-gen-go-grpc
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@$PROTOC_GEN_VERSION
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$PROTOC_GRPC_VERSION
+
+          # Add protoc to the PATH
+          export PATH=$PATH:/usr/local/bin/protoc
+
+      - name: Set up Mainflux
+        run: |
+          # Rename .pb.go files to .pb.go.tmp to prevent conflicts
+          for p in $(ls manager/*.pb.go); do
+            mv $p $p.tmp
+          done
+
+          # Generate Go files from protobuf definitions
+          make protoc
+
+          # Compare generated Go files with the original ones
+          for p in $(ls manager/*.pb.go); do
+            if ! cmp -s $p $p.tmp; then
+              echo "Proto file and generated Go file $p are out of sync!"
+              exit 1
+            fi
+          done
