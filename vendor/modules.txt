@@ -1,5 +1,3 @@
-# cloud.google.com/go/compute v1.20.1
-## explicit; go 1.19
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -86,8 +84,8 @@ github.com/prometheus/procfs/internal/util
 # github.com/subosito/gotenv v1.4.2
 ## explicit; go 1.18
 github.com/subosito/gotenv
-# github.com/ultravioletrs/agent v0.0.0-20230727090007-bd884cbcc49d
-## explicit; go 1.18
+# github.com/ultravioletrs/agent v0.0.0-20230727102942-c2240066f943
+## explicit; go 1.20
 github.com/ultravioletrs/agent/agent
 github.com/ultravioletrs/agent/agent/api/grpc
 github.com/ultravioletrs/agent/pkg/clients/grpc
@@ -162,7 +160,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20230706204954-ccb25ca9f130
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230726155614-23370e0ffb3e
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.57.0
