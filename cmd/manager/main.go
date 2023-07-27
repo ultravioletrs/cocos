@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
-	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
 	"github.com/ultravioletrs/agent/agent"
@@ -49,7 +48,6 @@ const (
 
 type config struct {
 	LogLevel   string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
-	Secret     string `env:"MANAGER_SECRET"      envDefault:"secret"`
 	JaegerURL  string `env:"MANAGER_JAEGER_URL"  envDefault:"http://localhost:14268/api/traces"`
 	InstanceID string `env:"MANAGER_INSTANCE_ID" envDefault:""`
 }
@@ -93,8 +91,6 @@ func main() {
 		}
 	}()
 
-	idProvider := uuid.New()
-
 	agentGRPCConfig := agentgrpc.Config{}
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
@@ -107,7 +103,7 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
-	svc := newService(cfg.Secret, libvirtConn, idProvider, agentClient, logger, tracer)
+	svc := newService(libvirtConn, agentClient, logger, tracer)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -142,8 +138,8 @@ func main() {
 	}
 }
 
-func newService(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer) manager.Service {
-	svc := manager.New(secret, libvirtConn, idp, agent)
+func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer) manager.Service {
+	svc := manager.New(libvirtConn, agent)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

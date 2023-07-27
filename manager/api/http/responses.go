@@ -9,7 +9,10 @@ import (
 	"github.com/mainflux/mainflux"
 )
 
-var _ mainflux.Response = (*createDomainRes)(nil)
+var (
+	_ mainflux.Response = (*createDomainRes)(nil)
+	_ mainflux.Response = (*runRes)(nil)
+)
 
 type createDomainRes struct {
 	Name string `json:"name"`
@@ -26,8 +29,6 @@ func (res createDomainRes) Headers() map[string]string {
 func (res createDomainRes) Empty() bool {
 	return false
 }
-
-var _ mainflux.Response = (*runRes)(nil)
 
 type runRes struct {
 	ID string `json:"id"`

@@ -5,10 +5,14 @@ package http
 
 import "github.com/ultravioletrs/manager/manager"
 
+var (
+	_ apiReq = (*runReq)(nil)
+	_ apiReq = (*createDomainReq)(nil)
+)
+
 type apiReq interface {
 	validate() error
 }
-
 type createDomainReq struct {
 	Pool   string `json:"pool"`
 	Volume string `json:"volume"`
@@ -22,8 +26,6 @@ func (req createDomainReq) validate() error {
 
 	return nil
 }
-
-var _ apiReq = (*runReq)(nil)
 
 type runReq struct {
 	Computation []byte `json:"computation,omitempty"`

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/digitalocean/go-libvirt"
-	"github.com/mainflux/mainflux"
 	"github.com/ultravioletrs/agent/agent"
 )
 
@@ -35,21 +34,17 @@ type Service interface {
 }
 
 type managerService struct {
-	secret     string
-	libvirt    *libvirt.Libvirt
-	idProvider mainflux.IDProvider
-	agent      agent.AgentServiceClient
+	libvirt *libvirt.Libvirt
+	agent   agent.AgentServiceClient
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(secret string, libvirtConn *libvirt.Libvirt, idp mainflux.IDProvider, agent agent.AgentServiceClient) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient) Service {
 	return &managerService{
-		secret:     secret,
-		libvirt:    libvirtConn,
-		idProvider: idp,
-		agent:      agent,
+		libvirt: libvirtConn,
+		agent:   agent,
 	}
 }
 

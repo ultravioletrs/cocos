@@ -11,9 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	svcName = "manager_proto.ManagerService"
-)
+const svcName = "manager_proto.ManagerService"
 
 type grpcClient struct {
 	createDomain endpoint.Endpoint
