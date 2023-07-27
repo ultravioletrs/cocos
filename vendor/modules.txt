@@ -1,3 +1,5 @@
+# cloud.google.com/go/compute v1.20.1
+## explicit; go 1.19
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -24,9 +26,6 @@ github.com/go-kit/kit/endpoint
 github.com/go-kit/kit/metrics
 github.com/go-kit/kit/metrics/internal/lv
 github.com/go-kit/kit/metrics/prometheus
-github.com/go-kit/kit/sd
-github.com/go-kit/kit/sd/lb
-github.com/go-kit/kit/tracing/opentracing
 github.com/go-kit/kit/transport
 github.com/go-kit/kit/transport/grpc
 github.com/go-kit/kit/transport/http
@@ -57,7 +56,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/mainflux/mainflux v0.0.0-20230722123816-70f53c2f979d
+# github.com/mainflux/mainflux v0.0.0-20230726142711-2b78902e0170
 ## explicit; go 1.20
 github.com/mainflux/mainflux
 github.com/mainflux/mainflux/logger
@@ -66,11 +65,6 @@ github.com/mainflux/mainflux/pkg/uuid
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/opentracing/opentracing-go v1.2.0
-## explicit; go 1.14
-github.com/opentracing/opentracing-go
-github.com/opentracing/opentracing-go/ext
-github.com/opentracing/opentracing-go/log
 # github.com/prometheus/client_golang v1.16.0
 ## explicit; go 1.17
 github.com/prometheus/client_golang/prometheus
@@ -84,7 +78,7 @@ github.com/prometheus/client_model/go
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.11.0
+# github.com/prometheus/procfs v0.11.1
 ## explicit; go 1.19
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
@@ -92,7 +86,7 @@ github.com/prometheus/procfs/internal/util
 # github.com/subosito/gotenv v1.4.2
 ## explicit; go 1.18
 github.com/subosito/gotenv
-# github.com/ultravioletrs/agent v0.0.0-20230725115543-a903ca23cd75
+# github.com/ultravioletrs/agent v0.0.0-20230727090007-bd884cbcc49d
 ## explicit; go 1.18
 github.com/ultravioletrs/agent/agent
 github.com/ultravioletrs/agent/agent/api/grpc
@@ -168,10 +162,10 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230706204954-ccb25ca9f130
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.56.1
+# google.golang.org/grpc v1.57.0
 ## explicit; go 1.17
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -217,6 +211,7 @@ google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/peer
 google.golang.org/grpc/reflection
+google.golang.org/grpc/reflection/grpc_reflection_v1
 google.golang.org/grpc/reflection/grpc_reflection_v1alpha
 google.golang.org/grpc/resolver
 google.golang.org/grpc/serviceconfig

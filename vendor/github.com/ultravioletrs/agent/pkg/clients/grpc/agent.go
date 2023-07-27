@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"github.com/opentracing/opentracing-go"
 	"github.com/ultravioletrs/agent/agent"
 	agentapi "github.com/ultravioletrs/agent/agent/api/grpc"
 )
@@ -13,5 +12,5 @@ func NewClient(cfg Config) (Client, agent.AgentServiceClient, error) {
 		return nil, nil, err
 	}
 
-	return client, agentapi.NewClient(opentracing.NoopTracer{}, client.Connection(), cfg.Timeout), nil
+	return client, agentapi.NewClient(client.Connection(), cfg.Timeout), nil
 }

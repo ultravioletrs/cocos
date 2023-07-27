@@ -3,9 +3,7 @@ package grpc
 import (
 	"context"
 
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ultravioletrs/agent/agent"
 )
 
@@ -18,25 +16,25 @@ type grpcServer struct {
 }
 
 // NewServer returns new AgentServiceServer instance.
-func NewServer(tracer opentracing.Tracer, svc agent.Service) agent.AgentServiceServer {
+func NewServer(svc agent.Service) agent.AgentServiceServer {
 	return &grpcServer{
 		run: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "run")(runEndpoint(svc)),
+			runEndpoint(svc),
 			decodeRunRequest,
 			encodeRunResponse,
 		),
 		algo: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "algo")(algoEndpoint(svc)),
+			algoEndpoint(svc),
 			decodeAlgoRequest,
 			encodeAlgoResponse,
 		),
 		data: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "data")(dataEndpoint(svc)),
+			dataEndpoint(svc),
 			decodeDataRequest,
 			encodeDataResponse,
 		),
 		result: kitgrpc.NewServer(
-			kitot.TraceServer(tracer, "result")(resultEndpoint(svc)),
+			resultEndpoint(svc),
 			decodeResultRequest,
 			encodeResultResponse,
 		),
