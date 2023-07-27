@@ -41,7 +41,7 @@ func MakeHandler(svc agent.Service, instanceID string) http.Handler {
 		opts...,
 	), "run"))
 
-	r.GetFunc("/version", mainflux.Health("agent", instanceID))
+	r.GetFunc("/health", mainflux.Health("agent", instanceID))
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r
