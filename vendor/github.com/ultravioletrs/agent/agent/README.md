@@ -1,61 +1,41 @@
 # Agent
 
-Agent service provides a barebones HTTP API and Service interface implementation for development of a core Mainflux service.
+Agent service provides a barebones HTTP and gRPC API and Service interface implementation for the development of the agent service.
 
 ## Configuration
 
 The service is configured using the environment variables from the following table. Note that any unset variables will be replaced with their default values.
 
-| Variable              | Description                                             | Default |
-|-----------------------|---------------------------------------------------------|---------|
-| MF_AGENT_LOG_LEVEL   | Log level for agent service (debug, info, warn, error) | error   |
-| MF_AGENT_HTTP_PORT   | Agent service HTTP port                                | 9021    |
-| MF_AGENT_SERVER_CERT | Path to server certificate in pem format                |         |
-| MF_AGENT_SERVER_KEY  | Path to server key in pem format                        |         |
-| MF_JAEGER_URL         | Jaeger server URL                                       |         |
-| MF_AGENT_SECRET      | Agent service secret                                   | secret  |
+| Variable               | Description                                            | Default                        |
+| ---------------------- | ------------------------------------------------------ | ------------------------------ |
+| AGENT_LOG_LEVEL        | Log level for agent service (debug, info, warn, error) | info                           |
+| AGENT_HTTP_HOST        | Agent service HTTP host                                | ""                             |
+| AGENT_HTTP_PORT        | Agent service HTTP port                                | 9031                           |
+| AGENT_HTTP_SERVER_CERT | Path to HTTP server certificate in pem format          | ""                             |
+| AGENT_HTTP_SERVER_KEY  | Path to HTTP server key in pem format                  | ""                             |
+| AGENT_GRPC_HOST        | Agent service gRPC host                                | ""                             |
+| AGENT_GRPC_PORT        | Agent service gRPC port                                | 7002                           |
+| AGENT_GRPC_SERVER_CERT | Path to gRPC server certificate in pem format          | ""                             |
+| AGENT_GRPC_SERVER_KEY  | Path to gRPC server key in pem format                  | ""                             |
+| AGENT_JAEGER_URL       | Jaeger server URL                                      | http://jaeger:14268/api/traces |
 
 ## Deployment
-
-The service is distributed as a Docker container. The following snippet provides a compose file template that can be used to deploy the service container locally:
-
-```yaml
-version: "3"
-services:
-  agent:
-    image: ultravioletrs/agent:[version]
-    container_name: [instance name]
-    ports:
-      - [host machine port]:[configured HTTP port]
-    environment:
-      MF_AGENT_LOG_LEVEL: [Kit log level]
-      MF_AGENT_HTTP_PORT: [Service HTTP port]
-      MF_AGENT_SERVER_CERT: [String path to server cert in pem format]
-      MF_AGENT_SERVER_KEY: [String path to server key in pem format]
-      MF_AGENT_SECRET: [Agent service secret]
-      MF_JAEGER_URL: [Jaeger server URL]
-```
 
 To start the service outside of the container, execute the following shell script:
 
 ```bash
 # download the latest version of the service
-go get github.com/mainflux/mainflux
+go get github.com/ultravioletrs/agent
 
-cd $GOPATH/src/github.com/mainflux/mainflux
+cd $GOPATH/src/github.com/ultravioletrs/agent
 
 # compile the agent
 make agent
 
-# copy binary to bin
-make install
-
 # set the environment variables and run the service
-MF_AGENT_LOG_LEVEL=[Kit log level] MF_AGENT_HTTP_PORT=[Service HTTP port] MF_AGENT_SERVER_CERT: [String path to server cert in pem format] MF_AGENT_SERVER_KEY: [String path to server key in pem format] MF_JAEGER_URL=[Jaeger server URL] MF_AGENT_SECRET: [Agent service secret] $GOBIN/mainflux-kit
+./build/cocos-agent
 ```
 
 ## Usage
 
-For more information about service capabilities and its usage, please check out the [API documentation](swagger.yaml).
-
-[doc]: http://mainflux.readthedocs.io
+For more information about service capabilities and its usage, please check out the [README documentation](../README.md).
