@@ -17,7 +17,7 @@ make agent-cli
 To run a computation, use the following command:
 
 ```bash
-./build/agent-cli run --computation '{"name": "my-computation"}'
+./agent-cli run --computation '{"name": "my-computation"}'
 ```
 
 #### Upload Algorithm

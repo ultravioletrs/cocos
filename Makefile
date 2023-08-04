@@ -31,19 +31,7 @@ agent-cli: $(CLI_SOURCE)
 	-o ${AGENT_CLI_PATH} $(CLI_SOURCE)
 
 install: agent-cli
-	sudo cp ${AGENT_CLI_PATH} /usr/local/bin
-
-run-computation:
-	${AGENT_CLI_PATH} run --computation '{"name": "my-computation"}'
-
-upload-algorithm:
-	${AGENT_CLI_PATH} algorithm /path/to/algorithm
-
-upload-dataset:
-	${AGENT_CLI_PATH} dataset path/to/dataset.csv
-
-retrieve-result:
-	${AGENT_CLI_PATH} result
+	cp ${AGENT_CLI_PATH} ~/.local/bin
 
 QCOW2_PATH = ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
 
