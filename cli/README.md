@@ -17,7 +17,7 @@ make agent-cli
 To run a computation, use the following command:
 
 ```bash
-./agent-cli run --computation '{"name": "my-computation"}'
+./build/agent-cli run --computation '{"name": "my-computation"}'
 ```
 
 #### Upload Algorithm
@@ -25,7 +25,7 @@ To run a computation, use the following command:
 To upload an algorithm, use the following command:
 
 ```bash
-./build/agent-cli algorithm /path/to/algorithm
+./build/agent-cli algo /path/to/algorithm
 ```
 
 #### Upload Dataset
@@ -33,7 +33,7 @@ To upload an algorithm, use the following command:
 To upload a dataset, use the following command:
 
 ```bash
-./build/agent-cli dataset /path/to/dataset.csv
+./build/agent-cli data /path/to/dataset.csv
 ```
 
 #### Retrieve result

@@ -9,6 +9,7 @@ import (
 )
 
 func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
+
 	return &cobra.Command{
 		Use:   "result",
 		Short: "Retrieve computation result file",

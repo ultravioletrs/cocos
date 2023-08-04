@@ -8,8 +8,9 @@ import (
 )
 
 func NewDatasetsCmd(sdk agentsdk.SDK) *cobra.Command {
+
 	return &cobra.Command{
-		Use:   "dataset",
+		Use:   "data",
 		Short: "Upload a dataset CSV file",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
