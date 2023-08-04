@@ -10,7 +10,7 @@ import (
 
 func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 	return &cobra.Command{
-		Use:   "retrieve-result",
+		Use:   "result",
 		Short: "Retrieve computation result file",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")

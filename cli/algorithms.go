@@ -9,7 +9,7 @@ import (
 
 func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 	return &cobra.Command{
-		Use:   "upload-algorithm",
+		Use:   "algorithm",
 		Short: "Upload an algorithm binary",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
