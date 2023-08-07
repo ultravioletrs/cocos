@@ -1,12 +1,12 @@
 BUILD_DIR = build
-SERVICES = agent
+SERVICES = cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags)
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 CLI_SOURCE = ./cmd/cli/main.go
-AGENT_CLI_PATH = ${BUILD_DIR}/agent-cli
+CLI_BIN = ${BUILD_DIR}/cli
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
@@ -22,16 +22,8 @@ endef
 $(SERVICES):
 	$(call compile_service,$(@))
 
-agent-cli: $(CLI_SOURCE)
-	CGO_ENABLED=$(CGO_ENABLED) GOARCH=$(GOARCH) \
-	go build -mod=vendor -ldflags "-s -w \
-	-X 'github.com/ultravioletrs/cocos/internal/http.BuildTime=$(TIME)' \
-	-X 'github.com/ultravioletrs/cocos/internal/http.Version=$(VERSION)' \
-	-X 'github.com/ultravioletrs/cocos/internal/http.Commit=$(COMMIT)'" \
-	-o ${AGENT_CLI_PATH} $(CLI_SOURCE)
-
-install: agent-cli
-	cp ${AGENT_CLI_PATH} ~/.local/bin
+install-cli: cli
+	cp ${CLI_BIN} ~/.local/bin
 
 QCOW2_PATH = ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
 
@@ -59,5 +51,3 @@ copy-agent-rc-sh:
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
-
-
