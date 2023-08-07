@@ -1,6 +1,5 @@
 BUILD_DIR = build
-SERVICES = agent
-SERVICES = cli
+SERVICES = agent cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags)
