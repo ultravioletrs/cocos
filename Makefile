@@ -1,4 +1,5 @@
 BUILD_DIR = build
+SERVICES = agent
 SERVICES = cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64

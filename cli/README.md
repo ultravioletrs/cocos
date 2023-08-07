@@ -7,7 +7,7 @@ This repository contains the command-line interface (CLI) tool for interacting w
 From the project root:
 
 ```bash
-make cli
+make cocos-cli
 ```
 
 ## Usage
@@ -43,3 +43,13 @@ To retrieve the computation result, use the following command:
 ```bash
 ./build/cocos-cli result
 ```
+
+## Installtion
+
+If you want to install the CLI globally, you can use the following command:
+
+```bash
+sudo cp build/agent-cli /usr/local/bin/
+```
+
+This will make the agent-cli executable available from any location in your terminal.
