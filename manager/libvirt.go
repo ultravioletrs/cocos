@@ -7,26 +7,6 @@ import (
 	libvirt "github.com/digitalocean/go-libvirt"
 )
 
-type Config struct {
-	HDAFile          string `env:"HDA_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
-	GuestSizeInMB    int    `env:"GUEST_SIZE_IN_MB" envDefault:"4096"`
-	SevGuest         int    `env:"SEV_GUEST" envDefault:"1"`
-	SmpNCPUs         int    `env:"SMP_NCPUS" envDefault:"4"`
-	Console          string `env:"CONSOLE" envDefault:"serial"`
-	VNCPort          string `env:"VNC_PORT"`
-	UseVirtio        int    `env:"USE_VIRTIO" envDefault:"1"`
-	UEFIBiosCode     string `env:"UEFI_BIOS_CODE" envDefault:"/usr/share/OVMF/OVMF_CODE.fd"`
-	UEFIBiosVarsOrig string `env:"UEFI_BIOS_VARS_ORIG" envDefault:"/usr/share/OVMF/OVMF_VARS.fd"`
-	UEFIBiosVarsCopy string `env:"UEFI_BIOS_VARS_COPY" envDefault:"cmd/manager/img/OVMF_VARS.fd"`
-	CBitPos          int    `env:"CBITPOS" envDefault:"51"`
-	HostHTTPPort     int    `env:"HOST_HTTP_PORT" envDefault:"9301"`
-	GuestHTTPPort    int    `env:"GUEST_HTTP_PORT" envDefault:"9031"`
-	HostGRPCPort     int    `env:"HOST_GRPC_PORT" envDefault:"7020"`
-	GuestGRPCPort    int    `env:"GUEST_GRPC_PORT" envDefault:"7002"`
-	EnableFileLog    int    `env:"ENABLE_FILE_LOG" envDefault:"0"`
-	ExecQemuCmdLine  int    `env:"EXEC_QEMU_CMDLINE" envDefault:"1"`
-}
-
 var re = regexp.MustCompile(`'([^']*)'`)
 
 const bootTime = 5 * time.Second

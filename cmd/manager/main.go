@@ -104,11 +104,23 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
+	// QEMU
 	qemuConfig := manager.Config{}
 	if err := env.Parse(&qemuConfig, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
+	args := manager.ConstructQemuCommand(qemuConfig)
+	fmt.Println(args)
+
+	script := "cmd/manager/script/launch-qemu.sh"
+	output, err := manager.RunShellCommand(script, args...)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
+	}
+	fmt.Println(output)
+
+	//SVC
 	svc := newService(libvirtConn, agentClient, logger, tracer)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}

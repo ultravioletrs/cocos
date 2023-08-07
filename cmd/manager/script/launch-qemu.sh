@@ -107,6 +107,10 @@ while [[ $1 != "" ]]; do
             GUEST_HTTP_PORT=$2
             shift
             ;;
+        -guestgrpc)
+            GUEST_GRPC_PORT=$2
+            shift
+            ;;
         -hostgrpc)
             HOST_GRPC_PORT=$2
             shift
