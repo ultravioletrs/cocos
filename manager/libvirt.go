@@ -7,6 +7,26 @@ import (
 	libvirt "github.com/digitalocean/go-libvirt"
 )
 
+type Config struct {
+	HDAFile          string `env:"HDA_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
+	GuestSizeInMB    int    `env:"GUEST_SIZE_IN_MB" envDefault:"4096"`
+	SevGuest         int    `env:"SEV_GUEST" envDefault:"1"`
+	SmpNCPUs         int    `env:"SMP_NCPUS" envDefault:"4"`
+	Console          string `env:"CONSOLE" envDefault:"serial"`
+	VNCPort          string `env:"VNC_PORT"`
+	UseVirtio        int    `env:"USE_VIRTIO" envDefault:"1"`
+	UEFIBiosCode     string `env:"UEFI_BIOS_CODE" envDefault:"/usr/share/OVMF/OVMF_CODE.fd"`
+	UEFIBiosVarsOrig string `env:"UEFI_BIOS_VARS_ORIG" envDefault:"/usr/share/OVMF/OVMF_VARS.fd"`
+	UEFIBiosVarsCopy string `env:"UEFI_BIOS_VARS_COPY" envDefault:"cmd/manager/img/OVMF_VARS.fd"`
+	CBitPos          int    `env:"CBITPOS" envDefault:"51"`
+	HostHTTPPort     int    `env:"HOST_HTTP_PORT" envDefault:"9301"`
+	GuestHTTPPort    int    `env:"GUEST_HTTP_PORT" envDefault:"9031"`
+	HostGRPCPort     int    `env:"HOST_GRPC_PORT" envDefault:"7020"`
+	GuestGRPCPort    int    `env:"GUEST_GRPC_PORT" envDefault:"7002"`
+	EnableFileLog    int    `env:"ENABLE_FILE_LOG" envDefault:"0"`
+	ExecQemuCmdLine  int    `env:"EXEC_QEMU_CMDLINE" envDefault:"1"`
+}
+
 var re = regexp.MustCompile(`'([^']*)'`)
 
 const bootTime = 5 * time.Second
@@ -42,26 +62,26 @@ func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, d
 	}
 pool_exists:
 
-	// _, err = libvirtConn.StorageVolCreateXML(pool, volXML, 0)
-	// if err != nil {
-	// 	lvErr := err.(libvirt.Error)
-	// 	if lvErr.Code == 90 {
-	// 		name, err := entityName(lvErr.Message)
-	// 		if err != nil {
-	// 			return libvirt.Domain{}, err
-	// 		}
-	// 		_, err = libvirtConn.StorageVolLookupByName(pool, name)
-	// 		if err != nil {
-	// 			return libvirt.Domain{}, err
-	// 		}
+	_, err = libvirtConn.StorageVolCreateXML(pool, volXML, 0)
+	if err != nil {
+		lvErr := err.(libvirt.Error)
+		if lvErr.Code == 90 {
+			name, err := entityName(lvErr.Message)
+			if err != nil {
+				return libvirt.Domain{}, err
+			}
+			_, err = libvirtConn.StorageVolLookupByName(pool, name)
+			if err != nil {
+				return libvirt.Domain{}, err
+			}
 
-	// 		goto vol_exists
-	// 	}
+			goto vol_exists
+		}
 
-	// 	return libvirt.Domain{}, err
-	// }
+		return libvirt.Domain{}, err
+	}
 
-	// vol_exists:
+vol_exists:
 
 	dom, err := libvirtConn.DomainDefineXMLFlags(domXML, 0)
 	if err != nil {

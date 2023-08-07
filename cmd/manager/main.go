@@ -42,6 +42,7 @@ const (
 	envPrefixHTTP      = "MANAGER_HTTP_"
 	envPrefixGRPC      = "MANAGER_GRPC_"
 	envPrefixAgentGRPC = "AGENT_GRPC_"
+	envPrefixQemu      = "MANAGER_QEMU_"
 	defSvcGRPCPort     = "7001"
 	defSvcHTTPPort     = "9021"
 )
@@ -102,6 +103,11 @@ func main() {
 	defer agentGRPCClient.Close()
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
+
+	qemuConfig := manager.Config{}
+	if err := env.Parse(&qemuConfig, env.Options{Prefix: envPrefixQemu}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
+	}
 
 	svc := newService(libvirtConn, agentClient, logger, tracer)
 
