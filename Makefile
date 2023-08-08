@@ -1,10 +1,13 @@
 BUILD_DIR = build
-SERVICES = agent
+SERVICES = agent cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags)
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
+CLI_SOURCE = ./cmd/cli/main.go
+CLI_BIN = ${BUILD_DIR}/cocos-cli
+
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
@@ -17,35 +20,11 @@ endef
 
 .PHONY: all $(SERVICES)
 
-all: $(SERVICES)
-
 $(SERVICES):
 	$(call compile_service,$(@))
 
-
-QCOW2_PATH = ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img
-
-HOST_AGENT_PATH = ~/ultravioletrs/agent/build/cocos-agent
-GUEST_AGENT_PATH = /root/agent
-
-HOST_AGENT_SH_PATH = ~/go/src/github.com/ultravioletrs/agent/alpine/agent.sh
-GUEST_AGENT_SH_PATH = /root/agent/
-
-HOST_AGENT_RC_SH_PATH = ~/go/src/github.com/ultravioletrs/agent/alpine/agent
-GUEST_AGENT_RC_SH_PATH=/etc/init.d/
-
-# Copy the agent binary to the guest VM
-copy-agent:
-	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_PATH) $(GUEST_AGENT_PATH)
-
-# Copy the agent init sh script to the guest VM
-copy-agent-sh:
-	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_SH_PATH) $(GUEST_AGENT_SH_PATH)
-
-# Copy the agent-rc init sh script to the guest VM
-copy-agent-rc-sh:
-	chmod +x $(HOST_AGENT_RC_SH_PATH)
-	sudo virt-copy-in -a $(QCOW2_PATH) $(HOST_AGENT_RC_SH_PATH) $(GUEST_AGENT_RC_SH_PATH)
+install-cli: cli
+	cp ${CLI_BIN} ~/.local/bin/cocos-cli
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
