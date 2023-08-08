@@ -114,11 +114,10 @@ func main() {
 	fmt.Println(args)
 
 	script := "cmd/manager/script/launch-qemu.sh"
-	output, err := manager.RunShellCommand(script, args...)
+	_, err = manager.RunShellCommand(script, args...)
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
 	}
-	fmt.Println(output)
 
 	//SVC
 	svc := newService(libvirtConn, agentClient, logger, tracer)

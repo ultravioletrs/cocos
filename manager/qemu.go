@@ -26,15 +26,26 @@ type Config struct {
 	ExecQemuCmdLine  bool   `env:"EXEC_QEMU_CMDLINE" envDefault:"1"`
 }
 
-func RunShellCommand(command string, args ...string) (string, error) {
+// func RunShellCommand(command string, args ...string) (string, error) {
+// 	cmd := exec.Command(command, args...)
+
+// 	output, err := cmd.Output()
+// 	if err != nil {
+// 		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+// 	}
+
+// 	return string(output), nil
+// }
+
+func RunShellCommand(command string, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(command, args...)
 
-	output, err := cmd.Output()
+	err := cmd.Start()
 	if err != nil {
-		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+		return nil, fmt.Errorf("error starting command '%s': %s", cmd.String(), err)
 	}
 
-	return string(output), nil
+	return cmd, nil
 }
 
 func ConstructQemuCommand(config Config) []string {

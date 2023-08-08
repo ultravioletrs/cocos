@@ -8,7 +8,7 @@ HDA_FILE="cmd/manager/img/focal-server-cloudimg-amd64.qcow2"
 GUEST_SIZE_IN_MB="4096"
 SEV_GUEST="1"
 SMP_NCPUS="4"
-CONSOLE="serial" # for gtk, use qxl
+CONSOLE="serial"
 VNC_PORT=""
 USE_VIRTIO="1"
 
