@@ -150,10 +150,10 @@ run_cmd() {
     fi
 }
 
-if [ "$(id -u)" -ne 0 ]; then
-    echo "This script must be run as root!"
-    exit 1
-fi
+# if [ "$(id -u)" -ne 0 ]; then
+#     echo "This script must be run as root!"
+#     exit 1
+# fi
 
 # copy BIOS variables to new dest for VM use without modifying the original ones
 cp "$UEFI_BIOS_VARS_ORIG" "$UEFI_BIOS_VARS_COPY"
