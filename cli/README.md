@@ -53,15 +53,5 @@ To use the CLI, you have the option to install it globally on your system. Here'
 Navigate to the project root and run the following command to build the CLI binary:
 
 ```bash
-make cli
+make install-cli
 ```
-
-### Install the CLI:
-
-After building the CLI binary, you can install it globally using the following command:
-
-```bash
-sudo cp build/cocos-cli /usr/local/bin/
-```
-
-This will make the agent-cli executable available from any location in your terminal.
