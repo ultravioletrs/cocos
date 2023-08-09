@@ -2,8 +2,11 @@ package manager
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -23,21 +26,21 @@ type Config struct {
 	HostGRPCPort     int    `env:"HOST_GRPC_PORT" envDefault:"7020"`
 	GuestGRPCPort    int    `env:"GUEST_GRPC_PORT" envDefault:"7002"`
 	EnableFileLog    bool   `env:"ENABLE_FILE_LOG" envDefault:"0"`
-	ExecQemuCmdLine  bool   `env:"EXEC_QEMU_CMDLINE" envDefault:"1"`
+	ExecQemuCmdLine  bool   `env:"EXEC_QEMU_CMDLINE" envDefault:"0"`
 }
 
-// func RunShellCommand(command string, args ...string) (string, error) {
-// 	cmd := exec.Command(command, args...)
+func RunShellCommandOutput(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
 
-// 	output, err := cmd.Output()
-// 	if err != nil {
-// 		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
-// 	}
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+	}
 
-// 	return string(output), nil
-// }
+	return string(output), nil
+}
 
-func RunShellCommand(command string, args ...string) (*exec.Cmd, error) {
+func RunShellCommandStart(command string, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(command, args...)
 
 	err := cmd.Start()
@@ -46,6 +49,52 @@ func RunShellCommand(command string, args ...string) (*exec.Cmd, error) {
 	}
 
 	return cmd, nil
+}
+
+func RunShellCommandWithCapture(command string, args ...string) (*os.File, error) {
+	tmpFile, err := os.CreateTemp("", "qemu-output-*.log")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary file: %s", err)
+	}
+	defer tmpFile.Close()
+
+	cmd := exec.Command(command, args...)
+
+	cmd.Stdout = io.MultiWriter(tmpFile, os.Stdout)
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+	}
+
+	return tmpFile, nil
+}
+
+func ReadTmpFileToString(tmpFile *os.File) (string, error) {
+	content, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		return "", fmt.Errorf("failed to read temporary file: %s", err)
+	}
+
+	return string(content), nil
+}
+
+func ExtractCommandAndArgs(output string) (string, []string) {
+	lines := strings.Split(output, "\n")
+	if len(lines) == 0 {
+		return "", nil
+	}
+
+	parts := strings.Fields(lines[0])
+	if len(parts) == 0 {
+		return "", nil
+	}
+
+	command := parts[0]
+	args := parts[1:]
+
+	return command, args
 }
 
 func ConstructQemuCommand(config Config) []string {

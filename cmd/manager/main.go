@@ -111,12 +111,32 @@ func main() {
 	}
 
 	args := manager.ConstructQemuCommand(qemuConfig)
-	fmt.Println(args)
+	// fmt.Println(args)
+
+	// script := "cmd/manager/script/launch-qemu.sh"
+	// _, err = manager.RunShellCommand(script, args...)
+	// if err != nil {
+	// 	logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
+	// }
 
 	script := "cmd/manager/script/launch-qemu.sh"
-	_, err = manager.RunShellCommand(script, args...)
+	tmpFile, err := manager.RunShellCommandWithCapture(script, args...)
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
+	}
+	output, err := manager.ReadTmpFileToString(tmpFile)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to read temporary file: %s", err))
+	}
+	os.Remove(tmpFile.Name())
+	tmpFile.Close()
+	// fmt.Println(output)
+
+	command, args := manager.ExtractCommandAndArgs(output)
+
+	_, err = manager.RunShellCommandStart(command, args...)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to read temporary file: %s", err))
 	}
 
 	//SVC

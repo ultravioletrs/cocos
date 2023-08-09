@@ -249,7 +249,6 @@ fi
 
  # Log the command line to the console
 cat "$QEMU_CMDLINE"
-echo
 
 #
 # Qemu cmd line execution
