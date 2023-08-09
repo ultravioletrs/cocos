@@ -132,7 +132,7 @@ func main() {
 	tmpFile.Close()
 	// fmt.Println(output)
 
-	command, args := manager.ExtractCommandAndArgs(output)
+	command, args := manager.ExtractCommandAndArgs(output, qemuConfig.Sudo)
 
 	_, err = manager.RunShellCommandStart(command, args...)
 	if err != nil {

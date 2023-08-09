@@ -27,6 +27,7 @@ type Config struct {
 	GuestGRPCPort    int    `env:"GUEST_GRPC_PORT" envDefault:"7002"`
 	EnableFileLog    bool   `env:"ENABLE_FILE_LOG" envDefault:"0"`
 	ExecQemuCmdLine  bool   `env:"EXEC_QEMU_CMDLINE" envDefault:"0"`
+	Sudo             bool   `env:"SUDO" envDefault:"0"`
 }
 
 func RunShellCommandOutput(command string, args ...string) (string, error) {
@@ -80,7 +81,7 @@ func ReadTmpFileToString(tmpFile *os.File) (string, error) {
 	return string(content), nil
 }
 
-func ExtractCommandAndArgs(output string) (string, []string) {
+func ExtractCommandAndArgs(output string, sudo bool) (string, []string) {
 	lines := strings.Split(output, "\n")
 	if len(lines) == 0 {
 		return "", nil
@@ -89,6 +90,10 @@ func ExtractCommandAndArgs(output string) (string, []string) {
 	parts := strings.Fields(lines[0])
 	if len(parts) == 0 {
 		return "", nil
+	}
+
+	if sudo {
+		parts = append([]string{"sudo"}, parts...)
 	}
 
 	command := parts[0]
