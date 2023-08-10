@@ -110,34 +110,19 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
-	args := manager.ConstructQemuCommand(qemuConfig)
-	// fmt.Println(args)
+	// Run the QEMU virtual machine
+	// qemuCmd, err := manager.RunQemuVM(qemuConfig, logger)
+	_, err = manager.RunQemuVM(qemuConfig, logger)
+	if err != nil {
+		log.Fatalf("Failed to run QEMU VM: %s", err)
+	}
 
-	// script := "cmd/manager/script/launch-qemu.sh"
-	// _, err = manager.RunShellCommand(script, args...)
+	// TODO: we can't wait here because it's blocking
+	// // Wait for the QEMU process to finish
+	// err = qemuCmd.Wait()
 	// if err != nil {
-	// 	logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
+	// 	log.Fatalf("QEMU process error: %s", err)
 	// }
-
-	script := "cmd/manager/script/launch-qemu.sh"
-	tmpFile, err := manager.RunShellCommandWithCapture(script, args...)
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to execute %s QEMU script: %s", script, err))
-	}
-	output, err := manager.ReadTmpFileToString(tmpFile)
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to read temporary file: %s", err))
-	}
-	os.Remove(tmpFile.Name())
-	tmpFile.Close()
-	// fmt.Println(output)
-
-	command, args := manager.ExtractCommandAndArgs(output, qemuConfig.Sudo)
-
-	_, err = manager.RunShellCommandStart(command, args...)
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to read temporary file: %s", err))
-	}
 
 	//SVC
 	svc := newService(libvirtConn, agentClient, logger, tracer)

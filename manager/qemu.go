@@ -1,13 +1,18 @@
 package manager
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/mainflux/mainflux/logger"
 )
+
+const script = "cmd/manager/script/launch-qemu.sh"
 
 type Config struct {
 	HDAFile          string `env:"HDA_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
@@ -30,79 +35,28 @@ type Config struct {
 	Sudo             bool   `env:"SUDO" envDefault:"0"`
 }
 
-func RunShellCommandOutput(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+// RunQemuVM runs a QEMU virtual machine: constructs the QEMU command line arguments by executing the launch-qemu.sh,
+// extracts the QEMU command and its arguments, and starts the QEMU process
+func RunQemuVM(qemuConfig Config, logger logger.Logger) (*exec.Cmd, error) {
+	args := constructQemuCmd(qemuConfig)
 
-	output, err := cmd.Output()
+	output, err := ExeShCmdStdout(script, args...)
 	if err != nil {
-		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+		return nil, err
 	}
 
-	return string(output), nil
-}
-
-func RunShellCommandStart(command string, args ...string) (*exec.Cmd, error) {
-	cmd := exec.Command(command, args...)
-
-	err := cmd.Start()
+	command, args := ExtractCmdAndArgs(output, qemuConfig.Sudo)
+	cmd, err := RunCmdStart(command, args...)
 	if err != nil {
-		return nil, fmt.Errorf("error starting command '%s': %s", cmd.String(), err)
+		return nil, err
 	}
 
 	return cmd, nil
 }
 
-func RunShellCommandWithCapture(command string, args ...string) (*os.File, error) {
-	tmpFile, err := os.CreateTemp("", "qemu-output-*.log")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary file: %s", err)
-	}
-	defer tmpFile.Close()
-
-	cmd := exec.Command(command, args...)
-
-	cmd.Stdout = io.MultiWriter(tmpFile, os.Stdout)
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
-	if err != nil {
-		return nil, fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
-	}
-
-	return tmpFile, nil
-}
-
-func ReadTmpFileToString(tmpFile *os.File) (string, error) {
-	content, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		return "", fmt.Errorf("failed to read temporary file: %s", err)
-	}
-
-	return string(content), nil
-}
-
-func ExtractCommandAndArgs(output string, sudo bool) (string, []string) {
-	lines := strings.Split(output, "\n")
-	if len(lines) == 0 {
-		return "", nil
-	}
-
-	parts := strings.Fields(lines[0])
-	if len(parts) == 0 {
-		return "", nil
-	}
-
-	if sudo {
-		parts = append([]string{"sudo"}, parts...)
-	}
-
-	command := parts[0]
-	args := parts[1:]
-
-	return command, args
-}
-
-func ConstructQemuCommand(config Config) []string {
+// constructQemuCmd constructs the command line arguments for executing the launch-qemu.sh script,
+// which in turn provides the QEMU command to run
+func constructQemuCmd(config Config) []string {
 	args := []string{
 		"-hda", config.HDAFile,
 		"-mem", strconv.Itoa(config.GuestSizeInMB),
@@ -169,4 +123,68 @@ func ConstructQemuCommand(config Config) []string {
 	}
 
 	return args
+}
+
+// ExeShCmdStdout executes a shell command capturing the standard output
+func ExeShCmdStdout(command string, args ...string) (string, error) {
+	var stdoutBuf, stderrBuf bytes.Buffer
+
+	cmd := exec.Command(command, args...)
+
+	// Capture stdout and stderr using buffers
+	cmd.Stdout = io.MultiWriter(&stdoutBuf, os.Stdout)
+	cmd.Stderr = io.MultiWriter(&stderrBuf, os.Stderr)
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+	}
+
+	return stdoutBuf.String(), nil
+}
+
+// ExtractCmdAndArgs extracts the command and its arguments from the output string
+func ExtractCmdAndArgs(cmdLine string, sudo bool) (string, []string) {
+	lines := strings.Split(cmdLine, "\n")
+	if len(lines) == 0 {
+		return "", nil
+	}
+
+	parts := strings.Fields(lines[0])
+	if len(parts) == 0 {
+		return "", nil
+	}
+
+	if sudo {
+		parts = append([]string{"sudo"}, parts...)
+	}
+
+	cmd := parts[0]
+	args := parts[1:]
+
+	return cmd, args
+}
+
+// RunCmdOutput runs the specified command and returns its standard output as a string
+func RunCmdOutput(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error executing command '%s': %s", cmd.String(), err)
+	}
+
+	return string(output), nil
+}
+
+// RunCmdStart starts the specified command and returns the *exec.Cmd for the running process
+func RunCmdStart(command string, args ...string) (*exec.Cmd, error) {
+	cmd := exec.Command(command, args...)
+
+	err := cmd.Start()
+	if err != nil {
+		return nil, fmt.Errorf("error starting command '%s': %s", cmd.String(), err)
+	}
+
+	return cmd, nil
 }
