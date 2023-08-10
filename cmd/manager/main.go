@@ -111,7 +111,6 @@ func main() {
 	}
 
 	// Run the QEMU virtual machine
-	// qemuCmd, err := manager.RunQemuVM(qemuConfig, logger)
 	_, err = manager.RunQemuVM(qemuConfig, logger)
 	if err != nil {
 		log.Fatalf("Failed to run QEMU VM: %s", err)
