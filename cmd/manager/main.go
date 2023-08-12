@@ -30,6 +30,7 @@ import (
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/manager/manager/api/http"
+	"github.com/ultravioletrs/manager/manager/qemu"
 	"github.com/ultravioletrs/manager/manager/tracing"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -105,13 +106,13 @@ func main() {
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
 	// QEMU
-	qemuConfig := manager.Config{}
+	qemuConfig := qemu.Config{}
 	if err := env.Parse(&qemuConfig, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
 	// Run the QEMU virtual machine
-	_, err = manager.RunQemuVM(qemuConfig, logger)
+	_, err = qemu.RunQemuVM(qemuConfig, logger)
 	if err != nil {
 		log.Fatalf("Failed to run QEMU VM: %s", err)
 	}
