@@ -15,11 +15,16 @@ func RunQemuVM(cfg Config, logger logger.Logger) (*exec.Cmd, error) {
 	prg := "/usr/bin/qemu-system-x86_64"
 	args := constructQemuCmd(cfg)
 
-	cmdLine := fmt.Sprintf("%s %s", prg, strings.Join(args, " "))
-	fmt.Println(cmdLine)
+	if cfg.UseSudo {
+		args = append([]string{prg}, args...)
+		prg = "sudo"
+	}
+
+	logger.Info(fmt.Sprintf("%s %s", prg, strings.Join(args, " ")))
 
 	cmd, err := internal.RunCmdStart(prg, args...)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to run qemu command: %v", err))
 		return nil, err
 	}
 

@@ -24,7 +24,6 @@ type OVMFVarsConfig struct {
 }
 
 type NetDevConfig struct {
-	Type      string `env:"NETDEV_TYPE" envDefault:"user"`
 	ID        string `env:"NETDEV_ID" envDefault:"vmnic"`
 	HostFwd1  string `env:"HOST_FWD_1" envDefault:"2222"`
 	GuestFwd1 string `env:"GUEST_FWD_1" envDefault:"22"`
@@ -35,29 +34,22 @@ type NetDevConfig struct {
 }
 
 type VirtioNetPciConfig struct {
-	Type          string `env:"VIRTIO_NET_PCI_TYPE" envDefault:"virtio-net-pci"`
 	DisableLegacy string `env:"VIRTIO_NET_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_NET_PCI_IOMMU_PLATFORM" envDefault:"true"`
-	NetDev        string `env:"VIRTIO_NET_PCI_NETDEV" envDefault:"vmnic"`
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
-type DiskDriveConfig struct {
-	File   string `env:"DISK_DRIVE_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
-	If     string `env:"DISK_DRIVE_IF" envDefault:"none"`
-	ID     string `env:"DISK_DRIVE_ID" envDefault:"disk0"`
-	Format string `env:"DISK_DRIVE_FORMAT" envDefault:"qcow2"`
+type DiskImgConfig struct {
+	File   string `env:"DISK_IMG_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
+	If     string `env:"DISK_IMG_IF" envDefault:"none"`
+	ID     string `env:"DISK_IMG_ID" envDefault:"disk0"`
+	Format string `env:"DISK_IMG_FORMAT" envDefault:"qcow2"`
 }
 
 type VirtioScsiPciConfig struct {
-	Type          string `env:"VIRTIO_SCSI_PCI_TYPE" envDefault:"virtio-scsi-pci"`
 	ID            string `env:"VIRTIO_SCSI_PCI_ID" envDefault:"scsi"`
 	DisableLegacy string `env:"VIRTIO_SCSI_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_SCSI_PCI_IOMMU_PLATFORM" envDefault:"true"`
-}
-
-type ScsiHdConfig struct {
-	Drive string `env:"SCSI_HD_DRIVE" envDefault:"disk0"`
 }
 
 type SevConfig struct {
@@ -71,50 +63,54 @@ type MemoryEncryptionConfig struct {
 }
 
 type Config struct {
+	UseSudo   bool `env:"USE_SUDO" envDevault:"false"`
+	EnableSEV bool `env:"ENABLE_SEV" envDefault:"true"`
+
+	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
+
+	// machine, CPU, RAM
 	Machine  string `env:"MACHINE" envDefault:"q35"`
 	CPU      string `env:"CPU" envDefault:"EPYC"`
 	SmpCount int    `env:"SMP_COUNT" envDefault:"4"`
 	MaxCpus  int    `env:"SMP_MAXCPUS" envDefault:"64"`
-
-	Monitor   string `env:"MONITOR" envDefault:"pty"`
-	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
-
-	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
-	EnableSEV bool `env:"ENABLE_SEV" envDefault:"true"`
-
 	MemoryConfig
 
+	// OVMF
 	OVMFCodeConfig
 	OVMFVarsConfig
 
+	// network
 	NetDevConfig
-	DiskDriveConfig
 	VirtioNetPciConfig
+
+	// disk
 	VirtioScsiPciConfig
-	ScsiHdConfig
+	DiskImgConfig
+
+	// SEV
 	SevConfig
 	MemoryEncryptionConfig
+
+	// display
+	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
+	Monitor   string `env:"MONITOR" envDefault:"pty"`
 }
 
 func constructQemuCmd(config Config) []string {
 	args := []string{}
 
+	// virtualization
 	if config.EnableKVM {
 		args = append(args, "-enable-kvm")
 	}
 
-	if config.NoGraphic {
-		args = append(args, "-nographic")
+	// machine, CPU, RAM
+	if config.Machine != "" {
+		args = append(args, "-machine", config.Machine)
 	}
-
-	args = append(args, "-monitor", config.Monitor)
 
 	if config.CPU != "" {
 		args = append(args, "-cpu", config.CPU)
-	}
-
-	if config.Machine != "" {
-		args = append(args, "-machine", config.Machine)
 	}
 
 	args = append(args, "-smp", fmt.Sprintf("%d,maxcpus=%d", config.SmpCount, config.MaxCpus))
@@ -124,6 +120,7 @@ func constructQemuCmd(config Config) []string {
 		config.MemoryConfig.Slots,
 		config.MemoryConfig.Max))
 
+	// OVMF
 	args = append(args, "-drive",
 		fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s,readonly=%s",
 			config.OVMFCodeConfig.If,
@@ -139,6 +136,24 @@ func constructQemuCmd(config Config) []string {
 			config.OVMFVarsConfig.Unit,
 			config.OVMFVarsConfig.File))
 
+	// disk
+	args = append(args, "-device",
+		fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=%s,iommu_platform=%t",
+			config.VirtioScsiPciConfig.ID,
+			config.VirtioScsiPciConfig.DisableLegacy,
+			config.VirtioScsiPciConfig.IOMMUPlatform))
+
+	args = append(args, "-drive",
+		fmt.Sprintf("file=%s,if=%s,id=%s,format=%s",
+			config.DiskImgConfig.File,
+			config.DiskImgConfig.If,
+			config.DiskImgConfig.ID,
+			config.DiskImgConfig.Format))
+
+	args = append(args, "-device",
+		fmt.Sprintf("scsi-hd,drive=%s", config.DiskImgConfig.ID))
+
+	// network
 	args = append(args, "-netdev",
 		fmt.Sprintf("user,id=%s,hostfwd=tcp::%s-:%s,hostfwd=tcp::%s-:%s,hostfwd=tcp::%s-:%s",
 			config.NetDevConfig.ID,
@@ -147,30 +162,13 @@ func constructQemuCmd(config Config) []string {
 			config.NetDevConfig.HostFwd3, config.NetDevConfig.GuestFwd3))
 
 	args = append(args, "-device",
-		fmt.Sprintf("%s,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",
-			config.VirtioNetPciConfig.Type,
+		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",
 			config.VirtioNetPciConfig.DisableLegacy,
 			config.VirtioNetPciConfig.IOMMUPlatform,
-			config.VirtioNetPciConfig.NetDev,
+			config.NetDevConfig.ID,
 			config.VirtioNetPciConfig.ROMFile))
 
-	args = append(args, "-drive",
-		fmt.Sprintf("file=%s,if=%s,id=%s,format=%s",
-			config.DiskDriveConfig.File,
-			config.DiskDriveConfig.If,
-			config.DiskDriveConfig.ID,
-			config.DiskDriveConfig.Format))
-
-	args = append(args, "-device",
-		fmt.Sprintf("%s,id=%s,disable-legacy=%s,iommu_platform=%t",
-			config.VirtioScsiPciConfig.Type,
-			config.VirtioScsiPciConfig.ID,
-			config.VirtioScsiPciConfig.DisableLegacy,
-			config.VirtioScsiPciConfig.IOMMUPlatform))
-
-	args = append(args, "-device",
-		fmt.Sprintf("scsi-hd,drive=%s", config.ScsiHdConfig.Drive))
-
+	// SEV
 	if config.EnableSEV {
 		args = append(args, "-object",
 			fmt.Sprintf("sev-guest,id=%s,cbitpos=%d,reduced-phys-bits=%d",
@@ -181,6 +179,13 @@ func constructQemuCmd(config Config) []string {
 		args = append(args, "-machine",
 			fmt.Sprintf("memory-encryption=%s", config.MemoryEncryptionConfig.SEV0))
 	}
+
+	// display
+	if config.NoGraphic {
+		args = append(args, "-nographic")
+	}
+
+	args = append(args, "-monitor", config.Monitor)
 
 	return args
 
