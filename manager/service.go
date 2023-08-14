@@ -33,18 +33,25 @@ type Service interface {
 	Run(ctx context.Context, computation []byte) (string, error)
 }
 
+type qemuCmd struct {
+	exe  string   // The path to the QEMU executable
+	args []string // List of arguments for the QEMU command
+}
+
 type managerService struct {
 	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
+	qemuCmd qemuCmd
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, exe string, args []string) Service {
 	return &managerService{
 		libvirt: libvirtConn,
 		agent:   agent,
+		qemuCmd: qemuCmd{exe: exe, args: args},
 	}
 }
 
