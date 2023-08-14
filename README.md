@@ -2,26 +2,56 @@
 
 ## Setup
 
-### Libvirt
+```sh
+git clone https://github.com/ultravioletrs/manager
+cd manager
+```
+
+NB: all relative paths in this document are relative to `manager` repository directory.
+
+### QEMU-KVM
+
+[QEMU-KVM](https://www.qemu.org/) is a virtualization platform that allows you to run multiple operating systems on the same physical machine. It is a combination of two technologies: QEMU and KVM.
+
+- QEMU is an emulator that can run a variety of operating systems, including Linux, Windows, and macOS.
+- [KVM](https://wiki.qemu.org/Features/KVM) is a Linux kernel module that allows QEMU to run virtual machines.
+
+To install QEMU-KVM on a Debian based machine, run
 
 ```sh
 sudo apt update
-sudo apt install qemu-kvm libvirt-daemon-system
+sudo apt install qemu-kvm
 ```
 
-After installing `libvirt-daemon-system`, the user that will be used to manage virtual machines needs to be added to the `libvirt` group. This is done automatically for members of the sudo group, otherwise
+Create `img` directory in `cmd/manager`.
+
+### focal-server-cloudimg-amd64.img
+
+First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
 
 ```sh
-sudo adduser $USER libvirt
+cd cmd/manager/img
+wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+# focal-server-cloudimg-amd64 comes without the root password.
+sudo apt-get install libguestfs-tools
+sudo virt-customize -a focal-server-cloudimg-amd64.img --root-password password:coolpass
 ```
 
-### CD iso & hard drive img for virtual machine (VM)
+### OVMF
 
-Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-virt-3.18.0-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso) in `cmd/manager/iso` directory:
+We need [Open Virtual Machine Firmware](https://wiki.ubuntu.com/UEFI/OVMF). OVMF is a port of Intel's tianocore firmware - an open source implementation of the Unified Extensible Firmware Interface (UEFI) - to the qemu virtual machine. We need OVMF in order to run virtual machine with *focal-server-cloudimg-amd64*. When we install QEMU, we get two files that we need to start a VM: `OVMF_VARS.fd` and `OVMF_CODE.fd`. We will make a local copy of `OVMF_VARS.fd` since a VM will modify this file. On the other hand, `OVMF_CODE.fd` is only used as a reference, so we only record its path in an environment variable.
 
 ```sh
-cd cmd/manager/iso
-wget https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso
+cd cmd/manager/img
+
+sudo find / -name OVMF_CODE.fd
+# => /usr/share/OVMF/OVMF_CODE.fd
+MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
+
+sudo find / -name OVMF_VARS.fd
+# => /usr/share/OVMF/OVMF_VARS.fd
+cp /usr/share/OVMF/OVMF_VARS.fd .
+MANAGER_QEMU_OVMF_VARS_FILE=img/OVMF_VARS.fd
 ```
 
 ## Run
@@ -29,46 +59,35 @@ wget https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.1
 We need to run `manager` in the directory where `img`, `iso` and `xml` directories are. `cd` to `cmd/manager` and run
 
 ```sh
-MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 go run main.go
+cd cmd/manager
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false go run main.go
 ```
 
-This will start an HTTP server on port `9021`, a gRPC server on port `7001` and will establish a connection to [libvirtd](https://libvirt.org/manpages/libvirtd.html).
-
-## Domain 
-
-### Domain creation
-To create a `libvirt` domain - basically a QEMU instance or a virtual machine (VM) - run
+To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"<path/to/pool.xml>", "volume":"<path/to/vol.xml>", "domain":"<path/to/dom.xml>"}'
+cd cmd/manager
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=true MANAGER_QEMU_ENABLE_SEV=true MANAGER_QEMU_SEV_CBITPOS=51 go run main.go
 ```
 
-You can also use configuration `.xml` files in `cmd/manager/xml`. You can either specify a path to the files on your computer, or you can just leave the `pool`, `volume` and `domain` fields of the request body empty, like this
+Manager will start an HTTP server on port `9021`, and a gRPC server on port `7001`.
+
+To check whether the manager launched the VM successfully, run
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"", "volume":"", "domain":""}'
+ps aux | grep qemu-system-x86_64
 ```
 
-### Domain destruction
-
-Normally, you don't need to do anything manually. However, if need be, if you have already created a domain, you can remove it with
-
-```sh
-virsh undefine QEmu-alpine-standard-x86_64; \
-virsh shutdown QEmu-alpine-standard-x86_64; \
-virsh destroy QEmu-alpine-standard-x86_64; \
-rm -rf ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img; \
-virsh pool-destroy --pool virtimages
+You should get something similar to this
+```
+darko     324763 95.3  6.0 6398136 981044 ?      Sl   16:17   0:15 /usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty
 ```
 
-This will destroy the domain together with volumes and a pool where the volume was logically stored. It is not necessary to remove a domain, since the manager will reuse the existing VM.
+If you run a command as `sudo`, you should get the output similar to this one
 
-### Domain management
-
-```sh
-sudo apt-get install virt-manager
+```
+root       37982  0.0  0.0   9444  4572 pts/0    S+   16:18   0:00 sudo /usr/local/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -object sev-guest,id=sev0,cbitpos=51,reduced-phys-bits=1 -machine memory-encryption=sev0 -nographic -monitor pty
+root       37989  122 13.1 5345816 4252312 pts/0 Sl+  16:19   0:04 /usr/local/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -object sev-guest,id=sev0,cbitpos=51,reduced-phys-bits=1 -machine memory-encryption=sev0 -nographic -monitor pty
 ```
 
-Start virtual manager. Open `QEmu-alpine-standard-x86_64` virtual machine. Log in as root, no password needed, and follow instructions to install and set up Alpine Linux on virtual drive. Basically, you need to run `setup-alpine` script. Use `vda` as a virtual disk drive and `sys` to install Alpine Linux on the virtual disk drive.
-
-Once you have installed and set up Alpine Linux, follow the instructions in `Agent` [README.md](https://github.com/ultravioletrs/agent) in order to see how to set up `Cocos.ai` `Agent` in the virtual machine.
+The two processes are due to the fact that we run the command `/usr/bin/qemu-system-x86_64` as `sudo`, so there is one process for `sudo` command and the other for `/usr/bin/qemu-system-x86_64`.

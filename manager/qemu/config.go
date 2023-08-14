@@ -20,7 +20,7 @@ type OVMFVarsConfig struct {
 	If     string `env:"OVMF_VARS_IF" envDefault:"pflash"`
 	Format string `env:"OVMF_VARS_FORMAT" envDefault:"raw"`
 	Unit   int    `env:"OVMF_VARS_UNIT" envDefault:"1"`
-	File   string `env:"OVMF_VARS_FILE" envDefault:"cmd/manager/img/OVMF_VARS.fd"`
+	File   string `env:"OVMF_VARS_FILE" envDefault:"img/OVMF_VARS.fd"`
 }
 
 type NetDevConfig struct {
@@ -40,7 +40,7 @@ type VirtioNetPciConfig struct {
 }
 
 type DiskImgConfig struct {
-	File   string `env:"DISK_IMG_FILE" envDefault:"cmd/manager/img/focal-server-cloudimg-amd64.qcow2"`
+	File   string `env:"DISK_IMG_FILE" envDefault:"img/focal-server-cloudimg-amd64.img"`
 	If     string `env:"DISK_IMG_IF" envDefault:"none"`
 	ID     string `env:"DISK_IMG_ID" envDefault:"disk0"`
 	Format string `env:"DISK_IMG_FORMAT" envDefault:"qcow2"`
