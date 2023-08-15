@@ -3,7 +3,7 @@ package qemu
 import "fmt"
 
 type MemoryConfig struct {
-	Size  string `env:"MEMORY_SIZE" envDefault:"4096M"`
+	Size  string `env:"MEMORY_SIZE" envDefault:"2048M"`
 	Slots int    `env:"MEMORY_SLOTS" envDefault:"5"`
 	Max   string `env:"MAX_MEMORY" envDefault:"30G"`
 }
@@ -58,10 +58,6 @@ type SevConfig struct {
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
 }
 
-type MemoryEncryptionConfig struct {
-	SEV0 string `env:"MEMORY_ENCRYPTION_SEV0" envDefault:"sev0"`
-}
-
 type Config struct {
 	UseSudo   bool `env:"USE_SUDO" envDevault:"false"`
 	EnableSEV bool `env:"ENABLE_SEV" envDefault:"true"`
@@ -89,7 +85,6 @@ type Config struct {
 
 	// SEV
 	SevConfig
-	MemoryEncryptionConfig
 
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
@@ -177,7 +172,7 @@ func constructQemuArgs(config Config) []string {
 				config.SevConfig.ReducedPhysBits))
 
 		args = append(args, "-machine",
-			fmt.Sprintf("memory-encryption=%s", config.MemoryEncryptionConfig.SEV0))
+			fmt.Sprintf("memory-encryption=%s", config.SevConfig.ID))
 	}
 
 	// display

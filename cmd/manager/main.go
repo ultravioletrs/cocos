@@ -13,7 +13,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
@@ -112,14 +111,14 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
-	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to generate executable and arguments: %v", err))
-	}
-	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+	// exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	// if err != nil {
+	// 	logger.Fatal(fmt.Sprintf("failed to generate executable and arguments: %v", err))
+	// }
+	// logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
 	//SVC
-	svc := newService(libvirtConn, agentClient, logger, tracer, exe, args)
+	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -154,8 +153,8 @@ func main() {
 	}
 }
 
-func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, exe string, args []string) manager.Service {
-	svc := manager.New(libvirtConn, agent, exe, args)
+func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
+	svc := manager.New(libvirtConn, agent, qemuCfg)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

@@ -6,6 +6,7 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/manager/manager/qemu"
+
+	"github.com/gofrs/uuid"
 )
 
 var (
@@ -36,25 +39,20 @@ type Service interface {
 	Run(ctx context.Context, computation []byte) (string, error)
 }
 
-type qemuCmd struct {
-	exe  string   // The path to the QEMU executable
-	args []string // List of arguments for the QEMU command
-}
-
 type managerService struct {
 	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
-	qemuCmd qemuCmd
+	qemuCfg qemu.Config
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, exe string, args []string) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, qemuCfg qemu.Config) Service {
 	return &managerService{
 		libvirt: libvirtConn,
 		agent:   agent,
-		qemuCmd: qemuCmd{exe: exe, args: args},
+		qemuCfg: qemuCfg,
 	}
 }
 
@@ -91,7 +89,22 @@ func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volX
 }
 
 func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
-	cmd, err := qemu.RunQemuVM(ms.qemuCmd.exe, ms.qemuCmd.args)
+	id, err := uuid.NewV4()
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg := ms.qemuCfg
+	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
+	qemuCfg.DiskImgConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.DiskImgConfig.ID, id)
+	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
+	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
+
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+
+	cmd, err := qemu.RunQemuVM(exe, args)
 	if err != nil {
 		return cmd, err
 	}
