@@ -56,7 +56,7 @@ MANAGER_QEMU_OVMF_VARS_FILE=img/OVMF_VARS.fd
 
 ## Run
 
-We need to run `manager` in the directory where `img`, `iso` and `xml` directories are. `cd` to `cmd/manager` and run
+We need to run `manager` in the directory containing `img` directory:
 
 ```sh
 cd cmd/manager
@@ -115,3 +115,22 @@ You can run the command - the value of the `"message"` key - directly in the ter
 ```
 
 and look for the possible problems. This problems can usually be solved by using the adequate env var assignments. Look in the `manager/qemu/config.go` file to see the recognized env vars. Don't forget to prepend `MANAGER_QEMU_` to the name of the env vars.
+
+#### Ports in use
+
+The [NetDevConfig struct](manager/qemu/config.go) defines the network configuration for a virtual machine. The HostFwd* and GuestFwd* fields specify the host and guest ports that are forwarded between the virtual machine and the host machine. By default, these ports are allocated 2222, 9301, and 7020 for HostFwd1, HostFwd2, and HostFwd3, respectively, and 22, 9031, and 7002 for GuestFwd1, GuestFwd2, and GuestFwd3, respectively. However, if these ports are in use, you can configure your own ports by setting the corresponding environment variables. For example, to set the HostFwd1 port to 8080, you would set the MANAGER_QEMU_HOST_FWD_1 environment variable to 8080. For example,
+
+```sh
+export MANAGER_LOG_LEVEL=info
+export MANAGER_AGENT_GRPC_URL=192.168.122.251:7002
+export MANAGER_QEMU_USE_SUDO=false
+export MANAGER_QEMU_ENABLE_SEV=false
+export MANAGER_QEMU_HOST_FWD_1=8080
+export MANAGER_QEMU_GUEST_FWD_1=22
+export MANAGER_QEMU_HOST_FWD_2=9301
+export MANAGER_QEMU_GUEST_FWD_2=9031
+export MANAGER_QEMU_HOST_FWD_3=7020
+export MANAGER_QEMU_GUEST_FWD_3=7002
+
+go run main.go
+```
