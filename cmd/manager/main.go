@@ -111,12 +111,6 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
-	// exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
-	// if err != nil {
-	// 	logger.Fatal(fmt.Sprintf("failed to generate executable and arguments: %v", err))
-	// }
-	// logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
-
 	//SVC
 	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
 
@@ -150,6 +144,11 @@ func main() {
 
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
+	}
+
+	err = internal.DeleteFilesInDir("tmp/")
+	if err != nil {
+		logger.Error(fmt.Sprintf("%s", err))
 	}
 }
 

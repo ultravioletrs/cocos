@@ -20,17 +20,17 @@ type OVMFVarsConfig struct {
 	If     string `env:"OVMF_VARS_IF" envDefault:"pflash"`
 	Format string `env:"OVMF_VARS_FORMAT" envDefault:"raw"`
 	Unit   int    `env:"OVMF_VARS_UNIT" envDefault:"1"`
-	File   string `env:"OVMF_VARS_FILE" envDefault:"img/OVMF_VARS.fd"`
+	File   string `env:"OVMF_VARS_FILE" envDefault:"/usr/share/OVMF/OVMF_VARS.fd"`
 }
 
 type NetDevConfig struct {
 	ID        string `env:"NETDEV_ID" envDefault:"vmnic"`
-	HostFwd1  string `env:"HOST_FWD_1" envDefault:"2222"`
-	GuestFwd1 string `env:"GUEST_FWD_1" envDefault:"22"`
-	HostFwd2  string `env:"HOST_FWD_2" envDefault:"9301"`
-	GuestFwd2 string `env:"GUEST_FWD_2" envDefault:"9031"`
-	HostFwd3  string `env:"HOST_FWD_3" envDefault:"7020"`
-	GuestFwd3 string `env:"GUEST_FWD_3" envDefault:"7002"`
+	HostFwd1  int    `env:"HOST_FWD_1" envDefault:"2222"`
+	GuestFwd1 int    `env:"GUEST_FWD_1" envDefault:"22"`
+	HostFwd2  int    `env:"HOST_FWD_2" envDefault:"9301"`
+	GuestFwd2 int    `env:"GUEST_FWD_2" envDefault:"9031"`
+	HostFwd3  int    `env:"HOST_FWD_3" envDefault:"7020"`
+	GuestFwd3 int    `env:"GUEST_FWD_3" envDefault:"7002"`
 }
 
 type VirtioNetPciConfig struct {
@@ -150,7 +150,7 @@ func constructQemuArgs(config Config) []string {
 
 	// network
 	args = append(args, "-netdev",
-		fmt.Sprintf("user,id=%s,hostfwd=tcp::%s-:%s,hostfwd=tcp::%s-:%s,hostfwd=tcp::%s-:%s",
+		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d,hostfwd=tcp::%d-:%d,hostfwd=tcp::%d-:%d",
 			config.NetDevConfig.ID,
 			config.NetDevConfig.HostFwd1, config.NetDevConfig.GuestFwd1,
 			config.NetDevConfig.HostFwd2, config.NetDevConfig.GuestFwd2,

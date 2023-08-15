@@ -23,7 +23,7 @@ sudo apt update
 sudo apt install qemu-kvm
 ```
 
-Create `img` directory in `cmd/manager`.
+Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
 ### focal-server-cloudimg-amd64.img
 
@@ -50,8 +50,7 @@ MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
 
 sudo find / -name OVMF_VARS.fd
 # => /usr/share/OVMF/OVMF_VARS.fd
-cp /usr/share/OVMF/OVMF_VARS.fd .
-MANAGER_QEMU_OVMF_VARS_FILE=img/OVMF_VARS.fd
+MANAGER_QEMU_OVMF_VARS_FILE=/usr/share/OVMF/OVMF_VARS.fd
 ```
 
 ## Run
@@ -74,9 +73,13 @@ Manager will start an HTTP server on port `9021`, and a gRPC server on port `700
 
 ### Create QEMU virtual machine (VM)
 
+To create an instance of VM, run
+
 ```sh
 curl -sSi -X GET http://localhost:9021/qemu
 ```
+
+You should be able to create multiple instances by reruning the command. 
 
 ### Verifying VM launch
 

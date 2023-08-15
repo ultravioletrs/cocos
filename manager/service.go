@@ -13,10 +13,14 @@ import (
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/manager/internal"
 	"github.com/ultravioletrs/manager/manager/qemu"
 
 	"github.com/gofrs/uuid"
 )
+
+const firmwareVars = "OVMF_VARS"
+const qcow2Img = "focal-server-cloudimg-amd64"
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -89,6 +93,7 @@ func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volX
 }
 
 func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
+	// create unique emu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
 		return &exec.Cmd{}, err
@@ -99,15 +104,38 @@ func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
 	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
+	// copy firmware vars file
+	srcFile := qemuCfg.OVMFVarsConfig.File
+	dstFile := fmt.Sprintf("tmp/%s-%s.fd", firmwareVars, id)
+	err = internal.CopyFile(srcFile, dstFile)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg.OVMFVarsConfig.File = dstFile
+
+	// copy qcow2 img file
+	srcFile = qemuCfg.DiskImgConfig.File
+	dstFile = fmt.Sprintf("tmp/%s-%s.img", qcow2Img, id)
+	err = internal.CopyFile(srcFile, dstFile)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg.DiskImgConfig.File = dstFile
+
 	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
-
 	cmd, err := qemu.RunQemuVM(exe, args)
 	if err != nil {
 		return cmd, err
 	}
+
+	// different VM guests can't forward ports to the same ports on the same host
+	ms.qemuCfg.NetDevConfig.HostFwd1++
+	ms.qemuCfg.NetDevConfig.HostFwd2++
+	ms.qemuCfg.NetDevConfig.HostFwd3++
+
 	return cmd, nil
 }
 
