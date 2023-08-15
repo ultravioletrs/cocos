@@ -1,20 +1,17 @@
 package qemu
 
 import (
-	"fmt"
 	"os/exec"
 
-	"github.com/mainflux/mainflux/logger"
 	"github.com/ultravioletrs/manager/internal"
 )
 
 const qemuRelPath = "qemu-system-x86_64"
 
 // RunQemuVM runs a QEMU virtual machine: constructs the QEMU command line and starts the QEMU process
-func RunQemuVM(exe string, args []string, logger logger.Logger) (*exec.Cmd, error) {
+func RunQemuVM(exe string, args []string) (*exec.Cmd, error) {
 	cmd, err := internal.RunCmdStart(exe, args...)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to run qemu command: %v", err))
 		return nil, err
 	}
 

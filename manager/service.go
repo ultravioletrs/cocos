@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/manager/manager/qemu"
 )
 
 var (
@@ -26,36 +28,29 @@ var (
 	ErrNotFound = errors.New("entity not found")
 )
 
-// Service specifies an API that must be fullfiled by the domain service
+// Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	CreateDomain(ctx context.Context, pool, volume, domain string) (string, error)
+	CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (string, error)
+	CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error)
 	Run(ctx context.Context, computation []byte) (string, error)
 }
-
-type qemuCmd struct {
-	exe  string   // The path to the QEMU executable
-	args []string // List of arguments for the QEMU command
-}
-
 type managerService struct {
 	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
-	qemuCmd qemuCmd
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, exe string, args []string) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient) Service {
 	return &managerService{
 		libvirt: libvirtConn,
 		agent:   agent,
-		qemuCmd: qemuCmd{exe: exe, args: args},
 	}
 }
 
-func (ms *managerService) CreateDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
+func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -85,6 +80,14 @@ func (ms *managerService) CreateDomain(ctx context.Context, poolXML, volXML, dom
 	}
 
 	return dom.Name, nil
+}
+
+func (ms *managerService) CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error) {
+	cmd, err := qemu.RunQemuVM(exe, args)
+	if err != nil {
+		return cmd, err
+	}
+	return cmd, nil
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {

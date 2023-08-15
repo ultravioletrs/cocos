@@ -15,7 +15,7 @@ func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 			return createDomainRes{}, err
 		}
 
-		name, err := svc.CreateDomain(ctx, req.Pool, req.Volume, req.Domain)
+		name, err := svc.CreateLibvirtDomain(ctx, req.Pool, req.Volume, req.Domain)
 		if err != nil {
 			return createDomainRes{}, err
 		}

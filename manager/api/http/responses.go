@@ -10,23 +10,40 @@ import (
 )
 
 var (
-	_ mainflux.Response = (*createDomainRes)(nil)
+	_ mainflux.Response = (*createLibvirtDomainRes)(nil)
 	_ mainflux.Response = (*runRes)(nil)
 )
 
-type createDomainRes struct {
+type createLibvirtDomainRes struct {
 	Name string `json:"name"`
 }
 
-func (res createDomainRes) Code() int {
+func (res createLibvirtDomainRes) Code() int {
 	return http.StatusOK
 }
 
-func (res createDomainRes) Headers() map[string]string {
+func (res createLibvirtDomainRes) Headers() map[string]string {
 	return map[string]string{}
 }
 
-func (res createDomainRes) Empty() bool {
+func (res createLibvirtDomainRes) Empty() bool {
+	return false
+}
+
+type createQemuVMRes struct {
+	Path string `json:"path"`
+	Args string `json:"args"`
+}
+
+func (res createQemuVMRes) Code() int {
+	return http.StatusOK
+}
+
+func (res createQemuVMRes) Headers() map[string]string {
+	return map[string]string{}
+}
+
+func (res createQemuVMRes) Empty() bool {
 	return false
 }
 

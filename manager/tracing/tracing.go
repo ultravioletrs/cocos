@@ -2,6 +2,7 @@ package tracing
 
 import (
 	"context"
+	"os/exec"
 
 	"github.com/ultravioletrs/manager/manager"
 	"go.opentelemetry.io/otel/attribute"
@@ -20,7 +21,7 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) CreateDomain(ctx context.Context, pool, volume, domain string) (string, error) {
+func (tm *tracingMiddleware) CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (string, error) {
 	ctx, span := tm.tracer.Start(ctx, "create", trace.WithAttributes(
 		attribute.String("name", pool),
 		attribute.String("volume", volume),
@@ -28,7 +29,14 @@ func (tm *tracingMiddleware) CreateDomain(ctx context.Context, pool, volume, dom
 	))
 	defer span.End()
 
-	return tm.svc.CreateDomain(ctx, pool, volume, domain)
+	return tm.svc.CreateLibvirtDomain(ctx, pool, volume, domain)
+}
+
+func (tm *tracingMiddleware) CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error) {
+	ctx, span := tm.tracer.Start(ctx, "createQemuVM")
+	defer span.End()
+
+	return tm.svc.CreateQemuVM(ctx, exe, args)
 }
 
 func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte) (string, error) {

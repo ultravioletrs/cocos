@@ -46,33 +46,94 @@ cd cmd/manager/img
 
 sudo find / -name OVMF_CODE.fd
 # => /usr/share/OVMF/OVMF_CODE.fd
-MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
+# note this value
 
 sudo find / -name OVMF_VARS.fd
 # => /usr/share/OVMF/OVMF_VARS.fd
 cp /usr/share/OVMF/OVMF_VARS.fd .
-MANAGER_QEMU_OVMF_VARS_FILE=img/OVMF_VARS.fd
 ```
 
-## Run
+## Run manager
 
 We need to run `manager` in the directory containing `img` directory:
 
 ```sh
 cd cmd/manager
-MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false go run main.go
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 go run main.go
 ```
+Manager will start an HTTP server on port `9021`, and a gRPC server on port `7001`.
 
-To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
+## Create QEMU virtual machine (VM)
+
+### HTTP
 
 ```sh
 cd cmd/manager
-MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=true MANAGER_QEMU_ENABLE_SEV=true MANAGER_QEMU_SEV_CBITPOS=51 go run main.go
 ```
 
-Manager will start an HTTP server on port `9021`, and a gRPC server on port `7001`.
+```sh
+curl -sSi -X POST -H "Content-Type: application/json" http://localhost:9021/qemu -d @- <<EOF
+{
+  "config": {
+    "use_sudo": false,
+    "enable_sev": false,
+    "enable_kvm": true,
+    "machine": "q35",
+    "cpu": "EPYC",
+    "smp_count": 4,
+    "smp_maxcpus": 64,
+    "memory_size": "4096M",
+    "memory_slots": 5,
+    "max_memory": "30G",
+    "ovmf_code_if": "pflash",
+    "ovmf_code_format": "raw",
+    "ovmf_code_unit": 0,
+    "ovmf_code_file": "/usr/share/OVMF/OVMF_CODE.fd",
+    "ovmf_code_readonly": "on",
+    "ovmf_vars_if": "pflash",
+    "ovmf_vars_format": "raw",
+    "ovmf_vars_unit": 1,
+    "ovmf_vars_file": "img/OVMF_VARS.fd",
+    "netdev_id": "vmnic",
+    "host_fwd_1": "2222",
+    "guest_fwd_1": "22",
+    "host_fwd_2": "9301",
+    "guest_fwd_2": "9031",
+    "host_fwd_3": "7020",
+    "guest_fwd_3": "7002",
+    "virtio_net_pci_disable_legacy": "on",
+    "virtio_net_pci_iommu_platform": true,
+    "virtio_net_pci_romfile": "",
+    "disk_img_file": "img/focal-server-cloudimg-amd64.img",
+    "disk_img_if": "none",
+    "disk_img_id": "disk0",
+    "disk_img_format": "qcow2",
+    "virtio_scsi_pci_id": "scsi",
+    "virtio_scsi_pci_disable_legacy": "on",
+    "virtio_scsi_pci_iommu_platform": true,
+    "sev_id": "sev0",
+    "sev_cbitpos": 51,
+    "sev_reduced_phys_bits": 1,
+    "memory_encryption_sev0": "sev0",
+    "no_graphic": true,
+    "monitor": "pty"
+  }
+}
+EOF
+```
 
-To check whether the manager launched the VM successfully, run
+To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) feature you need to use appropriate request body keys:
+
+```sh
+    "use_sudo": true,
+    "enable_sev": true,
+```
+
+### Verifying VM launch
+
+NB: To verify that the manager successfully launched the VM, you need to open two terminals on the same machine. In one terminal, you need to launch `go run main.go` (with the environment variables of choice) and in the other, you can run the verification commands.
+
+To verify that the manager launched the VM successfully, run the following command:
 
 ```sh
 ps aux | grep qemu-system-x86_64
@@ -92,7 +153,7 @@ root       37989  122 13.1 5345816 4252312 pts/0 Sl+  16:19   0:04 /usr/local/bi
 
 The two processes are due to the fact that we run the command `/usr/bin/qemu-system-x86_64` as `sudo`, so there is one process for `sudo` command and the other for `/usr/bin/qemu-system-x86_64`.
 
-### Troubleshooting
+### Troubleshooting VM launch
 
 If the `ps aux | grep qemu-system-x86_64` give you something like this
 
@@ -114,23 +175,29 @@ You can run the command - the value of the `"message"` key - directly in the ter
 /usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty
 ```
 
-and look for the possible problems. This problems can usually be solved by using the adequate env var assignments. Look in the `manager/qemu/config.go` file to see the recognized env vars. Don't forget to prepend `MANAGER_QEMU_` to the name of the env vars.
+and look for the possible problems. This problems can usually be solved by using the adequate request body keys value assignments. Look in the `manager/qemu/config.go` file to see the recognized json keys.
+
+#### Kill `qemu-system-x86_64` processes
+
+To kill any leftover `qemu-system-x86_64` processes, use
+
+```sh
+pkill -f qemu-system-x86_64
+```
+
+The pkill command is used to kill processes by name or by pattern. The -f flag to specify that we want to kill processes that match the pattern `qemu-system-x86_64`. It sends the SIGKILL signal to all processes that are running `qemu-system-x86_64`.
+
+If this does not work, i.e. if `ps aux | grep qemu-system-x86_64` still outputs `qemu-system-x86_64` related process(es), you can kill the unwanted process with `kill -9 <PID>`, which also sends a SIGKILL signal to the process.
 
 #### Ports in use
 
-The [NetDevConfig struct](manager/qemu/config.go) defines the network configuration for a virtual machine. The HostFwd* and GuestFwd* fields specify the host and guest ports that are forwarded between the virtual machine and the host machine. By default, these ports are allocated 2222, 9301, and 7020 for HostFwd1, HostFwd2, and HostFwd3, respectively, and 22, 9031, and 7002 for GuestFwd1, GuestFwd2, and GuestFwd3, respectively. However, if these ports are in use, you can configure your own ports by setting the corresponding environment variables. For example, to set the HostFwd1 port to 8080, you would set the MANAGER_QEMU_HOST_FWD_1 environment variable to 8080. For example,
+The [NetDevConfig struct](manager/qemu/config.go) defines the network configuration for a virtual machine. The HostFwd* and GuestFwd* fields specify the host and guest ports that are forwarded between the virtual machine and the host machine. By default, these ports are allocated 2222, 9301, and 7020 for HostFwd1, HostFwd2, and HostFwd3, respectively, and 22, 9031, and 7002 for GuestFwd1, GuestFwd2, and GuestFwd3, respectively. However, if these ports are in use, you can configure your own ports by setting the corresponding body request keys. For example,
 
 ```sh
-export MANAGER_LOG_LEVEL=info
-export MANAGER_AGENT_GRPC_URL=192.168.122.251:7002
-export MANAGER_QEMU_USE_SUDO=false
-export MANAGER_QEMU_ENABLE_SEV=false
-export MANAGER_QEMU_HOST_FWD_1=8080
-export MANAGER_QEMU_GUEST_FWD_1=22
-export MANAGER_QEMU_HOST_FWD_2=9301
-export MANAGER_QEMU_GUEST_FWD_2=9031
-export MANAGER_QEMU_HOST_FWD_3=7020
-export MANAGER_QEMU_GUEST_FWD_3=7002
-
-go run main.go
+    "host_fwd_1": "2222",
+    "guest_fwd_1": "22",
+    "host_fwd_2": "9301",
+    "guest_fwd_2": "9031",
+    "host_fwd_3": "7020",
+    "guest_fwd_3": "7002",
 ```

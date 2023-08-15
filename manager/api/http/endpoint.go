@@ -5,25 +5,27 @@ package http
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/manager/manager/qemu"
 )
 
-func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
+func createLibvirtDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createDomainReq)
+		req := request.(createLibvirtDomainReq)
 
 		if err := req.validate(); err != nil {
 			return nil, err
 		}
 
-		name, err := svc.CreateDomain(ctx, req.Pool, req.Volume, req.Domain)
+		name, err := svc.CreateLibvirtDomain(ctx, req.Pool, req.Volume, req.Domain)
 		if err != nil {
 			return nil, err
 		}
 
-		res := createDomainRes{
+		res := createLibvirtDomainRes{
 			Name: name,
 		}
 
@@ -31,6 +33,30 @@ func createDomainEndpoint(svc manager.Service) endpoint.Endpoint {
 	}
 }
 
+func createQemuVMEndpoint(svc manager.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createQemuVMReq)
+
+		if err := req.validate(); err != nil {
+			return createQemuVMReq{}, err
+		}
+
+		exe, args, err := qemu.ExecutableAndArgs(req.Config)
+		if err != nil {
+			return createQemuVMReq{}, err
+		}
+
+		cmd, err := svc.CreateQemuVM(ctx, exe, args)
+		if err != nil {
+			return createQemuVMRes{}, err
+		}
+
+		return createQemuVMRes{
+			Path: cmd.Path,
+			Args: strings.Join(cmd.Args, " "),
+		}, nil
+	}
+}
 func runEndpoint(svc manager.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(runReq)
