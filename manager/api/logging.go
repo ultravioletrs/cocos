@@ -42,7 +42,7 @@ func (lm *loggingMiddleware) CreateLibvirtDomain(ctx context.Context, pool, volu
 	return lm.svc.CreateLibvirtDomain(ctx, pool, volume, domain)
 }
 
-func (lm *loggingMiddleware) CreateQemuVM(ctx context.Context, exe string, args []string) (cmd *exec.Cmd, err error) {
+func (lm *loggingMiddleware) CreateQemuVM(ctx context.Context) (cmd *exec.Cmd, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method CreateQemuVM took %s to complete", time.Since(begin))
 		if err != nil {
@@ -52,7 +52,7 @@ func (lm *loggingMiddleware) CreateQemuVM(ctx context.Context, exe string, args 
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
 
-	return lm.svc.CreateQemuVM(ctx, exe, args)
+	return lm.svc.CreateQemuVM(ctx)
 }
 
 func (lm *loggingMiddleware) Run(ctx context.Context, computation []byte) (id string, err error) {

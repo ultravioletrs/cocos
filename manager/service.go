@@ -32,21 +32,29 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (string, error)
-	CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error)
+	CreateQemuVM(ctx context.Context) (*exec.Cmd, error)
 	Run(ctx context.Context, computation []byte) (string, error)
 }
+
+type qemuCmd struct {
+	exe  string   // The path to the QEMU executable
+	args []string // List of arguments for the QEMU command
+}
+
 type managerService struct {
 	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
+	qemuCmd qemuCmd
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, exe string, args []string) Service {
 	return &managerService{
 		libvirt: libvirtConn,
 		agent:   agent,
+		qemuCmd: qemuCmd{exe: exe, args: args},
 	}
 }
 
@@ -82,8 +90,8 @@ func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volX
 	return dom.Name, nil
 }
 
-func (ms *managerService) CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error) {
-	cmd, err := qemu.RunQemuVM(exe, args)
+func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
+	cmd, err := qemu.RunQemuVM(ms.qemuCmd.exe, ms.qemuCmd.args)
 	if err != nil {
 		return cmd, err
 	}

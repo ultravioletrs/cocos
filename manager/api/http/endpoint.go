@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/manager/manager"
-	"github.com/ultravioletrs/manager/manager/qemu"
 )
 
 func createLibvirtDomainEndpoint(svc manager.Service) endpoint.Endpoint {
@@ -41,12 +40,7 @@ func createQemuVMEndpoint(svc manager.Service) endpoint.Endpoint {
 			return createQemuVMReq{}, err
 		}
 
-		exe, args, err := qemu.ExecutableAndArgs(req.Config)
-		if err != nil {
-			return createQemuVMReq{}, err
-		}
-
-		cmd, err := svc.CreateQemuVM(ctx, exe, args)
+		cmd, err := svc.CreateQemuVM(ctx)
 		if err != nil {
 			return createQemuVMRes{}, err
 		}

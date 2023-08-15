@@ -32,11 +32,11 @@ func (tm *tracingMiddleware) CreateLibvirtDomain(ctx context.Context, pool, volu
 	return tm.svc.CreateLibvirtDomain(ctx, pool, volume, domain)
 }
 
-func (tm *tracingMiddleware) CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error) {
+func (tm *tracingMiddleware) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
 	ctx, span := tm.tracer.Start(ctx, "createQemuVM")
 	defer span.End()
 
-	return tm.svc.CreateQemuVM(ctx, exe, args)
+	return tm.svc.CreateQemuVM(ctx)
 }
 
 func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte) (string, error) {

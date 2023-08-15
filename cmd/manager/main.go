@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
@@ -30,6 +31,7 @@ import (
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/manager/manager/api/http"
+	"github.com/ultravioletrs/manager/manager/qemu"
 	"github.com/ultravioletrs/manager/manager/tracing"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -104,8 +106,20 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
+	// QEMU
+	qemuCfg := qemu.Config{}
+	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
+	}
+
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to generate executable and arguments: %v", err))
+	}
+	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+
 	//SVC
-	svc := newService(libvirtConn, agentClient, logger, tracer)
+	svc := newService(libvirtConn, agentClient, logger, tracer, exe, args)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -140,8 +154,8 @@ func main() {
 	}
 }
 
-func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer) manager.Service {
-	svc := manager.New(libvirtConn, agent)
+func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, exe string, args []string) manager.Service {
+	svc := manager.New(libvirtConn, agent, exe, args)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

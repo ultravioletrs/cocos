@@ -41,7 +41,7 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 		opts...,
 	), "create_domain"))
 
-	r.Post("/qemu", otelhttp.NewHandler(kithttp.NewServer(
+	r.Get("/qemu", otelhttp.NewHandler(kithttp.NewServer(
 		createQemuVMEndpoint(svc),
 		decodeCreateQemuVMRequest,
 		encodeResponse,
@@ -76,16 +76,7 @@ func decodeCreateLibvirtDomain(_ context.Context, r *http.Request) (interface{},
 }
 
 func decodeCreateQemuVMRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
-		return nil, errUnsupportedContentType
-	}
-
-	req := createQemuVMReq{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-
-	return req, nil
+	return createQemuVMReq{}, nil
 }
 
 func decodeRun(_ context.Context, r *http.Request) (interface{}, error) {

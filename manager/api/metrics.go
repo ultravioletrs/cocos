@@ -42,13 +42,13 @@ func (ms *metricsMiddleware) CreateLibvirtDomain(ctx context.Context, pool, volu
 	return ms.svc.CreateLibvirtDomain(ctx, pool, volume, domain)
 }
 
-func (ms *metricsMiddleware) CreateQemuVM(ctx context.Context, exe string, args []string) (*exec.Cmd, error) {
+func (ms *metricsMiddleware) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "CreateQemuVM").Add(1)
 		ms.latency.With("method", "CreateQemuVM").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.CreateQemuVM(ctx, exe, args)
+	return ms.svc.CreateQemuVM(ctx)
 }
 
 func (ms *metricsMiddleware) Run(ctx context.Context, computation []byte) (string, error) {

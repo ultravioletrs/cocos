@@ -5,7 +5,6 @@ package http
 
 import (
 	"github.com/ultravioletrs/manager/manager"
-	"github.com/ultravioletrs/manager/manager/qemu"
 )
 
 var (
@@ -43,7 +42,6 @@ func (req runReq) validate() error {
 }
 
 type createQemuVMReq struct {
-	Config qemu.Config `json:"config"`
 }
 
 func (req createQemuVMReq) validate() error {
