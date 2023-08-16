@@ -6,12 +6,21 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/manager/internal"
+	"github.com/ultravioletrs/manager/manager/qemu"
+
+	"github.com/gofrs/uuid"
 )
+
+const firmwareVars = "OVMF_VARS"
+const qcow2Img = "focal-server-cloudimg-amd64"
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -26,29 +35,32 @@ var (
 	ErrNotFound = errors.New("entity not found")
 )
 
-// Service specifies an API that must be fullfiled by the domain service
+// Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	CreateDomain(ctx context.Context, pool, volume, domain string) (string, error)
+	CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (string, error)
+	CreateQemuVM(ctx context.Context) (*exec.Cmd, error)
 	Run(ctx context.Context, computation []byte) (string, error)
 }
 
 type managerService struct {
 	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
+	qemuCfg qemu.Config
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient) Service {
+func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, qemuCfg qemu.Config) Service {
 	return &managerService{
 		libvirt: libvirtConn,
 		agent:   agent,
+		qemuCfg: qemuCfg,
 	}
 }
 
-func (ms *managerService) CreateDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
+func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -78,6 +90,53 @@ func (ms *managerService) CreateDomain(ctx context.Context, poolXML, volXML, dom
 	}
 
 	return dom.Name, nil
+}
+
+func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
+	// create unique emu device identifiers
+	id, err := uuid.NewV4()
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg := ms.qemuCfg
+	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
+	qemuCfg.DiskImgConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.DiskImgConfig.ID, id)
+	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
+	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
+
+	// copy firmware vars file
+	srcFile := qemuCfg.OVMFVarsConfig.File
+	dstFile := fmt.Sprintf("%s/%s-%s.fd", ms.qemuCfg.TmpFileLoc, firmwareVars, id)
+	err = internal.CopyFile(srcFile, dstFile)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg.OVMFVarsConfig.File = dstFile
+
+	// copy qcow2 img file
+	srcFile = qemuCfg.DiskImgConfig.File
+	dstFile = fmt.Sprintf("%s/%s-%s.img", ms.qemuCfg.TmpFileLoc, qcow2Img, id)
+	err = internal.CopyFile(srcFile, dstFile)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg.DiskImgConfig.File = dstFile
+
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	cmd, err := qemu.RunQemuVM(exe, args)
+	if err != nil {
+		return cmd, err
+	}
+
+	// different VM guests can't forward ports to the same ports on the same host
+	ms.qemuCfg.NetDevConfig.HostFwd1++
+	ms.qemuCfg.NetDevConfig.HostFwd2++
+	ms.qemuCfg.NetDevConfig.HostFwd3++
+
+	return cmd, nil
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {

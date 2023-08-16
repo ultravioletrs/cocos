@@ -30,6 +30,7 @@ import (
 	"github.com/ultravioletrs/manager/manager/api"
 	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/manager/manager/api/http"
+	"github.com/ultravioletrs/manager/manager/qemu"
 	"github.com/ultravioletrs/manager/manager/tracing"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -42,6 +43,7 @@ const (
 	envPrefixHTTP      = "MANAGER_HTTP_"
 	envPrefixGRPC      = "MANAGER_GRPC_"
 	envPrefixAgentGRPC = "AGENT_GRPC_"
+	envPrefixQemu      = "MANAGER_QEMU_"
 	defSvcGRPCPort     = "7001"
 	defSvcHTTPPort     = "9021"
 )
@@ -103,7 +105,12 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
-	svc := newService(libvirtConn, agentClient, logger, tracer)
+	qemuCfg := qemu.Config{}
+	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
+	}
+
+	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -136,10 +143,15 @@ func main() {
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
+
+	err = internal.DeleteFilesInDir(qemuCfg.TmpFileLoc)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 }
 
-func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer) manager.Service {
-	svc := manager.New(libvirtConn, agent)
+func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
+	svc := manager.New(libvirtConn, agent, qemuCfg)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

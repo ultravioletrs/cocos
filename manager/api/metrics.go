@@ -8,6 +8,7 @@ package api
 
 import (
 	"context"
+	"os/exec"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -32,13 +33,22 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) CreateDomain(ctx context.Context, pool, volume, domain string) (response string, err error) {
+func (ms *metricsMiddleware) CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (response string, err error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "CreateDomain").Add(1)
 		ms.latency.With("method", "CreateDomain").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.CreateDomain(ctx, pool, volume, domain)
+	return ms.svc.CreateLibvirtDomain(ctx, pool, volume, domain)
+}
+
+func (ms *metricsMiddleware) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "CreateQemuVM").Add(1)
+		ms.latency.With("method", "CreateQemuVM").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.CreateQemuVM(ctx)
 }
 
 func (ms *metricsMiddleware) Run(ctx context.Context, computation []byte) (string, error) {

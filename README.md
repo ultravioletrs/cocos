@@ -2,73 +2,160 @@
 
 ## Setup
 
-### Libvirt
+```sh
+git clone https://github.com/ultravioletrs/manager
+cd manager
+```
+
+NB: all relative paths in this document are relative to `manager` repository directory.
+
+### QEMU-KVM
+
+[QEMU-KVM](https://www.qemu.org/) is a virtualization platform that allows you to run multiple operating systems on the same physical machine. It is a combination of two technologies: QEMU and KVM.
+
+- QEMU is an emulator that can run a variety of operating systems, including Linux, Windows, and macOS.
+- [KVM](https://wiki.qemu.org/Features/KVM) is a Linux kernel module that allows QEMU to run virtual machines.
+
+To install QEMU-KVM on a Debian based machine, run
 
 ```sh
 sudo apt update
-sudo apt install qemu-kvm libvirt-daemon-system
+sudo apt install qemu-kvm
 ```
 
-After installing `libvirt-daemon-system`, the user that will be used to manage virtual machines needs to be added to the `libvirt` group. This is done automatically for members of the sudo group, otherwise
+Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
+
+### focal-server-cloudimg-amd64.img
+
+First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
 
 ```sh
-sudo adduser $USER libvirt
+cd cmd/manager/img
+wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+# focal-server-cloudimg-amd64 comes without the root password.
+sudo apt-get install libguestfs-tools
+sudo virt-customize -a focal-server-cloudimg-amd64.img --root-password password:coolpass
 ```
 
-### CD iso & hard drive img for virtual machine (VM)
+### OVMF
 
-Create `img` directory in `cmd/manager`. Create `iso` directory in `cmd/manager`. Save [alpine-virt-3.18.0-x86_64.iso](https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso) in `cmd/manager/iso` directory:
+We need [Open Virtual Machine Firmware](https://wiki.ubuntu.com/UEFI/OVMF). OVMF is a port of Intel's tianocore firmware - an open source implementation of the Unified Extensible Firmware Interface (UEFI) - to the qemu virtual machine. We need OVMF in order to run virtual machine with *focal-server-cloudimg-amd64*. When we install QEMU, we get two files that we need to start a VM: `OVMF_VARS.fd` and `OVMF_CODE.fd`. We will make a local copy of `OVMF_VARS.fd` since a VM will modify this file. On the other hand, `OVMF_CODE.fd` is only used as a reference, so we only record its path in an environment variable.
 
 ```sh
-cd cmd/manager/iso
-wget https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-virt-3.18.0-x86_64.iso
+cd cmd/manager/img
+
+sudo find / -name OVMF_CODE.fd
+# => /usr/share/OVMF/OVMF_CODE.fd
+MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
+
+sudo find / -name OVMF_VARS.fd
+# => /usr/share/OVMF/OVMF_VARS.fd
+MANAGER_QEMU_OVMF_VARS_FILE=/usr/share/OVMF/OVMF_VARS.fd
 ```
 
 ## Run
 
-We need to run `manager` in the directory where `img`, `iso` and `xml` directories are. `cd` to `cmd/manager` and run
+We need to run `manager` in the directory containing `img` directory:
 
 ```sh
-MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 go run main.go
+cd cmd/manager
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false go run main.go
 ```
 
-This will start an HTTP server on port `9021`, a gRPC server on port `7001` and will establish a connection to [libvirtd](https://libvirt.org/manpages/libvirtd.html).
-
-## Domain 
-
-### Domain creation
-To create a `libvirt` domain - basically a QEMU instance or a virtual machine (VM) - run
+To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"<path/to/pool.xml>", "volume":"<path/to/vol.xml>", "domain":"<path/to/dom.xml>"}'
+cd cmd/manager
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=true MANAGER_QEMU_ENABLE_SEV=true MANAGER_QEMU_SEV_CBITPOS=51 go run main.go
 ```
 
-You can also use configuration `.xml` files in `cmd/manager/xml`. You can either specify a path to the files on your computer, or you can just leave the `pool`, `volume` and `domain` fields of the request body empty, like this
+Manager will start an HTTP server on port `9021`, and a gRPC server on port `7001`.
+
+### Create QEMU virtual machine (VM)
+
+To create an instance of VM, run
 
 ```sh
-curl -i -X POST -H "Content-Type: application/json" localhost:9021/domain -d '{"pool":"", "volume":"", "domain":""}'
+curl -sSi -X GET http://localhost:9021/qemu
 ```
 
-### Domain destruction
+You should be able to create multiple instances by reruning the command. 
 
-Normally, you don't need to do anything manually. However, if need be, if you have already created a domain, you can remove it with
+### Verifying VM launch
+
+NB: To verify that the manager successfully launched the VM, you need to open two terminals on the same machine. In one terminal, you need to launch `go run main.go` (with the environment variables of choice) and in the other, you can run the verification commands.
+
+To verify that the manager launched the VM successfully, run the following command:
 
 ```sh
-virsh undefine QEmu-alpine-standard-x86_64; \
-virsh shutdown QEmu-alpine-standard-x86_64; \
-virsh destroy QEmu-alpine-standard-x86_64; \
-rm -rf ~/go/src/github.com/ultravioletrs/manager/cmd/manager/img/boot.img; \
-virsh pool-destroy --pool virtimages
+ps aux | grep qemu-system-x86_64
 ```
 
-This will destroy the domain together with volumes and a pool where the volume was logically stored. It is not necessary to remove a domain, since the manager will reuse the existing VM.
+You should get something similar to this
+```
+darko     324763 95.3  6.0 6398136 981044 ?      Sl   16:17   0:15 /usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty
+```
 
-### Domain management
+If you run a command as `sudo`, you should get the output similar to this one
+
+```
+root       37982  0.0  0.0   9444  4572 pts/0    S+   16:18   0:00 sudo /usr/local/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -object sev-guest,id=sev0,cbitpos=51,reduced-phys-bits=1 -machine memory-encryption=sev0 -nographic -monitor pty
+root       37989  122 13.1 5345816 4252312 pts/0 Sl+  16:19   0:04 /usr/local/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -object sev-guest,id=sev0,cbitpos=51,reduced-phys-bits=1 -machine memory-encryption=sev0 -nographic -monitor pty
+```
+
+The two processes are due to the fact that we run the command `/usr/bin/qemu-system-x86_64` as `sudo`, so there is one process for `sudo` command and the other for `/usr/bin/qemu-system-x86_64`.
+
+### Troubleshooting
+
+If the `ps aux | grep qemu-system-x86_64` give you something like this
+
+```
+darko      13913  0.0  0.0      0     0 pts/2    Z+   20:17   0:00 [qemu-system-x86] <defunct>
+```
+
+means that the a QEMU virtual machine that is currently defunct, meaning that it is no longer running. More precisely, the defunct process in the output is also known as a ["zombie" process](https://en.wikipedia.org/wiki/Zombie_process).
+
+You can troubleshoot the VM launch procedure by running directly `qemu-system-x86_64` command. When you run `manager` with `MANAGER_LOG_LEVEL=info` env var set, it prints out the entire command used to launch a VM. The relevant part of the log might look like this
+
+```
+{"level":"info","message":"/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty","ts":"2023-08-14T18:29:19.2653908Z"}
+```
+
+You can run the command - the value of the `"message"` key - directly in the terminal:
 
 ```sh
-sudo apt-get install virt-manager
+/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty
 ```
 
-Start virtual manager. Open `QEmu-alpine-standard-x86_64` virtual machine. Log in as root, no password needed, and follow instructions to install and set up Alpine Linux on virtual drive. Basically, you need to run `setup-alpine` script. Use `vda` as a virtual disk drive and `sys` to install Alpine Linux on the virtual disk drive.
+and look for the possible problems. This problems can usually be solved by using the adequate env var assignments. Look in the `manager/qemu/config.go` file to see the recognized env vars. Don't forget to prepend `MANAGER_QEMU_` to the name of the env vars.
 
-Once you have installed and set up Alpine Linux, follow the instructions in `Agent` [README.md](https://github.com/ultravioletrs/agent) in order to see how to set up `Cocos.ai` `Agent` in the virtual machine.
+#### Kill `qemu-system-x86_64` processes
+
+To kill any leftover `qemu-system-x86_64` processes, use
+
+```sh
+pkill -f qemu-system-x86_64
+```
+
+The pkill command is used to kill processes by name or by pattern. The -f flag to specify that we want to kill processes that match the pattern `qemu-system-x86_64`. It sends the SIGKILL signal to all processes that are running `qemu-system-x86_64`.
+
+If this does not work, i.e. if `ps aux | grep qemu-system-x86_64` still outputs `qemu-system-x86_64` related process(es), you can kill the unwanted process with `kill -9 <PID>`, which also sends a SIGKILL signal to the process.
+
+#### Ports in use
+
+The [NetDevConfig struct](manager/qemu/config.go) defines the network configuration for a virtual machine. The HostFwd* and GuestFwd* fields specify the host and guest ports that are forwarded between the virtual machine and the host machine. By default, these ports are allocated 2222, 9301, and 7020 for HostFwd1, HostFwd2, and HostFwd3, respectively, and 22, 9031, and 7002 for GuestFwd1, GuestFwd2, and GuestFwd3, respectively. However, if these ports are in use, you can configure your own ports by setting the corresponding environment variables. For example, to set the HostFwd1 port to 8080, you would set the MANAGER_QEMU_HOST_FWD_1 environment variable to 8080. For example,
+
+```sh
+export MANAGER_LOG_LEVEL=info
+export MANAGER_AGENT_GRPC_URL=192.168.122.251:7002
+export MANAGER_QEMU_USE_SUDO=false
+export MANAGER_QEMU_ENABLE_SEV=false
+export MANAGER_QEMU_HOST_FWD_1=8080
+export MANAGER_QEMU_GUEST_FWD_1=22
+export MANAGER_QEMU_HOST_FWD_2=9301
+export MANAGER_QEMU_GUEST_FWD_2=9031
+export MANAGER_QEMU_HOST_FWD_3=7020
+export MANAGER_QEMU_GUEST_FWD_3=7002
+
+go run main.go
+```

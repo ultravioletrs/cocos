@@ -9,7 +9,7 @@ import (
 
 var re = regexp.MustCompile(`'([^']*)'`)
 
-const bootTime = 12 * time.Second
+const bootTime = 5 * time.Second
 
 func entityName(msg string) (string, error) {
 	match := re.FindStringSubmatch(msg)
@@ -22,6 +22,7 @@ func entityName(msg string) (string, error) {
 
 func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, domXML string) (libvirt.Domain, error) {
 	pool, err := libvirtConn.StoragePoolCreateXML(poolXML, 0)
+	_ = pool
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 9 {

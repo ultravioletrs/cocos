@@ -7,6 +7,7 @@ require (
 	github.com/digitalocean/go-libvirt v0.0.0-20221205150000-2939327a8519
 	github.com/go-kit/kit v0.12.0
 	github.com/go-zoo/bone v1.3.0
+	github.com/google/uuid v1.3.0
 	github.com/mainflux/mainflux v0.0.0-20230726142711-2b78902e0170
 	github.com/prometheus/client_golang v1.16.0
 	github.com/ultravioletrs/agent v0.0.0-20230727102942-c2240066f943

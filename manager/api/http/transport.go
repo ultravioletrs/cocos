@@ -35,11 +35,18 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 	r := bone.New()
 
 	r.Post("/domain", otelhttp.NewHandler(kithttp.NewServer(
-		createDomainEndpoint(svc),
-		decodeCreateDomain,
+		createLibvirtDomainEndpoint(svc),
+		decodeCreateLibvirtDomain,
 		encodeResponse,
 		opts...,
 	), "create_domain"))
+
+	r.Get("/qemu", otelhttp.NewHandler(kithttp.NewServer(
+		createQemuVMEndpoint(svc),
+		decodeCreateQemuVMRequest,
+		encodeResponse,
+		opts...,
+	), "create_qemu_vm"))
 
 	r.Post("/run", otelhttp.NewHandler(kithttp.NewServer(
 		runEndpoint(svc),
@@ -54,17 +61,21 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 	return r
 }
 
-func decodeCreateDomain(_ context.Context, r *http.Request) (interface{}, error) {
+func decodeCreateLibvirtDomain(_ context.Context, r *http.Request) (interface{}, error) {
 	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
 		return nil, errUnsupportedContentType
 	}
 
-	req := createDomainReq{}
+	req := createLibvirtDomainReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
 
 	return req, nil
+}
+
+func decodeCreateQemuVMRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	return createQemuVMReq{}, nil
 }
 
 func decodeRun(_ context.Context, r *http.Request) (interface{}, error) {
