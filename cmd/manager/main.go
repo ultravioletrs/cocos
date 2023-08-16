@@ -105,13 +105,11 @@ func main() {
 
 	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
 
-	// QEMU
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
 	}
 
-	//SVC
 	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
@@ -146,9 +144,9 @@ func main() {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
 
-	err = internal.DeleteFilesInDir("tmp/")
+	err = internal.DeleteFilesInDir(qemuCfg.TmpFileLoc)
 	if err != nil {
-		logger.Error(fmt.Sprintf("%s", err))
+		logger.Error(err.Error())
 	}
 }
 

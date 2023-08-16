@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 )
 
+// CopyFile copies a file from srcPath to dstPath.
 func CopyFile(srcPath, dstPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
@@ -27,6 +28,7 @@ func CopyFile(srcPath, dstPath string) error {
 	return nil
 }
 
+// DeleteFilesInDir deletes all files in the directory dirPath.
 func DeleteFilesInDir(dirPath string) error {
 	files, err := filepath.Glob(filepath.Join(dirPath, "*"))
 	if err != nil {

@@ -46,8 +46,7 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 		decodeCreateQemuVMRequest,
 		encodeResponse,
 		opts...,
-	),
-		"create_qemu_vm"))
+	), "create_qemu_vm"))
 
 	r.Post("/run", otelhttp.NewHandler(kithttp.NewServer(
 		runEndpoint(svc),

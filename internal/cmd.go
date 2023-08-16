@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// ExeShCmdStdout executes a shell command capturing the standard output
+// ExeShCmdStdout executes a shell command capturing the standard output.
 func ExeShCmdStdout(command string, args ...string) (string, error) {
 	var stdoutBuf, stderrBuf bytes.Buffer
 
@@ -27,7 +27,7 @@ func ExeShCmdStdout(command string, args ...string) (string, error) {
 	return stdoutBuf.String(), nil
 }
 
-// ExtractCmdAndArgs extracts the command and its arguments from the output string
+// ExtractCmdAndArgs extracts the command and its arguments from the output string.
 func ExtractCmdAndArgs(cmdLine string, sudo bool) (string, []string) {
 	lines := strings.Split(cmdLine, "\n")
 	if len(lines) == 0 {
@@ -49,7 +49,7 @@ func ExtractCmdAndArgs(cmdLine string, sudo bool) (string, []string) {
 	return cmd, args
 }
 
-// RunCmdOutput runs the specified command and returns its standard output as a string
+// RunCmdOutput runs the specified command and returns its standard output as a string.
 func RunCmdOutput(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 
@@ -61,7 +61,7 @@ func RunCmdOutput(command string, args ...string) (string, error) {
 	return string(output), nil
 }
 
-// RunCmdStart starts the specified command and returns the *exec.Cmd for the running process
+// RunCmdStart starts the specified command and returns the *exec.Cmd for the running process.
 func RunCmdStart(command string, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(command, args...)
 

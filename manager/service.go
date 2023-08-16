@@ -106,7 +106,7 @@ func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
 
 	// copy firmware vars file
 	srcFile := qemuCfg.OVMFVarsConfig.File
-	dstFile := fmt.Sprintf("tmp/%s-%s.fd", firmwareVars, id)
+	dstFile := fmt.Sprintf("%s/%s-%s.fd", ms.qemuCfg.TmpFileLoc, firmwareVars, id)
 	err = internal.CopyFile(srcFile, dstFile)
 	if err != nil {
 		return &exec.Cmd{}, err
@@ -115,7 +115,7 @@ func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
 
 	// copy qcow2 img file
 	srcFile = qemuCfg.DiskImgConfig.File
-	dstFile = fmt.Sprintf("tmp/%s-%s.img", qcow2Img, id)
+	dstFile = fmt.Sprintf("%s/%s-%s.img", ms.qemuCfg.TmpFileLoc, qcow2Img, id)
 	err = internal.CopyFile(srcFile, dstFile)
 	if err != nil {
 		return &exec.Cmd{}, err

@@ -59,8 +59,9 @@ type SevConfig struct {
 }
 
 type Config struct {
-	UseSudo   bool `env:"USE_SUDO" envDevault:"false"`
-	EnableSEV bool `env:"ENABLE_SEV" envDefault:"true"`
+	TmpFileLoc string `env:"TMP_FILE_LOC" envDefault:"tmp"`
+	UseSudo    bool   `env:"USE_SUDO" envDefault:"false"`
+	EnableSEV  bool   `env:"ENABLE_SEV" envDefault:"true"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
