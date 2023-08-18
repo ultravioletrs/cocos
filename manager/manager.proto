@@ -6,17 +6,8 @@ option go_package = "./manager";
 
 service ManagerService {
   rpc Run(RunRequest) returns (RunResponse) {}
-  rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse) {}
 }
 
 message RunRequest { bytes computation = 1; }
 
 message RunResponse { string ID = 1; }
-
-message CreateDomainRequest {
-  string pool = 1;
-  string volume = 2;
-  string domain = 3;
-}
-
-message CreateDomainResponse { string name = 1; }

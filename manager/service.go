@@ -38,8 +38,6 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	CreateLibvirtDomain(ctx context.Context, pool, volume, domain string) (string, error)
-	CreateQemuVM(ctx context.Context) (*exec.Cmd, error)
 	Run(ctx context.Context, computation []byte) (string, error)
 }
 
@@ -60,7 +58,7 @@ func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, qemuCfg q
 	}
 }
 
-func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
+func (ms *managerService) createLibvirtDomain(ctx context.Context, poolXML, volXML, domXML string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -92,7 +90,7 @@ func (ms *managerService) CreateLibvirtDomain(ctx context.Context, poolXML, volX
 	return dom.Name, nil
 }
 
-func (ms *managerService) CreateQemuVM(ctx context.Context) (*exec.Cmd, error) {
+func (ms *managerService) createQemuVM(ctx context.Context) (*exec.Cmd, error) {
 	// create unique emu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {

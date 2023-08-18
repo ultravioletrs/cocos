@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
@@ -107,8 +108,13 @@ func main() {
 
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration : %s", err))
 	}
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration : %s", err))
+	}
+	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
 	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
 

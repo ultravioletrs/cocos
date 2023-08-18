@@ -5,23 +5,10 @@ package http
 
 import "github.com/ultravioletrs/manager/manager"
 
-var (
-	_ apiReq = (*runReq)(nil)
-	_ apiReq = (*createLibvirtDomainReq)(nil)
-)
+var _ apiReq = (*runReq)(nil)
 
 type apiReq interface {
 	validate() error
-}
-
-type createLibvirtDomainReq struct {
-	Pool   string `json:"pool"`
-	Volume string `json:"volume"`
-	Domain string `json:"domain"`
-}
-
-func (req createLibvirtDomainReq) validate() error {
-	return nil
 }
 
 type runReq struct {
@@ -32,12 +19,5 @@ func (req runReq) validate() error {
 	if len(req.Computation) == 0 {
 		return manager.ErrMalformedEntity
 	}
-	return nil
-}
-
-type createQemuVMReq struct {
-}
-
-func (req createQemuVMReq) validate() error {
 	return nil
 }
