@@ -7,7 +7,8 @@ StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 
 Environment=NETWORK_INTERFACE=enp0s3
-Environment=AGENT_GRPC_ADDR=10.0.2.15:7002
+Environment=AGENT_GRPC_HOST=10.0.2.15
+Environment=AGENT_GRPC_PORT=7002
 Environment=AGENT_LOG_LEVEL=info
 
 ExecStartPre=ip link set dev $NETWORK_INTERFACE up
