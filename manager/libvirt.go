@@ -9,8 +9,6 @@ import (
 
 var re = regexp.MustCompile(`'([^']*)'`)
 
-const bootTime = 5 * time.Second
-
 func entityName(msg string) (string, error) {
 	match := re.FindStringSubmatch(msg)
 	if len(match) < 1 {

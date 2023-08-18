@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
@@ -21,6 +22,8 @@ import (
 
 const firmwareVars = "OVMF_VARS"
 const qcow2Img = "focal-server-cloudimg-amd64"
+
+const bootTime = 10 * time.Second
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -138,6 +141,12 @@ func (ms *managerService) createQemuVM(ctx context.Context) (*exec.Cmd, error) {
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
+	_, err := ms.createQemuVM(ctx)
+	if err != nil {
+		return "", err
+	}
+	time.Sleep(bootTime)
+
 	res, err := ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
 	if err != nil {
 		return "", err
