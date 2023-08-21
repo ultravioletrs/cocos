@@ -96,7 +96,7 @@ func main() {
 
 	agentGRPCConfig := agentgrpc.Config{}
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration: %s", svcName, err))
 	}
 	agentGRPCClient, agentClient, err := agentgrpc.NewClient(agentGRPCConfig)
 	if err != nil {
@@ -104,15 +104,15 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
+	logger.Info(fmt.Sprintf("Successfully connected to agent grpc server at %s %s", agentGRPCConfig.URL, agentGRPCClient.Secure()))
 
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration : %s", err))
+		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 	}
 	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration : %s", err))
+		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
@@ -120,13 +120,13 @@ func main() {
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
 	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+		log.Fatalf("failed to load %s gRPC server configuration: %s", svcName, err.Error())
 	}
 	registerManagerServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)

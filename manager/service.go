@@ -23,7 +23,7 @@ import (
 const firmwareVars = "OVMF_VARS"
 const qcow2Img = "focal-server-cloudimg-amd64"
 
-const bootTime = 10 * time.Second
+const bootTime = 15 * time.Second
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.

@@ -30,20 +30,20 @@ Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`
 First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
 
 ```sh
-cd cmd/manager/img
-wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
-# focal-server-cloudimg-amd64 comes without the root password.
+FOCAL=focal-server-cloudimg-amd64.img
+cd cmd/manager
+wget -O img/$FOCAL$ https://cloud-images.ubuntu.com/focal/current/$FOCAL
+# focal-server-cloudimg-amd64 comes without the root password
 sudo apt-get install libguestfs-tools
-sudo virt-customize -a focal-server-cloudimg-amd64.img --root-password password:coolpass
+PASSWORD=coolpass
+sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
 ```
 
 ### OVMF
 
-We need [Open Virtual Machine Firmware](https://wiki.ubuntu.com/UEFI/OVMF). OVMF is a port of Intel's tianocore firmware - an open source implementation of the Unified Extensible Firmware Interface (UEFI) - to the qemu virtual machine. We need OVMF in order to run virtual machine with *focal-server-cloudimg-amd64*. When we install QEMU, we get two files that we need to start a VM: `OVMF_VARS.fd` and `OVMF_CODE.fd`. We will make a local copy of `OVMF_VARS.fd` since a VM will modify this file. On the other hand, `OVMF_CODE.fd` is only used as a reference, so we only record its path in an environment variable.
+We need [Open Virtual Machine Firmware](https://wiki.ubuntu.com/UEFI/OVMF). OVMF is a port of Intel's tianocore firmware - an open source implementation of the Unified Extensible Firmware Interface (UEFI) - used by a qemu virtual machine. We need OVMF in order to run virtual machine with *focal-server-cloudimg-amd64*. When we install QEMU, we get two files that we need to start a VM: `OVMF_VARS.fd` and `OVMF_CODE.fd`. We will make a local copy of `OVMF_VARS.fd` since a VM will modify this file. On the other hand, `OVMF_CODE.fd` is only used as a reference, so we only record its path in an environment variable.
 
 ```sh
-cd cmd/manager/img
-
 sudo find / -name OVMF_CODE.fd
 # => /usr/share/OVMF/OVMF_CODE.fd
 MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
@@ -53,13 +53,15 @@ sudo find / -name OVMF_VARS.fd
 MANAGER_QEMU_OVMF_VARS_FILE=/usr/share/OVMF/OVMF_VARS.fd
 ```
 
+NB: we set environment variables that we will use in the shell process where we run `manager`.
+
 ## Run
 
 We need to run `manager` in the directory containing `img` directory:
 
 ```sh
 cd cmd/manager
-MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false go run main.go
+MANAGER_LOG_LEVEL=info MANAGER_AGENT_GRPC_URL=localhost:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false go run main.go
 ```
 
 To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
@@ -73,13 +75,19 @@ Manager will start an HTTP server on port `9021`, and a gRPC server on port `700
 
 ### Create QEMU virtual machine (VM)
 
-To create an instance of VM, run
+To create an instance of VM and run a computation, run
 
 ```sh
-curl -sSi -X GET http://localhost:9021/qemu
+curl -sSi -X POST \
+  http://localhost:9021/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "computation": [123, 34, 105, 100, 34, 58, 34, 48, 48, 97, 99, 102, 101, 57, 100, 45, 53, 101, 49, 98, 45, 52, 97, 101, 99, 45, 56, 50, 99, 48, 45, 56, 48, 97, 98, 56, 101, 100, 53, 101, 99, 48, 98, 34, 44, 34, 110, 97, 109, 101, 34, 58, 34, 77, 97, 99, 104, 105, 110, 101, 32, 68, 105, 97, 103, 110, 111, 115, 116, 105, 99, 115, 32, 65, 110, 97, 108, 121, 115, 105, 115, 34, 44, 34, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, 34, 58, 34, 80, 101, 114, 102, 111, 114, 109, 105, 110, 103, 32, 100, 105, 97, 103, 110, 111, 115, 116, 105, 99, 115, 32, 97, 110, 97, 108, 121, 115, 105, 115, 32, 111, 110, 32, 109, 97, 99, 104, 105, 110, 101, 32, 100, 97, 116, 97, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 101, 120, 101, 99, 117, 116, 97, 98, 108, 101, 34, 44, 34, 111, 119, 110, 101, 114, 34, 58, 34, 77, 97, 99, 104, 105, 110, 101, 32, 73, 110, 100, 117, 115, 116, 114, 105, 101, 115, 32, 73, 110, 99, 46, 34, 44, 34, 115, 116, 97, 114, 116, 95, 116, 105, 109, 101, 34, 58, 34, 50, 48, 50, 51, 45, 48, 56, 45, 50, 49, 84, 49, 50, 58, 48, 50, 58, 51, 49, 46, 48, 48, 55, 53, 48, 53, 90, 34, 44, 34, 101, 110, 100, 95, 116, 105, 109, 101, 34, 58, 34, 48, 48, 48, 49, 45, 48, 49, 45, 48, 49, 84, 48, 48, 58, 48, 48, 58, 48, 48, 90, 34, 44, 34, 100, 97, 116, 97, 115, 101, 116, 115, 34, 58, 91, 34, 83, 101, 110, 115, 111, 114, 32, 68, 97, 116, 97, 32, 76, 111, 103, 115, 34, 44, 34, 77, 97, 99, 104, 105, 110, 101, 32, 72, 101, 97, 108, 116, 104, 32, 82, 101, 99, 111, 114, 100, 115, 34, 44, 34, 77, 97, 105, 110, 116, 101, 110, 97, 110, 99, 101, 32, 82, 101, 112, 111, 114, 116, 115, 34, 93, 44, 34, 97, 108, 103, 111, 114, 105, 116, 104, 109, 115, 34, 58, 91, 34, 83, 117, 112, 112, 111, 114, 116, 32, 86, 101, 99, 116, 111, 114, 32, 77, 97, 99, 104, 105, 110, 101, 115, 34, 44, 34, 75, 45, 78, 101, 97, 114, 101, 115, 116, 32, 78, 101, 105, 103, 104, 98, 111, 114, 115, 34, 44, 34, 72, 105, 101, 114, 97, 114, 99, 104, 105, 99, 97, 108, 32, 67, 108, 117, 115, 116, 101, 114, 105, 110, 103, 34, 93, 44, 34, 100, 97, 116, 97, 115, 101, 116, 95, 112, 114, 111, 118, 105, 100, 101, 114, 115, 34, 58, 91, 34, 83, 101, 110, 115, 111, 114, 84, 101, 99, 104, 32, 83, 111, 108, 117, 116, 105, 111, 110, 115, 34, 44, 34, 77, 97, 99, 104, 105, 110, 101, 114, 121, 32, 68, 97, 116, 97, 32, 83, 121, 115, 116, 101, 109, 115, 34, 93, 44, 34, 97, 108, 103, 111, 114, 105, 116, 104, 109, 95, 112, 114, 111, 118, 105, 100, 101, 114, 115, 34, 58, 91, 34, 65, 108, 103, 111, 65, 73, 32, 82, 101, 115, 101, 97, 114, 99, 104, 32, 76, 97, 98, 115, 34, 44, 34, 84, 101, 99, 104, 66, 111, 116, 115, 32, 73, 110, 110, 111, 118, 97, 116, 105, 111, 110, 115, 34, 93, 44, 34, 114, 101, 115, 117, 108, 116, 95, 99, 111, 110, 115, 117, 109, 101, 114, 115, 34, 58, 91, 34, 77, 97, 99, 104, 105, 110, 101, 32, 77, 97, 105, 110, 116, 101, 110, 97, 110, 99, 101, 32, 68, 101, 112, 97, 114, 116, 109, 101, 110, 116, 34, 44, 34, 80, 114, 101, 100, 105, 99, 116, 105, 118, 101, 32, 65, 110, 97, 108, 121, 116, 105, 99, 115, 32, 84, 101, 97, 109, 34, 44, 34, 73, 110, 100, 117, 115, 116, 114, 105, 97, 108, 32, 65, 117, 116, 111, 109, 97, 116, 105, 111, 110, 32, 68, 105, 118, 105, 115, 105, 111, 110, 34, 93, 44, 34, 116, 116, 108, 34, 58, 52, 56, 44, 34, 109, 101, 116, 97, 100, 97, 116, 97, 34, 58, 123, 34, 97, 110, 97, 108, 121, 115, 105, 115, 95, 112, 117, 114, 112, 111, 115, 101, 34, 58, 34, 79, 112, 116, 105, 109, 105, 122, 101, 32, 109, 97, 99, 104, 105, 110, 101, 32, 112, 101, 114, 102, 111, 114, 109, 97, 110, 99, 101, 32, 97, 110, 100, 32, 112, 114, 101, 118, 101, 110, 116, 32, 100, 111, 119, 110, 116, 105, 109, 101, 34, 44, 34, 100, 97, 116, 97, 95, 102, 114, 101, 113, 117, 101, 110, 99, 121, 34, 58, 34, 72, 111, 117, 114, 108, 121, 34, 44, 34, 105, 110, 100, 117, 115, 116, 114, 121, 34, 58, 34, 77, 97, 110, 117, 102, 97, 99, 116, 117, 114, 105, 110, 103, 34, 44, 34, 109, 97, 99, 104, 105, 110, 101, 95, 116, 121, 112, 101, 34, 58, 34, 65, 117, 116, 111, 109, 97, 116, 101, 100, 32, 65, 115, 115, 101, 109, 98, 108, 121, 32, 76, 105, 110, 101, 34, 125, 125]
+}'
+
 ```
 
-You should be able to create multiple instances by reruning the command. 
+You should be able to create multiple instances by reruning the command.    
 
 ### Verifying VM launch
 
