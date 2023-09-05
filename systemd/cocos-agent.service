@@ -6,14 +6,16 @@ After=network.target
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 
-ExecStartPre=ip link set dev enp0s2 up
-ExecStartPre=dhclient enp0s2
+Environment=NETWORK_INTERFACE=enp0s3
+Environment=AGENT_GRPC_HOST=10.0.2.15
+Environment=AGENT_GRPC_PORT=7002
+Environment=AGENT_LOG_LEVEL=info
+
+ExecStartPre=ip link set dev $NETWORK_INTERFACE up
+ExecStartPre=dhclient $NETWORK_INTERFACE
 ExecStartPre=mkdir -p /var/log/cocos
 
 ExecStart=/cocos/agent
-
-Environment=AGENT_LOG_LEVEL=info
-Environment=AGENT_GRPC_ADDR=10.0.2.15:7002
 
 [Install]
 WantedBy=default.target

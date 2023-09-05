@@ -9,6 +9,7 @@ require (
 	github.com/mainflux/mainflux v0.0.0-20230726142711-2b78902e0170
 	github.com/prometheus/client_golang v1.16.0
 	github.com/spf13/cobra v1.7.0
+	github.com/spf13/pflag v1.0.5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.17.0
@@ -37,7 +38,6 @@ require (
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
