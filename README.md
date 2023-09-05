@@ -25,19 +25,305 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-### focal-server-cloudimg-amd64.img
+### Prepare focal-server-cloudimg-amd64.img
+
+*focal-server-cloudimg-amd64* is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine. We will put [Agent](https://github.com/ultravioletrs/agent) in the *focal-server-cloudimg-amd64*. In order to do that, we need to prepare the disk image.
+
+#### Download focal-server-cloudimg-amd64.img and set up the root password
 
 First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
 
 ```sh
 FOCAL=focal-server-cloudimg-amd64.img
 cd cmd/manager
-wget -O img/$FOCAL$ https://cloud-images.ubuntu.com/focal/current/$FOCAL
+wget -O img/$FOCAL https://cloud-images.ubuntu.com/focal/current/$FOCAL
 # focal-server-cloudimg-amd64 comes without the root password
 sudo apt-get install libguestfs-tools
 PASSWORD=coolpass
 sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
 ```
+
+#### Resize disk image, partition and filesystem
+
+We need to resize the disk image:
+
+```sh
+qemu-img resize img/focal-server-cloudimg-amd64.img +8G
+```
+
+To resize `ext4` partition and filesystem on the `qcow2` disk image, start the virtual machine:
+
+```sh
+cd cmd/manager
+./start_VM.sh
+```
+
+Once the VM is booted up, we need to find out the partition with `ext4` filesystem, i.e. partition that contains the root file system:
+
+```sh
+mount | grep "on / type"
+```
+
+An example (for focal) of this output is:
+```sh
+# /dev/sda1 on / type ext4 (rw,relatime)
+```
+So, the partition that holds the root file system is `/dev/sda1`.
+
+Run the `parted` command to increase the `ext4` partition size. We will resize the `/dev/sda` because this is the QEMU hard disk containing the `/dev/sda1` partition and the newly added free space.
+```sh
+parted /dev/sda
+```
+In the prompt of the parted command, execute `print free` to display the partition table and to see the free space.
+```
+print free
+```
+After executing the `print free` command, the parted command may issue a warning.
+```
+Warning: Not all of the space available to /dev/sda appears to be used, you can
+fix the GPT to use all of the space (an extra 16777216 blocks) or continue with
+the current setting?
+Fix/Ignore?
+```
+
+Type `fix` here to use all of the available space.
+
+An example of the output of the `print free` command should be something like this:
+```
+Model: QEMU QEMU HARDDISK (scsi)
+Disk /dev/sda: 11.0GB
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags:
+
+Number  Start   End     Size    File system  Name  Flags
+        17.4kB  1049kB  1031kB  Free Space
+14      1049kB  5243kB  4194kB                     bios_grub
+15      5243kB  116MB   111MB   fat32              boot, esp
+ 1      116MB   2361MB  2245MB  ext4
+        2361MB  11.0GB  8590MB  Free Space
+```
+
+Partition 1 contains the root file system. To resize this partition type:
+```
+resizepart 1
+```
+The parted command will then ask you the following question:
+```
+Warning: Partition /dev/sda1 is being used. Are you sure you want to continue?
+Yes/No?
+```
+Type `yes`.
+
+Next, when asked about the root partition's new end number, enter the free space's end number. In our example, this is the number 11GB. Example:
+```
+End?  [2361MB]? 11GB
+```
+Exit the parted command by typing `quit`.
+
+The last step is to resize the filesystem of the root file system partition. To resize it, execute:
+```sh
+resize2fs /dev/sda1
+```
+
+#### Set up the network interface
+
+We need to set up the network interface in order to be establish an HTTP and gRPC communication of the VM and the "external world".
+
+We are still in the VM. If the VM is not started, start it with `./start_VM` and log in with root. Set up the network interface:
+
+```sh
+# Find out the virtual network interface and store it in NETWORK_INTERFACE env var.
+NETWORK_INTERFACE=$(ip addr | awk '/^2: /{sub(/:/, "", $2); print $2}')
+# To be sure, you can compare the output of the following command with the output of 'ip addr' command.
+echo $NETWORK_INTERFACE
+
+# Bring the specified network interface up.
+ip link set dev $NETWORK_INTERFACE up
+# Use dhclient to automatically obtain an IP address and configure the specified network interface.
+dhclient $NETWORK_INTERFACE
+```
+
+#### Install Go language
+
+We install go language in our VM in order to compile an `Agent` in the VM.
+
+```sh
+# Download the Go programming language distribution version 1.21.0 for Linux AMD64.
+wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz
+
+# Remove any existing Go installation in /usr/local/go and extract the downloaded Go archive there.
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+
+# Update the PATH environment variable to include the directory containing the Go binary.
+export PATH=$PATH:/usr/local/go/bin
+
+# Verify the installed Go version by running the "go version" command.
+go version
+# => # go version go1.21.0 linux/amd64
+```
+
+#### Build and run Agent
+
+```sh
+git clone https://github.com/ultravioletrs/agent
+cd agent
+
+# Build the 'agent' executable and save it to the 'build' directory.
+go build -o build/agent cmd/agent/main.go
+
+# Start the 'agent' executable in the background using '&' at the end.
+./build/agent &
+
+# List running processes and use 'grep' to filter for processes containing 'agent' in their names.
+ps aux | grep agent
+# This command helps verify that the 'agent' process is running.
+# The output shows the process ID (PID), resource usage, and other information about the 'agent' process.
+# For example: root 1035 0.7 0.7 1237968 14908 ttyS0 Sl 09:23 0:00 ./build/agent
+```
+
+Now we can quickly check for `Agent` from the inside of VM:
+
+```sh
+# Use netstat to list listening (LISTEN) TCP ports and filter for port 9031.
+netstat -tuln | grep 9031
+# Example output: tcp6 0 0 :::9031 :::* LISTEN
+
+# Use netstat to list listening (LISTEN) TCP ports and filter for port 7002.
+netstat -tuln | grep 7002
+# Example output: tcp6 0 0 :::7002 :::* LISTEN
+```
+
+We can also check if the `Agent` HTTP `/run` endpoint is running:
+
+```sh
+GUEST_ADDR=localhost:9031
+curl -sSi -X POST $GUEST_ADDR/run -H "Content-Type: application/json" -d @- <<EOF
+{
+  "name": "computation_24",
+  "description": "this_computes_the_number_24",
+  "datasets": [
+    "red", "green", "blue", "black", "white", "grey"
+  ],
+  "algorithms": [
+    "toHSV", "toRGB"
+  ],
+  "status": "executed",
+  "owner": "Hector",
+  "dataset_providers": [
+    "Maxi", "Idea", "Lidl"
+  ],
+  "algorithm_providers": [
+    "ETF", "FON", "FTN"
+  ],
+  "result_consumers": [
+    "Intesa", "KomBank", "OTP"
+  ],
+  "ttl": 32,
+  "metadata": {}
+}
+EOF
+```
+
+Output should look something like this:
+
+```
+EOF
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Tue, 05 Sep 2023 12:01:25 GMT
+Content-Length: 493
+
+{"computation":"{\"name\":\"computation_24\",\"description\":\"this_computes_the_number_24\",\"status\":\"executed\",\"owner\":\"Hector\",\"start_time\":\"0001-01-01T00:00:00Z\",\"end_time\":\"0001-01-01T00:00:00Z\",\"datasets\":[\"red\",\"green\",\"blue\",\"black\",\"white\",\"grey\"],\"algorithms\":[\"toHSV\",\"toRGB\"],\"dataset_providers\":[\"Maxi\",\"Idea\",\"Lidl\"],\"algorithm_providers\":[\"ETF\",\"FON\",\"FTN\"],\"result_consumers\":[\"Intesa\",\"KomBank\",\"OTP\"],\"ttl\":32}"}
+```
+
+We can also check if `Agent` is reachable from the host machine:
+
+```sh
+# Use netcat (nc) to test the connection to localhost on port 9301.
+nc -zv localhost 9301
+# Output:
+# nc: connect to localhost (::1) port 9301 (tcp) failed: Connection refused
+# Connection to localhost (127.0.0.1) 9301 port [tcp/*] succeeded!
+
+# Use netcat (nc) to test the connection to localhost on port 7020.
+nc -zv localhost 7020
+# Output:
+# nc: connect to localhost (::1) port 7020 (tcp) failed: Connection refused
+# Connection to localhost (127.0.0.1) 7020 port [tcp/*] succeeded!
+```
+
+We can also test `Agent's` HTTP `/run` endpoint from the the host machine:
+
+```sh
+GUEST_ADDR=localhost:9301
+curl -sSi -X POST $GUEST_ADDR/run -H "Content-Type: application/json" -d @- <<EOF
+{
+  "name": "computation_24",
+  "description": "this_computes_the_number_24",
+  "datasets": [
+    "red", "green", "blue", "black", "white", "grey"
+  ],
+  "algorithms": [
+    "toHSV", "toRGB"
+  ],
+  "status": "executed",
+  "owner": "Hector",
+  "dataset_providers": [
+    "Maxi", "Idea", "Lidl"
+  ],
+  "algorithm_providers": [
+    "ETF", "FON", "FTN"
+  ],
+  "result_consumers": [
+    "Intesa", "KomBank", "OTP"
+  ],
+  "ttl": 32,
+  "metadata": {}
+}
+EOF
+```
+You should get the similar output to the one above.
+
+#### Set up agent as systemd daemon service
+
+Before proceeding, you should ensure that your are logged in as root in the VM and that the `agent` process is not running.
+
+Make directories for an agent executable and agent logs:
+
+```sh
+mkdir -p /cocos
+mkdir -p /var/log/cocos
+```
+
+`cd` to the cloned `agent` repo:
+
+```sh
+# Build the 'agent' executable from the main.go source file and save it as 'build/agent'.
+go build -o build/agent cmd/agent/main.go
+
+# Copy the 'agent' executable to the '/cocos/agent' directory.
+cp build/agent /cocos/agent
+
+# Copy the 'cocos-agent.service' systemd unit file to the '/etc/systemd/system/' directory.
+cp systemd/cocos-agent.service /etc/systemd/system/
+```
+
+Now we are ready to set up `agent` executable as a systemd daemon service:
+
+```sh
+# Enable the 'cocos-agent.service' systemd unit to start automatically on system boot.
+systemctl enable cocos-agent.service
+
+# Start the 'cocos-agent.service' systemd unit immediately.
+systemctl start cocos-agent.service
+
+# Check the status of the 'cocos-agent.service' systemd unit to verify if it's running and view its current status.
+systemctl status cocos-agent.service
+```
+#### Conclusion
+
+Now you are able to use `Manager` with `Agent`. Namely, `Manager` will create a VM with a separate OVMF variables file and with a separate copy of `focal-server-cloudimg-amd64.img` on manager `/run` request.
 
 ### OVMF
 
@@ -148,22 +434,3 @@ pkill -f qemu-system-x86_64
 The pkill command is used to kill processes by name or by pattern. The -f flag to specify that we want to kill processes that match the pattern `qemu-system-x86_64`. It sends the SIGKILL signal to all processes that are running `qemu-system-x86_64`.
 
 If this does not work, i.e. if `ps aux | grep qemu-system-x86_64` still outputs `qemu-system-x86_64` related process(es), you can kill the unwanted process with `kill -9 <PID>`, which also sends a SIGKILL signal to the process.
-
-#### Ports in use
-
-The [NetDevConfig struct](manager/qemu/config.go) defines the network configuration for a virtual machine. The HostFwd* and GuestFwd* fields specify the host and guest ports that are forwarded between the virtual machine and the host machine. By default, these ports are allocated 2222, 9301, and 7020 for HostFwd1, HostFwd2, and HostFwd3, respectively, and 22, 9031, and 7002 for GuestFwd1, GuestFwd2, and GuestFwd3, respectively. However, if these ports are in use, you can configure your own ports by setting the corresponding environment variables. For example, to set the HostFwd1 port to 8080, you would set the MANAGER_QEMU_HOST_FWD_1 environment variable to 8080. For example,
-
-```sh
-export MANAGER_LOG_LEVEL=info
-export MANAGER_AGENT_GRPC_URL=192.168.122.251:7002
-export MANAGER_QEMU_USE_SUDO=false
-export MANAGER_QEMU_ENABLE_SEV=false
-export MANAGER_QEMU_HOST_FWD_1=8080
-export MANAGER_QEMU_GUEST_FWD_1=22
-export MANAGER_QEMU_HOST_FWD_2=9301
-export MANAGER_QEMU_GUEST_FWD_2=9031
-export MANAGER_QEMU_HOST_FWD_3=7020
-export MANAGER_QEMU_GUEST_FWD_3=7002
-
-go run main.go
-```
