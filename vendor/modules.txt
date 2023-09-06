@@ -84,7 +84,7 @@ github.com/prometheus/procfs/internal/util
 # github.com/subosito/gotenv v1.4.2
 ## explicit; go 1.18
 github.com/subosito/gotenv
-# github.com/ultravioletrs/agent v0.0.0-20230727102942-c2240066f943 => /home/darko/go/src/github.com/ultravioletrs/agent
+# github.com/ultravioletrs/agent v0.0.0-20230905145147-a3c466449737
 ## explicit; go 1.20
 github.com/ultravioletrs/agent/agent
 github.com/ultravioletrs/agent/agent/api/grpc
@@ -250,4 +250,3 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# github.com/ultravioletrs/agent => /home/darko/go/src/github.com/ultravioletrs/agent

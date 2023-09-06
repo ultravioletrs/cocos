@@ -11,7 +11,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/mainflux/mainflux v0.0.0-20230726142711-2b78902e0170
 	github.com/prometheus/client_golang v1.16.0
-	github.com/ultravioletrs/agent v0.0.0-20230727102942-c2240066f943
+	github.com/ultravioletrs/agent v0.0.0-20230905145147-a3c466449737
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.17.0
