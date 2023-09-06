@@ -36,11 +36,15 @@ First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with
 ```sh
 FOCAL=focal-server-cloudimg-amd64.img
 cd cmd/manager
+mkdir img
 wget -O img/$FOCAL https://cloud-images.ubuntu.com/focal/current/$FOCAL
 # focal-server-cloudimg-amd64 comes without the root password
 sudo apt-get install libguestfs-tools
 PASSWORD=coolpass
 sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
+
+# Use this dir for temporary firmware vars file and temporary disk image per virtual machine.
+mkdir tmp
 ```
 
 #### Resize disk image, partition and filesystem
@@ -48,13 +52,14 @@ sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
 We need to resize the disk image:
 
 ```sh
-qemu-img resize img/focal-server-cloudimg-amd64.img +8G
+qemu-img resize img/focal-server-cloudimg-amd64.img +1G
 ```
 
 To resize `ext4` partition and filesystem on the `qcow2` disk image, start the virtual machine:
 
 ```sh
 cd cmd/manager
+cp /usr/share/OVMF/OVMF_VARS.fd img/
 ./start_VM.sh
 ```
 
@@ -101,7 +106,7 @@ Number  Start   End     Size    File system  Name  Flags
 14      1049kB  5243kB  4194kB                     bios_grub
 15      5243kB  116MB   111MB   fat32              boot, esp
  1      116MB   2361MB  2245MB  ext4
-        2361MB  11.0GB  8590MB  Free Space
+        2361MB  3435MB  1074MB  Free Space
 ```
 
 Partition 1 contains the root file system. To resize this partition type:
@@ -117,7 +122,7 @@ Type `yes`.
 
 Next, when asked about the root partition's new end number, enter the free space's end number. In our example, this is the number 11GB. Example:
 ```
-End?  [2361MB]? 11GB
+End?  [2361MB]? 3435MB
 ```
 Exit the parted command by typing `quit`.
 
@@ -185,6 +190,8 @@ ps aux | grep agent
 Now we can quickly check for `Agent` from the inside of VM:
 
 ```sh
+apt install net-tools
+
 # Use netstat to list listening (LISTEN) TCP ports and filter for port 9031.
 netstat -tuln | grep 9031
 # Example output: tcp6 0 0 :::9031 :::* LISTEN
