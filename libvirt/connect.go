@@ -28,16 +28,15 @@ func Connect(logger logger.Logger) *libvirt.Libvirt {
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to retrieve libvirt version: %v", err))
 	}
-	fmt.Println("Version:", v)
+	logger.Info(fmt.Sprintf("Retrieved libvirt version: %s", v))
 
 	domains, err := l.Domains()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to retrieve domains: %v", err))
 	}
-	fmt.Println("ID\tName\t\tUUID")
-	fmt.Printf("--------------------------------------------------------\n")
+
 	for _, d := range domains {
-		fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
+		logger.Info(fmt.Sprintf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID))
 	}
 
 	return l
