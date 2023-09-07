@@ -34,19 +34,19 @@ Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`
 First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
 
 ```sh
-FOCAL=focal-server-cloudimg-amd64.img
 cd cmd/manager
+# Use this dir for focal-server-cloudimg-amd64.img and a test copy of firmware vars file.
 mkdir img
+# Use this dir for temporary firmware vars file and temporary disk image per virtual machine.
+mkdir tmp
+
+FOCAL=focal-server-cloudimg-amd64.img
 wget -O img/$FOCAL https://cloud-images.ubuntu.com/focal/current/$FOCAL
 # focal-server-cloudimg-amd64 comes without the root password
 sudo apt-get install libguestfs-tools
 PASSWORD=coolpass
 sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
-
-# Use this dir for temporary firmware vars file and temporary disk image per virtual machine.
-mkdir tmp
 ```
-
 #### Resize disk image, partition and filesystem
 
 We need to resize the disk image:
@@ -59,7 +59,16 @@ To resize `ext4` partition and filesystem on the `qcow2` disk image, start the v
 
 ```sh
 cd cmd/manager
-cp /usr/share/OVMF/OVMF_VARS.fd img/
+
+sudo find / -name OVMF_CODE.fd
+# => /usr/share/OVMF/OVMF_CODE.fd
+export MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
+
+sudo find / -name OVMF_VARS.fd
+# => /usr/share/OVMF/OVMF_VARS.fd
+export MANAGER_QEMU_OVMF_VARS_FILE=/usr/share/OVMF/OVMF_VARS.fd
+
+# Exported env vars are visible in subshell: start_VM.sh relies on MANAGER_QEMU_OVMF_CODE_FILE and MANAGER_QEMU_OVMF_VARS_FILE
 ./start_VM.sh
 ```
 
@@ -74,6 +83,12 @@ An example (for focal) of this output is:
 # /dev/sda1 on / type ext4 (rw,relatime)
 ```
 So, the partition that holds the root file system is `/dev/sda1`.
+
+Check the current size of the partition:
+```sh
+df -h
+# Output: /dev/sda1       2.0G  1.5G  520M  74% /
+```
 
 Run the `parted` command to increase the `ext4` partition size. We will resize the `/dev/sda` because this is the QEMU hard disk containing the `/dev/sda1` partition and the newly added free space.
 ```sh
@@ -90,7 +105,6 @@ fix the GPT to use all of the space (an extra 16777216 blocks) or continue with
 the current setting?
 Fix/Ignore?
 ```
-
 Type `fix` here to use all of the available space.
 
 An example of the output of the `print free` command should be something like this:
@@ -129,6 +143,11 @@ Exit the parted command by typing `quit`.
 The last step is to resize the filesystem of the root file system partition. To resize it, execute:
 ```sh
 resize2fs /dev/sda1
+```
+Check the new size of the partition:
+```sh
+df -h
+# Output: /dev/sda1       3.0G  1.5G  1.5G  50% /
 ```
 
 #### Set up the network interface
@@ -315,7 +334,6 @@ cp build/agent /cocos/agent
 # Copy the 'cocos-agent.service' systemd unit file to the '/etc/systemd/system/' directory.
 cp systemd/cocos-agent.service /etc/systemd/system/
 ```
-
 Now we are ready to set up `agent` executable as a systemd daemon service:
 
 ```sh

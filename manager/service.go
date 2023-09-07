@@ -8,7 +8,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/digitalocean/go-libvirt"
 	"github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/manager/manager/qemu"
 )
@@ -35,7 +34,6 @@ type Service interface {
 }
 
 type managerService struct {
-	libvirt *libvirt.Libvirt
 	agent   agent.AgentServiceClient
 	qemuCfg qemu.Config
 }
@@ -43,9 +41,8 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, qemuCfg qemu.Config) Service {
+func New(agent agent.AgentServiceClient, qemuCfg qemu.Config) Service {
 	return &managerService{
-		libvirt: libvirtConn,
 		agent:   agent,
 		qemuCfg: qemuCfg,
 	}

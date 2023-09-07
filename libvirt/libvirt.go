@@ -13,13 +13,36 @@ import (
 
 var re = regexp.MustCompile(`'([^']*)'`)
 
-func entityName(msg string) (string, error) {
-	match := re.FindStringSubmatch(msg)
-	if len(match) < 1 {
-		return "", errors.New("entity not found")
+func CreateDomain(ctx context.Context, libvirt *libvirt.Libvirt, poolXML, volXML, domXML string) (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
 	}
 
-	return match[1], nil
+	poolStr, err := readXMLFile(poolXML, "pool.xml")
+	if err != nil {
+		return "", err
+	}
+	poolStr = replaceSubstring(poolStr, "./", wd+"/")
+
+	volStr, err := readXMLFile(volXML, "vol.xml")
+	if err != nil {
+		return "", err
+	}
+	volStr = replaceSubstring(volStr, "./", wd+"/")
+
+	domStr, err := readXMLFile(domXML, "dom.xml")
+	if err != nil {
+		return "", err
+	}
+	domStr = replaceSubstring(domStr, "./", wd+"/")
+
+	dom, err := createDomain(libvirt, poolStr, volStr, domStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to create domain: %s", err)
+	}
+
+	return dom.Name, nil
 }
 
 func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, domXML string) (libvirt.Domain, error) {
@@ -101,36 +124,13 @@ vol_exists:
 	return dom, nil
 }
 
-func CreateDomain(ctx context.Context, libvirt *libvirt.Libvirt, poolXML, volXML, domXML string) (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
+func entityName(msg string) (string, error) {
+	match := re.FindStringSubmatch(msg)
+	if len(match) < 1 {
+		return "", errors.New("entity not found")
 	}
 
-	poolStr, err := readXMLFile(poolXML, "pool.xml")
-	if err != nil {
-		return "", err
-	}
-	poolStr = replaceSubstring(poolStr, "./", wd+"/")
-
-	volStr, err := readXMLFile(volXML, "vol.xml")
-	if err != nil {
-		return "", err
-	}
-	volStr = replaceSubstring(volStr, "./", wd+"/")
-
-	domStr, err := readXMLFile(domXML, "dom.xml")
-	if err != nil {
-		return "", err
-	}
-	domStr = replaceSubstring(domStr, "./", wd+"/")
-
-	dom, err := createDomain(libvirt, poolStr, volStr, domStr)
-	if err != nil {
-		return "", fmt.Errorf("failed to create domain: %s", err)
-	}
-
-	return dom.Name, nil
+	return match[1], nil
 }
 
 func readXMLFile(filename string, defaultFilename string) (string, error) {
