@@ -19,7 +19,7 @@ type Config struct {
 	ClientTLS bool          `env:"CLIENT_TLS"    envDefault:"false"`
 	CACerts   string        `env:"CA_CERTS"      envDefault:""`
 	URL       string        `env:"URL"           envDefault:"localhost:7001"`
-	Timeout   time.Duration `env:"TIMEOUT"       envDefault:"1s"`
+	Timeout   time.Duration `env:"TIMEOUT"       envDefault:"60s"`
 }
 
 type Client interface {

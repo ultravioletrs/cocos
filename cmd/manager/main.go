@@ -11,11 +11,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
-	"time"
+	"strings"
 
-	"github.com/digitalocean/go-libvirt"
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
 	"github.com/ultravioletrs/agent/agent"
@@ -86,16 +84,9 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	libvirtConn := initLibvirt(logger)
-	defer func() {
-		if err := libvirtConn.Disconnect(); err != nil {
-			logger.Error(fmt.Sprintf("Error disconnecting from libvirt: %s", err))
-		}
-	}()
-
 	agentGRPCConfig := agentgrpc.Config{}
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration: %s", svcName, err))
 	}
 	agentGRPCClient, agentClient, err := agentgrpc.NewClient(agentGRPCConfig)
 	if err != nil {
@@ -103,24 +94,29 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	logger.Info("Successfully connected to agent grpc server " + agentGRPCClient.Secure())
+	logger.Info(fmt.Sprintf("Successfully connected to agent grpc server at %s %s", agentGRPCConfig.URL, agentGRPCClient.Secure()))
 
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s QEMU configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 	}
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
+	}
+	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
-	svc := newService(libvirtConn, agentClient, logger, tracer, qemuCfg)
+	svc := newService(agentClient, logger, tracer, qemuCfg)
 
 	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
+		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
 	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+		log.Fatalf("failed to load %s gRPC server configuration: %s", svcName, err.Error())
 	}
 	registerManagerServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
@@ -150,8 +146,8 @@ func main() {
 	}
 }
 
-func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(libvirtConn, agent, qemuCfg)
+func newService(agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
+	svc := manager.New(agent, qemuCfg)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
@@ -159,37 +155,4 @@ func newService(libvirtConn *libvirt.Libvirt, agent agent.AgentServiceClient, lo
 	svc = tracing.New(svc, tracer)
 
 	return svc
-}
-
-func initLibvirt(logger logger.Logger) *libvirt.Libvirt {
-	// This dials libvirt on the local machine, but you can substitute the first
-	// two parameters with "tcp", "<ip address>:<port>" to connect to libvirt on
-	// a remote machine.
-	c, err := net.DialTimeout("unix", "/var/run/libvirt/libvirt-sock", 2*time.Second)
-	if err != nil {
-		log.Fatalf("failed to dial libvirt: %v", err)
-	}
-
-	l := libvirt.New(c)
-	if err := l.Connect(); err != nil {
-		log.Fatalf("failed to connect: %v", err)
-	}
-
-	v, err := l.Version()
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to retrieve libvirt version: %v", err))
-	}
-	fmt.Println("Version:", v)
-
-	domains, err := l.Domains()
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to retrieve domains: %v", err))
-	}
-	fmt.Println("ID\tName\t\tUUID")
-	fmt.Printf("--------------------------------------------------------\n")
-	for _, d := range domains {
-		fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
-	}
-
-	return l
 }

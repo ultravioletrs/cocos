@@ -7,10 +7,10 @@ require (
 	github.com/digitalocean/go-libvirt v0.0.0-20221205150000-2939327a8519
 	github.com/go-kit/kit v0.12.0
 	github.com/go-zoo/bone v1.3.0
-	github.com/google/uuid v1.3.0
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/mainflux/mainflux v0.0.0-20230726142711-2b78902e0170
 	github.com/prometheus/client_golang v1.16.0
-	github.com/ultravioletrs/agent v0.0.0-20230727102942-c2240066f943
+	github.com/ultravioletrs/agent v0.0.0-20230905145147-a3c466449737
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.17.0
@@ -31,7 +31,6 @@ require (
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
