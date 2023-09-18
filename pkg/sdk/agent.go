@@ -73,7 +73,7 @@ func (sdk *AgentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
 	return response.AlgorithmID, nil
 }
 
-func (sdk *AgentSDK) UploadDataset(dataset string) (string, error) {
+func (sdk *AgentSDK) UploadDataset(dataset []byte) (string, error) {
 	request := &agent.DataRequest{
 		Dataset: dataset,
 	}

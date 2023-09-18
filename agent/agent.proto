@@ -19,12 +19,10 @@ message AlgoRequest { bytes algorithm = 1; }
 
 message AlgoResponse { string algorithmID = 1; }
 
-message DataRequest { string dataset = 1; }
+message DataRequest { bytes dataset = 1; }
 
 message DataResponse { string datasetID = 1; }
 
 message ResultRequest {}
 
-message ResultResponse {
-  bytes file = 1;
-}
+message ResultResponse { bytes file = 1; }

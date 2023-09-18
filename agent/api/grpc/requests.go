@@ -25,7 +25,7 @@ func (req algoReq) validate() error {
 }
 
 type dataReq struct {
-	Dataset string `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
+	Dataset []byte `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
 }
 
 func (req dataReq) validate() error {

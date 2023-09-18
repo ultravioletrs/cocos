@@ -26,11 +26,14 @@ type Metadata map[string]interface{}
 type Service interface {
 	Run(ctx context.Context, cmp Computation) (string, error)
 	Algo(ctx context.Context, algorithm []byte) (string, error)
-	Data(ctx context.Context, dataset string) (string, error)
+	Data(ctx context.Context, dataset []byte) (string, error)
 	Result(ctx context.Context) ([]byte, error)
 }
 
 type agentService struct {
+	computation Computation
+	algorithms  [][]byte
+	datasets    [][]byte
 }
 
 var _ Service = (*agentService)(nil)
@@ -40,11 +43,13 @@ func New() Service {
 	return &agentService{}
 }
 
-func (ks *agentService) Run(ctx context.Context, cmp Computation) (string, error) {
+func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error) {
 	cmpJSON, err := json.Marshal(cmp)
 	if err != nil {
 		return "", err
 	}
+
+	as.computation = cmp
 
 	return string(cmpJSON), nil // return the JSON string as the function's string return value
 }
@@ -52,6 +57,8 @@ func (ks *agentService) Run(ctx context.Context, cmp Computation) (string, error
 func (as *agentService) Algo(ctx context.Context, algorithm []byte) (string, error) {
 	// Implement the logic for the Algo method based on your requirements
 	// Use the provided ctx and algorithm parameters as needed
+
+	as.algorithms = append(as.algorithms, algorithm)
 
 	// Perform some processing on the algorithm byte array
 	// For example, generate a unique ID for the algorithm
@@ -61,9 +68,11 @@ func (as *agentService) Algo(ctx context.Context, algorithm []byte) (string, err
 	return algorithmID, nil
 }
 
-func (as *agentService) Data(ctx context.Context, dataset string) (string, error) {
+func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error) {
 	// Implement the logic for the Data method based on your requirements
 	// Use the provided ctx and dataset parameters as needed
+
+	as.datasets = append(as.datasets, dataset)
 
 	// Perform some processing on the dataset string
 	// For example, generate a unique ID for the dataset
