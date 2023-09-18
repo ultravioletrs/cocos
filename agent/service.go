@@ -41,6 +41,7 @@ type agentService struct {
 	computation Computation
 	algorithms  [][]byte
 	datasets    [][]byte
+	result      []byte
 }
 
 var _ Service = (*agentService)(nil)
@@ -81,8 +82,6 @@ func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error
 
 	as.datasets = append(as.datasets, dataset)
 
-	run(as.algorithms[0], as.datasets[0], resultFilePath)
-
 	// Perform some processing on the dataset string
 	// For example, generate a unique ID for the dataset
 	datasetID := "dataset456"
@@ -91,21 +90,25 @@ func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error
 	return datasetID, nil
 }
 
+const marker = "===MODEL_MARKER==="
+
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	// Implement the logic for the Result method based on your requirements
 	// Use the provided ctx parameter as needed
 
 	// Perform some processing to retrieve the computation result file
 	// For example, read the file from storage or generate a dummy result
-	result := []byte("This is the computation result file.")
+	result, err := run(as.algorithms[0], as.datasets[0], resultFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error performing computation: %v", err)
+	}
+	as.result = result
 
 	// Return the result file or an error
-	return result, nil
+	return as.result, nil
 }
 
-const marker = "===MODEL_MARKER==="
-
-func run(algoContent []byte, dataContent []byte, resultPath string) error {
+func run(algoContent []byte, dataContent []byte, resultPath string) ([]byte, error) {
 	// Construct the Python script content with CSV data as a command-line argument
 	script := string(algoContent)
 	data := string(dataContent)
@@ -116,16 +119,16 @@ func run(algoContent []byte, dataContent []byte, resultPath string) error {
 	// Capture the command's standard output and error
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("error creating stdout pipe: %v", err)
+		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("error creating stderr pipe: %v", err)
+		return nil, fmt.Errorf("error creating stderr pipe: %v", err)
 	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("error starting Python script: %v", err)
+		return nil, fmt.Errorf("error starting Python script: %v", err)
 	}
 
 	// Create memory-based output and error writers
@@ -141,7 +144,7 @@ func run(algoContent []byte, dataContent []byte, resultPath string) error {
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("python script execution error: %v", err)
+		return nil, fmt.Errorf("python script execution error: %v", err)
 	}
 
 	fmt.Println("Python script execution completed.")
@@ -162,9 +165,8 @@ func run(algoContent []byte, dataContent []byte, resultPath string) error {
 		// Now you can use modelBytes in your Go program
 		// For example, you can deserialize the model using joblib
 	}
-	_ = result
 
-	return nil
+	return result, nil
 }
 
 func extractResult(output []byte, startMarker, endMarker []byte) ([]byte, error) {

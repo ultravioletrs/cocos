@@ -2,6 +2,7 @@ package cli
 
 import (
 	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
@@ -18,7 +19,13 @@ func NewDatasetsCmd(sdk agentsdk.SDK) *cobra.Command {
 
 			log.Println("Uploading dataset CSV:", datasetFile)
 
-			response, err := sdk.UploadDataset(datasetFile)
+			// Read the content of the CSV file into a byte slice
+			dataset, err := os.ReadFile(datasetFile)
+			if err != nil {
+				log.Println("Error reading dataset file:", err)
+				return
+			}
+			response, err := sdk.UploadDataset(dataset)
 			if err != nil {
 				log.Println("Error uploading dataset:", err)
 				return
