@@ -7,6 +7,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
 )
 
 var (
@@ -74,6 +78,8 @@ func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error
 
 	as.datasets = append(as.datasets, dataset)
 
+	run(as.algorithms[0], as.datasets[0], ".")
+
 	// Perform some processing on the dataset string
 	// For example, generate a unique ID for the dataset
 	datasetID := "dataset456"
@@ -92,4 +98,48 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 
 	// Return the result file or an error
 	return result, nil
+}
+
+func run(algoContent []byte, dataContent []byte, workingDir string) error {
+	// Construct the Python script content with CSV data as a command-line argument
+	script := string(algoContent)
+	csv := string(dataContent)
+
+	// Run the Python script with the script content and CSV data as input
+	cmd := exec.Command("python3", "-c", script, csv)
+
+	// Set the working directory for the command (if needed)
+	cmd.Dir = workingDir
+
+	// Capture the command's standard output and error
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("error creating stdout pipe: %v", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("error creating stderr pipe: %v", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("error starting Python script: %v", err)
+	}
+
+	// Read and print the standard output and error
+	go func() {
+		_, _ = io.Copy(os.Stdout, stdout)
+	}()
+	go func() {
+		_, _ = io.Copy(os.Stderr, stderr)
+	}()
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("python script execution error: %v", err)
+	}
+
+	fmt.Println("Python script execution completed.")
+
+	return nil
 }
