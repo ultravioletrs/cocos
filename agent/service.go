@@ -4,14 +4,17 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
+	"log"
 	"os/exec"
 )
+
+const resultFilePath = "trained_logistic_regression_model.joblib"
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -78,7 +81,7 @@ func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error
 
 	as.datasets = append(as.datasets, dataset)
 
-	run(as.algorithms[0], as.datasets[0], ".")
+	run(as.algorithms[0], as.datasets[0], resultFilePath)
 
 	// Perform some processing on the dataset string
 	// For example, generate a unique ID for the dataset
@@ -100,16 +103,15 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return result, nil
 }
 
-func run(algoContent []byte, dataContent []byte, workingDir string) error {
+const marker = "===MODEL_MARKER==="
+
+func run(algoContent []byte, dataContent []byte, resultPath string) error {
 	// Construct the Python script content with CSV data as a command-line argument
 	script := string(algoContent)
-	csv := string(dataContent)
+	data := string(dataContent)
 
-	// Run the Python script with the script content and CSV data as input
-	cmd := exec.Command("python3", "-c", script, csv)
-
-	// Set the working directory for the command (if needed)
-	cmd.Dir = workingDir
+	// Run the Python script with the script and data as input
+	cmd := exec.Command("python3", "-c", script, data, resultPath)
 
 	// Capture the command's standard output and error
 	stdout, err := cmd.StdoutPipe()
@@ -126,12 +128,15 @@ func run(algoContent []byte, dataContent []byte, workingDir string) error {
 		return fmt.Errorf("error starting Python script: %v", err)
 	}
 
+	// Create memory-based output and error writers
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+
 	// Read and print the standard output and error
 	go func() {
-		_, _ = io.Copy(os.Stdout, stdout)
+		_, _ = io.Copy(&stdoutBuffer, stdout)
 	}()
 	go func() {
-		_, _ = io.Copy(os.Stderr, stderr)
+		_, _ = io.Copy(&stderrBuffer, stderr)
 	}()
 
 	// Wait for the command to finish
@@ -141,5 +146,35 @@ func run(algoContent []byte, dataContent []byte, workingDir string) error {
 
 	fmt.Println("Python script execution completed.")
 
+	// Find the markers and extract the model bytes
+	resultBuffer, err := io.ReadAll(&stdoutBuffer)
+	if err != nil {
+		log.Fatalf("Error reading stdout: %v", err)
+	}
+
+	startMarker := []byte(marker)
+	endMarker := []byte(marker)
+
+	result, err := extractResult(resultBuffer, startMarker, endMarker)
+	if err != nil {
+		log.Println(err)
+	} else {
+		// Now you can use modelBytes in your Go program
+		// For example, you can deserialize the model using joblib
+	}
+	_ = result
+
 	return nil
+}
+
+func extractResult(output []byte, startMarker, endMarker []byte) ([]byte, error) {
+	start := bytes.Index(output, startMarker)
+	end := bytes.LastIndex(output, endMarker)
+
+	if start != -1 && end != -1 && start < end {
+		modelBytes := output[start+len(startMarker) : end]
+		return modelBytes, nil
+	}
+
+	return nil, errors.New("model marker not found in output")
 }
