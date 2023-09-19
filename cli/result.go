@@ -1,12 +1,14 @@
 package cli
 
 import (
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
 )
+
+const resultFilePath = "result.bin"
 
 func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 
@@ -22,14 +24,13 @@ func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			err = ioutil.WriteFile("result.txt", result, 0644)
+			err = os.WriteFile(resultFilePath, result, 0644)
 			if err != nil {
 				log.Println("Error saving computation result:", err)
 				return
 			}
 
 			log.Println("Computation result retrieved and saved successfully!")
-			log.Println("Response:", string(result))
 		},
 	}
 }
