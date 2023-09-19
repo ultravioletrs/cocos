@@ -8,10 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net"
-	"os"
 	"os/exec"
+
+	socket "github.com/ultravioletrs/agent/pkg"
 )
 
 var (
@@ -41,6 +40,8 @@ type agentService struct {
 	datasets    [][]byte
 	result      []byte
 }
+
+const socketPath = "unix_socket"
 
 var _ Service = (*agentService)(nil)
 
@@ -92,8 +93,6 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	// Implement the logic for the Result method based on your requirements
 	// Use the provided ctx parameter as needed
 
-	// Perform some processing to retrieve the computation result file
-	// For example, read the file from storage or generate a dummy result
 	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
 		return nil, fmt.Errorf("error performing computation: %v", err)
@@ -105,12 +104,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func run(algoContent []byte, dataContent []byte) ([]byte, error) {
-	// Construct the Python script content with CSV data as a command-line argument
-	script := string(algoContent)
-	data := string(dataContent)
-	socketPath := "unix_socket"
-
-	listener, err := startUnixSocketServer(socketPath)
+	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
 	}
@@ -119,81 +113,27 @@ func run(algoContent []byte, dataContent []byte) ([]byte, error) {
 	// Create channels for received data and errors
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
-	go acceptConnections(listener, dataChannel, errorChannel)
+	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
-	// Run the Python script with the script and data as input
+	// Construct the Python script content with CSV data as a command-line argument
+	script := string(algoContent)
+	data := string(dataContent)
 	cmd := exec.Command("python3", "-c", script, data, socketPath)
 
-	// Start the command
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting Python script: %v", err)
 	}
 
 	var receivedData []byte
-	// Process received data or errors
 	select {
 	case receivedData = <-dataChannel:
 	case err = <-errorChannel:
 		return nil, fmt.Errorf("error receiving data: %v", err)
 	}
 
-	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		return nil, fmt.Errorf("python script execution error: %v", err)
 	}
 
-	fmt.Println("Python script execution completed.")
-
 	return receivedData, nil
-}
-
-func startUnixSocketServer(socketPath string) (net.Listener, error) {
-	// Remove any existing socket file
-	_ = os.Remove(socketPath)
-
-	// Create a Unix domain socket listener
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating socket listener: %v", err)
-	}
-
-	fmt.Println("Unix domain socket server is listening on", socketPath)
-
-	return listener, nil
-}
-
-func acceptConnections(listener net.Listener, dataChannel chan []byte, errorChannel chan error) {
-	conn, err := listener.Accept()
-	if err != nil {
-		errorChannel <- fmt.Errorf("error accepting connection:: %v", err)
-	}
-
-	// Handle the connection in a goroutine and send the received data or error to channels
-	handleConnection(conn, dataChannel, errorChannel)
-}
-
-func handleConnection(conn net.Conn, dataChannel chan []byte, errorChannel chan error) {
-	defer conn.Close()
-
-	// Create a dynamic buffer to store incoming data
-	var buffer []byte
-	tmp := make([]byte, 1024) // Temporary buffer for reading data
-
-	for {
-		// Read data into the temporary buffer
-		n, err := conn.Read(tmp)
-		if err != nil {
-			if err == io.EOF {
-				// End of data, break the loop
-				break
-			}
-			errorChannel <- err // Send the error to the error channel
-		}
-
-		// Append the read data to the dynamic buffer
-		buffer = append(buffer, tmp[:n]...)
-	}
-
-	// Send the received data to the data channel
-	dataChannel <- buffer
 }

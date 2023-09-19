@@ -5,7 +5,30 @@ info:
 servers:
   - url: https://api.example.com/v1
 paths:
-  /algorithm:
+  /run:
+    post:
+      summary: Run a computation
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The computation binary file (Linux executable)
+      responses:
+        "200":
+          description: Computation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  computationId:
+                    type: string
+                    description: Identifier for the computation
+
+  /algo:
     post:
       summary: Upload algorithm binary
       requestBody:
@@ -28,16 +51,17 @@ paths:
                     type: string
                     description: Identifier for the uploaded algorithm binary
 
-  /dataset:
+  /data:
     post:
       summary: Upload dataset CSV file
       requestBody:
         required: true
         content:
-          text/plain:
+          application/octet-stream:
             schema:
               type: string
-              description: The dataset CSV file as a plain text string
+              format: binary
+              description: The dataset CSV file as a binary
       responses:
         "200":
           description: Dataset CSV uploaded
