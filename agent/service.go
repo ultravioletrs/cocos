@@ -42,6 +42,7 @@ type agentService struct {
 }
 
 const socketPath = "unix_socket"
+const pyRuntime = "python3"
 
 var _ Service = (*agentService)(nil)
 
@@ -118,7 +119,7 @@ func run(algoContent []byte, dataContent []byte) ([]byte, error) {
 	// Construct the Python script content with CSV data as a command-line argument
 	script := string(algoContent)
 	data := string(dataContent)
-	cmd := exec.Command("python3", "-c", script, data, socketPath)
+	cmd := exec.Command(pyRuntime, "-c", script, data, socketPath)
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting Python script: %v", err)

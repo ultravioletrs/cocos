@@ -2,16 +2,30 @@
 
 ## CLI
 
-Open a console and start `agent`
+Throughout the tests, we assume that our current working directory is the root of the `agent` repository, both on the host machine and in the VM.
+
+### Python requirements
+
+Do this both on the host machine and in the VM.
 
 ```sh
-AGENT_LOG_LEVEL=info go run cmd/agent/main.go
+apt update
+apt install python3-pip
+pip3 install pandas sklearn scikit-learn
 ```
 
-Open another console and run
+### Agent-CLI interaction
+
+In the VM, open a console and start `agent`:
 
 ```sh
-export AGENT_GRPC_URL=localhost:7002
+AGENT_LOG_LEVEL=info AGENT_GRPC_URL=10.0.2.15:7002 go run cmd/agent/main.go
+```
+
+Open console on the host, and run
+
+```sh
+export AGENT_GRPC_URL=localhost:7020
 
 # Run the CLI program with algorithm input
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.py
