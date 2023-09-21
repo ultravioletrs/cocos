@@ -31,7 +31,7 @@ func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			log.Println("Response:", response)
+			log.Println("Succesfully uploaded algorithm:", response)
 		},
 	}
 }
