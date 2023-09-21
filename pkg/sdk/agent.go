@@ -16,7 +16,7 @@ type SDK interface {
 	Result() ([]byte, error)
 }
 
-type AgentSDK struct {
+type agentSDK struct {
 	client agent.AgentServiceClient
 	logger logger.Logger
 }
@@ -40,14 +40,14 @@ type Computation struct {
 
 type Metadata map[string]interface{}
 
-func NewAgentSDK(log logger.Logger, agentClient agent.AgentServiceClient) *AgentSDK {
-	return &AgentSDK{
+func NewAgentSDK(log logger.Logger, agentClient agent.AgentServiceClient) *agentSDK {
+	return &agentSDK{
 		client: agentClient,
 		logger: log,
 	}
 }
 
-func (sdk *AgentSDK) Run(computation Computation) (string, error) {
+func (sdk *agentSDK) Run(computation Computation) (string, error) {
 	computationBytes, err := json.Marshal(computation)
 	if err != nil {
 		sdk.logger.Error("Failed to marshal computation")
@@ -66,7 +66,7 @@ func (sdk *AgentSDK) Run(computation Computation) (string, error) {
 	return response.Computation, nil
 }
 
-func (sdk *AgentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
+func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
 	request := &agent.AlgoRequest{
 		Algorithm: algorithm,
 	}
@@ -80,7 +80,7 @@ func (sdk *AgentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
 	return response.AlgorithmID, nil
 }
 
-func (sdk *AgentSDK) UploadDataset(dataset []byte) (string, error) {
+func (sdk *agentSDK) UploadDataset(dataset []byte) (string, error) {
 	request := &agent.DataRequest{
 		Dataset: dataset,
 	}
@@ -94,7 +94,7 @@ func (sdk *AgentSDK) UploadDataset(dataset []byte) (string, error) {
 	return response.DatasetID, nil
 }
 
-func (sdk *AgentSDK) Result() ([]byte, error) {
+func (sdk *agentSDK) Result() ([]byte, error) {
 	request := &agent.ResultRequest{}
 
 	response, err := sdk.client.Result(context.Background(), request)
