@@ -9,6 +9,13 @@ import (
 	"github.com/ultravioletrs/agent/agent"
 )
 
+type SDK interface {
+	Run(computation Computation) (string, error)
+	UploadAlgorithm(algorithm []byte) (string, error)
+	UploadDataset(dataset []byte) (string, error)
+	Result() ([]byte, error)
+}
+
 type AgentSDK struct {
 	client agent.AgentServiceClient
 	logger logger.Logger
