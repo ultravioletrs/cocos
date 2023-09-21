@@ -2,6 +2,7 @@ package cli
 
 import (
 	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
@@ -18,13 +19,19 @@ func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 
 			log.Println("Uploading algorithm binary:", algorithmFile)
 
-			response, err := sdk.UploadAlgorithm([]byte(algorithmFile))
+			algorithm, err := os.ReadFile(algorithmFile)
+			if err != nil {
+				log.Println("Error reading dataset file:", err)
+				return
+			}
+
+			response, err := sdk.UploadAlgorithm(algorithm)
 			if err != nil {
 				log.Println("Error uploading algorithm:", err)
 				return
 			}
 
-			log.Println("Response:", response)
+			log.Println("Succesfully uploaded algorithm:", response)
 		},
 	}
 }

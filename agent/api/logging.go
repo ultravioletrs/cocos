@@ -53,7 +53,7 @@ func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm []byte) (respon
 	return lm.svc.Algo(ctx, algorithm)
 }
 
-func (lm *loggingMiddleware) Data(ctx context.Context, dataset string) (response string, err error) {
+func (lm *loggingMiddleware) Data(ctx context.Context, dataset []byte) (response string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Data took %s to complete", time.Since(begin))
 		if err != nil {

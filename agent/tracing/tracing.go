@@ -44,10 +44,8 @@ func (tm *tracingMiddleware) Algo(ctx context.Context, algorithm []byte) (string
 	return tm.svc.Algo(ctx, algorithm)
 }
 
-func (tm *tracingMiddleware) Data(ctx context.Context, dataset string) (string, error) {
-	ctx, span := tm.tracer.Start(ctx, "data", trace.WithAttributes(
-		attribute.String("dataset", dataset),
-	))
+func (tm *tracingMiddleware) Data(ctx context.Context, dataset []byte) (string, error) {
+	ctx, span := tm.tracer.Start(ctx, "data")
 	defer span.End()
 
 	return tm.svc.Data(ctx, dataset)

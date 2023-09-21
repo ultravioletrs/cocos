@@ -50,7 +50,7 @@ func (ms *metricsMiddleware) Algo(ctx context.Context, algorithm []byte) (string
 	return ms.svc.Algo(ctx, algorithm)
 }
 
-func (ms *metricsMiddleware) Data(ctx context.Context, dataset string) (string, error) {
+func (ms *metricsMiddleware) Data(ctx context.Context, dataset []byte) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "data").Add(1)
 		ms.latency.With("method", "data").Observe(time.Since(begin).Seconds())
