@@ -69,7 +69,7 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
 		if err != nil {
 			fmt.Println("Agent not running, retrying...")
-			time.Sleep(2 * time.Second)
+			time.Sleep(3 * time.Microsecond)
 			continue
 		} else {
 			return res.Computation, nil
