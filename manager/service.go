@@ -6,6 +6,7 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ultravioletrs/agent/agent"
@@ -58,12 +59,21 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	ms.qemuCfg.NetDevConfig.HostFwd2++
 	ms.qemuCfg.NetDevConfig.HostFwd3++
 
-	time.Sleep(bootTime)
+	fmt.Println("Running VM: ")
+	// time.Sleep(bootTime) //{20 seconds}
+	maxRetries := 15
 
-	res, err := ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
-	if err != nil {
-		return "", err
+	var res *agent.RunResponse
+
+	for retry := 0; retry < maxRetries; retry++ {
+		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
+		if err != nil {
+			fmt.Println("Agent not running, retrying...")
+			time.Sleep(2 * time.Second)
+			continue
+		} else {
+			return res.Computation, nil
+		}
 	}
-
-	return res.Computation, nil
+	return "", err
 }
