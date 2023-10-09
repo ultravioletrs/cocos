@@ -6,13 +6,11 @@ package manager
 import (
 	"context"
 	"errors"
-	"time"
 
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/manager/manager/qemu"
 )
-
-const bootTime = 20 * time.Second
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -58,12 +56,15 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	ms.qemuCfg.NetDevConfig.HostFwd2++
 	ms.qemuCfg.NetDevConfig.HostFwd3++
 
-	time.Sleep(bootTime)
+	var res *agent.RunResponse
 
-	res, err := ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
+	err = backoff.Retry(func() error {
+		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
+		return err
+	}, backoff.NewExponentialBackOff())
+
 	if err != nil {
 		return "", err
 	}
-
 	return res.Computation, nil
 }

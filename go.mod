@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/caarlos0/env/v7 v7.1.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/digitalocean/go-libvirt v0.0.0-20221205150000-2939327a8519
 	github.com/go-kit/kit v0.12.0
 	github.com/go-zoo/bone v1.3.0
