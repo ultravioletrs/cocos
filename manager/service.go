@@ -7,15 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/agent/agent"
 	"github.com/ultravioletrs/manager/manager/qemu"
-)
-
-const (
-	maxRetries    = 20
-	retryInterval = 3 * time.Microsecond
 )
 
 var (
@@ -64,15 +59,13 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 
 	var res *agent.RunResponse
 
-	for retry := 0; retry < maxRetries; retry++ {
+	err = backoff.Retry(func() error {
 		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
-		if err != nil {
-			fmt.Println("Agent not running, retrying...")
-			time.Sleep(retryInterval)
-			continue
-		} else {
-			return res.Computation, nil
-		}
+		return err
+	}, backoff.NewExponentialBackOff())
+	if err != nil {
+		fmt.Println("Agent did not run..")
+		return "", err
 	}
-	return "", err
+	return res.Computation, nil
 }
