@@ -13,7 +13,10 @@ import (
 	"github.com/ultravioletrs/manager/manager/qemu"
 )
 
-const bootTime = 20 * time.Second
+const (
+	maxRetries    = 20
+	retryInterval = 3 * time.Microsecond
+)
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -59,17 +62,13 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	ms.qemuCfg.NetDevConfig.HostFwd2++
 	ms.qemuCfg.NetDevConfig.HostFwd3++
 
-	fmt.Println("Running VM: ")
-	// time.Sleep(bootTime) //{20 seconds}
-	maxRetries := 15
-
 	var res *agent.RunResponse
 
 	for retry := 0; retry < maxRetries; retry++ {
 		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
 		if err != nil {
 			fmt.Println("Agent not running, retrying...")
-			time.Sleep(3 * time.Microsecond)
+			time.Sleep(retryInterval)
 			continue
 		} else {
 			return res.Computation, nil
