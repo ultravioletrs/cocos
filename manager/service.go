@@ -6,7 +6,6 @@ package manager
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/agent/agent"
@@ -63,8 +62,8 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
 		return err
 	}, backoff.NewExponentialBackOff())
+
 	if err != nil {
-		fmt.Println("Agent did not run..")
 		return "", err
 	}
 	return res.Computation, nil
