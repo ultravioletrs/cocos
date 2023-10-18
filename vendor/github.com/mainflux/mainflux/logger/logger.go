@@ -5,11 +5,9 @@ package logger
 
 import (
 	"fmt"
+	"github.com/go-kit/kit/log"
 	"io"
-	"os"
 	"time"
-
-	"github.com/go-kit/log"
 )
 
 // Logger specifies logging API.
@@ -22,8 +20,6 @@ type Logger interface {
 	Warn(string)
 	// Error logs any object in JSON format on error level.
 	Error(string)
-	// Fatal logs any object in JSON format on any level and calls os.Exit(1).
-	Fatal(string)
 }
 
 var _ Logger = (*logger)(nil)
@@ -47,29 +43,24 @@ func New(out io.Writer, levelText string) (Logger, error) {
 
 func (l logger) Debug(msg string) {
 	if Debug.isAllowed(l.level) {
-		_ = l.kitLogger.Log("level", Debug.String(), "message", msg)
+		l.kitLogger.Log("level", Debug.String(), "message", msg)
 	}
 }
 
 func (l logger) Info(msg string) {
 	if Info.isAllowed(l.level) {
-		_ = l.kitLogger.Log("level", Info.String(), "message", msg)
+		l.kitLogger.Log("level", Info.String(), "message", msg)
 	}
 }
 
 func (l logger) Warn(msg string) {
 	if Warn.isAllowed(l.level) {
-		_ = l.kitLogger.Log("level", Warn.String(), "message", msg)
+		l.kitLogger.Log("level", Warn.String(), "message", msg)
 	}
 }
 
 func (l logger) Error(msg string) {
 	if Error.isAllowed(l.level) {
-		_ = l.kitLogger.Log("level", Error.String(), "message", msg)
+		l.kitLogger.Log("level", Error.String(), "message", msg)
 	}
-}
-
-func (l logger) Fatal(msg string) {
-	_ = l.kitLogger.Log("fatal", msg)
-	os.Exit(1)
 }

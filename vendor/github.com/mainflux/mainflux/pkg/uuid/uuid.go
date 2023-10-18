@@ -10,8 +10,8 @@ import (
 	"github.com/mainflux/mainflux/pkg/errors"
 )
 
-// ErrGeneratingID indicates error in generating UUID.
-var ErrGeneratingID = errors.New("failed to generate uuid")
+// ErrGeneratingID indicates error in generating UUID
+var ErrGeneratingID = errors.New("generating id failed")
 
 var _ mainflux.IDProvider = (*uuidProvider)(nil)
 

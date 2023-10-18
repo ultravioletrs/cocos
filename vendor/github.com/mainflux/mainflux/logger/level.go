@@ -19,7 +19,6 @@ const (
 	Debug
 )
 
-// ErrInvalidLogLevel indicates an unrecognized log level.
 var ErrInvalidLogLevel = errors.New("unrecognized log level")
 
 // Level represents severity level while logging.

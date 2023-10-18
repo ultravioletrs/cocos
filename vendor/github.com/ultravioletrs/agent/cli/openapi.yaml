@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: Computation Service API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /run:
+    post:
+      summary: Run a computation
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The computation binary file (Linux executable)
+      responses:
+        "200":
+          description: Computation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  computationId:
+                    type: string
+                    description: Identifier for the computation
+
+  /algo:
+    post:
+      summary: Upload algorithm binary
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The algorithm binary file (Linux executable)
+      responses:
+        "200":
+          description: Algorithm binary uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  algorithmId:
+                    type: string
+                    description: Identifier for the uploaded algorithm binary
+
+  /data:
+    post:
+      summary: Upload dataset CSV file
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The dataset CSV file as a binary
+      responses:
+        "200":
+          description: Dataset CSV uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datasetId:
+                    type: string
+                    description: Identifier for the uploaded dataset CSV
+
+  /result:
+    get:
+      summary: Retrieve computation result file
+      responses:
+        "200":
+          description: Computation result file retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: The computation result file
