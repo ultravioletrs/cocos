@@ -1,0 +1,15 @@
+<volume>
+<name>boot.img</name>
+<allocation>0</allocation>
+<capacity unit="G">1</capacity>
+<target>
+  <format type="qcow2"/>
+  <path>./img/boot.img</path>
+  <permissions>
+	<owner>107</owner>
+	<group>107</group>
+	<mode>0744</mode>
+	<label>virt_image_t</label>
+  </permissions>
+</target>
+</volume>

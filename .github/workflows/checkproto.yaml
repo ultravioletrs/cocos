@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - "agent/agent.proto"
-      - "agent/*.pb.go"
+      - "manager/manager.proto"
+      - "manager/*.pb.go"
   pull_request:
     branches:
       - main
     paths:
-      - "agent/agent.proto"
-      - "agent/*.pb.go"
+      - "manager/manager.proto"
+      - "manager/*.pb.go"
 
 jobs:
   checkproto:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Set up protoc
         run: |
-          PROTOC_VERSION=23.3
+          PROTOC_VERSION=24.2
           PROTOC_GEN_VERSION=v1.31.0
           PROTOC_GRPC_VERSION=v1.3.0
 
@@ -51,7 +51,7 @@ jobs:
       - name: Set up Mainflux
         run: |
           # Rename .pb.go files to .pb.go.tmp to prevent conflicts
-          for p in $(ls agent/*.pb.go); do
+          for p in $(ls manager/*.pb.go); do
             mv $p $p.tmp
           done
 
@@ -59,7 +59,7 @@ jobs:
           make protoc
 
           # Compare generated Go files with the original ones
-          for p in $(ls agent/*.pb.go); do
+          for p in $(ls manager/*.pb.go); do
             if ! cmp -s $p $p.tmp; then
               echo "Proto file and generated Go file $p are out of sync!"
               exit 1

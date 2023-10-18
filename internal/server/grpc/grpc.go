@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/agent/internal/server"
+	"github.com/ultravioletrs/manager/internal/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

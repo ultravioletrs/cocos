@@ -1,1 +1,6 @@
 build
+
+build
+cmd/manager/img
+cmd/manager/iso
+cmd/manager/tmp
