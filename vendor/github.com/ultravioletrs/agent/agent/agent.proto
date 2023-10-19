@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package agent;
+
+option go_package = "./agent";
+
+service AgentService {
+  rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Algo(AlgoRequest) returns (AlgoResponse) {}
+  rpc Data(DataRequest) returns (DataResponse) {}
+  rpc Result(ResultRequest) returns (ResultResponse) {}
+  rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
+}
+
+message RunRequest { bytes computation = 1; }
+
+message RunResponse { string Computation = 1; }
+
+message AlgoRequest { bytes algorithm = 1; }
+
+message AlgoResponse { string algorithmID = 1; }
+
+message DataRequest { bytes dataset = 1; }
+
+message DataResponse { string datasetID = 1; }
+
+message ResultRequest {}
+
+message ResultResponse { bytes file = 1; }
+
+message AttestationRequest { }
+
+message AttestationResponse { bytes file = 1; }
