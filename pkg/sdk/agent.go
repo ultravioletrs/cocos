@@ -11,6 +11,14 @@ import (
 
 var _ agent.Service = (*agentSDK)(nil)
 
+type SDK interface {
+	Run(ctx context.Context, computation agent.Computation) (string, error)
+	UploadAlgorithm(ctx context.Context, algorithm []byte) (string, error)
+	UploadDataset(ctx context.Context, dataset []byte) (string, error)
+	Result(ctx context.Context) ([]byte, error)
+	Attestation(ctx context.Context) ([]byte, error)
+}
+
 type agentSDK struct {
 	client agent.AgentServiceClient
 	logger mglog.Logger
