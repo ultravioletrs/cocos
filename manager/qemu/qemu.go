@@ -6,7 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/gofrs/uuid"
-	"github.com/ultravioletrs/manager/internal"
+	"github.com/ultravioletrs/cocos-ai/internal"
 )
 
 const qemuRelPath = "qemu-system-x86_64"

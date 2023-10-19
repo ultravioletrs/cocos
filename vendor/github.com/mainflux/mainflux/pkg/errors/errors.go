@@ -3,9 +3,16 @@
 
 package errors
 
-// Error specifies an API that must be fullfiled by error type
-type Error interface {
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+)
 
+// Error specifies an API that must be fullfiled by error type.
+type Error interface {
 	// Error implements the error interface.
 	Error() string
 
@@ -18,7 +25,7 @@ type Error interface {
 
 var _ Error = (*customError)(nil)
 
-// customError struct represents a Mainflux error
+// customError represents a Mainflux error.
 type customError struct {
 	msg string
 	err Error
@@ -42,7 +49,7 @@ func (ce *customError) Err() Error {
 	return ce.err
 }
 
-// Contains inspects if e2 error is contained in any layer of e1 error
+// Contains inspects if e2 error is contained in any layer of e1 error.
 func Contains(e1 error, e2 error) bool {
 	if e1 == nil || e2 == nil {
 		return e2 == e1
@@ -57,7 +64,7 @@ func Contains(e1 error, e2 error) bool {
 	return e1.Error() == e2.Error()
 }
 
-// Wrap returns an Error that wrap err with wrapper
+// Wrap returns an Error that wrap err with wrapper.
 func Wrap(wrapper error, err error) error {
 	if wrapper == nil || err == nil {
 		return wrapper
@@ -92,5 +99,16 @@ func New(text string) Error {
 	return &customError{
 		msg: text,
 		err: nil,
+	}
+}
+
+func SignalHandler(ctx context.Context) error {
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGABRT)
+	select {
+	case sig := <-c:
+		return fmt.Errorf("%s", sig)
+	case <-ctx.Done():
+		return nil
 	}
 }

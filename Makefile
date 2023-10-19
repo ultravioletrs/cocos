@@ -2,7 +2,7 @@ BUILD_DIR = build
 SERVICES = manager agent cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
-VERSION ?= $(shell git describe --abbrev=0 --tags)
+VERSION ?= $(shell git describe --abbrev=0 --tags --always)
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 CLI_SOURCE = ./cmd/cli/main.go
@@ -19,6 +19,8 @@ define compile_service
 endef
 
 .PHONY: all $(SERVICES)
+
+all: $(SERVICES)
 
 $(SERVICES):
 	$(call compile_service,$(@))

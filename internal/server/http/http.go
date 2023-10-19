@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/agent/internal/server"
+	"github.com/ultravioletrs/cocos-ai/internal/server"
 )
 
 const (
