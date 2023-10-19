@@ -1,6 +1,6 @@
 # Mainflux
 
-[![build][ci-badge]][ci-url]
+[![Build Status](https://mainflux.semaphoreci.com/badges/mainflux/branches/master.svg?style=shields)](https://mainflux.semaphoreci.com/projects/mainflux)
 [![go report card][grc-badge]][grc-url]
 [![coverage][cov-badge]][cov-url]
 [![license][license]](LICENSE)
@@ -16,10 +16,6 @@ for building complex IoT solutions.
 
 For more details, check out the [official documentation][docs].
 
-Mainflux is member of the [Linux Foundation][lf] and an active contributor
-to the [EdgeX Foundry][edgex] project. It has been made with :heart: by [Mainflux Labs][company],
-which maintains the project and offers professional services around it.
-
 ## Features
 
 - Multi-protocol connectivity and bridging (HTTP, MQTT, WebSocket and CoAP)
@@ -27,7 +23,7 @@ which maintains the project and offers professional services around it.
 - Mutual TLS Authentication (mTLS) using X.509 Certificates
 - Fine-grained access control (policies, ABAC/RBAC)
 - Message persistence (Cassandra, InfluxDB, MongoDB and PostgresSQL)
-- Platform logging and instrumentation support (Grafana, Prometheus and OpenTracing)
+- Platform logging and instrumentation support (Prometheus and OpenTelemetry)
 - Event sourcing
 - Container-based deployment using [Docker][docker] and [Kubernetes][kubernetes]
 - [LoRaWAN][lora] network integration
@@ -43,11 +39,11 @@ which maintains the project and offers professional services around it.
 The following are needed to run Mainflux:
 
 - [Docker](https://docs.docker.com/install/) (version 20.10)
-- [Docker compose](https://docs.docker.com/compose/install/) (version 1.28)
+- [Docker compose](https://docs.docker.com/compose/install/) (version 1.29)
 
 Developing Mainflux will also require:
 
-- [Go](https://golang.org/doc/install) (version 1.13.3)
+- [Go](https://golang.org/doc/install) (version 1.19.2)
 - [Protobuf](https://github.com/protocolbuffers/protobuf#protocol-compiler-installation) (version 3.6.1)
 
 ## Install
@@ -69,7 +65,7 @@ If you want to run services from specific release checkout code from github and 
 
 ```bash
 git checkout tags/<release_number> -b <release_number>
-# e.g. `git checkout tags/0.12.0 -b 0.12.0`
+# e.g. `git checkout tags/0.13.0 -b 0.13.0`
 ```
 
 Check that `.env` file contains:
@@ -78,7 +74,7 @@ Check that `.env` file contains:
 MF_RELEASE_TAG=<release_number>
 ```
 
->`docker-compose` should be used for development and testing deployments. For production we suggest using [Kubernetes](https://mainflux.readthedocs.io/en/latest/kubernetes/).
+>`docker-compose` should be used for development and testing deployments. For production we suggest using [Kubernetes](https://docs.mainflux.io/kubernetes).
 
 ## Usage
 
@@ -91,15 +87,13 @@ make cli
 ./build/mainflux-cli version
 ```
 
-Additional details on using the CLI can be found in the [CLI documentation](https://mainflux.readthedocs.io/en/latest/cli/).
+Additional details on using the CLI can be found in the [CLI documentation](https://docs.mainflux.io/cli).
 
 ## Documentation
 
-Official documentation is hosted at [Mainflux Read The Docs page][docs]. Documentation is auto-generated, checkout the instructions on [official docs repository](https://github.com/mainflux/docs):
+Official documentation is hosted at [Mainflux official docs page][docs]. Documentation is auto-generated, checkout the instructions on [official docs repository](https://github.com/mainflux/docs):
 
 If you spot an error or a need for corrections, please let us know - or even better: send us a PR.
-
-Additional practical information, news and tutorials can be found on the [Mainflux blog][blog].
 
 ## Authors
 
@@ -119,6 +113,12 @@ The Mainflux team would like to give special thanks to [@mijicd][dejan] for his 
 on designing and implementing a highly improved and optimized version of the platform,
 and [@malidukica][dusanm] for his effort on implementing the initial user interface.
 
+## Professional Support
+
+There are many companies offering professional support for the Mainflux system.
+
+If you need this kind of support, best is to reach out to [@drasko][drasko] directly, and he will point you out to the best-matching support team.
+
 ## Contributing
 
 Thank you for your interest in Mainflux and the desire to contribute!
@@ -129,10 +129,9 @@ Thank you for your interest in Mainflux and the desire to contribute!
 
 ### We're Hiring
 
-If you are interested in working professionally on Mainflux,
-please head to company's [careers page][careers] or shoot us an e-mail at <careers@mainflux.com>.
+You like Mainflux and you would like to make it your day job? We're always looking for talented engineers interested in open-source, IoT and distributed systems. If you recognize yourself, reach out to [@drasko][drasko] - he will contact you back.
 
->The best way to grab our attention is by sending PRs :sunglasses:.
+>The best way to grab our attention is, of course, by sending PRs :sunglasses:.
 
 ## Community
 
@@ -146,10 +145,26 @@ please head to company's [careers page][careers] or shoot us an e-mail at <caree
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmainflux%2Fmainflux.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmainflux%2Fmainflux?ref=badge_large)
 
+## Data Collection for Mainflux
+Mainflux is committed to continuously improving its services and ensuring a seamless experience for its users. To achieve this, we collect certain data from your deployments. Rest assured, this data is collected solely for the purpose of enhancing Mainflux and is not used with any malicious intent. The deployment summary can be found on our [website][callhome].
+
+The collected data includes:
+- **IP Address** - Used for approximate location information on deployments.
+- **Services Used** - To understand which features are popular and prioritize future developments.
+- **Last Seen Time** - To ensure the stability and availability of Mainflux.
+- **Mainflux Version** - To track the software version and deliver relevant updates.
+
+We take your privacy and data security seriously. All data collected is handled in accordance with our stringent privacy policies and industry best practices.
+
+Data collection is on by default and can be disabled by setting the env variable:
+`MF_SEND_TELEMETRY=false`
+
+By utilizing Mainflux, you actively contribute to its improvement. Together, we can build a more robust and efficient IoT platform. Thank you for your trust in Mainflux!
+
 [banner]: https://github.com/mainflux/docs/blob/master/docs/img/gopherBanner.jpg
 [ci-badge]: https://semaphoreci.com/api/v1/mainflux/mainflux/branches/master/badge.svg
 [ci-url]: https://semaphoreci.com/mainflux/mainflux
-[docs]: http://mainflux.readthedocs.io
+[docs]: https://docs.mainflux.io
 [docker]: https://www.docker.com
 [forum]: https://groups.google.com/forum/#!forum/mainflux
 [gitter]: https://gitter.im/mainflux/mainflux?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
@@ -185,3 +200,4 @@ please head to company's [careers page][careers] or shoot us an e-mail at <caree
 [kole]: https://github.com/chombium
 [dusanm]: https://github.com/malidukica
 [mirko]: https://github.com/mteodor
+[callhome]: https://deployments.mainflux.io
