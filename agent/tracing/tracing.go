@@ -57,3 +57,10 @@ func (tm *tracingMiddleware) Result(ctx context.Context) ([]byte, error) {
 
 	return tm.svc.Result(ctx)
 }
+
+func (tm *tracingMiddleware) Attestation(ctx context.Context) ([]byte, error) {
+	ctx, span := tm.tracer.Start(ctx, "attestation")
+	defer span.End()
+
+	return tm.svc.Attestation(ctx)
+}

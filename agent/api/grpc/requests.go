@@ -43,3 +43,12 @@ func (req resultReq) validate() error {
 	// No request parameters to validate, so no validation logic needed
 	return nil
 }
+
+type attestationReq struct {
+	// No request parameters needed for retrieving computation result file
+}
+
+func (req attestationReq) validate() error {
+	// No request parameters to validate, so no validation logic needed
+	return nil
+}

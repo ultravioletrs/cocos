@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/agent/cli"
+	"github.com/ultravioletrs/agent/internal/env"
 	"github.com/ultravioletrs/agent/pkg/clients/grpc"
 	"github.com/ultravioletrs/agent/pkg/sdk"
-	"github.com/ultravioletrs/cocos-ai/internal/env"
 )
 
 const (
@@ -82,6 +82,7 @@ func main() {
 	rootCmd.AddCommand(cli.NewDatasetsCmd(sdk))
 	rootCmd.AddCommand(cli.NewResultsCmd(sdk))
 	rootCmd.AddCommand(cli.NewRunCmd(sdk))
+	rootCmd.AddCommand(cli.NewAttestationCmd(sdk))
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

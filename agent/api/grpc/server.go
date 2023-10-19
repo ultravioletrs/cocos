@@ -8,10 +8,11 @@ import (
 )
 
 type grpcServer struct {
-	run    kitgrpc.Handler
-	algo   kitgrpc.Handler
-	data   kitgrpc.Handler
-	result kitgrpc.Handler
+	run         kitgrpc.Handler
+	algo        kitgrpc.Handler
+	data        kitgrpc.Handler
+	result      kitgrpc.Handler
+	attestation kitgrpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
@@ -37,6 +38,11 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			resultEndpoint(svc),
 			decodeResultRequest,
 			encodeResultResponse,
+		),
+		attestation: kitgrpc.NewServer(
+			attestationEndpoint(svc),
+			decodeAttestationRequest,
+			encodeAttestationResponse,
 		),
 	}
 }
@@ -98,6 +104,18 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 	}, nil
 }
 
+func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	// No fields to extract from gRPC request, so returning an empty struct
+	return attestationReq{}, nil
+}
+
+func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(attestationRes)
+	return &agent.AttestationResponse{
+		File: res.File,
+	}, nil
+}
+
 func (s *grpcServer) Run(ctx context.Context, req *agent.RunRequest) (*agent.RunResponse, error) {
 	_, res, err := s.run.ServeGRPC(ctx, req)
 	if err != nil {
@@ -131,5 +149,14 @@ func (s *grpcServer) Result(ctx context.Context, req *agent.ResultRequest) (*age
 		return nil, err
 	}
 	rr := res.(*agent.ResultResponse)
+	return rr, nil
+}
+
+func (s *grpcServer) Attestation(ctx context.Context, req *agent.AttestationRequest) (*agent.AttestationResponse, error) {
+	_, res, err := s.attestation.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	rr := res.(*agent.AttestationResponse)
 	return rr, nil
 }

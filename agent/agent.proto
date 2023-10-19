@@ -9,6 +9,7 @@ service AgentService {
   rpc Algo(AlgoRequest) returns (AlgoResponse) {}
   rpc Data(DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (ResultResponse) {}
+  rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
 }
 
 message RunRequest { bytes computation = 1; }
@@ -26,3 +27,7 @@ message DataResponse { string datasetID = 1; }
 message ResultRequest {}
 
 message ResultResponse { bytes file = 1; }
+
+message AttestationRequest { }
+
+message AttestationResponse { bytes file = 1; }

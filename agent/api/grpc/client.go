@@ -14,11 +14,12 @@ import (
 const svcName = "agent.AgentService"
 
 type grpcClient struct {
-	run     endpoint.Endpoint
-	algo    endpoint.Endpoint
-	data    endpoint.Endpoint
-	result  endpoint.Endpoint
-	timeout time.Duration
+	run         endpoint.Endpoint
+	algo        endpoint.Endpoint
+	data        endpoint.Endpoint
+	result      endpoint.Endpoint
+	attestation endpoint.Endpoint
+	timeout     time.Duration
 }
 
 // NewClient returns new gRPC client instance.
@@ -55,6 +56,14 @@ func NewClient(conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceC
 			encodeResultRequest,
 			decodeResultResponse,
 			agent.ResultResponse{},
+		).Endpoint(),
+		attestation: kitgrpc.NewClient(
+			conn,
+			svcName,
+			"Attestation",
+			encodeAttestationRequest,
+			decodeAttestationResponse,
+			agent.AttestationResponse{},
 		).Endpoint(),
 		timeout: timeout,
 	}
@@ -157,6 +166,26 @@ func decodeResultResponse(_ context.Context, grpcResponse interface{}) (interfac
 	}, nil
 }
 
+// encodeAttestationRequest is a transport/grpc.EncodeRequestFunc that
+// converts a user-domain attestationReq to a gRPC request.
+func encodeAttestationRequest(_ context.Context, request interface{}) (interface{}, error) {
+	// No request parameters needed for retrieving computation result file
+	return &agent.AttestationRequest{}, nil
+}
+
+// decodeAttestationResponse is a transport/grpc.DecodeResponseFunc that
+// converts a gRPC AttestationResponse to a user-domain response.
+func decodeAttestationResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
+	response, ok := grpcResponse.(*agent.AttestationResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
+	}
+
+	return attestationRes{
+		File: response.File,
+	}, nil
+}
+
 // Run implements the Run method of the agent.AgentServiceClient interface.
 func (c grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
 	ctx, close := context.WithTimeout(ctx, c.timeout)
@@ -211,4 +240,18 @@ func (c grpcClient) Result(ctx context.Context, request *agent.ResultRequest, _ 
 
 	resultRes := res.(resultRes)
 	return &agent.ResultResponse{File: resultRes.File}, nil
+}
+
+// Result implements the Result method of the agent.AgentServiceClient interface.
+func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationRequest, _ ...grpc.CallOption) (*agent.AttestationResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	res, err := c.result(ctx, &resultReq{})
+	if err != nil {
+		return nil, err
+	}
+
+	attestationRes := res.(attestationRes)
+	return &agent.AttestationResponse{File: attestationRes.File}, nil
 }

@@ -80,3 +80,19 @@ func resultEndpoint(svc agent.Service) endpoint.Endpoint {
 		return resultRes{File: file}, nil
 	}
 }
+
+func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(attestationReq)
+
+		if err := req.validate(); err != nil {
+			return attestationRes{}, err
+		}
+		file, err := svc.Attestation(ctx)
+		if err != nil {
+			return attestationRes{}, err
+		}
+
+		return attestationRes{File: file}, nil
+	}
+}
