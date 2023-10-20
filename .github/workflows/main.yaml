@@ -29,8 +29,7 @@ jobs:
 
       - name: Build
         run: |
-          go build -mod=vendor -ldflags="-linkmode=external -extldflags=-static -s -w" cmd/agent/main.go
-          go build -mod=vendor -ldflags "-s -w" cmd/cli/main.go
+          go build -v ./...
 
       - name: Run tests
-        run: go test -mod=vendor -v --race -covermode=atomic -coverprofile cover.out ./...
+        run: go test -v --race -covermode=atomic -coverprofile cover.out ./...
