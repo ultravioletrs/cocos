@@ -29,7 +29,15 @@ jobs:
 
       - name: Build
         run: |
-          go build -v ./...
+          make agent
+
+      - name: Build
+        run: |
+          make manager
+
+      - name: Build
+        run: |
+          make cli
 
       - name: Run tests
         run: go test -v --race -covermode=atomic -coverprofile cover.out ./...
