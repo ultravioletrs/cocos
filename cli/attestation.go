@@ -11,7 +11,6 @@ import (
 const attestationFilePath = "attestation.txt"
 
 func NewAttestationCmd(sdk agentsdk.SDK) *cobra.Command {
-
 	return &cobra.Command{
 		Use:   "attestation",
 		Short: "Retrieve attestation information",
