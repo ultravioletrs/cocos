@@ -5,6 +5,8 @@ package manager
 import (
 	"context"
 	"errors"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/ultravioletrs/cocos/agent"
@@ -51,6 +53,11 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ResultConsumers: c.ResultConsumers,
 	}
 	dur, err := time.ParseDuration(c.Timeout)
+
+	// different VM guests can't forward ports to the same ports on the same host.
+	if err := ms.allocFreeHostPorts(); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -65,12 +72,37 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
 		return err
 	}
-	// different VM guests can't forward ports to the same ports on the same host
-	defer func() {
-		ms.qemuCfg.HostFwd1++
-		ms.qemuCfg.NetDevConfig.HostFwd2++
-		ms.qemuCfg.NetDevConfig.HostFwd3++
-	}()
+
+	return nil
+}
+
+func (ms *managerService) allocFreeHostPorts() error {
+	ports := []int{0, 0, 0} // Array to store free ports
+	for i := 0; i < 3; i++ {
+		ln, err := net.Listen("tcp", ":0") // Listen on any free port
+		if err != nil {
+			return err // Return error if unable to find a free port
+		}
+		defer ln.Close()
+
+		// Parse port number from the listener address
+		_, portStr, err := net.SplitHostPort(ln.Addr().String())
+		if err != nil {
+			return err
+		}
+
+		// Convert port to integer
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return err
+		}
+
+		ports[i] = port // Store the free port
+	}
+
+	ms.qemuCfg.HostFwd1 = ports[0]
+	ms.qemuCfg.NetDevConfig.HostFwd2 = ports[1]
+	ms.qemuCfg.NetDevConfig.HostFwd3 = ports[2]
 
 	return nil
 }
