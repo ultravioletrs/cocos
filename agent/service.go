@@ -122,7 +122,6 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 
 	as.attestation = []byte(attestation)
 
-	// Return the attestation or an error
 	return as.attestation, nil
 }
 
