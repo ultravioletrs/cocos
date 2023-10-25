@@ -53,14 +53,20 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ResultConsumers: c.ResultConsumers,
 	}
 	dur, err := time.ParseDuration(c.Timeout)
-
-	// different VM guests can't forward ports to the same ports on the same host.
-	if err := ms.allocFreeHostPorts(); err != nil {
-		return err
-	}
 	if err != nil {
 		return err
 	}
+
+	// different VM guests can't forward ports to the same ports on the same host.
+	ln, err := ms.allocFreeHostPorts()
+	if err != nil {
+		return err
+	}
+
+	for _, ln := range ln {
+		ln.Close()
+	}
+
 	ac.Timeout.Duration = dur
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
@@ -76,33 +82,33 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 	return nil
 }
 
-func (ms *managerService) allocFreeHostPorts() error {
-	ports := []int{0, 0, 0} // Array to store free ports
-	for i := 0; i < 3; i++ {
-		ln, err := net.Listen("tcp", ":0") // Listen on any free port
-		if err != nil {
-			return err // Return error if unable to find a free port
-		}
-		defer ln.Close()
+func (ms *managerService) allocFreeHostPorts() ([]net.Listener, error) {
+	var listeners []net.Listener
+	ports := []int{0, 0, 0}
 
-		// Parse port number from the listener address
+	for i := 0; i < 3; i++ {
+		ln, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, errors.New("unable to find free port")
+		}
+
 		_, portStr, err := net.SplitHostPort(ln.Addr().String())
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Convert port to integer
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		ports[i] = port // Store the free port
+		ports[i] = port
+		listeners = append(listeners, ln)
 	}
 
 	ms.qemuCfg.HostFwd1 = ports[0]
 	ms.qemuCfg.NetDevConfig.HostFwd2 = ports[1]
 	ms.qemuCfg.NetDevConfig.HostFwd3 = ports[2]
 
-	return nil
+	return listeners, nil
 }
