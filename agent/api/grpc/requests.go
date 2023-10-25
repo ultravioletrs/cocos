@@ -47,7 +47,7 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	// No request parameters needed for retrieving computation result file
+	// No request parameters needed for retrieving attestation output
 }
 
 func (req attestationReq) validate() error {
