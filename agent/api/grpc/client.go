@@ -169,7 +169,7 @@ func decodeResultResponse(_ context.Context, grpcResponse interface{}) (interfac
 // encodeAttestationRequest is a transport/grpc.EncodeRequestFunc that
 // converts a user-domain attestationReq to a gRPC request.
 func encodeAttestationRequest(_ context.Context, request interface{}) (interface{}, error) {
-	// No request parameters needed for retrieving computation result file
+	// No request parameters needed for retrieving computation result file.
 	return &agent.AttestationRequest{}, nil
 }
 
