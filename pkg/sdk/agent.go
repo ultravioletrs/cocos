@@ -12,11 +12,11 @@ import (
 )
 
 type SDK interface {
-	Run(computation Computation) (string, error)
-	UploadAlgorithm(algorithm []byte) (string, error)
-	UploadDataset(dataset []byte) (string, error)
-	Result() ([]byte, error)
-	Attestation() ([]byte, error)
+	Run(ctx context.Context, computation Computation) (string, error)
+	UploadAlgorithm(ctx context.Context, algorithm []byte) (string, error)
+	UploadDataset(ctx context.Context, dataset []byte) (string, error)
+	Result(ctx context.Context) ([]byte, error)
+	Attestation(ctx context.Context) ([]byte, error)
 }
 
 type agentSDK struct {
@@ -50,7 +50,7 @@ func NewAgentSDK(log logger.Logger, agentClient agent.AgentServiceClient) *agent
 	}
 }
 
-func (sdk *agentSDK) Run(computation Computation) (string, error) {
+func (sdk *agentSDK) Run(ctx context.Context, computation Computation) (string, error) {
 	computationBytes, err := json.Marshal(computation)
 	if err != nil {
 		sdk.logger.Error("Failed to marshal computation")
@@ -60,7 +60,7 @@ func (sdk *agentSDK) Run(computation Computation) (string, error) {
 	request := &agent.RunRequest{
 		Computation: computationBytes,
 	}
-	response, err := sdk.client.Run(context.Background(), request)
+	response, err := sdk.client.Run(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Run RPC")
 		return "", err
@@ -69,12 +69,12 @@ func (sdk *agentSDK) Run(computation Computation) (string, error) {
 	return response.Computation, nil
 }
 
-func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
+func (sdk *agentSDK) UploadAlgorithm(ctx context.Context, algorithm []byte) (string, error) {
 	request := &agent.AlgoRequest{
 		Algorithm: algorithm,
 	}
 
-	response, err := sdk.client.Algo(context.Background(), request)
+	response, err := sdk.client.Algo(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Algo RPC")
 		return "", err
@@ -83,12 +83,12 @@ func (sdk *agentSDK) UploadAlgorithm(algorithm []byte) (string, error) {
 	return response.AlgorithmID, nil
 }
 
-func (sdk *agentSDK) UploadDataset(dataset []byte) (string, error) {
+func (sdk *agentSDK) UploadDataset(ctx context.Context, dataset []byte) (string, error) {
 	request := &agent.DataRequest{
 		Dataset: dataset,
 	}
 
-	response, err := sdk.client.Data(context.Background(), request)
+	response, err := sdk.client.Data(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Data RPC")
 		return "", err
@@ -97,10 +97,10 @@ func (sdk *agentSDK) UploadDataset(dataset []byte) (string, error) {
 	return response.DatasetID, nil
 }
 
-func (sdk *agentSDK) Result() ([]byte, error) {
+func (sdk *agentSDK) Result(ctx context.Context) ([]byte, error) {
 	request := &agent.ResultRequest{}
 
-	response, err := sdk.client.Result(context.Background(), request)
+	response, err := sdk.client.Result(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
@@ -109,10 +109,10 @@ func (sdk *agentSDK) Result() ([]byte, error) {
 	return response.File, nil
 }
 
-func (sdk *agentSDK) Attestation() ([]byte, error) {
+func (sdk *agentSDK) Attestation(ctx context.Context) ([]byte, error) {
 	request := &agent.AttestationRequest{}
 
-	response, err := sdk.client.Attestation(context.Background(), request)
+	response, err := sdk.client.Attestation(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Attestation RPC")
 		return nil, err
