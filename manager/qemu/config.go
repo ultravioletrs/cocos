@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package qemu
 
 import "fmt"
@@ -184,5 +186,4 @@ func constructQemuArgs(config Config) []string {
 	args = append(args, "-monitor", config.Monitor)
 
 	return args
-
 }

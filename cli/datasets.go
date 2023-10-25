@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package cli
 
 import (
@@ -9,7 +11,6 @@ import (
 )
 
 func NewDatasetsCmd(sdk agentsdk.SDK) *cobra.Command {
-
 	return &cobra.Command{
 		Use:   "data",
 		Short: "Upload a dataset CSV file",

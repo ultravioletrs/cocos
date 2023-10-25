@@ -1,3 +1,6 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
 // Package tracing provides tracing instrumentation for cocos auth service.
 //
 // This package provides tracing middleware for cocos auth service.

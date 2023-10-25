@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package qemu
 
 import (
@@ -9,9 +11,11 @@ import (
 	"github.com/ultravioletrs/cocos-ai/internal"
 )
 
-const qemuRelPath = "qemu-system-x86_64"
-const firmwareVars = "OVMF_VARS"
-const qcow2Img = "focal-server-cloudimg-amd64"
+const (
+	qemuRelPath  = "qemu-system-x86_64"
+	firmwareVars = "OVMF_VARS"
+	qcow2Img     = "focal-server-cloudimg-amd64"
+)
 
 func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	// create unique emu device identifiers

@@ -1,4 +1,4 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
 package agent
@@ -43,8 +43,10 @@ type agentService struct {
 	attestation []byte
 }
 
-const socketPath = "unix_socket"
-const pyRuntime = "python3"
+const (
+	socketPath = "unix_socket"
+	pyRuntime  = "python3"
+)
 
 var _ Service = (*agentService)(nil)
 

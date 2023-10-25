@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package cli
 
 import (
@@ -11,7 +13,6 @@ import (
 const resultFilePath = "result.bin"
 
 func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
-
 	return &cobra.Command{
 		Use:   "result",
 		Short: "Retrieve computation result file",
@@ -24,8 +25,7 @@ func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			err = os.WriteFile(resultFilePath, result, 0644)
-			if err != nil {
+			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
 				log.Println("Error saving computation result:", err)
 				return
 			}

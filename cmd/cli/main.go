@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
@@ -86,6 +88,6 @@ func main() {
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
-		os.Exit(1)
+		return
 	}
 }

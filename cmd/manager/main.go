@@ -1,9 +1,5 @@
-//
-// Copyright (c) 2019
-// Mainflux
-//
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package main
 
@@ -108,15 +104,16 @@ func main() {
 
 	svc := newService(agentClient, logger, tracer, qemuCfg)
 
-	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
+	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
-	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
+	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Fatalf("failed to load %s gRPC server configuration: %s", svcName, err.Error())
+		log.Printf("failed to load %s gRPC server configuration: %s", svcName, err.Error())
+		return
 	}
 	registerManagerServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)

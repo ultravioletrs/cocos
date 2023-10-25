@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package cli
 
 import (
@@ -9,7 +11,6 @@ import (
 )
 
 func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
-
 	return &cobra.Command{
 		Use:   "algo",
 		Short: "Upload an algorithm binary",
@@ -31,7 +32,7 @@ func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			log.Println("Succesfully uploaded algorithm:", response)
+			log.Println("Successfully uploaded algorithm:", response)
 		},
 	}
 }

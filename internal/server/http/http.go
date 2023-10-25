@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package http
 
 import (
@@ -24,8 +26,8 @@ type Server struct {
 var _ server.Server = (*Server)(nil)
 
 func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, handler http.Handler, logger logger.Logger) server.Server {
-	var listenFullAddress = fmt.Sprintf("%s:%s", config.Host, config.Port)
-	var httpServer = &http.Server{Addr: listenFullAddress, Handler: handler}
+	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
+	httpServer := &http.Server{Addr: listenFullAddress, Handler: handler}
 	return &Server{
 		BaseServer: server.BaseServer{
 			Ctx:     ctx,
@@ -40,7 +42,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 }
 
 func (s *Server) Start() error {
-	var errCh = make(chan error)
+	errCh := make(chan error)
 	s.Protocol = httpProtocol
 	switch {
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":

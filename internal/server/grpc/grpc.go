@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import (
@@ -28,7 +30,7 @@ type serviceRegister func(srv *grpc.Server)
 var _ server.Server = (*Server)(nil)
 
 func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger logger.Logger) server.Server {
-	var listenFullAddress = fmt.Sprintf("%s:%s", config.Host, config.Port)
+	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 
 	return &Server{
 		BaseServer: server.BaseServer{
@@ -44,7 +46,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 }
 
 func (s *Server) Start() error {
-	var errCh = make(chan error)
+	errCh := make(chan error)
 
 	listener, err := net.Listen("tcp", s.Address)
 	if err != nil {
@@ -87,7 +89,7 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop() error {
 	defer s.Cancel()
-	var c = make(chan bool)
+	c := make(chan bool)
 	go func() {
 		defer close(c)
 		s.server.GracefulStop()
