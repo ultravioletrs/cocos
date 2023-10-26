@@ -11,19 +11,19 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/mainflux/mainflux/logger"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 var _ agent.Service = (*loggingMiddleware)(nil)
 
 type loggingMiddleware struct {
-	logger log.Logger
+	logger logger.Logger
 	svc    agent.Service
 }
 
 // LoggingMiddleware adds logging facilities to the core service.
-func LoggingMiddleware(svc agent.Service, logger log.Logger) agent.Service {
+func LoggingMiddleware(svc agent.Service, logger logger.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 

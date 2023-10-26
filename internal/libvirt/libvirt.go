@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	libvirt "github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt"
 )
 
 var re = regexp.MustCompile(`'([^']*)'`)

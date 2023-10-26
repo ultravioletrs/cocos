@@ -14,7 +14,7 @@ import (
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/cocos-ai/manager"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

@@ -12,20 +12,21 @@ import (
 
 	"github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
-	"github.com/ultravioletrs/agent/agent"
-	agentgrpc "github.com/ultravioletrs/agent/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/internal"
 	"github.com/ultravioletrs/cocos-ai/internal/env"
 	jaegerclient "github.com/ultravioletrs/cocos-ai/internal/jaeger"
 	"github.com/ultravioletrs/cocos-ai/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos-ai/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/cocos-ai/internal/server/http"
-	"github.com/ultravioletrs/manager/manager"
-	"github.com/ultravioletrs/manager/manager/api"
-	managergrpc "github.com/ultravioletrs/manager/manager/api/grpc"
-	httpapi "github.com/ultravioletrs/manager/manager/api/http"
-	"github.com/ultravioletrs/manager/manager/qemu"
-	"github.com/ultravioletrs/manager/manager/tracing"
+	"github.com/ultravioletrs/cocos-ai/manager"
+	"github.com/ultravioletrs/cocos-ai/manager/api"
+	managergrpc "github.com/ultravioletrs/cocos-ai/manager/api/grpc"
+	httpapi "github.com/ultravioletrs/cocos-ai/manager/api/http"
+	"github.com/ultravioletrs/cocos-ai/manager/qemu"
+	"github.com/ultravioletrs/cocos-ai/manager/tracing"
+	pkggrpc "github.com/ultravioletrs/cocos-ai/pkg/clients/grpc"
+	agentgrpc "github.com/ultravioletrs/cocos-ai/pkg/clients/grpc/agent"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -80,11 +81,11 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	agentGRPCConfig := agentgrpc.Config{}
+	agentGRPCConfig := pkggrpc.Config{}
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration: %s", svcName, err))
 	}
-	agentGRPCClient, agentClient, err := agentgrpc.NewClient(agentGRPCConfig)
+	agentGRPCClient, agentClient, err := agentgrpc.NewAgentClient(agentGRPCConfig)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}

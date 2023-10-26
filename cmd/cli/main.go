@@ -10,10 +10,11 @@ import (
 	"github.com/mainflux/mainflux/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/ultravioletrs/agent/cli"
-	"github.com/ultravioletrs/agent/pkg/clients/grpc"
-	"github.com/ultravioletrs/agent/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/cli"
 	"github.com/ultravioletrs/cocos-ai/internal/env"
+	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc/agent"
+	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
 )
 
 const (
@@ -41,7 +42,7 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 	}
 
-	agentGRPCClient, agentClient, err := grpc.NewClient(agentGRPCConfig)
+	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}

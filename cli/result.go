@@ -7,12 +7,12 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
 )
 
 const resultFilePath = "result.bin"
 
-func NewResultsCmd(sdk agentsdk.SDK) *cobra.Command {
+func NewResultsCmd(sdk sdk.SDK) *cobra.Command {
 	return &cobra.Command{
 		Use:   "result",
 		Short: "Retrieve computation result file",

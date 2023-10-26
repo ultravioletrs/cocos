@@ -6,9 +6,9 @@ import (
 	"context"
 	"errors"
 
-	backoff "github.com/cenkalti/backoff/v4"
-	"github.com/ultravioletrs/agent/agent"
-	"github.com/ultravioletrs/manager/manager/qemu"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos-ai/manager/qemu"
 )
 
 var (

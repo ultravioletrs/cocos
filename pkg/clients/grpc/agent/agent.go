@@ -3,8 +3,8 @@
 package agent
 
 import (
-	"github.com/ultravioletrs/agent/agent"
-	agentapi "github.com/ultravioletrs/agent/agent/api/grpc"
+	"github.com/ultravioletrs/cocos-ai/agent"
+	agentapi "github.com/ultravioletrs/cocos-ai/agent/api/grpc"
 	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc"
 )
 

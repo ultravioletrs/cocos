@@ -5,43 +5,43 @@ package grpc
 import (
 	"context"
 
-	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/go-kit/kit/transport/grpc"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 type grpcServer struct {
-	run         kitgrpc.Handler
-	algo        kitgrpc.Handler
-	data        kitgrpc.Handler
-	result      kitgrpc.Handler
-	attestation kitgrpc.Handler
+	run         grpc.Handler
+	algo        grpc.Handler
+	data        grpc.Handler
+	result      grpc.Handler
+	attestation grpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
 // NewServer returns new AgentServiceServer instance.
 func NewServer(svc agent.Service) agent.AgentServiceServer {
 	return &grpcServer{
-		run: kitgrpc.NewServer(
+		run: grpc.NewServer(
 			runEndpoint(svc),
 			decodeRunRequest,
 			encodeRunResponse,
 		),
-		algo: kitgrpc.NewServer(
+		algo: grpc.NewServer(
 			algoEndpoint(svc),
 			decodeAlgoRequest,
 			encodeAlgoResponse,
 		),
-		data: kitgrpc.NewServer(
+		data: grpc.NewServer(
 			dataEndpoint(svc),
 			decodeDataRequest,
 			encodeDataResponse,
 		),
-		result: kitgrpc.NewServer(
+		result: grpc.NewServer(
 			resultEndpoint(svc),
 			decodeResultRequest,
 			encodeResultResponse,
 		),
-		attestation: kitgrpc.NewServer(
+		attestation: grpc.NewServer(
 			attestationEndpoint(svc),
 			decodeAttestationRequest,
 			encodeAttestationResponse,

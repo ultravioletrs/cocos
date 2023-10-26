@@ -5,19 +5,19 @@ package grpc
 import (
 	"context"
 
-	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/ultravioletrs/manager/manager"
+	"github.com/go-kit/kit/transport/grpc"
+	"github.com/ultravioletrs/cocos-ai/manager"
 )
 
 type grpcServer struct {
-	run kitgrpc.Handler
+	run grpc.Handler
 	manager.UnimplementedManagerServiceServer
 }
 
 // NewServer returns new AuthServiceServer instance.
 func NewServer(svc manager.Service) manager.ManagerServiceServer {
 	return &grpcServer{
-		run: kitgrpc.NewServer(
+		run: grpc.NewServer(
 			runEndpoint(svc),
 			decodeRunRequest,
 			encodeRunResponse,

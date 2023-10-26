@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 var _ agent.Service = (*metricsMiddleware)(nil)

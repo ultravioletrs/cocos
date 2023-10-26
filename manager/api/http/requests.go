@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package http
 
-import "github.com/ultravioletrs/manager/manager"
+import "github.com/ultravioletrs/cocos-ai/manager"
 
 var _ apiReq = (*runReq)(nil)
 

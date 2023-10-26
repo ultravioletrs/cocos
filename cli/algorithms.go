@@ -7,10 +7,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
 )
 
-func NewAlgorithmsCmd(sdk agentsdk.SDK) *cobra.Command {
+func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
 	return &cobra.Command{
 		Use:   "algo",
 		Short: "Upload an algorithm binary",

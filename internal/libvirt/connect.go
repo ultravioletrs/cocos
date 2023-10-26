@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	libvirt "github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt"
 	"github.com/mainflux/mainflux/logger"
 )
 

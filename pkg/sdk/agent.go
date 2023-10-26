@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 type SDK interface {

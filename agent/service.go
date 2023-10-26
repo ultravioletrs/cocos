@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	socket "github.com/ultravioletrs/agent/pkg"
+	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
 
 var (
