@@ -5,10 +5,12 @@ package jaeger
 import (
 	"context"
 	"errors"
+	"net/url"
 
 	jaegerp "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
@@ -16,13 +18,14 @@ import (
 )
 
 var (
-	errNoURL     = errors.New("URL is empty")
-	errNoSvcName = errors.New("Service Name is empty")
+	errNoURL                     = errors.New("URL is empty")
+	errNoSvcName                 = errors.New("Service Name is empty")
+	errUnsupportedTraceURLScheme = errors.New("unsupported tracing url scheme")
 )
 
 // NewProvider initializes Jaeger TraceProvider.
-func NewProvider(ctx context.Context, svcName, url, instanceID string) (*tracesdk.TracerProvider, error) {
-	if url == "" {
+func NewProvider(ctx context.Context, svcName, jaegerurl, instanceID string) (*tracesdk.TracerProvider, error) {
+	if jaegerurl == "" {
 		return nil, errNoURL
 	}
 
@@ -30,9 +33,25 @@ func NewProvider(ctx context.Context, svcName, url, instanceID string) (*tracesd
 		return nil, errNoSvcName
 	}
 
-	exporter, err := otlptracehttp.New(ctx)
+	url, err := url.Parse(jaegerurl)
 	if err != nil {
 		return nil, err
+	}
+
+	var exporter *otlptrace.Exporter
+	switch url.Scheme {
+	case "http":
+		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(url.Host), otlptracehttp.WithURLPath(url.Path), otlptracehttp.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+	case "https":
+		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(url.Host), otlptracehttp.WithURLPath(url.Path))
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errUnsupportedTraceURLScheme
 	}
 
 	attributes := []attribute.KeyValue{

@@ -37,7 +37,7 @@ const (
 
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://localhost:14268/api/traces"`
+	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://localhost::4318/v1/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
 
