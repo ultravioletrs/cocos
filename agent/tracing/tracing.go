@@ -1,9 +1,11 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package tracing
 
 import (
 	"context"
 
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -56,4 +58,11 @@ func (tm *tracingMiddleware) Result(ctx context.Context) ([]byte, error) {
 	defer span.End()
 
 	return tm.svc.Result(ctx)
+}
+
+func (tm *tracingMiddleware) Attestation(ctx context.Context) ([]byte, error) {
+	ctx, span := tm.tracer.Start(ctx, "attestation")
+	defer span.End()
+
+	return tm.svc.Attestation(ctx)
 }

@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package libvirt
 
 import (
@@ -8,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	libvirt "github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt"
 )
 
 var re = regexp.MustCompile(`'([^']*)'`)
@@ -97,7 +99,6 @@ vol_exists:
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 55 {
-
 			return dom, nil
 		}
 
@@ -109,7 +110,6 @@ vol_exists:
 	if err != nil {
 		lvErr := err.(libvirt.Error)
 		if lvErr.Code == 72 {
-
 			return dom, nil
 		}
 

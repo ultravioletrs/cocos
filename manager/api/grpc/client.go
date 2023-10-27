@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import (
@@ -7,7 +9,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/cocos-ai/manager"
 	"google.golang.org/grpc"
 )
 

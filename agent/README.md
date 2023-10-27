@@ -25,9 +25,9 @@ To start the service outside of the container, execute the following shell scrip
 
 ```bash
 # download the latest version of the service
-go get github.com/ultravioletrs/agent
+go get github.com/ultravioletrs/cocos-ai
 
-cd $GOPATH/src/github.com/ultravioletrs/agent
+cd $GOPATH/src/github.com/ultravioletrs/cocos-ai
 
 # compile the agent
 make agent

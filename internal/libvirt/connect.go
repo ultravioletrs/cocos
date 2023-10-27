@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package libvirt
 
 import (
@@ -6,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	libvirt "github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt"
 	"github.com/mainflux/mainflux/logger"
 )
 

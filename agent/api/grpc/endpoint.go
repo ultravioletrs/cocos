@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import (
@@ -5,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 func runEndpoint(svc agent.Service) endpoint.Endpoint {
@@ -78,5 +80,21 @@ func resultEndpoint(svc agent.Service) endpoint.Endpoint {
 		}
 
 		return resultRes{File: file}, nil
+	}
+}
+
+func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(attestationReq)
+
+		if err := req.validate(); err != nil {
+			return attestationRes{}, err
+		}
+		file, err := svc.Attestation(ctx)
+		if err != nil {
+			return attestationRes{}, err
+		}
+
+		return attestationRes{File: file}, nil
 	}
 }

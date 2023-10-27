@@ -1,4 +1,4 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
 package http
@@ -15,7 +15,7 @@ import (
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

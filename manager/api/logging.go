@@ -1,4 +1,4 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
 //go:build !test
@@ -12,7 +12,7 @@ import (
 	"time"
 
 	log "github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/cocos-ai/manager"
 )
 
 var _ manager.Service = (*loggingMiddleware)(nil)

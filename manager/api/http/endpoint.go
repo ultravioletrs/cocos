@@ -1,13 +1,12 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-
 package http
 
 import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/ultravioletrs/manager/manager"
+	"github.com/ultravioletrs/cocos-ai/manager"
 )
 
 func runEndpoint(svc manager.Service) endpoint.Endpoint {

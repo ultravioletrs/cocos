@@ -1,6 +1,8 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
-import "github.com/ultravioletrs/manager/manager"
+import "github.com/ultravioletrs/cocos-ai/manager"
 
 type runReq struct {
 	Computation []byte `json:"computation,omitempty"`

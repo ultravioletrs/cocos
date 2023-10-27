@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package cli
 
 import (
@@ -5,11 +7,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	agentsdk "github.com/ultravioletrs/agent/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
 )
 
-func NewDatasetsCmd(sdk agentsdk.SDK) *cobra.Command {
-
+func NewDatasetsCmd(sdk sdk.SDK) *cobra.Command {
 	return &cobra.Command{
 		Use:   "data",
 		Short: "Upload a dataset CSV file",

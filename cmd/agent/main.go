@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
@@ -8,11 +10,11 @@ import (
 
 	mflog "github.com/mainflux/mainflux/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
-	agent "github.com/ultravioletrs/agent/agent"
-	"github.com/ultravioletrs/agent/agent/api"
-	agentgrpc "github.com/ultravioletrs/agent/agent/api/grpc"
-	httpapi "github.com/ultravioletrs/agent/agent/api/http"
-	"github.com/ultravioletrs/agent/agent/tracing"
+	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos-ai/agent/api"
+	agentgrpc "github.com/ultravioletrs/cocos-ai/agent/api/grpc"
+	httpapi "github.com/ultravioletrs/cocos-ai/agent/api/http"
+	"github.com/ultravioletrs/cocos-ai/agent/tracing"
 	"github.com/ultravioletrs/cocos-ai/internal"
 	"github.com/ultravioletrs/cocos-ai/internal/env"
 	jaegerclient "github.com/ultravioletrs/cocos-ai/internal/jaeger"
@@ -35,7 +37,7 @@ const (
 
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
-	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://localhost:14268/api/traces"`
+	JaegerURL  string `env:"AGENT_JAEGER_URL"  envDefault:"http://localhost::4318/v1/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
 }
 
@@ -73,15 +75,16 @@ func main() {
 
 	svc := newService(logger, tracer)
 
-	var httpServerConfig = server.Config{Port: defSvcHTTPPort}
+	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
-	var grpcServerConfig = server.Config{Port: defSvcGRPCPort}
+	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Fatalf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+		log.Printf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
+		return
 	}
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)

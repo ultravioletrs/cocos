@@ -1,4 +1,4 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
 package http
@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	agent "github.com/ultravioletrs/agent/agent"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 func runEndpoint(svc agent.Service) endpoint.Endpoint {

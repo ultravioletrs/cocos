@@ -1,4 +1,4 @@
-// Copyright (c) Mainflux
+// Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
 //go:build !test
@@ -11,19 +11,19 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/mainflux/mainflux/logger"
-	"github.com/ultravioletrs/agent/agent"
+	"github.com/mainflux/mainflux/logger"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 var _ agent.Service = (*loggingMiddleware)(nil)
 
 type loggingMiddleware struct {
-	logger log.Logger
+	logger logger.Logger
 	svc    agent.Service
 }
 
 // LoggingMiddleware adds logging facilities to the core service.
-func LoggingMiddleware(svc agent.Service, logger log.Logger) agent.Service {
+func LoggingMiddleware(svc agent.Service, logger logger.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
@@ -77,4 +77,17 @@ func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err e
 	}(time.Now())
 
 	return lm.svc.Result(ctx)
+}
+
+func (lm *loggingMiddleware) Attestation(ctx context.Context) (response []byte, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.Attestation(ctx)
 }

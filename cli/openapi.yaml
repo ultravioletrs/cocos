@@ -86,3 +86,16 @@ paths:
                 type: string
                 format: binary
                 description: The computation result file
+
+  /attestation:
+    get:
+      summary: Attestation endpoint
+      responses:
+        "200":
+          description: Attestation result file retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: The attestation result file

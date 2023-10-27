@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import "errors"
@@ -40,6 +42,15 @@ type resultReq struct {
 }
 
 func (req resultReq) validate() error {
+	// No request parameters to validate, so no validation logic needed
+	return nil
+}
+
+type attestationReq struct {
+	// No request parameters needed for retrieving computation result file
+}
+
+func (req attestationReq) validate() error {
 	// No request parameters to validate, so no validation logic needed
 	return nil
 }
