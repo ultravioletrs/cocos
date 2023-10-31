@@ -11,7 +11,7 @@ Do this both on the host machine and in the VM.
 ```sh
 apt update
 apt install python3-pip
-pip3 install pandas sklearn scikit-learn
+pip3 install pandas scikit-learn
 ```
 
 ### Agent-CLI interaction
