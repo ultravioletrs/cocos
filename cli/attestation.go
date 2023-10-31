@@ -20,9 +20,7 @@ func NewAttestationCmd(sdk sdk.SDK) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			ctx := context.Background()
-
-			result, err := sdk.Attestation(ctx)
+			result, err := sdk.Attestation(context.Background())
 			if err != nil {
 				log.Println("Error retrieving attestation:", err)
 				return

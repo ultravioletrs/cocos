@@ -26,9 +26,7 @@ func NewRunCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			ctx := context.Background()
-
-			response, err := sdk.Run(ctx, computation)
+			response, err := sdk.Run(context.Background(), computation)
 			if err != nil {
 				log.Println("Error running computation:", err)
 				return

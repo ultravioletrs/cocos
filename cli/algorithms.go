@@ -27,8 +27,7 @@ func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			ctx := context.Background()
-			response, err := sdk.UploadAlgorithm(ctx, algorithm)
+			response, err := sdk.UploadAlgorithm(context.Background(), algorithm)
 			if err != nil {
 				log.Println("Error uploading algorithm:", err)
 				return

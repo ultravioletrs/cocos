@@ -27,9 +27,7 @@ func NewDatasetsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			ctx := context.Background()
-
-			response, err := sdk.UploadDataset(ctx, dataset)
+			response, err := sdk.UploadDataset(context.Background(), dataset)
 			if err != nil {
 				log.Println("Error uploading dataset:", err)
 				return

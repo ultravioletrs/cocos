@@ -20,9 +20,7 @@ func NewResultsCmd(sdk sdk.SDK) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
-			ctx := context.Background()
-
-			result, err := sdk.Result(ctx)
+			result, err := sdk.Result(context.Background())
 			if err != nil {
 				log.Println("Error retrieving computation result:", err)
 				return
