@@ -58,8 +58,6 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 		return "", err
 	}
 
-
-
 	var res *agent.RunResponse
 
 	for _, ln := range ln {
