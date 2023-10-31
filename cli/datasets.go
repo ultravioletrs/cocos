@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -26,7 +27,9 @@ func NewDatasetsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			response, err := sdk.UploadDataset(dataset)
+			ctx := context.Background()
+
+			response, err := sdk.UploadDataset(ctx, dataset)
 			if err != nil {
 				log.Println("Error uploading dataset:", err)
 				return

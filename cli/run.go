@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
@@ -25,7 +26,9 @@ func NewRunCmd(sdk agentsdk.SDK) *cobra.Command {
 				return
 			}
 
-			response, err := sdk.Run(computation)
+			ctx := context.Background()
+
+			response, err := sdk.Run(ctx, computation)
 			if err != nil {
 				log.Println("Error running computation:", err)
 				return

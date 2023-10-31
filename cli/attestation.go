@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -19,7 +20,9 @@ func NewAttestationCmd(sdk sdk.SDK) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			result, err := sdk.Attestation()
+			ctx := context.Background()
+
+			result, err := sdk.Attestation(ctx)
 			if err != nil {
 				log.Println("Error retrieving attestation:", err)
 				return
