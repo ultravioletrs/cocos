@@ -11,18 +11,28 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 
 	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
+
+var _ Service = (*agentService)(nil)
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
 	ErrMalformedEntity = errors.New("malformed entity specification")
-
 	// ErrUnauthorizedAccess indicates missing or invalid credentials provided
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
+	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
+	errUndeclaredAlgorithm = errors.New("algorithm not declared in computation manifest")
+	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
+	errUndeclaredDataset = errors.New("dataset not declared in computation manifest")
+	// errProviderMissmatch algorithm/dataset provider does not match computation manifest.
+	errProviderMissmatch = errors.New("provider does not match declaration on manifest")
+	// errAllManifestItemsReceived indicates no new computation manifest items expected.
+	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 )
 
 type Metadata map[string]interface{}
@@ -31,9 +41,9 @@ type Metadata map[string]interface{}
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	Run(ctx context.Context, cmp Computation) (string, error)
-	Algo(ctx context.Context, algorithm []byte) (string, error)
-	Data(ctx context.Context, dataset []byte) (string, error)
-	Result(ctx context.Context) ([]byte, error)
+	Algo(ctx context.Context, algorithm Algorithm) (string, error)
+	Data(ctx context.Context, dataset Dataset) (string, error)
+	Result(ctx context.Context, consumer string) ([]byte, error)
 	Attestation(ctx context.Context) ([]byte, error)
 }
 
@@ -72,11 +82,22 @@ func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error
 	return cmpHash, nil // return computation hash.
 }
 
-func (as *agentService) Algo(ctx context.Context, algorithm []byte) (string, error) {
-	// Implement the logic for the Algo method based on your requirements.
-	// Use the provided ctx and algorithm parameters as needed.
+func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
+	if len(as.computation.Algorithms) == 0 {
+		return "", errAllManifestItemsReceived
+	}
+	index := containsID(as.computation.Algorithms, algorithm.ID)
+	switch index {
+	case -1:
+		return "", errUndeclaredAlgorithm
+	default:
+		if as.computation.Algorithms[index].Provider != algorithm.Provider {
+			return "", errProviderMissmatch
+		}
+		as.computation.Algorithms = slices.Delete(as.computation.Algorithms, index, index+1)
+	}
 
-	as.algorithms = append(as.algorithms, algorithm)
+	as.algorithms = append(as.algorithms, algorithm.Algorithm)
 
 	// Calculate the SHA-256 hash of the algorithm.
 	hash := sha256.Sum256(algorithm)
@@ -86,11 +107,22 @@ func (as *agentService) Algo(ctx context.Context, algorithm []byte) (string, err
 	return algorithmHash, nil
 }
 
-func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error) {
-	// Implement the logic for the Data method based on your requirements.
-	// Use the provided ctx and dataset parameters as needed.
+func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, error) {
+	if len(as.computation.Datasets) == 0 {
+		return "", errAllManifestItemsReceived
+	}
+	index := containsID(as.computation.Datasets, dataset.ID)
+	switch index {
+	case -1:
+		return "", errUndeclaredDataset
+	default:
+		if as.computation.Datasets[index].Provider != dataset.Provider {
+			return "", errProviderMissmatch
+		}
+		as.computation.Algorithms = slices.Delete(as.computation.Algorithms, index, index+1)
+	}
 
-	as.datasets = append(as.datasets, dataset)
+	as.datasets = append(as.datasets, dataset.Dataset)
 
 	// Calculate the SHA-256 hash of the dataset.
 	hash := sha256.Sum256(dataset)
@@ -100,7 +132,7 @@ func (as *agentService) Data(ctx context.Context, dataset []byte) (string, error
 	return datasetHash, nil
 }
 
-func (as *agentService) Result(ctx context.Context) ([]byte, error) {
+func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, error) {
 	// Implement the logic for the Result method based on your requirements
 	// Use the provided ctx parameter as needed
 

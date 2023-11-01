@@ -13,14 +13,12 @@ import (
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos-ai/agent/api/grpc"
-	httpapi "github.com/ultravioletrs/cocos-ai/agent/api/http"
 	"github.com/ultravioletrs/cocos-ai/agent/tracing"
 	"github.com/ultravioletrs/cocos-ai/internal"
 	"github.com/ultravioletrs/cocos-ai/internal/env"
 	jaegerclient "github.com/ultravioletrs/cocos-ai/internal/jaeger"
 	"github.com/ultravioletrs/cocos-ai/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos-ai/internal/server/grpc"
-	httpserver "github.com/ultravioletrs/cocos-ai/internal/server/http"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -79,7 +77,6 @@ func main() {
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
 	}
-	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
@@ -93,15 +90,11 @@ func main() {
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
 
 	g.Go(func() error {
-		return hs.Start()
-	})
-
-	g.Go(func() error {
 		return gs.Start()
 	})
 
 	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, hs, gs)
+		return server.StopHandler(ctx, cancel, logger, svcName, gs)
 	})
 
 	if err := g.Wait(); err != nil {

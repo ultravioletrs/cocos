@@ -17,6 +17,7 @@ func (req runReq) validate() error {
 
 type algoReq struct {
 	Algorithm []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	Provider  string `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
 }
 
 func (req algoReq) validate() error {
@@ -27,7 +28,8 @@ func (req algoReq) validate() error {
 }
 
 type dataReq struct {
-	Dataset []byte `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
+	Dataset  []byte `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
+	Provider string `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
 }
 
 func (req dataReq) validate() error {
@@ -38,7 +40,7 @@ func (req dataReq) validate() error {
 }
 
 type resultReq struct {
-	// No request parameters needed for retrieving computation result file
+	Consumer string `protobuf:"bytes,1,opt,name=consumer,proto3" json:"consumer,omitempty"`
 }
 
 func (req resultReq) validate() error {
