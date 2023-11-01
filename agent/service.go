@@ -100,7 +100,7 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, 
 	as.algorithms = append(as.algorithms, algorithm.Algorithm)
 
 	// Calculate the SHA-256 hash of the algorithm.
-	hash := sha256.Sum256(algorithm)
+	hash := sha256.Sum256(algorithm.Algorithm)
 	algorithmHash := hex.EncodeToString(hash[:])
 
 	// Return the algorithm hash or an error.
@@ -125,7 +125,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 	as.datasets = append(as.datasets, dataset.Dataset)
 
 	// Calculate the SHA-256 hash of the dataset.
-	hash := sha256.Sum256(dataset)
+	hash := sha256.Sum256(dataset.Dataset)
 	datasetHash := hex.EncodeToString(hash[:])
 
 	// Return the dataset hash or an error.
