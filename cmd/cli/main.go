@@ -53,7 +53,7 @@ func main() {
 	cli.SetSDK(sdk)
 
 	rootCmd := &cobra.Command{
-		Use:   "agent-cli [command]",
+		Use:   "cocos-cli [command]",
 		Short: "CLI application for Computation Service API",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("CLI application for Computation Service API\n\n")
