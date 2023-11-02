@@ -3,6 +3,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -27,8 +28,9 @@ func TestStateMachineTransitions(t *testing.T) {
 		t.Run(fmt.Sprintf("Transition from %v to %v", testCase.fromState, testCase.expected), func(t *testing.T) {
 			sm := NewStateMachine(logger.NewMock())
 			done := make(chan struct{})
+			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
-				sm.Start()
+				sm.Start(ctx)
 				close(done)
 			}()
 			sm.State = testCase.fromState
@@ -39,6 +41,7 @@ func TestStateMachineTransitions(t *testing.T) {
 				t.Errorf("Expected state %v after the event, but got %v", testCase.expected, sm.State)
 			}
 			close(sm.EventChan)
+			cancel()
 			<-done
 		})
 	}
@@ -46,7 +49,8 @@ func TestStateMachineTransitions(t *testing.T) {
 
 func TestStateMachineInvalidTransition(t *testing.T) {
 	sm := NewStateMachine(logger.NewMock())
-	go sm.Start()
+	ctx, cancel := context.WithCancel(context.Background())
+	go sm.Start(ctx)
 
 	sm.State = idle
 
@@ -55,4 +59,5 @@ func TestStateMachineInvalidTransition(t *testing.T) {
 	if sm.State != idle {
 		t.Errorf("State should not change on an invalid event, but got %v", sm.State)
 	}
+	cancel()
 }

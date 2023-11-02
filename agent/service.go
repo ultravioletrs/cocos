@@ -68,11 +68,11 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(logger logger.Logger) Service {
+func New(ctx context.Context, logger logger.Logger) Service {
 	svc := &agentService{
 		sm: NewStateMachine(logger),
 	}
-	go svc.sm.Start()
+	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc

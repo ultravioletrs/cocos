@@ -3,7 +3,9 @@
 package agent
 
 import (
+	"context"
 	"fmt"
+	"sync"
 
 	"github.com/mainflux/mainflux/logger"
 )
@@ -33,6 +35,7 @@ const (
 
 // StateMachine represents the state machine.
 type StateMachine struct {
+	sync.Mutex
 	State          state
 	EventChan      chan event
 	Transitions    map[state]map[event]state
@@ -72,19 +75,26 @@ func NewStateMachine(logger logger.Logger) *StateMachine {
 }
 
 // Start the state machine.
-func (sm *StateMachine) Start() {
-	for event := range sm.EventChan {
-		nextState, valid := sm.Transitions[sm.State][event]
-		if valid {
-			sm.State = nextState
-			sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.State, nextState))
-		} else {
-			sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.State))
-		}
+func (sm *StateMachine) Start(ctx context.Context) {
+	for {
+		select {
+		case event := <-sm.EventChan:
+			nextState, valid := sm.Transitions[sm.State][event]
+			if valid {
+				sm.Lock()
+				sm.State = nextState
+				sm.Unlock()
+				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.State, nextState))
+			} else {
+				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.State))
+			}
 
-		stateFunc, exists := sm.StateFunctions[sm.State]
-		if exists {
-			stateFunc()
+			stateFunc, exists := sm.StateFunctions[sm.State]
+			if exists {
+				stateFunc()
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }

@@ -71,7 +71,7 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	svc := newService(logger, tracer)
+	svc := newService(ctx, logger, tracer)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -102,8 +102,8 @@ func main() {
 	}
 }
 
-func newService(logger mflog.Logger, tracer trace.Tracer) agent.Service {
-	svc := agent.New(logger)
+func newService(ctx context.Context, logger mflog.Logger, tracer trace.Tracer) agent.Service {
+	svc := agent.New(ctx, logger)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
