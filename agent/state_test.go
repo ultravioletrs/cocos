@@ -33,11 +33,13 @@ func TestStateMachineTransitions(t *testing.T) {
 				sm.Start(ctx)
 				close(done)
 			}()
+			sm.Lock()
 			sm.State = testCase.fromState
+			sm.Unlock()
 
 			sm.SendEvent(testCase.event)
 
-			if sm.State != testCase.expected {
+			if sm.GetState() != testCase.expected {
 				t.Errorf("Expected state %v after the event, but got %v", testCase.expected, sm.State)
 			}
 			close(sm.EventChan)

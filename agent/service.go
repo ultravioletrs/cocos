@@ -166,7 +166,7 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 		as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 	}
 
-	if as.sm.State != resultsReady {
+	if as.sm.GetState() != resultsReady {
 		return []byte{}, errResultsNotReady
 	}
 

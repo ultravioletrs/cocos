@@ -103,3 +103,10 @@ func (sm *StateMachine) Start(ctx context.Context) {
 func (sm *StateMachine) SendEvent(event event) {
 	sm.EventChan <- event
 }
+
+func (sm *StateMachine) GetState() state {
+	sm.Lock()
+	state := sm.State
+	sm.Unlock()
+	return state
+}
