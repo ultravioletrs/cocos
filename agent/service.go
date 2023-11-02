@@ -36,6 +36,8 @@ var (
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
 	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
+	// errResultsNotReady indicates the computation results are not ready.
+	errResultsNotReady = errors.New("computation results are not yet ready")
 )
 
 type Metadata map[string]interface{}
@@ -164,14 +166,15 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 		as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 	}
 
-	result, err := run(as.algorithms[0], as.datasets[0])
-	if err != nil {
-		return nil, fmt.Errorf("error performing computation: %v", err)
+	if as.sm.State != resultsReady {
+		return []byte{}, errResultsNotReady
 	}
-	as.result = result
 
+	if len(as.computation.ResultConsumers) == 0 {
+		as.sm.SendEvent(resultsConsumed)
+	}
 	// Return the result file or an error
-	return as.result, nil
+	return as.result, as.runError
 }
 
 func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
@@ -185,6 +188,7 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
+	defer as.sm.SendEvent(runComplete)
 	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
 		as.runError = err
