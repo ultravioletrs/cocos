@@ -72,6 +72,8 @@ func New(logger logger.Logger) Service {
 	svc := &agentService{
 		sm: NewStateMachine(logger),
 	}
+	go svc.sm.Start()
+	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }

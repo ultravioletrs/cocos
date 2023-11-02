@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package agent
 
 import (
@@ -29,7 +31,7 @@ const (
 	resultsConsumed
 )
 
-// StateMachine represents the state machine
+// StateMachine represents the state machine.
 type StateMachine struct {
 	State          state
 	EventChan      chan event
@@ -38,7 +40,7 @@ type StateMachine struct {
 	logger         logger.Logger
 }
 
-// NewStateMachine creates a new StateMachine
+// NewStateMachine creates a new StateMachine.
 func NewStateMachine(logger logger.Logger) *StateMachine {
 	sm := &StateMachine{
 		State:          idle,
@@ -48,7 +50,6 @@ func NewStateMachine(logger logger.Logger) *StateMachine {
 		logger:         logger,
 	}
 
-	// Define state transitions
 	sm.Transitions[idle] = make(map[event]state)
 	sm.Transitions[idle][start] = receivingManifests
 
@@ -70,7 +71,7 @@ func NewStateMachine(logger logger.Logger) *StateMachine {
 	return sm
 }
 
-// Start the state machine
+// Start the state machine.
 func (sm *StateMachine) Start() {
 	for event := range sm.EventChan {
 		nextState, valid := sm.Transitions[sm.State][event]
@@ -88,7 +89,7 @@ func (sm *StateMachine) Start() {
 	}
 }
 
-// SendEvent sends an event to the state machine
+// SendEvent sends an event to the state machine.
 func (sm *StateMachine) SendEvent(event event) {
 	sm.EventChan <- event
 }
