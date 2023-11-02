@@ -85,6 +85,7 @@ func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error
 	}
 
 	as.computation = cmp
+	as.sm.SendEvent(manifestsReceived)
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
@@ -110,6 +111,10 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, 
 
 	as.algorithms = append(as.algorithms, algorithm.Algorithm)
 
+	if len(as.computation.Algorithms) == 0 {
+		as.sm.SendEvent(algorithmsReceived)
+	}
+
 	// Calculate the SHA-256 hash of the algorithm.
 	hash := sha256.Sum256(algorithm.Algorithm)
 	algorithmHash := hex.EncodeToString(hash[:])
@@ -134,6 +139,10 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 	}
 
 	as.datasets = append(as.datasets, dataset.Dataset)
+
+	if len(as.computation.Datasets) == 0 {
+		as.sm.SendEvent(dataReceived)
+	}
 
 	// Calculate the SHA-256 hash of the dataset.
 	hash := sha256.Sum256(dataset.Dataset)
