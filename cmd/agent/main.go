@@ -103,7 +103,7 @@ func main() {
 }
 
 func newService(logger mflog.Logger, tracer trace.Tracer) agent.Service {
-	svc := agent.New()
+	svc := agent.New(logger)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

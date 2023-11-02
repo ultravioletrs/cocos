@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"slices"
 
+	"github.com/mainflux/mainflux/logger"
 	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
 
@@ -55,6 +56,8 @@ type agentService struct {
 	datasets    [][]byte
 	result      []byte
 	attestation []byte
+	sm          *StateMachine
+	runError    error
 }
 
 const (
@@ -65,8 +68,12 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New() Service {
-	return &agentService{}
+func New(logger logger.Logger) Service {
+	svc := &agentService{
+		sm: NewStateMachine(logger),
+	}
+	svc.sm.StateFunctions[running] = svc.runComputation
+	return svc
 }
 
 func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error) {
@@ -164,6 +171,15 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 	as.attestation = attestation
 
 	return as.attestation, nil
+}
+
+func (as *agentService) runComputation() {
+	result, err := run(as.algorithms[0], as.datasets[0])
+	if err != nil {
+		as.runError = err
+		return
+	}
+	as.result = result
 }
 
 func run(algoContent []byte, dataContent []byte) ([]byte, error) {
