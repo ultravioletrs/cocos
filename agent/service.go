@@ -33,6 +33,8 @@ var (
 	errProviderMissmatch = errors.New("provider does not match declaration on manifest")
 	// errAllManifestItemsReceived indicates no new computation manifest items expected.
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
+	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
+	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
 )
 
 type Metadata map[string]interface{}
@@ -119,7 +121,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 		if as.computation.Datasets[index].Provider != dataset.Provider {
 			return "", errProviderMissmatch
 		}
-		as.computation.Algorithms = slices.Delete(as.computation.Algorithms, index, index+1)
+		as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 	}
 
 	as.datasets = append(as.datasets, dataset.Dataset)
@@ -133,8 +135,16 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 }
 
 func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, error) {
-	// Implement the logic for the Result method based on your requirements
-	// Use the provided ctx parameter as needed
+	if len(as.computation.ResultConsumers) == 0 {
+		return []byte{}, errAllManifestItemsReceived
+	}
+	index := slices.Index(as.computation.ResultConsumers, consumer)
+	switch index {
+	case -1:
+		return []byte{}, errUndeclaredConsumer
+	default:
+		as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
+	}
 
 	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
