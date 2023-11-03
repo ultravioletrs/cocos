@@ -8,10 +8,10 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	agentsdk "github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
-func NewRunCmd(sdk agentsdk.SDK) *cobra.Command {
+func NewRunCmd(sdk agent.Service) *cobra.Command {
 	var computationJSON string
 
 	cmd := &cobra.Command{
@@ -20,7 +20,7 @@ func NewRunCmd(sdk agentsdk.SDK) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Running computation")
 
-			var computation agentsdk.Computation
+			var computation agent.Computation
 			if err := json.Unmarshal([]byte(computationJSON), &computation); err != nil {
 				log.Println("Failed to unmarshal computation JSON:", err)
 				return

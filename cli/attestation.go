@@ -8,12 +8,12 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
 const attestationFilePath = "attestation.txt"
 
-func NewAttestationCmd(sdk sdk.SDK) *cobra.Command {
+func NewAttestationCmd(sdk agent.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "attestation",
 		Short: "Retrieve attestation information",

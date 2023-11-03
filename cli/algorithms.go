@@ -8,14 +8,15 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
-func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
+func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 	return &cobra.Command{
-		Use:   "algo",
-		Short: "Upload an algorithm binary",
-		Args:  cobra.ExactArgs(1),
+		Use:     "algo",
+		Short:   "Upload an algorithm binary",
+		Example: "algo <algo_file> <id> <provider>",
+		Args:    cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
@@ -27,7 +28,13 @@ func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			response, err := sdk.UploadAlgorithm(context.Background(), algorithm)
+			algoReq := agent.Algorithm{
+				Algorithm: algorithm,
+				ID:        args[1],
+				Provider:  args[2],
+			}
+
+			response, err := sdk.Algo(context.Background(), algoReq)
 			if err != nil {
 				log.Println("Error uploading algorithm:", err)
 				return

@@ -22,6 +22,7 @@ message RunResponse { string Computation = 1; }
 message AlgoRequest {
   bytes algorithm = 1;
   string provider = 2;
+  string id = 3;
 }
 
 message AlgoResponse { string algorithmID = 1; }
@@ -29,6 +30,7 @@ message AlgoResponse { string algorithmID = 1; }
 message DataRequest {
   bytes dataset = 1;
   string provider = 2;
+  string id = 3;
 }
 
 message DataResponse { string datasetID = 1; }

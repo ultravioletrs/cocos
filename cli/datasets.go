@@ -8,14 +8,15 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
-func NewDatasetsCmd(sdk sdk.SDK) *cobra.Command {
+func NewDatasetsCmd(sdk agent.Service) *cobra.Command {
 	return &cobra.Command{
-		Use:   "data",
-		Short: "Upload a dataset CSV file",
-		Args:  cobra.ExactArgs(1),
+		Use:     "data",
+		Short:   "Upload a dataset CSV file",
+		Example: "data <dataset.csv> <id> <provider>",
+		Args:    cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			datasetFile := args[0]
 
@@ -27,7 +28,13 @@ func NewDatasetsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			response, err := sdk.UploadDataset(context.Background(), dataset)
+			dataReq := agent.Dataset{
+				Dataset:  dataset,
+				ID:       args[1],
+				Provider: args[2],
+			}
+
+			response, err := sdk.Data(context.Background(), dataReq)
 			if err != nil {
 				log.Println("Error uploading dataset:", err)
 				return
