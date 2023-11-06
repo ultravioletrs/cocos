@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/absmach/magistrala"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
@@ -40,7 +41,7 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 		opts...,
 	), "run"))
 
-	r.GetFunc("/health", mainflux.Health("manager", instanceID))
+	r.GetFunc("/health", magistrala.Health("manager", instanceID))
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r

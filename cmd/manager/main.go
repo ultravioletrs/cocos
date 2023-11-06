@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mainflux/mainflux/logger"
+	"github.com/absmach/magistrala/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/internal"

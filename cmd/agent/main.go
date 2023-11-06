@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	mflog "github.com/mainflux/mainflux/logger"
+	mflog "github.com/absmach/magistrala/logger"
 	"github.com/mainflux/mainflux/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/agent/api"

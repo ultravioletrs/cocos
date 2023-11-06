@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/mainflux/mainflux/logger"
+	"github.com/absmach/magistrala/logger"
 )
 
 type state int
