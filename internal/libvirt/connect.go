@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/absmach/magistrala/logger"
 	"github.com/digitalocean/go-libvirt"
-	"github.com/mainflux/mainflux/logger"
 )
 
 func Connect(logger logger.Logger) *libvirt.Libvirt {

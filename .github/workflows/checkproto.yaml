@@ -48,7 +48,7 @@ jobs:
           # Add protoc to the PATH
           export PATH=$PATH:/usr/local/bin/protoc
 
-      - name: Set up Mainflux
+      - name: Set up Cocos-AI
         run: |
           # Rename .pb.go files to .pb.go.tmp to prevent conflicts
           for p in $(ls manager/*.pb.go); do

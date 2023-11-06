@@ -12,9 +12,9 @@ CLI_BIN = ${BUILD_DIR}/cocos-cli
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
 	go build -ldflags "-s -w \
-	-X 'github.com/mainflux/mainflux.BuildTime=$(TIME)' \
-	-X 'github.com/mainflux/mainflux.Version=$(VERSION)' \
-	-X 'github.com/mainflux/mainflux.Commit=$(COMMIT)'" \
+	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
+	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
+	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 

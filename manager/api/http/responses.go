@@ -5,10 +5,10 @@ package http
 import (
 	"net/http"
 
-	"github.com/mainflux/mainflux"
+	"github.com/absmach/magistrala"
 )
 
-var _ mainflux.Response = (*runRes)(nil)
+var _ magistrala.Response = (*runRes)(nil)
 
 type runRes struct {
 	ID string `json:"id"`

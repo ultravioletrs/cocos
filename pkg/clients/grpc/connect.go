@@ -5,7 +5,7 @@ package grpc
 import (
 	"time"
 
-	"github.com/mainflux/mainflux/pkg/errors"
+	"github.com/absmach/magistrala/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	gogrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

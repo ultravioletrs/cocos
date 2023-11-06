@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mainflux/mainflux/logger"
+	"github.com/absmach/magistrala/logger"
 )
 
 type Server interface {

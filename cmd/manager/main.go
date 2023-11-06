@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/absmach/magistrala/logger"
-	"github.com/mainflux/mainflux/pkg/uuid"
+	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/internal"
 	"github.com/ultravioletrs/cocos-ai/internal/env"

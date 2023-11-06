@@ -9,7 +9,7 @@ import (
 	"os"
 
 	mflog "github.com/absmach/magistrala/logger"
-	"github.com/mainflux/mainflux/pkg/uuid"
+	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos-ai/agent/api/grpc"

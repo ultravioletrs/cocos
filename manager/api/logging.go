@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/mainflux/mainflux/logger"
+	log "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos-ai/manager"
 )
 

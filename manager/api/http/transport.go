@@ -13,7 +13,6 @@ import (
 	"github.com/absmach/magistrala"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
-	"github.com/mainflux/mainflux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ultravioletrs/cocos-ai/manager"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -63,7 +62,7 @@ func decodeRun(_ context.Context, r *http.Request) (interface{}, error) {
 func encodeResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Set("Content-Type", contentType)
 
-	if ar, ok := response.(mainflux.Response); ok {
+	if ar, ok := response.(magistrala.Response); ok {
 		for k, v := range ar.Headers() {
 			w.Header().Set(k, v)
 		}

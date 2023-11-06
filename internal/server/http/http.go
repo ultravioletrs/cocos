@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mainflux/mainflux/logger"
+	"github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos-ai/internal/server"
 )
 
