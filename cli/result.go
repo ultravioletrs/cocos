@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -21,15 +20,13 @@ func NewResultsCmd(sdk agent.Service) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
-			result, err := sdk.Result(context.Background(), args[0])
+			result, err := sdk.Result(cmd.Context(), args[0])
 			if err != nil {
-				log.Println("Error retrieving computation result:", err)
-				return
+				log.Fatalf("Error retrieving computation result: %v", err)
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				log.Println("Error saving computation result:", err)
-				return
+				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
 			}
 
 			log.Println("Computation result retrieved and saved successfully!")

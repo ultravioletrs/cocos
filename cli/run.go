@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 
@@ -22,14 +21,12 @@ func NewRunCmd(sdk agent.Service) *cobra.Command {
 
 			var computation agent.Computation
 			if err := json.Unmarshal([]byte(computationJSON), &computation); err != nil {
-				log.Println("Failed to unmarshal computation JSON:", err)
-				return
+				log.Fatalf("Failed to unmarshal computation JSON: %v", err)
 			}
 
-			response, err := sdk.Run(context.Background(), computation)
+			response, err := sdk.Run(cmd.Context(), computation)
 			if err != nil {
-				log.Println("Error running computation:", err)
-				return
+				log.Fatalf("Error running computation: %v", err)
 			}
 
 			log.Println("Response:", response)

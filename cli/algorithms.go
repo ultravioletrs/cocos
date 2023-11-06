@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -24,8 +23,7 @@ func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				log.Println("Error reading dataset file:", err)
-				return
+				log.Fatalf("Error reading dataset file: %v", err)
 			}
 
 			algoReq := agent.Algorithm{
@@ -34,10 +32,9 @@ func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 				Provider:  args[2],
 			}
 
-			response, err := sdk.Algo(context.Background(), algoReq)
+			response, err := sdk.Algo(cmd.Context(), algoReq)
 			if err != nil {
-				log.Println("Error uploading algorithm:", err)
-				return
+				log.Fatalf("Error uploading algorithm: %v", err)
 			}
 
 			log.Println("Successfully uploaded algorithm:", response)

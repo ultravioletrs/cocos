@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -24,8 +23,7 @@ func NewDatasetsCmd(sdk agent.Service) *cobra.Command {
 
 			dataset, err := os.ReadFile(datasetFile)
 			if err != nil {
-				log.Println("Error reading dataset file:", err)
-				return
+				log.Fatalf("Error reading dataset file: %v", err)
 			}
 
 			dataReq := agent.Dataset{
@@ -34,10 +32,9 @@ func NewDatasetsCmd(sdk agent.Service) *cobra.Command {
 				Provider: args[2],
 			}
 
-			response, err := sdk.Data(context.Background(), dataReq)
+			response, err := sdk.Data(cmd.Context(), dataReq)
 			if err != nil {
-				log.Println("Error uploading dataset:", err)
-				return
+				log.Fatalf("Error uploading dataset: %v", err)
 			}
 
 			log.Println("Response:", response)

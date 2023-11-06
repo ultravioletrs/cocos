@@ -5,7 +5,7 @@ package agent
 import (
 	"encoding/json"
 	"errors"
-	reflect "reflect"
+	"reflect"
 	"time"
 )
 

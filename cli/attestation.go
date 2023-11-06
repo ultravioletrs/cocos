@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -20,15 +19,13 @@ func NewAttestationCmd(sdk agent.Service) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			result, err := sdk.Attestation(context.Background())
+			result, err := sdk.Attestation(cmd.Context())
 			if err != nil {
-				log.Println("Error retrieving attestation:", err)
-				return
+				log.Fatalf("Error retrieving attestation: %v", err)
 			}
 
 			if err = os.WriteFile(attestationFilePath, result, 0o644); err != nil {
-				log.Println("Error saving attestation result:", err)
-				return
+				log.Fatalf("Error saving attestation result: %v", err)
 			}
 
 			log.Println("Attestation result retrieved and saved successfully!")
