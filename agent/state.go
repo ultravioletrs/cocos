@@ -77,12 +77,13 @@ func NewStateMachine(logger logger.Logger) *StateMachine {
 // Start the state machine.
 func (sm *StateMachine) Start(ctx context.Context) {
 	for {
-		sm.Lock()
 		select {
 		case event := <-sm.EventChan:
 			nextState, valid := sm.Transitions[sm.GetState()][event]
 			if valid {
+				sm.Lock()
 				sm.State = nextState
+				sm.Unlock()
 				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.GetState(), nextState))
 			} else {
 				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.GetState()))
@@ -92,20 +93,14 @@ func (sm *StateMachine) Start(ctx context.Context) {
 				go stateFunc()
 			}
 		case <-ctx.Done():
-			sm.Unlock()
 			return
 		}
-		sm.Unlock()
 	}
 }
 
 // SendEvent sends an event to the state machine.
 func (sm *StateMachine) SendEvent(event event) {
-	select {
-	case sm.EventChan <- event:
-	default:
-		sm.logger.Error("event channel is full")
-	}
+	sm.EventChan <- event
 }
 
 func (sm *StateMachine) GetState() state {
