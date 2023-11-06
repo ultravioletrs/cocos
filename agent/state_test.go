@@ -40,7 +40,7 @@ func TestStateMachineTransitions(t *testing.T) {
 			sm.SendEvent(testCase.event)
 
 			if sm.GetState() != testCase.expected {
-				t.Errorf("Expected state %v after the event, but got %v", testCase.expected, sm.State)
+				t.Errorf("Expected state %v after the event, but got %v", testCase.expected, sm.GetState())
 			}
 			close(sm.EventChan)
 			cancel()
@@ -54,7 +54,9 @@ func TestStateMachineInvalidTransition(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go sm.Start(ctx)
 
+	sm.Lock()
 	sm.State = idle
+	sm.Unlock()
 
 	sm.SendEvent(dataReceived)
 
