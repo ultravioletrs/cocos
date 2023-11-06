@@ -81,12 +81,12 @@ func New(ctx context.Context, logger logger.Logger, publisher messaging.Publishe
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
-	svc.sm.StateFunctions[idle] = svc.publishEvent("idle", "agent has started")
-	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("run", "agent ready to receive manifests")
-	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("algorithms", "agent is ready to receiving algorithms")
-	svc.sm.StateFunctions[receivingData] = svc.publishEvent("datasets", "agent is ready to receiving datasets")
-	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("results", "agent computation results are ready")
-	svc.sm.StateFunctions[complete] = svc.publishEvent("complete", "agent results have been consumed")
+	svc.sm.StateFunctions[idle] = svc.publishEvent(ctx, "idle", "agent has started")
+	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent(ctx, "run", "agent ready to receive manifests")
+	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent(ctx, "algorithms", "agent is ready to receiving algorithms")
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent(ctx, "datasets", "agent is ready to receiving datasets")
+	svc.sm.StateFunctions[resultsReady] = svc.publishEvent(ctx, "results", "agent computation results are ready")
+	svc.sm.StateFunctions[complete] = svc.publishEvent(ctx, "complete", "agent results have been consumed")
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }
@@ -207,11 +207,11 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
-	as.publishEvent("running", "computation run has started")
+	ctx := context.Background()
+	as.publishEvent(ctx, "running", "computation run has started")
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	var cancel context.CancelFunc
-	ctx := context.Background()
 	if as.computation.Timeout.Duration != 0 {
 		ctx, cancel = context.WithDeadline(ctx, <-time.After(as.computation.Timeout.Duration))
 		defer cancel()
@@ -224,9 +224,9 @@ func (as *agentService) runComputation() {
 	as.result = result
 }
 
-func (as *agentService) publishEvent(subtopic, body string) func() {
+func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
-		if err := as.publisher.Publish(context.Background(), notificationTopic, &messaging.Message{
+		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
 			Subtopic: subtopic,
 			Payload:  []byte(body),
 		}); err != nil {
