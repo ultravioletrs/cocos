@@ -100,7 +100,11 @@ func (sm *StateMachine) Start(ctx context.Context) {
 
 // SendEvent sends an event to the state machine.
 func (sm *StateMachine) SendEvent(event event) {
-	sm.EventChan <- event
+	select {
+	case sm.EventChan <- event:
+	default:
+		sm.logger.Error("event channel is full")
+	}
 }
 
 func (sm *StateMachine) GetState() state {
