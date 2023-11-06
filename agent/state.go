@@ -77,29 +77,25 @@ func NewStateMachine(logger logger.Logger) *StateMachine {
 // Start the state machine.
 func (sm *StateMachine) Start(ctx context.Context) {
 	for {
+		sm.Lock()
 		select {
 		case event := <-sm.EventChan:
-			sm.Lock()
 			nextState, valid := sm.Transitions[sm.State][event]
-			sm.Unlock()
 			if valid {
-				sm.Lock()
 				sm.State = nextState
-				sm.Unlock()
 				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.GetState(), nextState))
 			} else {
 				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.GetState()))
 			}
-
-			sm.Lock()
 			stateFunc, exists := sm.StateFunctions[sm.GetState()]
-			sm.Unlock()
 			if exists {
 				go stateFunc()
 			}
 		case <-ctx.Done():
+			sm.Unlock()
 			return
 		}
+		sm.Unlock()
 	}
 }
 

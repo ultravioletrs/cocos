@@ -23,7 +23,7 @@ func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				log.Fatalf("Error reading dataset file: %v", err)
+				log.Fatalf("Error reading algorithm file: %v", err)
 			}
 
 			algoReq := agent.Algorithm{
@@ -34,7 +34,7 @@ func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 
 			response, err := sdk.Algo(cmd.Context(), algoReq)
 			if err != nil {
-				log.Fatalf("Error uploading algorithm: %v", err)
+				log.Fatalf("Error uploading algorithm with ID %s and provider %s: %v", algoReq.ID, algoReq.Provider, err)
 			}
 
 			log.Println("Successfully uploaded algorithm:", response)
