@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
 
@@ -61,22 +62,31 @@ type agentService struct {
 	attestation []byte
 	sm          *StateMachine
 	runError    error
+	publisher   messaging.Publisher
 }
 
 const (
-	socketPath = "unix_socket"
-	pyRuntime  = "python3"
+	socketPath        = "unix_socket"
+	pyRuntime         = "python3"
+	notificationTopic = "channels.manager"
 )
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger logger.Logger) Service {
+func New(ctx context.Context, logger logger.Logger, publisher messaging.Publisher) Service {
 	svc := &agentService{
-		sm: NewStateMachine(logger),
+		sm:        NewStateMachine(logger),
+		publisher: publisher,
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
+	svc.sm.StateFunctions[idle] = svc.publishEvent("idle", "agent has started")
+	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("run", "agent ready to receive manifests")
+	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("algorithms", "agent is ready to receiving algorithms")
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent("datasets", "agent is ready to receiving datasets")
+	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("results", "agent computation results are ready")
+	svc.sm.StateFunctions[complete] = svc.publishEvent("complete", "agent results have been consumed")
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }
@@ -197,6 +207,7 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
+	as.publishEvent("running", "computation run has started")
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	var cancel context.CancelFunc
@@ -211,6 +222,17 @@ func (as *agentService) runComputation() {
 		return
 	}
 	as.result = result
+}
+
+func (as *agentService) publishEvent(subtopic, body string) func() {
+	return func() {
+		if err := as.publisher.Publish(context.Background(), notificationTopic, &messaging.Message{
+			Subtopic: subtopic,
+			Payload:  []byte(body),
+		}); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
+	}
 }
 
 func run(ctx context.Context, algoContent []byte, dataContent []byte) ([]byte, error) {
