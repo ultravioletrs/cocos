@@ -77,6 +77,7 @@ func NewStateMachine(logger mglog.Logger) *StateMachine {
 // Start the state machine.
 func (sm *StateMachine) Start(ctx context.Context) {
 	for {
+		sm.Lock()
 		select {
 		case event := <-sm.EventChan:
 			nextState, valid := sm.Transitions[sm.GetState()][event]
@@ -93,8 +94,10 @@ func (sm *StateMachine) Start(ctx context.Context) {
 				go stateFunc()
 			}
 		case <-ctx.Done():
+			sm.Unlock()
 			return
 		}
+		sm.Unlock()
 	}
 }
 
