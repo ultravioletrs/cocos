@@ -208,7 +208,7 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 
 func (as *agentService) runComputation() {
 	ctx := context.Background()
-	as.publishEvent(ctx, "running", "computation run has started")
+	as.publishEvent(ctx, "running", "computation run has started")()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	var cancel context.CancelFunc
