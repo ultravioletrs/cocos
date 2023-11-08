@@ -1,0 +1,16 @@
+# This file is used to configure NATS broker.
+# It used when running nats is the Message broker.
+services:
+  nats:
+    extends:
+      file: ../nats.yml
+      service: broker
+    container_name: cocos-nats
+    restart: on-failure
+    networks:
+      - cocos-base-net
+    volumes:
+      - cocos-broker-volume:/data
+    profiles:
+      - nats
+      
