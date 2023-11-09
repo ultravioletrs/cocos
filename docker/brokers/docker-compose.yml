@@ -6,10 +6,6 @@
 # - rabbitmq: Uses 'rabbitmq' as MESSAGE_BROKER.
 #
 
-include:
-  - path: profiles/broker.yml
-    env_file: docker/.env
-
 services:
   broker:
     extends:

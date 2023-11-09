@@ -10,7 +10,7 @@ import (
 	"github.com/absmach/magistrala/pkg/messaging"
 )
 
-const agentTopic = "channels.agent.^"
+const agentTopic = "channels.agent.>"
 
 var errUnexpectedEvent = errors.New("unexpected event from agent")
 
