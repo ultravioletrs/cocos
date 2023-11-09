@@ -17,7 +17,7 @@ DOCKER_PROFILE ?= $(if $(COCOS_MESSAGE_BROKER_TYPE),$(COCOS_MESSAGE_BROKER_TYPE)
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
-	go build -tags $(COCOS_MESSAGE_BROKER_TYPE) -ldflags "-s -w \
+	go build -tags $(DOCKER_PROFILE) -ldflags "-s -w \
 	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
 	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
 	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
@@ -40,7 +40,7 @@ protoc:
 define edit_docker_config
 	sed -i "s/COCOS_MESSAGE_BROKER_TYPE=.*/COCOS_MESSAGE_BROKER_TYPE=$(1)/" docker/.env
 	sed -i "s,file: .*.yml,file: $(1).yml," docker/brokers/docker-compose.yml
-	sed -i "s,COCOS_MESSAGE_BROKER_URL=.*,COCOS_MESSAGE_BROKER_URL=$$\{COCOS_$(shell echo ${COCOS_MESSAGE_BROKER_TYPE} | tr 'a-z' 'A-Z')_URL\}," docker/.env
+	sed -i "s,COCOS_MESSAGE_BROKER_URL=.*,COCOS_MESSAGE_BROKER_URL=$$\{COCOS_$(shell echo ${DOCKER_PROFILE} | tr 'a-z' 'A-Z')_URL\}," docker/.env
 endef
 
 change_config:
