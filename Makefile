@@ -13,16 +13,11 @@ empty:=
 space:= $(empty) $(empty)
 # Docker compose project name should follow this guidelines: https://docs.docker.com/compose/reference/#use--p-to-specify-a-project-name
 DOCKER_PROJECT ?= $(shell echo $(subst $(space),,$(USER_REPO)) | tr -c -s '[:alnum:][=-=]' '_' | tr '[:upper:]' '[:lower:]')
-DOCKER_PROFILE ?= $(COCOS_MESSAGE_BROKER_TYPE)
-ifneq ($(COCOS_MESSAGE_BROKER_TYPE),)
-    COCOS_MESSAGE_BROKER_TYPE := $(COCOS_MESSAGE_BROKER_TYPE)
-else
-    COCOS_MESSAGE_BROKER_TYPE=nats
-endif
+DOCKER_PROFILE ?= $(if $(COCOS_MESSAGE_BROKER_TYPE),$(COCOS_MESSAGE_BROKER_TYPE),nats)
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
-	go build -ldflags "-s -w \
+	go build -tags $(COCOS_MESSAGE_BROKER_TYPE) -ldflags "-s -w \
 	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
 	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
 	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
@@ -51,12 +46,10 @@ endef
 change_config:
 ifeq ($(DOCKER_PROFILE),nats)
 	sed -i "s/- broker/- nats/g" docker/docker-compose.yml
-	sed -i "s/- rabbitmq/- nats/g" docker/docker-compose.yml
 	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://nats:$$\{COCOS_NATS_PORT}," docker/.env
 	$(call edit_docker_config,nats)
 else ifeq ($(DOCKER_PROFILE),rabbitmq)
 	sed -i "s/nats/broker/g" docker/docker-compose.yml
-	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://nats:$$\{COCOS_NATS_PORT}," docker/.env
 	sed -i "s/rabbitmq/broker/g" docker/docker-compose.yml
 	$(call edit_docker_config,rabbitmq)
 else
@@ -64,5 +57,5 @@ else
 endif
 
 run:  change_config
-	docker compose -f docker/docker-compose.yml --profile $(DOCKER_PROFILE) -p $(DOCKER_PROJECT) $(DOCKER_COMPOSE_COMMAND) up
+	docker compose -f docker/docker-compose.yml --profile $(DOCKER_PROFILE) -p $(DOCKER_PROJECT) up
 
