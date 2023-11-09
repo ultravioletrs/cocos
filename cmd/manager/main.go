@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/internal"
@@ -103,6 +104,14 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+
+	pubsub, err := brokers.NewPubSub(ctx, cfg.BrokerURL, logger)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+	if err := manager.NewAgentEventNotifier(ctx, pubsub, logger); err != nil {
+		logger.Fatal(err.Error())
+	}
 
 	svc := newService(agentClient, logger, tracer, qemuCfg)
 

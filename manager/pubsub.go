@@ -14,7 +14,7 @@ const agentTopic = "channels.agent.>"
 
 var errUnexpectedEvent = errors.New("unexpected event from agent")
 
-func NewEvent(ctx context.Context, pubsub messaging.PubSub, logger logger.Logger) error {
+func NewAgentEventNotifier(ctx context.Context, pubsub messaging.PubSub, logger logger.Logger) error {
 	if err := pubsub.Subscribe(ctx, messaging.SubscriberConfig{
 		ID:             "manager",
 		Topic:          agentTopic,
