@@ -23,3 +23,11 @@ services:
       - ${COCOS_JAEGER_CONFIGS}:${COCOS_JAEGER_CONFIGS}
     networks:
       - cocos-base-net
+  cocos-manager:
+    image: cocos-ai/manager:latest
+    privileged: true
+    devices:
+      - /dev/kvm
+    volumes:
+      - ../cmd/manager/img:/img
+
