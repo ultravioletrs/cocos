@@ -26,6 +26,10 @@ var (
 	ErrNotFound = errors.New("entity not found")
 )
 
+const (
+	vmPorts = 3
+)
+
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
@@ -86,7 +90,7 @@ func (ms *managerService) allocFreeHostPorts() ([]net.Listener, error) {
 	var listeners []net.Listener
 	ports := []int{0, 0, 0}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < vmPorts; i++ {
 		ln, err := net.Listen("tcp", ":0")
 		if err != nil {
 			return nil, errors.New("unable to find free port")
