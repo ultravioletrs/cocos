@@ -40,7 +40,7 @@ func (lm *loggingMiddleware) Run(ctx context.Context, cmp agent.Computation) (re
 	return lm.svc.Run(ctx, cmp)
 }
 
-func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm []byte) (response string, err error) {
+func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (response string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Algo took %s to complete", time.Since(begin))
 		if err != nil {
@@ -53,7 +53,7 @@ func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm []byte) (respon
 	return lm.svc.Algo(ctx, algorithm)
 }
 
-func (lm *loggingMiddleware) Data(ctx context.Context, dataset []byte) (response string, err error) {
+func (lm *loggingMiddleware) Data(ctx context.Context, dataset agent.Dataset) (response string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Data took %s to complete", time.Since(begin))
 		if err != nil {
@@ -66,7 +66,7 @@ func (lm *loggingMiddleware) Data(ctx context.Context, dataset []byte) (response
 	return lm.svc.Data(ctx, dataset)
 }
 
-func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err error) {
+func (lm *loggingMiddleware) Result(ctx context.Context, consumer string) (response []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Result took %s to complete", time.Since(begin))
 		if err != nil {
@@ -76,7 +76,7 @@ func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err e
 		lm.logger.Info(fmt.Sprintf("%s without errors", message))
 	}(time.Now())
 
-	return lm.svc.Result(ctx)
+	return lm.svc.Result(ctx, consumer)
 }
 
 func (lm *loggingMiddleware) Attestation(ctx context.Context) (response []byte, err error) {

@@ -19,15 +19,23 @@ message RunRequest { bytes computation = 1; }
 
 message RunResponse { string Computation = 1; }
 
-message AlgoRequest { bytes algorithm = 1; }
+message AlgoRequest {
+  bytes algorithm = 1;
+  string provider = 2;
+}
 
 message AlgoResponse { string algorithmID = 1; }
 
-message DataRequest { bytes dataset = 1; }
+message DataRequest {
+  bytes dataset = 1;
+  string provider = 2;
+}
 
 message DataResponse { string datasetID = 1; }
 
-message ResultRequest {}
+message ResultRequest {
+  string consumer = 1;
+}
 
 message ResultResponse { bytes file = 1; }
 
