@@ -10,8 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mainflux/mainflux/logger"
-	"github.com/mainflux/mainflux/pkg/uuid"
+	"github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging/brokers"
+	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos-ai/agent"
 	"github.com/ultravioletrs/cocos-ai/internal"
 	"github.com/ultravioletrs/cocos-ai/internal/env"
@@ -44,9 +45,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
-	JaegerURL  string `env:"MANAGER_JAEGER_URL"  envDefault:"http://localhost:4318/v1/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID" envDefault:""`
+	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:4318/v1/traces"`
+	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
 }
 
 func main() {
@@ -102,6 +104,14 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+
+	pubsub, err := brokers.NewPubSub(ctx, cfg.BrokerURL, logger)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+	if err := manager.NewAgentEventNotifier(ctx, pubsub, logger); err != nil {
+		logger.Fatal(err.Error())
+	}
 
 	svc := newService(agentClient, logger, tracer, qemuCfg)
 

@@ -14,7 +14,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/mainflux/mainflux/logger"
+	"github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
 
@@ -61,22 +62,31 @@ type agentService struct {
 	attestation []byte
 	sm          *StateMachine
 	runError    error
+	publisher   messaging.Publisher
 }
 
 const (
-	socketPath = "unix_socket"
-	pyRuntime  = "python3"
+	socketPath        = "unix_socket"
+	pyRuntime         = "python3"
+	notificationTopic = "agent"
 )
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger logger.Logger) Service {
+func New(ctx context.Context, logger logger.Logger, publisher messaging.Publisher) Service {
 	svc := &agentService{
-		sm: NewStateMachine(logger),
+		sm:        NewStateMachine(logger),
+		publisher: publisher,
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
+	svc.sm.StateFunctions[idle] = svc.publishEvent(ctx, "idle", "agent has started")
+	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent(ctx, "run", "agent ready to receive manifests")
+	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent(ctx, "algorithms", "agent is ready to receiving algorithms")
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent(ctx, "datasets", "agent is ready to receiving datasets")
+	svc.sm.StateFunctions[resultsReady] = svc.publishEvent(ctx, "results", "agent computation results are ready")
+	svc.sm.StateFunctions[complete] = svc.publishEvent(ctx, "complete", "agent results have been consumed")
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }
@@ -197,10 +207,11 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
+	ctx := context.Background()
+	as.publishEvent(ctx, "running", "computation run has started")()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	var cancel context.CancelFunc
-	ctx := context.Background()
 	if as.computation.Timeout.Duration != 0 {
 		ctx, cancel = context.WithDeadline(ctx, <-time.After(as.computation.Timeout.Duration))
 		defer cancel()
@@ -211,6 +222,17 @@ func (as *agentService) runComputation() {
 		return
 	}
 	as.result = result
+}
+
+func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
+	return func() {
+		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
+			Subtopic: subtopic,
+			Payload:  []byte(body),
+		}); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
+	}
 }
 
 func run(ctx context.Context, algoContent []byte, dataContent []byte) ([]byte, error) {

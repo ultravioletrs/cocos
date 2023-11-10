@@ -1,0 +1,25 @@
+version: "3.7"
+name: "cocos"
+
+networks:
+  cocos-base-net:
+    driver: bridge
+
+volumes:
+  cocos-broker-volume:
+
+include:
+  - path: brokers/docker-compose.yml
+    env_file: docker/.env
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.38.0
+    container_name: cocos-jaeger
+    ports:
+      - ${COCOS_JAEGER_PORT}:${COCOS_JAEGER_PORT}/udp
+      - ${COCOS_JAEGER_FRONTEND}:${COCOS_JAEGER_FRONTEND}
+      - ${COCOS_JAEGER_COLLECTOR}:${COCOS_JAEGER_COLLECTOR}
+      - ${COCOS_JAEGER_CONFIGS}:${COCOS_JAEGER_CONFIGS}
+    networks:
+      - cocos-base-net
