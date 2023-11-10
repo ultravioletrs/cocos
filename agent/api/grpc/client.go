@@ -106,6 +106,8 @@ func encodeAlgoRequest(_ context.Context, request interface{}) (interface{}, err
 
 	return &agent.AlgoRequest{
 		Algorithm: req.Algorithm,
+		Provider:  req.Provider,
+		Id:        req.Id,
 	}, nil
 }
 
@@ -131,7 +133,9 @@ func encodeDataRequest(_ context.Context, request interface{}) (interface{}, err
 	}
 
 	return &agent.DataRequest{
-		Dataset: req.Dataset,
+		Dataset:  req.Dataset,
+		Provider: req.Provider,
+		Id:       req.Id,
 	}, nil
 }
 
@@ -151,8 +155,14 @@ func decodeDataResponse(_ context.Context, grpcResponse interface{}) (interface{
 // encodeResultRequest is a transport/grpc.EncodeRequestFunc that
 // converts a user-domain resultReq to a gRPC request.
 func encodeResultRequest(_ context.Context, request interface{}) (interface{}, error) {
-	// No request parameters needed for retrieving computation result file
-	return &agent.ResultRequest{}, nil
+	req, ok := request.(*resultReq)
+	if !ok {
+		return nil, fmt.Errorf("invalid request type: %T", request)
+	}
+
+	return &agent.ResultRequest{
+		Consumer: req.Consumer,
+	}, nil
 }
 
 // decodeResultResponse is a transport/grpc.DecodeResponseFunc that
@@ -207,7 +217,7 @@ func (c grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _ ...g
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.algo(ctx, &algoReq{Algorithm: request.Algorithm})
+	res, err := c.algo(ctx, &algoReq{Algorithm: request.Algorithm, Provider: request.Provider, Id: request.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +231,7 @@ func (c grpcClient) Data(ctx context.Context, request *agent.DataRequest, _ ...g
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.data(ctx, &dataReq{Dataset: request.Dataset})
+	res, err := c.data(ctx, &dataReq{Dataset: request.Dataset, Provider: request.Provider, Id: request.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +245,7 @@ func (c grpcClient) Result(ctx context.Context, request *agent.ResultRequest, _ 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.result(ctx, &resultReq{})
+	res, err := c.result(ctx, &resultReq{Consumer: request.Consumer})
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +259,7 @@ func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationR
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.result(ctx, &resultReq{})
+	res, err := c.result(ctx, &attestationReq{})
 	if err != nil {
 		return nil, err
 	}

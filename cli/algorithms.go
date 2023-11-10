@@ -3,19 +3,19 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos-ai/agent"
 )
 
-func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
+func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 	return &cobra.Command{
-		Use:   "algo",
-		Short: "Upload an algorithm binary",
-		Args:  cobra.ExactArgs(1),
+		Use:     "algo",
+		Short:   "Upload an algorithm binary",
+		Example: "algo <algo_file> <id> <provider>",
+		Args:    cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
@@ -23,14 +23,18 @@ func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				log.Println("Error reading dataset file:", err)
-				return
+				log.Fatalf("Error reading algorithm file: %v", err)
 			}
 
-			response, err := sdk.UploadAlgorithm(context.Background(), algorithm)
+			algoReq := agent.Algorithm{
+				Algorithm: algorithm,
+				ID:        args[1],
+				Provider:  args[2],
+			}
+
+			response, err := sdk.Algo(cmd.Context(), algoReq)
 			if err != nil {
-				log.Println("Error uploading algorithm:", err)
-				return
+				log.Fatalf("Error uploading algorithm with ID %s and provider %s: %v", algoReq.ID, algoReq.Provider, err)
 			}
 
 			log.Println("Successfully uploaded algorithm:", response)

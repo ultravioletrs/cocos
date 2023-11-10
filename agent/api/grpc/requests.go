@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package grpc
 
-import "errors"
+import (
+	"errors"
+)
 
 type runReq struct {
 	Computation []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
@@ -18,11 +20,18 @@ func (req runReq) validate() error {
 type algoReq struct {
 	Algorithm []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	Provider  string `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Id        string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (req algoReq) validate() error {
 	if len(req.Algorithm) == 0 {
 		return errors.New("algorithm binary is required")
+	}
+	if req.Id == "" {
+		return errors.New("malformed entity")
+	}
+	if req.Provider == "" {
+		return errors.New("malformed entity")
 	}
 	return nil
 }
@@ -30,11 +39,18 @@ func (req algoReq) validate() error {
 type dataReq struct {
 	Dataset  []byte `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
 	Provider string `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Id       string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (req dataReq) validate() error {
 	if len(req.Dataset) == 0 {
 		return errors.New("dataset CSV file is required")
+	}
+	if req.Id == "" {
+		return errors.New("malformed entity")
+	}
+	if req.Provider == "" {
+		return errors.New("malformed entity")
 	}
 	return nil
 }

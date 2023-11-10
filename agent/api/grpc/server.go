@@ -69,6 +69,8 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 
 	return algoReq{
 		Algorithm: req.Algorithm,
+		Provider:  req.Provider,
+		Id:        req.Id,
 	}, nil
 }
 
@@ -83,7 +85,9 @@ func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	req := grpcReq.(*agent.DataRequest)
 
 	return dataReq{
-		Dataset: req.Dataset,
+		Dataset:  req.Dataset,
+		Provider: req.Provider,
+		Id:       req.Id,
 	}, nil
 }
 
@@ -95,8 +99,8 @@ func encodeDataResponse(_ context.Context, response interface{}) (interface{}, e
 }
 
 func decodeResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	// No fields to extract from gRPC request, so returning an empty struct
-	return resultReq{}, nil
+	req := grpcReq.(*agent.ResultRequest)
+	return resultReq{Consumer: req.Consumer}, nil
 }
 
 func encodeResultResponse(_ context.Context, response interface{}) (interface{}, error) {

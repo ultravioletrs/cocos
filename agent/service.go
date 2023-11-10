@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
+	"time"
 
+	"github.com/mainflux/mainflux/logger"
 	"github.com/ultravioletrs/cocos-ai/pkg/socket"
 )
 
@@ -35,9 +37,11 @@ var (
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
 	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
+	// errResultsNotReady indicates the computation results are not ready.
+	errResultsNotReady = errors.New("computation results are not yet ready")
+	// errStateNotReady agent received a request in the wrong state.
+	errStateNotReady = errors.New("agent not expecting this operation in the current state")
 )
-
-type Metadata map[string]interface{}
 
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
@@ -55,6 +59,8 @@ type agentService struct {
 	datasets    [][]byte
 	result      []byte
 	attestation []byte
+	sm          *StateMachine
+	runError    error
 }
 
 const (
@@ -65,17 +71,27 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New() Service {
-	return &agentService{}
+func New(ctx context.Context, logger logger.Logger) Service {
+	svc := &agentService{
+		sm: NewStateMachine(logger),
+	}
+	go svc.sm.Start(ctx)
+	svc.sm.SendEvent(start)
+	svc.sm.StateFunctions[running] = svc.runComputation
+	return svc
 }
 
 func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error) {
+	if as.sm.GetState() != receivingManifests {
+		return "", errStateNotReady
+	}
 	cmpJSON, err := json.Marshal(cmp)
 	if err != nil {
 		return "", err
 	}
 
 	as.computation = cmp
+	as.sm.SendEvent(manifestsReceived)
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
@@ -85,6 +101,9 @@ func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
+	if as.sm.GetState() != receivingAlgorithms {
+		return "", errStateNotReady
+	}
 	if len(as.computation.Algorithms) == 0 {
 		return "", errAllManifestItemsReceived
 	}
@@ -101,6 +120,10 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, 
 
 	as.algorithms = append(as.algorithms, algorithm.Algorithm)
 
+	if len(as.computation.Algorithms) == 0 {
+		as.sm.SendEvent(algorithmsReceived)
+	}
+
 	// Calculate the SHA-256 hash of the algorithm.
 	hash := sha256.Sum256(algorithm.Algorithm)
 	algorithmHash := hex.EncodeToString(hash[:])
@@ -110,6 +133,9 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, 
 }
 
 func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, error) {
+	if as.sm.GetState() != receivingData {
+		return "", errStateNotReady
+	}
 	if len(as.computation.Datasets) == 0 {
 		return "", errAllManifestItemsReceived
 	}
@@ -126,6 +152,10 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 
 	as.datasets = append(as.datasets, dataset.Dataset)
 
+	if len(as.computation.Datasets) == 0 {
+		as.sm.SendEvent(dataReceived)
+	}
+
 	// Calculate the SHA-256 hash of the dataset.
 	hash := sha256.Sum256(dataset.Dataset)
 	datasetHash := hex.EncodeToString(hash[:])
@@ -135,6 +165,9 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 }
 
 func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, error) {
+	if as.sm.GetState() != resultsReady {
+		return []byte{}, errResultsNotReady
+	}
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived
 	}
@@ -146,14 +179,11 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 		as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 	}
 
-	result, err := run(as.algorithms[0], as.datasets[0])
-	if err != nil {
-		return nil, fmt.Errorf("error performing computation: %v", err)
+	if len(as.computation.ResultConsumers) == 0 {
+		as.sm.SendEvent(resultsConsumed)
 	}
-	as.result = result
-
 	// Return the result file or an error
-	return as.result, nil
+	return as.result, as.runError
 }
 
 func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
@@ -166,7 +196,24 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 	return as.attestation, nil
 }
 
-func run(algoContent []byte, dataContent []byte) ([]byte, error) {
+func (as *agentService) runComputation() {
+	as.sm.logger.Debug("computation run started")
+	defer as.sm.SendEvent(runComplete)
+	var cancel context.CancelFunc
+	ctx := context.Background()
+	if as.computation.Timeout.Duration != 0 {
+		ctx, cancel = context.WithDeadline(ctx, <-time.After(as.computation.Timeout.Duration))
+		defer cancel()
+	}
+	result, err := run(ctx, as.algorithms[0], as.datasets[0])
+	if err != nil {
+		as.runError = err
+		return
+	}
+	as.result = result
+}
+
+func run(ctx context.Context, algoContent []byte, dataContent []byte) ([]byte, error) {
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
@@ -176,6 +223,16 @@ func run(algoContent []byte, dataContent []byte) ([]byte, error) {
 	// Create channels for received data and errors
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
+
+	var result []byte
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("computation timed out")
+	case result = <-dataChannel:
+	case err = <-errorChannel:
+		return nil, fmt.Errorf("error receiving data: %v", err)
+	}
+
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
 	// Construct the Python script content with CSV data as a command-line argument
@@ -185,13 +242,6 @@ func run(algoContent []byte, dataContent []byte) ([]byte, error) {
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting Python script: %v", err)
-	}
-
-	var result []byte
-	select {
-	case result = <-dataChannel:
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
