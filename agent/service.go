@@ -157,6 +157,12 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 }
 
 func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
+	// Implement the logic for the Attestation method here
+	// Use the provided ctx parameter as needed
+	var attestation []byte
+
+	as.attestation = attestation
+
 	return as.attestation, nil
 }
 

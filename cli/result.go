@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -19,7 +20,7 @@ func NewResultsCmd(sdk sdk.SDK) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
-			result, err := sdk.Result()
+			result, err := sdk.Result(context.Background())
 			if err != nil {
 				log.Println("Error retrieving computation result:", err)
 				return

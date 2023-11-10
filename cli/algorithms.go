@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -26,7 +27,7 @@ func NewAlgorithmsCmd(sdk sdk.SDK) *cobra.Command {
 				return
 			}
 
-			response, err := sdk.UploadAlgorithm(algorithm)
+			response, err := sdk.UploadAlgorithm(context.Background(), algorithm)
 			if err != nil {
 				log.Println("Error uploading algorithm:", err)
 				return
