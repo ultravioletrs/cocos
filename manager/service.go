@@ -26,9 +26,7 @@ var (
 	ErrNotFound = errors.New("entity not found")
 )
 
-const (
-	vmPorts = 3
-)
+const vmPorts = 3
 
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
