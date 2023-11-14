@@ -46,7 +46,7 @@ const (
 
 type config struct {
 	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:4318/v1/traces"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
 	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
 	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
 }
