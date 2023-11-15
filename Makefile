@@ -24,12 +24,47 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
+define make_docker
+	$(eval svc=$(subst docker_,,$(1)))
+
+	docker build \
+		--no-cache \
+		--build-arg SVC=$(svc) \
+		--build-arg GOARCH=$(GOARCH) \
+		--build-arg GOARM=$(GOARM) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg TIME=$(TIME) \
+		--tag=cocos-ai/$(svc) \
+		-f docker/Dockerfile .
+endef
+
+define make_docker_dev
+	$(eval svc=$(subst docker_dev_,,$(1)))
+
+	docker build \
+		--no-cache \
+		--build-arg SVC=$(svc) \
+		--tag=cocos-ai/$(svc) \
+		-f docker/Dockerfile.dev ./build
+endef
+
 .PHONY: all $(SERVICES)
 
 all: $(SERVICES)
 
+dockers: $(DOCKERS)
+
+dockers_dev: $(DOCKERS_DEV)
+
 $(SERVICES):
 	$(call compile_service,$(@))
+
+$(DOCKERS):
+	$(call make_docker,$(@),$(GOARCH))
+
+$(DOCKERS_DEV):
+	$(call make_docker_dev,$(@))
 
 install-cli: cli
 	cp ${CLI_BIN} ~/.local/bin/cocos-cli

@@ -30,4 +30,3 @@ services:
       - /dev/kvm
     volumes:
       - ../cmd/manager/img:/img
-

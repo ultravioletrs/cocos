@@ -82,11 +82,6 @@ func main() {
 
 	svc := newService(ctx, logger, tracer, pub)
 
-	httpServerConfig := server.Config{Port: defSvcHTTPPort}
-	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
-	}
-
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		log.Printf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
