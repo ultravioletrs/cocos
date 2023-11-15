@@ -31,3 +31,8 @@ services:
       - /dev/kvm
     volumes:
       - ../cmd/manager/img:/img
+    depends_on:
+      - broker
+      - jaeger
+    networks:
+      - cocos-base-net

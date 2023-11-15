@@ -82,12 +82,9 @@ endef
 
 change_config:
 ifeq ($(DOCKER_PROFILE),nats)
-	sed -i "s/- broker/- nats/g" docker/docker-compose.yml
 	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://nats:$$\{COCOS_NATS_PORT}," docker/.env
 	$(call edit_docker_config,nats)
 else ifeq ($(DOCKER_PROFILE),rabbitmq)
-	sed -i "s/nats/broker/g" docker/docker-compose.yml
-	sed -i "s/rabbitmq/broker/g" docker/docker-compose.yml
 	$(call edit_docker_config,rabbitmq)
 else
 	$(error Invalid DOCKER_PROFILE $(DOCKER_PROFILE))
@@ -95,6 +92,3 @@ endif
 
 run:  change_config
 	docker compose -f docker/docker-compose.yml --profile $(DOCKER_PROFILE) -p $(DOCKER_PROJECT) up
-
-eer: 
-	@echo "none"
