@@ -20,6 +20,7 @@ import (
 const (
 	svcName            = "cli"
 	envPrefixAgentGRPC = "AGENT_GRPC_"
+	defURL             = "localhost:7002"
 )
 
 type config struct {
@@ -41,6 +42,7 @@ func main() {
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 	}
+	agentGRPCConfig.URL = defURL
 
 	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
 	if err != nil {
