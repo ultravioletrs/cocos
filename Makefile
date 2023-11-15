@@ -7,6 +7,8 @@ COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 CLI_SOURCE = ./cmd/cli/main.go
 CLI_BIN = ${BUILD_DIR}/cocos-cli
+DOCKERS = $(addprefix docker_,$(SERVICES))
+DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 
 USER_REPO ?= $(shell git remote get-url origin | sed -e 's/.*\/\([^/]*\)\/\([^/]*\).*/\1_\2/' )
 empty:=
@@ -49,22 +51,22 @@ define make_docker_dev
 		-f docker/Dockerfile.dev ./build
 endef
 
-.PHONY: all $(SERVICES)
+.PHONY: all $(SERVICES) dockers dockers_dev
 
 all: $(SERVICES)
-
-dockers: $(DOCKERS)
-
-dockers_dev: $(DOCKERS_DEV)
-
-$(SERVICES):
-	$(call compile_service,$(@))
 
 $(DOCKERS):
 	$(call make_docker,$(@),$(GOARCH))
 
 $(DOCKERS_DEV):
 	$(call make_docker_dev,$(@))
+
+dockers: $(DOCKERS)
+dockers_dev: $(DOCKERS_DEV)
+
+$(SERVICES):
+	$(call compile_service,$(@))
+
 
 install-cli: cli
 	cp ${CLI_BIN} ~/.local/bin/cocos-cli
@@ -94,3 +96,5 @@ endif
 run:  change_config
 	docker compose -f docker/docker-compose.yml --profile $(DOCKER_PROFILE) -p $(DOCKER_PROJECT) up
 
+eer: 
+	@echo "none"

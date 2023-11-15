@@ -25,6 +25,7 @@ services:
       - cocos-base-net
   cocos-manager:
     image: cocos-ai/manager:latest
+    container_name: cocos-manager
     privileged: true
     devices:
       - /dev/kvm
