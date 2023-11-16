@@ -82,7 +82,7 @@ endef
 
 change_config:
 ifeq ($(DOCKER_PROFILE),nats)
-	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://nats:$$\{COCOS_NATS_PORT}," docker/.env
+	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://broker:$$\{COCOS_NATS_PORT}," docker/.env
 	$(call edit_docker_config,nats)
 else ifeq ($(DOCKER_PROFILE),rabbitmq)
 	$(call edit_docker_config,rabbitmq)
