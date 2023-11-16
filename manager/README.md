@@ -21,8 +21,9 @@ The service is configured using the environment variables from the following tab
 | AGENT_GRPC_TIMEOUT       | Agent service gRPC timeout                               | 1s                                |
 | AGENT_GRPC_CA_CERTS      | Agent service gRPC CA certificates                       |                                   |
 | AGENT_GRPC_CLIENT_TLS    | Agent service gRPC client TLS                            | false                             |
-| MANAGER_JAEGER_URL       | Jaeger server URL                                        | http://localhost:14268/api/traces |
+| COCOS_JAEGER_URL       | Jaeger server URL                                        | http://localhost:14268/api/traces |
 | MANAGER_INSTANCE_ID      | Manager service instance ID                              |                                   |
+| COCOS_MESSAGE_BROKER_URL | message broker url | http://localhost:4222 |
 
 ## Deployment
 

@@ -27,6 +27,8 @@ services:
     image: cocos-ai/manager:latest
     container_name: cocos-manager
     privileged: true
+    env_file:
+      - .env
     devices:
       - /dev/kvm
     volumes:
