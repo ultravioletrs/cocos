@@ -409,13 +409,22 @@ make manager
 make install
 
 # set the environment variables and run the service
-MANAGER_LOG_LEVEL=debug MANAGER_AGENT_GRPC_URL=localhost:7002 MANAGER_QEMU_USE_SUDO=false MANAGER_QEMU_ENABLE_SEV=false  ./build/cocos-manager
+MANAGER_LOG_LEVEL=debug \
+MANAGER_AGENT_GRPC_URL=localhost:7002 \
+MANAGER_QEMU_USE_SUDO=false \
+MANAGER_QEMU_ENABLE_SEV=false \
+./build/cocos-manager
 ```
 
 To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
 
 ```sh
-MANAGER_LOG_LEVEL=debug MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 MANAGER_QEMU_USE_SUDO=true MANAGER_QEMU_ENABLE_SEV=true MANAGER_QEMU_SEV_CBITPOS=51 ./build/cocos-manager
+MANAGER_LOG_LEVEL=debug \
+MANAGER_AGENT_GRPC_URL=192.168.122.251:7002 \
+MANAGER_QEMU_USE_SUDO=true \
+MANAGER_QEMU_ENABLE_SEV=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+./build/cocos-manager
 ```
 
 
