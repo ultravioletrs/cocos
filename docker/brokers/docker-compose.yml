@@ -1,15 +1,11 @@
 # This file configures COCOS brokers. 
 # MESSAGE_BROKER can be either 'nats' or 'rabbitmq'.
 #
-# Each broker has a unique profile for configuration. The available profiles are:
-# - nats: Uses 'nats' as MESSAGE_BROKER.
-# - rabbitmq: Uses 'rabbitmq' as MESSAGE_BROKER.
-#
 
 services:
   broker:
     extends:
-      file: nats.yml
+      file: rabbitmq.yml
       service: broker
     container_name: cocos-broker
     restart: on-failure
@@ -17,6 +13,3 @@ services:
       - cocos-base-net
     volumes:
       - cocos-broker-volume:/data
-    profiles:
-      - rabbitmq
-      - nats
