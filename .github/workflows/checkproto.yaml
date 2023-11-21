@@ -7,12 +7,16 @@ on:
     paths:
       - "manager/manager.proto"
       - "manager/*.pb.go"
+      - "agent/agent.proto"
+      - "agent/*.pb.go"
   pull_request:
     branches:
       - main
     paths:
       - "manager/manager.proto"
       - "manager/*.pb.go"
+      - "agent/agent.proto"
+      - "agent/*.pb.go"
 
 jobs:
   checkproto:
