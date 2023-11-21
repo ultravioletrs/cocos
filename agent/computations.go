@@ -5,24 +5,44 @@ package agent
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
 
+var _ fmt.Stringer = (*Datasets)(nil)
+var _ fmt.Stringer = (*Algorithms)(nil)
+
 type Computation struct {
-	ID              string      `json:"id,omitempty"`
-	Name            string      `json:"name,omitempty"`
-	Description     string      `json:"description,omitempty"`
-	Status          string      `json:"status,omitempty"`
-	Owner           string      `json:"owner,omitempty"`
-	StartTime       time.Time   `json:"start_time,omitempty"`
-	EndTime         time.Time   `json:"end_time,omitempty"`
-	Datasets        []Dataset   `json:"datasets,omitempty"`
-	Algorithms      []Algorithm `json:"algorithms,omitempty"`
-	ResultConsumers []string    `json:"result_consumers,omitempty"`
-	Ttl             int32       `json:"ttl,omitempty"`
-	Metadata        Metadata    `json:"metadata,omitempty"`
-	Timeout         Duration    `json:"timeout,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	Name            string     `json:"name,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	Status          string     `json:"status,omitempty"`
+	Owner           string     `json:"owner,omitempty"`
+	StartTime       time.Time  `json:"start_time,omitempty"`
+	EndTime         time.Time  `json:"end_time,omitempty"`
+	Datasets        Datasets   `json:"datasets,omitempty"`
+	Algorithms      Algorithms `json:"algorithms,omitempty"`
+	ResultConsumers []string   `json:"result_consumers,omitempty"`
+	Ttl             int32      `json:"ttl,omitempty"`
+	Metadata        Metadata   `json:"metadata,omitempty"`
+	Timeout         Duration   `json:"timeout,omitempty"`
+}
+
+func (d Datasets) String() string {
+	dat, err := json.Marshal(d)
+	if err != nil {
+		return ""
+	}
+	return string(dat)
+}
+
+func (a Algorithms) String() string {
+	dat, err := json.Marshal(a)
+	if err != nil {
+		return ""
+	}
+	return string(dat)
 }
 
 type Duration struct {
@@ -62,11 +82,15 @@ type Dataset struct {
 	ID       string `json:"id,omitempty"`
 }
 
+type Datasets []Dataset
+
 type Algorithm struct {
 	Algorithm []byte `json:"-"`
 	Provider  string `json:"provider,omitempty"`
 	ID        string `json:"id,omitempty"`
 }
+
+type Algorithms []Algorithm
 
 func containsID(slice interface{}, id string) int {
 	rangeOnMe := reflect.ValueOf(slice)

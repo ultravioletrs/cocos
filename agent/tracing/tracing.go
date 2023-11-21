@@ -23,14 +23,6 @@ func New(svc agent.Service, tracer trace.Tracer) agent.Service {
 }
 
 func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (string, error) {
-	var datasetProviders, algorithmProviders []string
-
-	for _, dataset := range cmp.Datasets {
-		datasetProviders = append(datasetProviders, dataset.Provider)
-	}
-	for _, algos := range cmp.Algorithms {
-		algorithmProviders = append(algorithmProviders, algos.Provider)
-	}
 	ctx, span := tm.tracer.Start(ctx, "run", trace.WithAttributes(
 		attribute.String("id", cmp.ID),
 		attribute.String("name", cmp.Name),
@@ -38,9 +30,9 @@ func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (st
 		attribute.String("status", cmp.Status),
 		attribute.String("start_time", cmp.StartTime.String()),
 		attribute.String("end_time", cmp.EndTime.String()),
-		attribute.StringSlice("dataset_providers", datasetProviders),
-		attribute.StringSlice("algorithm_providers", algorithmProviders),
 		attribute.StringSlice("result_consumers", cmp.ResultConsumers),
+		attribute.Stringer("", cmp.Datasets),
+		attribute.Stringer("", cmp.Algorithms),
 	))
 	defer span.End()
 
