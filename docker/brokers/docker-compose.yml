@@ -1,11 +1,10 @@
 # This file configures COCOS brokers. 
 # MESSAGE_BROKER can be either 'nats' or 'rabbitmq'.
-#
 
 services:
   broker:
     extends:
-      file: rabbitmq.yml
+      file: nats.yml
       service: broker
     container_name: cocos-broker
     restart: on-failure
