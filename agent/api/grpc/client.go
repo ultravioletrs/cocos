@@ -259,7 +259,7 @@ func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationR
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.result(ctx, &attestationReq{})
+	res, err := c.attestation(ctx, &attestationReq{})
 	if err != nil {
 		return nil, err
 	}
