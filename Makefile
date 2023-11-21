@@ -73,6 +73,7 @@ install-cli: cli
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
+	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative manager/manager.proto
 
 define edit_docker_config
 	sed -i "s/COCOS_MESSAGE_BROKER_TYPE=.*/COCOS_MESSAGE_BROKER_TYPE=$(1)/" docker/.env

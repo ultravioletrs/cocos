@@ -20,7 +20,6 @@ import (
 const (
 	svcName            = "cli"
 	envPrefixAgentGRPC = "AGENT_GRPC_"
-	defURL             = "localhost:7002"
 )
 
 type config struct {
