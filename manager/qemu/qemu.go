@@ -8,7 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/gofrs/uuid"
-	"github.com/ultravioletrs/cocos-ai/internal"
+	"github.com/ultravioletrs/cocos/internal"
 )
 
 const (

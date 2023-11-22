@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 const resultFilePath = "result.bin"

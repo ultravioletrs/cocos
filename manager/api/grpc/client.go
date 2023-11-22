@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/ultravioletrs/cocos-ai/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/grpc"
 )
 

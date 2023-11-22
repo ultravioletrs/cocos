@@ -3,9 +3,9 @@
 package manager
 
 import (
-	"github.com/ultravioletrs/cocos-ai/manager"
-	managerapi "github.com/ultravioletrs/cocos-ai/manager/api/grpc"
-	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/manager"
+	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 // NewManagerClient creates new manager gRPC client instance.

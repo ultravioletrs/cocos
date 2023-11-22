@@ -1,4 +1,4 @@
-module github.com/ultravioletrs/cocos-ai
+module github.com/ultravioletrs/cocos
 
 go 1.21.3
 

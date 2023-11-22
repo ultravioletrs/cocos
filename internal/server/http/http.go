@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos-ai/internal/server"
+	"github.com/ultravioletrs/cocos/internal/server"
 )
 
 const (

@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 func NewRunCmd(sdk agent.Service) *cobra.Command {

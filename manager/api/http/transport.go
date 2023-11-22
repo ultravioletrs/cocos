@@ -14,7 +14,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/ultravioletrs/cocos-ai/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

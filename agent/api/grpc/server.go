@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/transport/grpc"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 type grpcServer struct {

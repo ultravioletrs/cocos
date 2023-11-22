@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 var _ agent.Service = (*loggingMiddleware)(nil)
