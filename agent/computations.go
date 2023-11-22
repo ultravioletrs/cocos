@@ -10,8 +10,10 @@ import (
 	"time"
 )
 
-var _ fmt.Stringer = (*Datasets)(nil)
-var _ fmt.Stringer = (*Algorithms)(nil)
+var (
+	_ fmt.Stringer = (*Datasets)(nil)
+	_ fmt.Stringer = (*Algorithms)(nil)
+)
 
 type Computation struct {
 	ID              string     `json:"id,omitempty"`
@@ -29,7 +31,7 @@ type Computation struct {
 	Timeout         Duration   `json:"timeout,omitempty"`
 }
 
-func (d Datasets) String() string {
+func (d *Datasets) String() string {
 	dat, err := json.Marshal(d)
 	if err != nil {
 		return ""
@@ -37,7 +39,7 @@ func (d Datasets) String() string {
 	return string(dat)
 }
 
-func (a Algorithms) String() string {
+func (a *Algorithms) String() string {
 	dat, err := json.Marshal(a)
 	if err != nil {
 		return ""

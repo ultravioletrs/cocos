@@ -31,8 +31,8 @@ func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (st
 		attribute.String("start_time", cmp.StartTime.String()),
 		attribute.String("end_time", cmp.EndTime.String()),
 		attribute.StringSlice("result_consumers", cmp.ResultConsumers),
-		attribute.Stringer("datasets", cmp.Datasets),
-		attribute.Stringer("algorithms", cmp.Algorithms),
+		attribute.Stringer("datasets", &cmp.Datasets),
+		attribute.Stringer("algorithms", &cmp.Algorithms),
 	))
 	defer span.End()
 
