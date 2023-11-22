@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos-ai/internal/server"
+	"github.com/ultravioletrs/cocos/internal/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

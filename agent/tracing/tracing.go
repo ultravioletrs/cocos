@@ -5,7 +5,7 @@ package tracing
 import (
 	"context"
 
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -31,8 +31,8 @@ func (tm *tracingMiddleware) Run(ctx context.Context, cmp agent.Computation) (st
 		attribute.String("start_time", cmp.StartTime.String()),
 		attribute.String("end_time", cmp.EndTime.String()),
 		attribute.StringSlice("result_consumers", cmp.ResultConsumers),
-		attribute.Stringer("", cmp.Datasets),
-		attribute.Stringer("", cmp.Algorithms),
+		attribute.Stringer("datasets", cmp.Datasets),
+		attribute.Stringer("algorithms", cmp.Algorithms),
 	))
 	defer span.End()
 

@@ -10,11 +10,11 @@ import (
 	"github.com/absmach/magistrala/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/ultravioletrs/cocos-ai/cli"
-	"github.com/ultravioletrs/cocos-ai/internal/env"
-	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc"
-	"github.com/ultravioletrs/cocos-ai/pkg/clients/grpc/agent"
-	"github.com/ultravioletrs/cocos-ai/pkg/sdk"
+	"github.com/ultravioletrs/cocos/cli"
+	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
+	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
 const (

@@ -16,7 +16,7 @@ import (
 
 	"github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
-	"github.com/ultravioletrs/cocos-ai/pkg/socket"
+	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
 var _ Service = (*agentService)(nil)

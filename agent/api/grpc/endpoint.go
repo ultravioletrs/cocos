@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 func runEndpoint(svc agent.Service) endpoint.Endpoint {

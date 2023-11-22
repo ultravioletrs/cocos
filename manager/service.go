@@ -7,8 +7,8 @@ import (
 	"errors"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/ultravioletrs/cocos-ai/agent"
-	"github.com/ultravioletrs/cocos-ai/manager/qemu"
+	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
 var (

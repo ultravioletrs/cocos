@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 var _ agent.Service = (*agentSDK)(nil)

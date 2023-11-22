@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"github.com/ultravioletrs/cocos-ai/agent"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 func SetSDK(s agent.Service) {

@@ -3,7 +3,7 @@ info:
   title: Computation Service API
   version: 1.0.0
 servers:
-  - url: https://api.example.com/v1
+  - url: http://localhost:7002
 paths:
   /run:
     post:
