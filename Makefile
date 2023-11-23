@@ -13,8 +13,6 @@ DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 USER_REPO ?= $(shell git remote get-url origin | sed -e 's/.*\/\([^/]*\)\/\([^/]*\).*/\1_\2/' )
 empty:=
 space:= $(empty) $(empty)
-# Docker compose project name should follow this guidelines: https://docs.docker.com/compose/reference/#use--p-to-specify-a-project-name
-DOCKER_PROJECT ?= $(shell echo $(subst $(space),,$(USER_REPO)) | tr -c -s '[:alnum:][=-=]' '_' | tr '[:upper:]' '[:lower:]')
 MESSAGE_BROKER_TYPE ?= $(if $(COCOS_MESSAGE_BROKER_TYPE),$(COCOS_MESSAGE_BROKER_TYPE),nats)
 
 define compile_service
@@ -92,4 +90,4 @@ else
 endif
 
 run:  change_config
-	docker compose -f docker/docker-compose.yml -p $(DOCKER_PROJECT) up
+	docker compose -f docker/docker-compose.yml -p cocos up
