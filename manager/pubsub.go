@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
 )
 
@@ -14,7 +14,7 @@ const agentTopic = "channels.agent.>"
 
 var errUnexpectedEvent = errors.New("unexpected event from agent")
 
-func NewAgentEventNotifier(ctx context.Context, pubsub messaging.PubSub, logger logger.Logger) error {
+func NewAgentEventNotifier(ctx context.Context, pubsub messaging.PubSub, logger mglog.Logger) error {
 	if err := pubsub.Subscribe(ctx, messaging.SubscriberConfig{
 		ID:             "manager",
 		Topic:          agentTopic,
@@ -27,7 +27,7 @@ func NewAgentEventNotifier(ctx context.Context, pubsub messaging.PubSub, logger 
 }
 
 type eventHandler struct {
-	logger logger.Logger
+	logger mglog.Logger
 }
 
 func (ev *eventHandler) Handle(msg *messaging.Message) error {

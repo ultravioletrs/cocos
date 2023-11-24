@@ -11,19 +11,19 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/manager"
 )
 
 var _ manager.Service = (*loggingMiddleware)(nil)
 
 type loggingMiddleware struct {
-	logger log.Logger
+	logger mglog.Logger
 	svc    manager.Service
 }
 
 // LoggingMiddleware adds logging facilities to the core service.
-func LoggingMiddleware(svc manager.Service, logger log.Logger) manager.Service {
+func LoggingMiddleware(svc manager.Service, logger mglog.Logger) manager.Service {
 	return &loggingMiddleware{logger, svc}
 }
 

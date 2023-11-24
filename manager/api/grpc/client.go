@@ -60,8 +60,8 @@ func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}
 }
 
 func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...grpc.CallOption) (*manager.RunResponse, error) {
-	ctx, close := context.WithTimeout(ctx, client.timeout)
-	defer close()
+	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+	defer cancel()
 
 	runReq := runReq{
 		Computation: req.GetComputation(),

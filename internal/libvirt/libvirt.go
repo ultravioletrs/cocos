@@ -10,12 +10,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/digitalocean/go-libvirt"
+	golibvirt "github.com/digitalocean/go-libvirt"
 )
 
 var re = regexp.MustCompile(`'([^']*)'`)
 
-func CreateDomain(ctx context.Context, libvirt *libvirt.Libvirt, poolXML, volXML, domXML string) (string, error) {
+func CreateDomain(ctx context.Context, libvirt *golibvirt.Libvirt, poolXML, volXML, domXML string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -47,78 +47,78 @@ func CreateDomain(ctx context.Context, libvirt *libvirt.Libvirt, poolXML, volXML
 	return dom.Name, nil
 }
 
-func createDomain(libvirtConn *libvirt.Libvirt, poolXML string, volXML string, domXML string) (libvirt.Domain, error) {
+func createDomain(libvirtConn *golibvirt.Libvirt, poolXML, volXML, domXML string) (golibvirt.Domain, error) {
 	pool, err := libvirtConn.StoragePoolCreateXML(poolXML, 0)
 	_ = pool
 	if err != nil {
-		lvErr := err.(libvirt.Error)
+		lvErr := err.(golibvirt.Error)
 		if lvErr.Code == 9 {
 			name, err := entityName(lvErr.Message)
 			if err != nil {
-				return libvirt.Domain{}, err
+				return golibvirt.Domain{}, err
 			}
 			pool, err = libvirtConn.StoragePoolLookupByName(name)
 			if err != nil {
-				return libvirt.Domain{}, err
+				return golibvirt.Domain{}, err
 			}
 
 			goto pool_exists
 		}
 
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 pool_exists:
 
 	_, err = libvirtConn.StorageVolCreateXML(pool, volXML, 0)
 	if err != nil {
-		lvErr := err.(libvirt.Error)
+		lvErr := err.(golibvirt.Error)
 		if lvErr.Code == 90 {
 			name, err := entityName(lvErr.Message)
 			if err != nil {
-				return libvirt.Domain{}, err
+				return golibvirt.Domain{}, err
 			}
 			_, err = libvirtConn.StorageVolLookupByName(pool, name)
 			if err != nil {
-				return libvirt.Domain{}, err
+				return golibvirt.Domain{}, err
 			}
 
 			goto vol_exists
 		}
 
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 
 vol_exists:
 
 	dom, err := libvirtConn.DomainDefineXMLFlags(domXML, 0)
 	if err != nil {
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 
 	err = libvirtConn.DomainCreate(dom)
 	if err != nil {
-		lvErr := err.(libvirt.Error)
+		lvErr := err.(golibvirt.Error)
 		if lvErr.Code == 55 {
 			return dom, nil
 		}
 
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 
 	// extra flags; not used yet, so callers should always pass 0
 	current, err := libvirtConn.DomainSnapshotCurrent(dom, 0)
 	if err != nil {
-		lvErr := err.(libvirt.Error)
+		lvErr := err.(golibvirt.Error)
 		if lvErr.Code == 72 {
 			return dom, nil
 		}
 
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 
-	err = libvirtConn.DomainRevertToSnapshot(current, uint32(libvirt.DomainSnapshotRevertRunning))
+	err = libvirtConn.DomainRevertToSnapshot(current, uint32(golibvirt.DomainSnapshotRevertRunning))
 	if err != nil {
-		return libvirt.Domain{}, err
+		return golibvirt.Domain{}, err
 	}
 
 	return dom, nil
@@ -133,7 +133,7 @@ func entityName(msg string) (string, error) {
 	return match[1], nil
 }
 
-func readXMLFile(filename string, defaultFilename string) (string, error) {
+func readXMLFile(filename, defaultFilename string) (string, error) {
 	if filename == "" {
 		filename = "./xml/" + defaultFilename
 	}

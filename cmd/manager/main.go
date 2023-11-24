@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos/agent"
@@ -60,7 +60,7 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := logger.New(os.Stdout, cfg.LogLevel)
+	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -154,8 +154,8 @@ func main() {
 	}
 }
 
-func newService(agent agent.AgentServiceClient, logger logger.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(agent, qemuCfg)
+func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
+	svc := manager.New(agentClient, qemuCfg)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

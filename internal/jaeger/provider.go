@@ -33,20 +33,20 @@ func NewProvider(ctx context.Context, svcName, jaegerurl, instanceID string) (*t
 		return nil, errNoSvcName
 	}
 
-	url, err := url.Parse(jaegerurl)
+	jurl, err := url.Parse(jaegerurl)
 	if err != nil {
 		return nil, err
 	}
 
 	var exporter *otlptrace.Exporter
-	switch url.Scheme {
+	switch jurl.Scheme {
 	case "http":
-		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(url.Host), otlptracehttp.WithURLPath(url.Path), otlptracehttp.WithInsecure())
+		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(jurl.Host), otlptracehttp.WithURLPath(jurl.Path), otlptracehttp.WithInsecure())
 		if err != nil {
 			return nil, err
 		}
 	case "https":
-		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(url.Host), otlptracehttp.WithURLPath(url.Path))
+		exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(jurl.Host), otlptracehttp.WithURLPath(jurl.Path))
 		if err != nil {
 			return nil, err
 		}
