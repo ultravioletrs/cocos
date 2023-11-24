@@ -1,0 +1,8 @@
+FROM alpine:latest
+ARG SVC
+RUN apk add --no-cache qemu-system-x86_64
+COPY cocos-$SVC /exe
+COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+ENTRYPOINT ["/exe"]
+

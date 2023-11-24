@@ -23,3 +23,22 @@ services:
       - ${COCOS_JAEGER_CONFIGS}:${COCOS_JAEGER_CONFIGS}
     networks:
       - cocos-base-net
+  cocos-manager:
+    image: cocos-ai/manager:latest
+    container_name: cocos-manager
+    env_file:
+      - .env
+    devices:
+      - /dev/kvm
+    volumes:
+      - ../cmd/manager/img:/img
+      - /usr/share/edk2/x64/OVMF_CODE.fd:/usr/share/OVMF/OVMF_CODE.fd
+      - /usr/share/edk2/x64/OVMF_VARS.fd:/usr/share/OVMF/OVMF_VARS.fd
+    depends_on:
+      - broker
+      - jaeger
+    networks:
+      - cocos-base-net
+    ports:
+      - ${MANAGER_HTTP_PORT}:${MANAGER_HTTP_PORT}
+      - ${MANAGER_GRPC_PORT}:${MANAGER_GRPC_PORT}
