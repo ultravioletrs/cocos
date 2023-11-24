@@ -8,11 +8,25 @@ issues:
   max-same-issues: 10
 
 linters-settings:
+  importas:
+    no-unaliased: true
+    no-extra-aliases: false
+    alias:
+      - pkg: github.com/absmach/magistrala/logger
+        alias: mglog
+
   gocritic:
     enabled-checks:
       - captLocal
       - dupImport
       - singleCaseSwitch
+      - switchTrue
+      - importShadow
+      - httpNoBody
+      - paramTypeCombine
+      - emptyStringTest
+      - builtinShadow
+      - exposedSyncMutex
     disabled-checks:
       - appendAssign
     enabled-tags:
@@ -35,6 +49,7 @@ linters-settings:
 linters:
   disable-all: true
   enable:
+    - importas
     - gocritic
     - gosimple
     - errcheck

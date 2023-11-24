@@ -200,8 +200,8 @@ func decodeAttestationResponse(_ context.Context, grpcResponse interface{}) (int
 
 // Run implements the Run method of the agent.AgentServiceClient interface.
 func (c grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
-	ctx, close := context.WithTimeout(ctx, c.timeout)
-	defer close()
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
 	res, err := c.run(ctx, &runReq{Computation: request.Computation})
 	if err != nil {

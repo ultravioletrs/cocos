@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -32,7 +32,7 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := logger.New(os.Stdout, cfg.LogLevel)
+	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf("Error creating logger: %s", err)
 	}
@@ -48,9 +48,9 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	sdk := sdk.NewAgentSDK(logger, agentClient)
+	agentSDK := sdk.NewAgentSDK(logger, agentClient)
 
-	cli.SetSDK(sdk)
+	cli.SetSDK(agentSDK)
 
 	rootCmd := &cobra.Command{
 		Use:   "cocos-cli [command]",
@@ -81,11 +81,11 @@ func main() {
 	}
 
 	// Root Commands
-	rootCmd.AddCommand(cli.NewAlgorithmsCmd(sdk))
-	rootCmd.AddCommand(cli.NewDatasetsCmd(sdk))
-	rootCmd.AddCommand(cli.NewResultsCmd(sdk))
-	rootCmd.AddCommand(cli.NewRunCmd(sdk))
-	rootCmd.AddCommand(cli.NewAttestationCmd(sdk))
+	rootCmd.AddCommand(cli.NewAlgorithmsCmd(agentSDK))
+	rootCmd.AddCommand(cli.NewDatasetsCmd(agentSDK))
+	rootCmd.AddCommand(cli.NewResultsCmd(agentSDK))
+	rootCmd.AddCommand(cli.NewRunCmd(agentSDK))
+	rootCmd.AddCommand(cli.NewAttestationCmd(agentSDK))
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

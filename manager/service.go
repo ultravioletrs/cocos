@@ -38,9 +38,9 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(agent agent.AgentServiceClient, qemuCfg qemu.Config) Service {
+func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config) Service {
 	return &managerService{
-		agent:   agent,
+		agent:   agentClient,
 		qemuCfg: qemuCfg,
 	}
 }

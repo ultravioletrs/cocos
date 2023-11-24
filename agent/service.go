@@ -14,7 +14,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
@@ -74,7 +74,7 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger logger.Logger, publisher messaging.Publisher) Service {
+func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher) Service {
 	svc := &agentService{
 		sm:        NewStateMachine(logger),
 		publisher: publisher,
@@ -235,7 +235,7 @@ func (as *agentService) publishEvent(ctx context.Context, subtopic, body string)
 	}
 }
 
-func run(ctx context.Context, algoContent []byte, dataContent []byte) ([]byte, error) {
+func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)

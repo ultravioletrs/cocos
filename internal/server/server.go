@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 )
 
 type Server interface {
@@ -30,7 +30,7 @@ type BaseServer struct {
 	Name     string
 	Address  string
 	Config   Config
-	Logger   logger.Logger
+	Logger   mglog.Logger
 	Protocol string
 }
 
@@ -49,7 +49,7 @@ func stopAllServer(servers ...Server) error {
 	return nil
 }
 
-func StopHandler(ctx context.Context, cancel context.CancelFunc, logger logger.Logger, svcName string, servers ...Server) error {
+func StopHandler(ctx context.Context, cancel context.CancelFunc, logger mglog.Logger, svcName string, servers ...Server) error {
 	var err error
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGABRT)

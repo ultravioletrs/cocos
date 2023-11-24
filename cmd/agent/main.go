@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	mflog "github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
-	logger, err := mflog.New(os.Stdout, cfg.LogLevel)
+	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -106,7 +106,7 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mflog.Logger, tracer trace.Tracer, publisher messaging.Publisher) agent.Service {
+func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer, publisher messaging.Publisher) agent.Service {
 	svc := agent.New(ctx, logger, publisher)
 
 	svc = api.LoggingMiddleware(svc, logger)

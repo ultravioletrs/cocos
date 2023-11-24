@@ -8,11 +8,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/digitalocean/go-libvirt"
 )
 
-func Connect(logger logger.Logger) *libvirt.Libvirt {
+func Connect(logger mglog.Logger) *libvirt.Libvirt {
 	// This dials libvirt on the local machine, but you can substitute the first
 	// two parameters with "tcp", "<ip address>:<port>" to connect to libvirt on
 	// a remote machine.

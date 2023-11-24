@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 )
 
 func TestStateMachineTransitions(t *testing.T) {
@@ -26,16 +26,14 @@ func TestStateMachineTransitions(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("Transition from %v to %v", testCase.fromState, testCase.expected), func(t *testing.T) {
-			sm := NewStateMachine(logger.NewMock())
+			sm := NewStateMachine(mglog.NewMock())
 			done := make(chan struct{})
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
 				sm.Start(ctx)
 				close(done)
 			}()
-			sm.Lock()
-			sm.State = testCase.fromState
-			sm.Unlock()
+			sm.SetState(testCase.fromState)
 
 			sm.SendEvent(testCase.event)
 
@@ -50,13 +48,11 @@ func TestStateMachineTransitions(t *testing.T) {
 }
 
 func TestStateMachineInvalidTransition(t *testing.T) {
-	sm := NewStateMachine(logger.NewMock())
+	sm := NewStateMachine(mglog.NewMock())
 	ctx, cancel := context.WithCancel(context.Background())
 	go sm.Start(ctx)
 
-	sm.Lock()
-	sm.State = idle
-	sm.Unlock()
+	sm.SetState(idle)
 
 	sm.SendEvent(dataReceived)
 

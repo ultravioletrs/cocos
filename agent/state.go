@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/magistrala/logger"
 )
 
 type state int
@@ -35,16 +35,16 @@ const (
 
 // StateMachine represents the state machine.
 type StateMachine struct {
-	sync.Mutex
+	mu             sync.Mutex
 	State          state
 	EventChan      chan event
 	Transitions    map[state]map[event]state
 	StateFunctions map[state]func()
-	logger         logger.Logger
+	logger         mglog.Logger
 }
 
 // NewStateMachine creates a new StateMachine.
-func NewStateMachine(logger logger.Logger) *StateMachine {
+func NewStateMachine(logger mglog.Logger) *StateMachine {
 	sm := &StateMachine{
 		State:          idle,
 		EventChan:      make(chan event),
@@ -81,9 +81,9 @@ func (sm *StateMachine) Start(ctx context.Context) {
 		case event := <-sm.EventChan:
 			nextState, valid := sm.Transitions[sm.GetState()][event]
 			if valid {
-				sm.Lock()
+				sm.mu.Lock()
 				sm.State = nextState
-				sm.Unlock()
+				sm.mu.Unlock()
 				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.GetState(), nextState))
 			} else {
 				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.GetState()))
@@ -104,8 +104,14 @@ func (sm *StateMachine) SendEvent(event event) {
 }
 
 func (sm *StateMachine) GetState() state {
-	sm.Lock()
+	sm.mu.Lock()
 	state := sm.State
-	sm.Unlock()
+	sm.mu.Unlock()
 	return state
+}
+
+func (sm *StateMachine) SetState(state state) {
+	sm.mu.Lock()
+	sm.State = state
+	sm.mu.Unlock()
 }
