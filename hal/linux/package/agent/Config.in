@@ -1,0 +1,8 @@
+config BR2_PACKAGE_AGENT
+	bool "agent"
+	default y
+	help
+	  Confidential Computing Agent is a state machine capable of
+	  receiving data and algorithms, running computations, and 
+	  fetching the attestation report from within the 
+	  Confidential VM.
