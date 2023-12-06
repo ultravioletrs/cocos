@@ -3,14 +3,18 @@
 
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
 package manager;
 
 option go_package = "./manager";
 
 service ManagerService {
   rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Status(google.protobuf.Empty) returns (StatusResponse) {}
 }
 
 message RunRequest { bytes computation = 1; }
 
 message RunResponse { string ID = 1; }
+
+message StatusResponse { string status = 1; }

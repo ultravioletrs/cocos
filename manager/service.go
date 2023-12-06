@@ -11,6 +11,13 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
+type state string
+
+const (
+	idle    state = "idle"
+	running state = "running"
+)
+
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
@@ -28,11 +35,13 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	Run(ctx context.Context, computation []byte) (string, error)
+	Status(ctx context.Context) string
 }
 
 type managerService struct {
 	agent   agent.AgentServiceClient
 	qemuCfg qemu.Config
+	state   state
 }
 
 var _ Service = (*managerService)(nil)
@@ -42,10 +51,13 @@ func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config) Service {
 	return &managerService{
 		agent:   agentClient,
 		qemuCfg: qemuCfg,
+		state:   idle,
 	}
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
+	ms.state = running
+	defer ms.setIdle()
 	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
 	if err != nil {
 		return "", err
@@ -66,4 +78,12 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 		return "", err
 	}
 	return res.Computation, nil
+}
+
+func (ms *managerService) Status(ctx context.Context) string {
+	return string(ms.state)
+}
+
+func (ms *managerService) setIdle() {
+	ms.state = idle
 }

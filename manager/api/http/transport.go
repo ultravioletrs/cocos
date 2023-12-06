@@ -40,6 +40,13 @@ func MakeHandler(svc manager.Service, instanceID string) http.Handler {
 		opts...,
 	), "run"))
 
+	r.Get("/status", otelhttp.NewHandler(kithttp.NewServer(
+		statusEndpoint(svc),
+		kithttp.NopRequestDecoder,
+		encodeResponse,
+		opts...,
+	), "status"))
+
 	r.GetFunc("/health", magistrala.Health("manager", instanceID))
 	r.Handle("/metrics", promhttp.Handler())
 

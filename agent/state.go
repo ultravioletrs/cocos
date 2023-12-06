@@ -10,6 +10,7 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 )
 
+//go:generate stringer -type=state
 type state int
 
 const (
