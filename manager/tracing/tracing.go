@@ -27,3 +27,10 @@ func (tm *tracingMiddleware) Run(ctx context.Context, mc *manager.Computation) e
 
 	return tm.svc.Run(ctx, mc)
 }
+
+func (tm *tracingMiddleware) Status(ctx context.Context) string {
+	ctx, span := tm.tracer.Start(ctx, "status")
+	defer span.End()
+
+	return tm.svc.Status(ctx)
+}

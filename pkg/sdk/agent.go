@@ -7,6 +7,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var _ agent.Service = (*agentSDK)(nil)
@@ -83,4 +84,14 @@ func (sdk *agentSDK) Attestation(ctx context.Context) ([]byte, error) {
 	}
 
 	return response.File, nil
+}
+
+func (sdk *agentSDK) Status(ctx context.Context) (string, error) {
+	response, err := sdk.client.Status(ctx, &emptypb.Empty{})
+	if err != nil {
+		sdk.logger.Error("Failed to call Status RPC")
+		return "", err
+	}
+
+	return response.Status, nil
 }

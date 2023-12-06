@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/grpc"
 )
@@ -17,6 +18,7 @@ const svcName = "manager.ManagerService"
 
 type grpcClient struct {
 	run     endpoint.Endpoint
+	status  endpoint.Endpoint
 	timeout time.Duration
 }
 
@@ -30,6 +32,14 @@ func NewClient(conn *grpc.ClientConn, timeout time.Duration) manager.ManagerServ
 			encodeRunRequest,
 			decodeRunResponse,
 			manager.RunResponse{},
+		).Endpoint(),
+		status: kitgrpc.NewClient(
+			conn,
+			svcName,
+			"Status",
+			nopDecoder,
+			decodeStatusResponse,
+			manager.StatusResponse{},
 		).Endpoint(),
 		timeout: timeout,
 	}
@@ -60,6 +70,23 @@ func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}
 	return runRes{}, nil
 }
 
+func nopDecoder(ctx context.Context, _ interface{}) (interface{}, error) {
+	return nil, nil
+}
+
+// decodeStatusResponse is a transport/grpc.DecodeResponseFunc that
+// converts a gRPC StatusResponse to a user-domain response.
+func decodeStatusResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
+	response, ok := grpcResponse.(*manager.StatusResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
+	}
+
+	return statusRes{
+		Status: response.Status,
+	}, nil
+}
+
 func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...grpc.CallOption) (*manager.RunResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, client.timeout)
 	defer cancel()
@@ -82,4 +109,17 @@ func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...
 	}
 
 	return &manager.RunResponse{}, nil
+}
+
+func (client grpcClient) Status(ctx context.Context, req *empty.Empty, _ ...grpc.CallOption) (*manager.StatusResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, client.timeout)
+	defer cancel()
+
+	res, err := client.status(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	statusRes := res.(statusRes)
+	return &manager.StatusResponse{Status: statusRes.Status}, nil
 }

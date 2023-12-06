@@ -17,3 +17,7 @@ type resultRes struct {
 type attestationRes struct {
 	File []byte
 }
+
+type statusRes struct {
+	Status string
+}

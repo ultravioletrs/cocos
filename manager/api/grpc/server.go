@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/transport/grpc"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/ultravioletrs/cocos/manager"
 )
 
 type grpcServer struct {
-	run grpc.Handler
+	run    grpc.Handler
+	status grpc.Handler
 	manager.UnimplementedManagerServiceServer
 }
 
@@ -22,6 +24,11 @@ func NewServer(svc manager.Service) manager.ManagerServiceServer {
 			runEndpoint(svc),
 			decodeRunRequest,
 			encodeRunResponse,
+		),
+		status: grpc.NewServer(
+			statusEndpoint(svc),
+			nopDecoder,
+			encodeStatusResponse,
 		),
 	}
 }
@@ -44,11 +51,27 @@ func encodeRunResponse(_ context.Context, response interface{}) (interface{}, er
 	return &manager.RunResponse{}, nil
 }
 
+func encodeStatusResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(statusRes)
+	return &manager.StatusResponse{
+		Status: res.Status,
+	}, nil
+}
+
 func (s *grpcServer) Run(ctx context.Context, req *manager.RunRequest) (*manager.RunResponse, error) {
 	_, res, err := s.run.ServeGRPC(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	rr := res.(*manager.RunResponse)
+	return rr, nil
+}
+
+func (s *grpcServer) Status(ctx context.Context, req *empty.Empty) (*manager.StatusResponse, error) {
+	_, res, err := s.status.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	rr := res.(*manager.StatusResponse)
 	return rr, nil
 }

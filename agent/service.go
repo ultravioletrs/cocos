@@ -51,6 +51,7 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
 	Attestation(ctx context.Context) ([]byte, error)
+	Status(ctx context.Context) (string, error)
 }
 
 type agentService struct {
@@ -201,6 +202,10 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 	as.attestation = attestation
 
 	return as.attestation, nil
+}
+
+func (as *agentService) Status(ctx context.Context) (string, error) {
+	return as.sm.GetState().String(), nil
 }
 
 func (as *agentService) runComputation() {

@@ -3,6 +3,7 @@
 
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
 package agent;
 
 option go_package = "./agent";
@@ -12,6 +13,7 @@ service AgentService {
   rpc Data(DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
+  rpc Status(google.protobuf.Empty) returns (StatusResponse) {}
 }
 
 message AlgoRequest {

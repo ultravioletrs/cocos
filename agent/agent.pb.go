@@ -10,6 +10,7 @@
 package agent
 
 import (
+	empty "github.com/golang/protobuf/ptypes/empty"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
