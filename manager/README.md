@@ -25,11 +25,11 @@ The service is configured using the environment variables from the following tab
 ## Setup
 
 ```sh
-git clone https://github.com/ultravioletrs/cocos-ai
-cd cocos-ai
+git clone https://github.com/ultravioletrs/cocos
+cd cocos
 ```
 
-NB: all relative paths in this document are relative to `cocos-ai` repository directory.
+NB: all relative paths in this document are relative to `cocos` repository directory.
 
 ### QEMU-KVM
 
@@ -49,7 +49,7 @@ Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`
 
 ### Prepare focal-server-cloudimg-amd64.img
 
-*focal-server-cloudimg-amd64* is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine. We will put [Agent](https://github.com/ultravioletrs/cocos-ai/agent) in the *focal-server-cloudimg-amd64*. In order to do that, we need to prepare the disk image.
+*focal-server-cloudimg-amd64* is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine. We will put [Agent](https://github.com/ultravioletrs/cocos/agent) in the *focal-server-cloudimg-amd64*. In order to do that, we need to prepare the disk image.
 
 #### Download focal-server-cloudimg-amd64.img and set up the root password
 
@@ -213,8 +213,8 @@ go version
 #### Build and run Agent
 
 ```sh
-git clone https://github.com/ultravioletrs/cocos-ai
-cd cocos-ai
+git clone https://github.com/ultravioletrs/cocos
+cd cocos
 
 # Build the 'agent' executable and save it to the 'build' directory.
 go build -o build/agent cmd/agent/main.go
@@ -430,9 +430,9 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 
 ### Docker
 ```bash
-go get github.com/ultravioletrs/cocos-ai
+go get github.com/ultravioletrs/cocos
 
-cd $GOPATH/src/github.com/ultravioletrs/cocos-ai
+cd $GOPATH/src/github.com/ultravioletrs/cocos
 
 # compile the manager
 make manager
