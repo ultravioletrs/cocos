@@ -103,9 +103,9 @@ func (as *agentService) Run(ctx context.Context, c Computation) (string, error) 
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
-	cmpHash := hex.EncodeToString(hash[:])
+	as.cmpHash = hex.EncodeToString(hash[:])
 
-	return cmpHash, nil // return computation hash.
+	return as.cmpHash, nil // return computation hash.
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
