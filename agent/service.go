@@ -64,6 +64,7 @@ type agentService struct {
 	sm          *StateMachine
 	runError    error
 	publisher   messaging.Publisher
+	cmpHash     string
 }
 
 const (
@@ -79,6 +80,7 @@ func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher
 	svc := &agentService{
 		sm:        NewStateMachine(logger),
 		publisher: publisher,
+		cmpHash:   "",
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
@@ -106,9 +108,9 @@ func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
-	cmpHash := hex.EncodeToString(hash[:])
+	as.cmpHash = hex.EncodeToString(hash[:])
 
-	return cmpHash, nil // return computation hash.
+	return as.cmpHash, nil // return computation hash.
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
@@ -232,7 +234,7 @@ func (as *agentService) runComputation() {
 func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
 		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
-			Subtopic: subtopic,
+			Subtopic: fmt.Sprintf("%s.%s", as.cmpHash, subtopic),
 			Payload:  []byte(body),
 		}); err != nil {
 			as.sm.logger.Warn(err.Error())

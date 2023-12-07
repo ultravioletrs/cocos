@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos/agent"
@@ -109,11 +110,8 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	if err := manager.NewAgentEventNotifier(ctx, pubsub, logger); err != nil {
-		logger.Fatal(err.Error())
-	}
 
-	svc := newService(agentClient, logger, tracer, qemuCfg)
+	svc := newService(agentClient, logger, tracer, qemuCfg, pubsub)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -154,8 +152,8 @@ func main() {
 	}
 }
 
-func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(agentClient, qemuCfg)
+func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, publisher messaging.Publisher) manager.Service {
+	svc := manager.New(agentClient, qemuCfg, publisher, logger)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
