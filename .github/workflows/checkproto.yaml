@@ -68,14 +68,14 @@ jobs:
 
           # Compare generated Go files with the original ones
           for p in $(ls manager/*.pb.go); do
-            if ! cmp -s $p $p.tmp; then
+            if ! cmp -p $p $p.tmp; then
               echo "Proto file and generated Go file $p are out of sync!"
               exit 1
             fi
           done
 
           for p in $(ls agent/*.pb.go); do
-            if ! cmp -s $p $p.tmp; then
+            if ! cmp -p $p $p.tmp; then
               echo "Proto file and generated Go file $p are out of sync!"
               exit 1
             fi
