@@ -92,7 +92,6 @@ func (sm *StateMachine) Start(ctx context.Context) {
 			stateFunc, exists := sm.StateFunctions[sm.GetState()]
 			if exists {
 				go stateFunc()
-
 			}
 		case <-ctx.Done():
 			return

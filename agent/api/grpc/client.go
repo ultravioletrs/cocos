@@ -198,10 +198,6 @@ func decodeAttestationResponse(_ context.Context, grpcResponse interface{}) (int
 	}, nil
 }
 
-func nopDecoder(ctx context.Context, _ interface{}) (interface{}, error) {
-	return nil, nil
-}
-
 // Run implements the Run method of the agent.AgentServiceClient interface.
 func (c grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
