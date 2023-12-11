@@ -31,11 +31,3 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		return res, nil
 	}
 }
-
-func statusEndpoint(svc manager.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		return statusRes{
-			Status: svc.Status(ctx),
-		}, nil
-	}
-}

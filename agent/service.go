@@ -16,6 +16,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
+	"github.com/ultravioletrs/cocos/internal/notifications"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -52,19 +53,18 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
 	Attestation(ctx context.Context) ([]byte, error)
-	Status(ctx context.Context) (string, error)
 }
 
 type agentService struct {
-	computation Computation
-	algorithms  [][]byte
-	datasets    [][]byte
-	result      []byte
-	attestation []byte
-	sm          *StateMachine
-	runError    error
-	publisher   messaging.Publisher
-	cmpHash     string
+	computation     Computation
+	algorithms      [][]byte
+	datasets        [][]byte
+	result          []byte
+	attestation     []byte
+	sm              *StateMachine
+	runError        error
+	publisher       messaging.Publisher
+	notificationSvc notifications.Service
 }
 
 const (
@@ -76,11 +76,11 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher) Service {
+func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher, notificationServerUrl string) Service {
 	svc := &agentService{
-		sm:        NewStateMachine(logger),
-		publisher: publisher,
-		cmpHash:   "",
+		sm:              NewStateMachine(logger),
+		publisher:       publisher,
+		notificationSvc: notifications.New(notificationTopic, notificationServerUrl),
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
@@ -108,9 +108,9 @@ func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
-	as.cmpHash = hex.EncodeToString(hash[:])
+	cmpHash := hex.EncodeToString(hash[:])
 
-	return as.cmpHash, nil // return computation hash.
+	return cmpHash, nil // return computation hash.
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
@@ -209,10 +209,6 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 	return as.attestation, nil
 }
 
-func (as *agentService) Status(ctx context.Context) (string, error) {
-	return as.sm.GetState().String(), nil
-}
-
 func (as *agentService) runComputation() {
 	ctx := context.Background()
 	as.publishEvent(ctx, "running", "computation run has started")()
@@ -234,9 +230,12 @@ func (as *agentService) runComputation() {
 func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
 		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
-			Subtopic: fmt.Sprintf("%s.%s", as.cmpHash, subtopic),
+			Subtopic: fmt.Sprintf("%s.%s", as.computation.ID, subtopic),
 			Payload:  []byte(body),
 		}); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
+		if err := as.notificationSvc.SendNotification(subtopic, as.computation.ID); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

@@ -66,10 +66,3 @@ func (tm *tracingMiddleware) Attestation(ctx context.Context) ([]byte, error) {
 
 	return tm.svc.Attestation(ctx)
 }
-
-func (tm *tracingMiddleware) Status(ctx context.Context) (string, error) {
-	ctx, span := tm.tracer.Start(ctx, "status")
-	defer span.End()
-
-	return tm.svc.Status(ctx)
-}

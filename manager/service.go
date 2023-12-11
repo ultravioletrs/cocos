@@ -4,15 +4,14 @@ package manager
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
-	"fmt"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/internal/notifications"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
@@ -41,7 +40,6 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	Run(ctx context.Context, computation []byte) (string, error)
-	Status(ctx context.Context) string
 }
 
 type managerService struct {
@@ -50,26 +48,29 @@ type managerService struct {
 	state           state
 	publisher       messaging.Publisher
 	logger          mglog.Logger
-	computationHash string
+	notificationSvc notifications.Service
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config, publisher messaging.Publisher, logger mglog.Logger) Service {
+func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config, publisher messaging.Publisher, logger mglog.Logger, notificationServerUrl string) Service {
 	return &managerService{
-		agent:     agentClient,
-		qemuCfg:   qemuCfg,
-		state:     idle,
-		publisher: publisher,
-		logger:    logger,
+		agent:           agentClient,
+		qemuCfg:         qemuCfg,
+		state:           idle,
+		publisher:       publisher,
+		logger:          logger,
+		notificationSvc: notifications.New(notificationTopic, notificationServerUrl),
 	}
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
-	hash := sha256.Sum256(computation)
-	ms.computationHash = hex.EncodeToString(hash[:])
-	ms.publishEvent(ctx, ms.computationHash, "creating vm")
+	var cmp agent.Computation
+	if err := json.Unmarshal(computation, &cmp); err != nil {
+		return "", err
+	}
+	ms.publishEvent(ctx, cmp.ID, "creating vm")
 	ms.state = running
 	defer ms.setIdle(ctx)
 	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
@@ -91,17 +92,8 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	if err != nil {
 		return "", err
 	}
-	ms.publishEvent(ctx, ms.computationHash, "created vm")
+	ms.publishEvent(ctx, cmp.ID, "created vm")
 	return res.Computation, nil
-}
-
-func (ms *managerService) Status(ctx context.Context) string {
-	switch ms.state {
-	case running:
-		return fmt.Sprintf("%s:%s", running, ms.computationHash)
-	default:
-		return string(ms.state)
-	}
 }
 
 func (ms *managerService) setIdle(ctx context.Context) {
@@ -115,6 +107,9 @@ func (ms *managerService) publishEvent(ctx context.Context, subtopic, body strin
 			Subtopic: subtopic,
 			Payload:  []byte(body),
 		}); err != nil {
+			ms.logger.Warn(err.Error())
+		}
+		if err := ms.notificationSvc.SendNotification(string(ms.state), subtopic); err != nil {
 			ms.logger.Warn(err.Error())
 		}
 	}

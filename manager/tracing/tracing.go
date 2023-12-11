@@ -27,10 +27,3 @@ func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte) (strin
 
 	return tm.svc.Run(ctx, computation)
 }
-
-func (tm *tracingMiddleware) Status(ctx context.Context) string {
-	ctx, span := tm.tracer.Start(ctx, "status")
-	defer span.End()
-
-	return tm.svc.Status(ctx)
-}
