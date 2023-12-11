@@ -10,7 +10,6 @@
 package agent
 
 import (
-	empty "github.com/golang/protobuf/ptypes/empty"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -713,7 +712,7 @@ func file_agent_agent_proto_rawDescGZIP() []byte {
 	return file_agent_agent_proto_rawDescData
 }
 
-var file_agent_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_agent_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_agent_agent_proto_goTypes = []interface{}{
 	(*AlgoRequest)(nil),         // 0: agent.AlgoRequest
 	(*AlgoResponse)(nil),        // 1: agent.AlgoResponse
@@ -890,7 +889,7 @@ func file_agent_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_agent_agent_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

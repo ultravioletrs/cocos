@@ -40,12 +40,3 @@ func (ms *metricsMiddleware) Run(ctx context.Context, mc *manager.Computation) e
 
 	return ms.svc.Run(ctx, mc)
 }
-
-func (ms *metricsMiddleware) Status(ctx context.Context) string {
-	defer func(begin time.Time) {
-		ms.counter.With("method", "Status").Add(1)
-		ms.latency.With("method", "Status").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	return ms.svc.Status(ctx)
-}

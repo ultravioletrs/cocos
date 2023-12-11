@@ -78,14 +78,3 @@ func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
 		return attestationRes{File: file}, nil
 	}
 }
-
-func statusEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		status, err := svc.Status(ctx)
-		if err != nil {
-			return statusRes{}, err
-		}
-
-		return statusRes{Status: status}, nil
-	}
-}

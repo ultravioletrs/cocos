@@ -5,7 +5,6 @@ package manager
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/mainflux/mainflux/pkg/messaging"
@@ -84,16 +83,8 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ms.qemuCfg.NetDevConfig.HostFwd3++
 	}()
 
+	ms.publishEvent(ctx, cmp.ID, "created vm")
 	return nil
-}
-
-func (ms *managerService) Status(ctx context.Context) string {
-	switch ms.state {
-	case running:
-		return fmt.Sprintf("%s:%s", running, ms.computationHash)
-	default:
-		return string(ms.state)
-	}
 }
 
 func (ms *managerService) setIdle(ctx context.Context) {
@@ -107,6 +98,9 @@ func (ms *managerService) publishEvent(ctx context.Context, subtopic, body strin
 			Subtopic: subtopic,
 			Payload:  []byte(body),
 		}); err != nil {
+			ms.logger.Warn(err.Error())
+		}
+		if err := ms.notificationSvc.SendNotification(string(ms.state), subtopic); err != nil {
 			ms.logger.Warn(err.Error())
 		}
 	}

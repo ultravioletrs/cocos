@@ -11,7 +11,6 @@ package manager
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,8 +22,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ManagerService_Run_FullMethodName    = "/manager.ManagerService/Run"
-	ManagerService_Status_FullMethodName = "/manager.ManagerService/Status"
+	ManagerService_Run_FullMethodName = "/manager.ManagerService/Run"
 )
 
 // ManagerServiceClient is the client API for ManagerService service.
@@ -32,7 +30,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManagerServiceClient interface {
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error)
-	Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type managerServiceClient struct {
@@ -52,21 +49,11 @@ func (c *managerServiceClient) Run(ctx context.Context, in *RunRequest, opts ...
 	return out, nil
 }
 
-func (c *managerServiceClient) Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
-	out := new(StatusResponse)
-	err := c.cc.Invoke(ctx, ManagerService_Status_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility
 type ManagerServiceServer interface {
 	Run(context.Context, *RunRequest) (*RunResponse, error)
-	Status(context.Context, *empty.Empty) (*StatusResponse, error)
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -76,9 +63,6 @@ type UnimplementedManagerServiceServer struct {
 
 func (UnimplementedManagerServiceServer) Run(context.Context, *RunRequest) (*RunResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Run not implemented")
-}
-func (UnimplementedManagerServiceServer) Status(context.Context, *empty.Empty) (*StatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 
@@ -111,24 +95,6 @@ func _ManagerService_Run_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ManagerService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ManagerServiceServer).Status(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ManagerService_Status_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagerServiceServer).Status(ctx, req.(*empty.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,10 +105,6 @@ var ManagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Run",
 			Handler:    _ManagerService_Run_Handler,
-		},
-		{
-			MethodName: "Status",
-			Handler:    _ManagerService_Status_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -51,7 +51,6 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
 	Attestation(ctx context.Context) ([]byte, error)
-	Status(ctx context.Context) (string, error)
 }
 
 type agentService struct {
@@ -103,9 +102,9 @@ func (as *agentService) Run(ctx context.Context, c Computation) (string, error) 
 
 	// Calculate the SHA-256 hash of the algorithm
 	hash := sha256.Sum256(cmpJSON)
-	as.cmpHash = hex.EncodeToString(hash[:])
+	cmpHash := hex.EncodeToString(hash[:])
 
-	return as.cmpHash, nil // return computation hash.
+	return cmpHash, nil // return computation hash.
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
@@ -204,10 +203,6 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 	return as.attestation, nil
 }
 
-func (as *agentService) Status(ctx context.Context) (string, error) {
-	return as.sm.GetState().String(), nil
-}
-
 func (as *agentService) runComputation() {
 	ctx := context.Background()
 	as.publishEvent(ctx, "running", "computation run has started")()
@@ -228,6 +223,9 @@ func (as *agentService) runComputation() {
 
 func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
+		if err := as.notificationSvc.SendNotification(subtopic, as.computation.ID); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
 	}
 }
 

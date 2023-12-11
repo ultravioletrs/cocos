@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/grpc"
 )
@@ -21,7 +20,6 @@ type grpcClient struct {
 	data        endpoint.Endpoint
 	result      endpoint.Endpoint
 	attestation endpoint.Endpoint
-	status      endpoint.Endpoint
 	timeout     time.Duration
 }
 
@@ -59,14 +57,6 @@ func NewClient(conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceC
 			encodeAttestationRequest,
 			decodeAttestationResponse,
 			agent.AttestationResponse{},
-		).Endpoint(),
-		status: kitgrpc.NewClient(
-			conn,
-			svcName,
-			"Status",
-			nopDecoder,
-			decodeStatusResponse,
-			agent.StatusResponse{},
 		).Endpoint(),
 		timeout: timeout,
 	}
@@ -228,17 +218,4 @@ func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationR
 
 	attestationRes := res.(attestationRes)
 	return &agent.AttestationResponse{File: attestationRes.File}, nil
-}
-
-func (c grpcClient) Status(ctx context.Context, req *empty.Empty, _ ...grpc.CallOption) (*agent.StatusResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	res, err := c.status(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	statusRes := res.(statusRes)
-	return &agent.StatusResponse{Status: statusRes.Status}, nil
 }

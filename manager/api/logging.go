@@ -39,13 +39,3 @@ func (lm *loggingMiddleware) Run(ctx context.Context, mc *manager.Computation) (
 
 	return lm.svc.Run(ctx, mc)
 }
-
-func (lm *loggingMiddleware) Status(ctx context.Context) (status string) {
-	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Status took %s to complete", time.Since(begin))
-
-		lm.logger.Info(fmt.Sprintf("%s with status: %s", message, status))
-	}(time.Now())
-
-	return lm.svc.Status(ctx)
-}

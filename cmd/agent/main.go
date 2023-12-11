@@ -37,8 +37,9 @@ const (
 var errComputationNotFound = errors.New("computation not found in command line")
 
 type config struct {
-	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
+	LogLevel              string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
+	InstanceID            string `env:"AGENT_INSTANCE_ID"        envDefault:""`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
 }
 
 func main() {

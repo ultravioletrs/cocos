@@ -42,9 +42,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	LogLevel              string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
+	JaegerURL             string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
+	InstanceID            string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
 }
 
 func main() {

@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/transport/grpc"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/ultravioletrs/cocos/agent"
 )
 
@@ -41,11 +40,6 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			attestationEndpoint(svc),
 			decodeAttestationRequest,
 			encodeAttestationResponse,
-		),
-		status: grpc.NewServer(
-			statusEndpoint(svc),
-			nopDecoder,
-			encodeStatusResponse,
 		),
 	}
 }
@@ -141,14 +135,5 @@ func (s *grpcServer) Attestation(ctx context.Context, req *agent.AttestationRequ
 		return nil, err
 	}
 	rr := res.(*agent.AttestationResponse)
-	return rr, nil
-}
-
-func (s *grpcServer) Status(ctx context.Context, req *empty.Empty) (*agent.StatusResponse, error) {
-	_, res, err := s.status.ServeGRPC(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	rr := res.(*agent.StatusResponse)
 	return rr, nil
 }

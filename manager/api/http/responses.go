@@ -8,10 +8,7 @@ import (
 	"github.com/absmach/magistrala"
 )
 
-var (
-	_ magistrala.Response = (*runRes)(nil)
-	_ magistrala.Response = (*statusRes)(nil)
-)
+var _ magistrala.Response = (*runRes)(nil)
 
 type runRes struct{}
 
@@ -25,20 +22,4 @@ func (res runRes) Headers() map[string]string {
 
 func (res runRes) Empty() bool {
 	return true
-}
-
-type statusRes struct {
-	Status string
-}
-
-func (res statusRes) Code() int {
-	return http.StatusOK
-}
-
-func (res statusRes) Headers() map[string]string {
-	return map[string]string{}
-}
-
-func (res statusRes) Empty() bool {
-	return false
 }

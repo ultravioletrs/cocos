@@ -11,7 +11,6 @@ package agent
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -37,7 +36,6 @@ type AgentServiceClient interface {
 	Data(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error)
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error)
 	Attestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error)
-	Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type agentServiceClient struct {
@@ -84,15 +82,6 @@ func (c *agentServiceClient) Attestation(ctx context.Context, in *AttestationReq
 	return out, nil
 }
 
-func (c *agentServiceClient) Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
-	out := new(StatusResponse)
-	err := c.cc.Invoke(ctx, AgentService_Status_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility
@@ -101,7 +90,6 @@ type AgentServiceServer interface {
 	Data(context.Context, *DataRequest) (*DataResponse, error)
 	Result(context.Context, *ResultRequest) (*ResultResponse, error)
 	Attestation(context.Context, *AttestationRequest) (*AttestationResponse, error)
-	Status(context.Context, *empty.Empty) (*StatusResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -120,9 +108,6 @@ func (UnimplementedAgentServiceServer) Result(context.Context, *ResultRequest) (
 }
 func (UnimplementedAgentServiceServer) Attestation(context.Context, *AttestationRequest) (*AttestationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Attestation not implemented")
-}
-func (UnimplementedAgentServiceServer) Status(context.Context, *empty.Empty) (*StatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 
@@ -209,24 +194,6 @@ func _AgentService_Attestation_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AgentService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AgentServiceServer).Status(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AgentService_Status_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentServiceServer).Status(ctx, req.(*empty.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -249,10 +216,6 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Attestation",
 			Handler:    _AgentService_Attestation_Handler,
-		},
-		{
-			MethodName: "Status",
-			Handler:    _AgentService_Status_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
