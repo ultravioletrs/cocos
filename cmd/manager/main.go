@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos/agent"
@@ -45,10 +46,11 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
-	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
+	LogLevel              string `env:"MANAGER_LOG_LEVEL"             envDefault:"info"`
+	JaegerURL             string `env:"COCOS_JAEGER_URL"              envDefault:"http://localhost:14268/api/traces"`
+	InstanceID            string `env:"MANAGER_INSTANCE_ID"           envDefault:""`
+	BrokerURL             string `env:"COCOS_MESSAGE_BROKER_URL"      envDefault:"nats://localhost:4222"`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
 }
 
 func main() {
@@ -109,11 +111,8 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	if err := manager.NewAgentEventNotifier(ctx, pubsub, logger); err != nil {
-		logger.Fatal(err.Error())
-	}
 
-	svc := newService(agentClient, logger, tracer, qemuCfg)
+	svc := newService(agentClient, logger, tracer, qemuCfg, pubsub, cfg)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -154,8 +153,8 @@ func main() {
 	}
 }
 
-func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(agentClient, qemuCfg)
+func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, publisher messaging.Publisher, cfg config) manager.Service {
+	svc := manager.New(agentClient, qemuCfg, publisher, logger, cfg.NotificationServerURL)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

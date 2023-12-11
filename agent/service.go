@@ -16,6 +16,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
+	"github.com/ultravioletrs/cocos/internal/notifications"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -55,14 +56,15 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation
-	algorithms  [][]byte
-	datasets    [][]byte
-	result      []byte
-	attestation []byte
-	sm          *StateMachine
-	runError    error
-	publisher   messaging.Publisher
+	computation     Computation
+	algorithms      [][]byte
+	datasets        [][]byte
+	result          []byte
+	attestation     []byte
+	sm              *StateMachine
+	runError        error
+	publisher       messaging.Publisher
+	notificationSvc notifications.Service
 }
 
 const (
@@ -74,10 +76,11 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher) Service {
+func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher, notificationServerUrl string) Service {
 	svc := &agentService{
-		sm:        NewStateMachine(logger),
-		publisher: publisher,
+		sm:              NewStateMachine(logger),
+		publisher:       publisher,
+		notificationSvc: notifications.New(notificationTopic, notificationServerUrl),
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
@@ -227,9 +230,12 @@ func (as *agentService) runComputation() {
 func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
 		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
-			Subtopic: subtopic,
+			Subtopic: fmt.Sprintf("%s.%s", as.computation.ID, subtopic),
 			Payload:  []byte(body),
 		}); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
+		if err := as.notificationSvc.SendNotification(subtopic, as.computation.ID); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

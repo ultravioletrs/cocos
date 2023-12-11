@@ -4,11 +4,23 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
+	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/internal/notifications"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+)
+
+type state string
+
+const (
+	idle              state = "idle"
+	running           state = "running"
+	notificationTopic       = "manager"
 )
 
 var (
@@ -31,21 +43,36 @@ type Service interface {
 }
 
 type managerService struct {
-	agent   agent.AgentServiceClient
-	qemuCfg qemu.Config
+	agent           agent.AgentServiceClient
+	qemuCfg         qemu.Config
+	state           state
+	publisher       messaging.Publisher
+	logger          mglog.Logger
+	notificationSvc notifications.Service
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config) Service {
+func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config, publisher messaging.Publisher, logger mglog.Logger, notificationServerUrl string) Service {
 	return &managerService{
-		agent:   agentClient,
-		qemuCfg: qemuCfg,
+		agent:           agentClient,
+		qemuCfg:         qemuCfg,
+		state:           idle,
+		publisher:       publisher,
+		logger:          logger,
+		notificationSvc: notifications.New(notificationTopic, notificationServerUrl),
 	}
 }
 
 func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
+	var cmp agent.Computation
+	if err := json.Unmarshal(computation, &cmp); err != nil {
+		return "", err
+	}
+	ms.publishEvent(ctx, cmp.ID, "creating vm")
+	ms.state = running
+	defer ms.setIdle(ctx)
 	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
 	if err != nil {
 		return "", err
@@ -65,5 +92,25 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	if err != nil {
 		return "", err
 	}
+	ms.publishEvent(ctx, cmp.ID, "created vm")
 	return res.Computation, nil
+}
+
+func (ms *managerService) setIdle(ctx context.Context) {
+	ms.state = idle
+	ms.publishEvent(ctx, string(ms.state), "")
+}
+
+func (ms *managerService) publishEvent(ctx context.Context, subtopic, body string) func() {
+	return func() {
+		if err := ms.publisher.Publish(ctx, notificationTopic, &messaging.Message{
+			Subtopic: subtopic,
+			Payload:  []byte(body),
+		}); err != nil {
+			ms.logger.Warn(err.Error())
+		}
+		if err := ms.notificationSvc.SendNotification(string(ms.state), subtopic); err != nil {
+			ms.logger.Warn(err.Error())
+		}
+	}
 }

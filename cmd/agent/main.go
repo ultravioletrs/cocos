@@ -36,10 +36,11 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
-	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
+	LogLevel              string `env:"AGENT_LOG_LEVEL"               envDefault:"info"`
+	JaegerURL             string `env:"COCOS_JAEGER_URL"              envDefault:"http://localhost:14268/api/traces"`
+	InstanceID            string `env:"AGENT_INSTANCE_ID"             envDefault:""`
+	BrokerURL             string `env:"COCOS_MESSAGE_BROKER_URL"      envDefault:"nats://localhost:4222"`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
 }
 
 func main() {
@@ -80,7 +81,7 @@ func main() {
 		return
 	}
 
-	svc := newService(ctx, logger, tracer, pub)
+	svc := newService(ctx, logger, tracer, pub, cfg)
 
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
@@ -106,8 +107,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer, publisher messaging.Publisher) agent.Service {
-	svc := agent.New(ctx, logger, publisher)
+func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer, publisher messaging.Publisher, cfg config) agent.Service {
+	svc := agent.New(ctx, logger, publisher, cfg.NotificationServerURL)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
