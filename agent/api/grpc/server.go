@@ -14,7 +14,6 @@ type grpcServer struct {
 	data        grpc.Handler
 	result      grpc.Handler
 	attestation grpc.Handler
-	status      grpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 

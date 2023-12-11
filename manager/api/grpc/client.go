@@ -60,10 +60,6 @@ func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}
 	return runRes{}, nil
 }
 
-func nopDecoder(ctx context.Context, _ interface{}) (interface{}, error) {
-	return nil, nil
-}
-
 func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...grpc.CallOption) (*manager.RunResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, client.timeout)
 	defer cancel()
