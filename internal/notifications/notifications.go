@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -42,7 +43,7 @@ func (s *service) SendNotification(event, computationId string) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, s.serverUrl, bytes.NewReader(jsonBody))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/notification/%s", s.serverUrl, s.service), bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}
