@@ -35,7 +35,7 @@ define make_docker
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg TIME=$(TIME) \
-		--tag=cocos-ai/$(svc) \
+		--tag=ghcr.io/ultravioletrs/cocos/$(svc) \
 		-f docker/Dockerfile .
 endef
 
@@ -45,7 +45,7 @@ define make_docker_dev
 	docker build \
 		--no-cache \
 		--build-arg SVC=$(svc) \
-		--tag=cocos-ai/$(svc) \
+		--tag=ghcr.io/ultravioletrs/cocos/$(svc) \
 		-f docker/Dockerfile.dev ./build
 endef
 

@@ -24,7 +24,7 @@ services:
     networks:
       - cocos-base-net
   cocos-manager:
-    image: cocos-ai/manager:latest
+    image: ghcr.io/ultravioletrs/cocos/manager:latest
     container_name: cocos-manager
     env_file:
       - .env
