@@ -9,6 +9,7 @@ CLI_SOURCE = ./cmd/cli/main.go
 CLI_BIN = ${BUILD_DIR}/cocos-cli
 DOCKERS = $(addprefix docker_,$(SERVICES))
 DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
+COCOS_DOCKER_IMAGE_NAME_PREFIX=ghcr.io/ultravioletrs/cocos/
 
 USER_REPO ?= $(shell git remote get-url origin | sed -e 's/.*\/\([^/]*\)\/\([^/]*\).*/\1_\2/' )
 empty:=
@@ -35,7 +36,7 @@ define make_docker
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg TIME=$(TIME) \
-		--tag=ghcr.io/ultravioletrs/cocos/$(svc) \
+		--tag=$(COCOS_DOCKER_IMAGE_NAME_PREFIX)$(svc) \
 		-f docker/Dockerfile .
 endef
 
@@ -45,7 +46,7 @@ define make_docker_dev
 	docker build \
 		--no-cache \
 		--build-arg SVC=$(svc) \
-		--tag=ghcr.io/ultravioletrs/cocos/$(svc) \
+		--tag=$(COCOS_DOCKER_IMAGE_NAME_PREFIX)$(svc) \
 		-f docker/Dockerfile.dev ./build
 endef
 

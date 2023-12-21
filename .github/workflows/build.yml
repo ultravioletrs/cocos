@@ -34,9 +34,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/manager
 
-      - name: Build API Gateway and push Docker image
+      - name: Build Manager and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -44,5 +44,5 @@ jobs:
           push: true
           build-args: |
             SVC=manager
-          tags: ghcr.io/ultravioletrs/cocos/manager:latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
