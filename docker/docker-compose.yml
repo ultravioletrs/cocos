@@ -47,7 +47,7 @@ services:
       - /usr/share/edk2/x64/OVMF_CODE.fd:/usr/share/OVMF/OVMF_CODE.fd
       - /usr/share/edk2/x64/OVMF_VARS.fd:/usr/share/OVMF/OVMF_VARS.fd
     depends_on:
-      - broker
+      - nats
       - jaeger
     networks:
       - cocos-base-net

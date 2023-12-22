@@ -13,11 +13,10 @@ DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 USER_REPO ?= $(shell git remote get-url origin | sed -e 's/.*\/\([^/]*\)\/\([^/]*\).*/\1_\2/' )
 empty:=
 space:= $(empty) $(empty)
-MESSAGE_BROKER_TYPE ?= $(if $(COCOS_MESSAGE_BROKER_TYPE),$(COCOS_MESSAGE_BROKER_TYPE),nats)
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
-	go build -tags $(MESSAGE_BROKER_TYPE) -ldflags "-s -w \
+	go build -tags nats -ldflags "-s -w \
 	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
 	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
 	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
@@ -73,21 +72,5 @@ protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative manager/manager.proto
 
-define edit_docker_config
-	sed -i "s/COCOS_MESSAGE_BROKER_TYPE=.*/COCOS_MESSAGE_BROKER_TYPE=$(1)/" docker/.env
-	sed -i "s,file: .*.yml,file: $(1).yml," docker/brokers/docker-compose.yml
-	sed -i "s,COCOS_MESSAGE_BROKER_URL=.*,COCOS_MESSAGE_BROKER_URL=$$\{COCOS_$(shell echo ${MESSAGE_BROKER_TYPE} | tr 'a-z' 'A-Z')_URL\}," docker/.env
-endef
-
-change_config:
-ifeq ($(MESSAGE_BROKER_TYPE),nats)
-	sed -i "s,COCOS_NATS_URL=.*,COCOS_NATS_URL=nats://broker:$$\{COCOS_NATS_PORT}," docker/.env
-	$(call edit_docker_config,nats)
-else ifeq ($(MESSAGE_BROKER_TYPE),rabbitmq)
-	$(call edit_docker_config,rabbitmq)
-else
-	$(error Invalid COCOS_MESSAGE_BROKER_TYPE $(MESSAGE_BROKER_TYPE))
-endif
-
-run:  change_config
+run:
 	docker compose -f docker/docker-compose.yml -p cocos up
