@@ -18,6 +18,7 @@ The service is configured using the environment variables from the following tab
 | AGENT_GRPC_SERVER_CERT | Path to gRPC server certificate in pem format          | ""                             |
 | AGENT_GRPC_SERVER_KEY  | Path to gRPC server key in pem format                  | ""                             |
 | AGENT_JAEGER_URL       | Jaeger server URL                                      | http://jaeger:14268/api/traces |
+| COCOS_NATS_URL         | Nats broker URL                                        | nats://localhost:4222          |
 
 ## Deployment
 

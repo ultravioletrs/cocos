@@ -36,10 +36,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
-	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
+	LogLevel   string `env:"AGENT_LOG_LEVEL"   envDefault:"info"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"  envDefault:"http://localhost:14268/api/traces"`
+	InstanceID string `env:"AGENT_INSTANCE_ID" envDefault:""`
+	NatsURL    string `env:"COCOS_NATS_URL"    envDefault:"nats://localhost:4222"`
 }
 
 func main() {
@@ -74,7 +74,7 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	pub, err := brokers.NewPublisher(ctx, cfg.BrokerURL)
+	pub, err := brokers.NewPublisher(ctx, cfg.NatsURL)
 	if err != nil {
 		logger.Error(err.Error())
 		return

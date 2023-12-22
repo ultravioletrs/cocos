@@ -23,7 +23,7 @@ The service is configured using the environment variables from the following tab
 | AGENT_GRPC_CLIENT_TLS    | Agent service gRPC client TLS                            | false                             |
 | COCOS_JAEGER_URL         | Jaeger server URL                                        | http://localhost:14268/api/traces |
 | MANAGER_INSTANCE_ID      | Manager service instance ID                              |                                   |
-| COCOS_MESSAGE_BROKER_URL | message broker url                                       | nats://localhost:4222             |
+| COCOS_NATS_URL           | Nats broker url                                          | nats://localhost:4222             |
 
 ## Deployment
 
