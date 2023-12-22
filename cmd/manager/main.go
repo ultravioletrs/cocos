@@ -45,10 +45,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"   envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"    envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID" envDefault:""`
-	NatsURL    string `env:"COCOS_NATS_URL"      envDefault:"nats://localhost:4222"`
+	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
+	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
 }
 
 func main() {
@@ -105,7 +105,7 @@ func main() {
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
-	pubsub, err := brokers.NewPubSub(ctx, cfg.NatsURL, logger)
+	pubsub, err := brokers.NewPubSub(ctx, cfg.BrokerURL, logger)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
