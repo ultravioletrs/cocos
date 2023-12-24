@@ -8,11 +8,23 @@ networks:
 volumes:
   cocos-broker-volume:
 
-include:
-  - path: brokers/docker-compose.yml
-    env_file: docker/.env
-
 services:
+  nats:
+    image: nats:2.9.21-alpine
+    container_name: cocos-nats
+    command: "--config=/etc/nats/nats.conf"
+    volumes:
+      - ./nats/:/etc/nats
+    restart: on-failure
+    environment:
+      - COCOS_NATS_PORT=${COCOS_NATS_PORT}
+      - COCOS_NATS_HTTP_PORT=${COCOS_NATS_HTTP_PORT}
+      - COCOS_NATS_JETSTREAM_KEY=${COCOS_NATS_JETSTREAM_KEY}
+    ports:
+      - ${COCOS_NATS_PORT}:${COCOS_NATS_PORT}
+      - ${COCOS_NATS_HTTP_PORT}:${COCOS_NATS_HTTP_PORT}
+    networks:
+      - cocos-base-net
   jaeger:
     image: jaegertracing/all-in-one:1.38.0
     container_name: cocos-jaeger
@@ -35,7 +47,7 @@ services:
       - /usr/share/edk2/x64/OVMF_CODE.fd:/usr/share/OVMF/OVMF_CODE.fd
       - /usr/share/edk2/x64/OVMF_VARS.fd:/usr/share/OVMF/OVMF_VARS.fd
     depends_on:
-      - broker
+      - nats
       - jaeger
     networks:
       - cocos-base-net
