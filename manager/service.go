@@ -61,13 +61,13 @@ func (ms *managerService) Run(ctx context.Context, computation []byte, agentConf
 	var res *agent.RunResponse
 
 	agentConfig.URL = fmt.Sprintf("localhost:%d", ms.qemuCfg.HostFwd3)
-	agentGRPCClient, agentClient, err := agentgrpc.NewAgentClient(agentConfig)
-	if err != nil {
-		return "", err
-	}
-	defer agentGRPCClient.Close()
 
 	err = backoff.Retry(func() error {
+		agentGRPCClient, agentClient, err := agentgrpc.NewAgentClient(agentConfig)
+		if err != nil {
+			return err
+		}
+		defer agentGRPCClient.Close()
 		res, err = agentClient.Run(ctx, &agent.RunRequest{Computation: computation})
 		return err
 	}, backoff.NewExponentialBackOff())
