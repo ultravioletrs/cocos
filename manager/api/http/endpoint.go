@@ -4,6 +4,7 @@ package http
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/cocos/manager"
@@ -22,6 +23,9 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			ClientTLS: req.ClientTLS,
 			CACerts:   req.CACerts,
 			Timeout:   req.Timeout.Duration,
+		}
+		if agentConf.Timeout == 0 {
+			agentConf.Timeout = 60 * time.Second
 		}
 		// Call the Run method on the service
 		runID, err := svc.Run(ctx, req.Computation, agentConf)
