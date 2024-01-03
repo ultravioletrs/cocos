@@ -10,6 +10,7 @@ Environment=NETWORK_INTERFACE=enp0s3
 Environment=AGENT_GRPC_HOST=10.0.2.15
 Environment=AGENT_GRPC_PORT=7002
 Environment=AGENT_LOG_LEVEL=info
+Environment=COCOS_MESSAGE_BROKER_URL=192.168.100.4:4222
 
 ExecStartPre=ip link set dev $NETWORK_INTERFACE up
 ExecStartPre=dhclient $NETWORK_INTERFACE
