@@ -5,6 +5,8 @@ package manager
 import (
 	"context"
 	"errors"
+	"net"
+	"strconv"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
@@ -23,6 +25,8 @@ var (
 	// ErrNotFound indicates a non-existent entity request.
 	ErrNotFound = errors.New("entity not found")
 )
+
+const vmPorts = 3
 
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
@@ -50,12 +54,17 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 	if err != nil {
 		return "", err
 	}
-	// different VM guests can't forward ports to the same ports on the same host
-	ms.qemuCfg.HostFwd1++
-	ms.qemuCfg.NetDevConfig.HostFwd2++
-	ms.qemuCfg.NetDevConfig.HostFwd3++
+
+	ln, err := ms.allocFreeHostPorts()
+	if err != nil {
+		return "", err
+	}
 
 	var res *agent.RunResponse
+
+	for _, ln := range ln {
+		ln.Close()
+	}
 
 	err = backoff.Retry(func() error {
 		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
@@ -66,4 +75,35 @@ func (ms *managerService) Run(ctx context.Context, computation []byte) (string, 
 		return "", err
 	}
 	return res.Computation, nil
+}
+
+func (ms *managerService) allocFreeHostPorts() ([]net.Listener, error) {
+	var listeners []net.Listener
+	ports := []int{0, 0, 0}
+
+	for i := 0; i < vmPorts; i++ {
+		ln, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, errors.New("unable to find free port")
+		}
+
+		_, portStr, err := net.SplitHostPort(ln.Addr().String())
+		if err != nil {
+			return nil, err
+		}
+
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return nil, err
+		}
+
+		ports[i] = port
+		listeners = append(listeners, ln)
+	}
+
+	ms.qemuCfg.HostFwd1 = ports[0]
+	ms.qemuCfg.NetDevConfig.HostFwd2 = ports[1]
+	ms.qemuCfg.NetDevConfig.HostFwd3 = ports[2]
+
+	return listeners, nil
 }
