@@ -210,9 +210,19 @@ go version
 # => # go version go1.21.4 linux/amd64
 ```
 
-#### Build and run Agent
-
+#### Nats
+Both agent and manager require nats running on the host machine for push notifications.
+On the host machine start nats:
 ```sh
+go install github.com/nats-io/nats-server/v2@latest
+nats-server -js
+```
+
+#### Build and run Agent
+```sh
+# set nats url
+export COCOS-MESSAGE-BROKER-URL=<host-ip>:4222
+
 git clone https://github.com/ultravioletrs/cocos
 cd cocos
 
@@ -355,7 +365,7 @@ go build -o build/agent cmd/agent/main.go
 cp build/agent /cocos/agent
 
 # Copy the 'cocos-agent.service' systemd unit file to the '/etc/systemd/system/' directory.
-cp systemd/cocos-agent.service /etc/systemd/system/
+cp init/systemd/cocos-agent.service /etc/systemd/system/
 ```
 Now we are ready to set up `agent` executable as a systemd daemon service:
 
