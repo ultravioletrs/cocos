@@ -11,6 +11,11 @@ service ManagerService {
   rpc Run(RunRequest) returns (RunResponse) {}
 }
 
-message RunRequest { bytes computation = 1; }
+message RunRequest {
+  bytes computation = 1;
+  string ca_certs = 2;
+  bool client_tls = 3;
+  string timeout = 4;
+}
 
 message RunResponse { string ID = 1; }

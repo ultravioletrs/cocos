@@ -17,10 +17,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_PORT        | Manager service gRPC port                                | 7001                              |
 | MANAGER_GRPC_SERVER_CERT | Path to server certificate in pem format                 |                                   |
 | MANAGER_GRPC_SERVER_KEY  | Path to server key in pem format                         |                                   |
-| AGENT_GRPC_URL           | Agent service gRPC URL                                   | localhost:7002                    |
-| AGENT_GRPC_TIMEOUT       | Agent service gRPC timeout                               | 1s                                |
-| AGENT_GRPC_CA_CERTS      | Agent service gRPC CA certificates                       |                                   |
-| AGENT_GRPC_CLIENT_TLS    | Agent service gRPC client TLS                            | false                             |
 | COCOS_JAEGER_URL         | Jaeger server URL                                        | http://localhost:14268/api/traces |
 | MANAGER_INSTANCE_ID      | Manager service instance ID                              |                                   |
 | COCOS_MESSAGE_BROKER_URL | Mesage broker url                                        | nats://localhost:4222             |

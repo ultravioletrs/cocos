@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 func runEndpoint(svc manager.Service) endpoint.Endpoint {
@@ -17,7 +18,12 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			return runRes{}, err
 		}
 
-		id, err := svc.Run(ctx, req.Computation)
+		agentConf := grpc.Config{
+			ClientTLS: req.ClientTLS,
+			CACerts:   req.CACerts,
+			Timeout:   req.Timeout,
+		}
+		id, err := svc.Run(ctx, req.Computation, agentConf)
 		if err != nil {
 			return runRes{}, err
 		}

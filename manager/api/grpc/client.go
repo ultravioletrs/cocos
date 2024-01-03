@@ -44,6 +44,9 @@ func encodeRunRequest(_ context.Context, request interface{}) (interface{}, erro
 	}
 	return &manager.RunRequest{
 		Computation: req.Computation,
+		CaCerts:     req.CACerts,
+		ClientTls:   req.ClientTLS,
+		Timeout:     req.Timeout.String(),
 	}, nil
 }
 
@@ -63,8 +66,16 @@ func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...
 	ctx, cancel := context.WithTimeout(ctx, client.timeout)
 	defer cancel()
 
+	dur, err := time.ParseDuration(req.GetTimeout())
+	if err != nil {
+		return nil, err
+	}
+
 	runReq := runReq{
 		Computation: req.GetComputation(),
+		ClientTLS:   req.GetClientTls(),
+		CACerts:     req.GetCaCerts(),
+		Timeout:     dur,
 	}
 
 	res, err := client.run(ctx, runReq)

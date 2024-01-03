@@ -13,7 +13,6 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
@@ -26,8 +25,6 @@ import (
 	httpapi "github.com/ultravioletrs/cocos/manager/api/http"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
-	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
-	agentgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -83,18 +80,6 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	agentGRPCConfig := pkggrpc.Config{}
-	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration: %s", svcName, err))
-	}
-	agentGRPCClient, agentClient, err := agentgrpc.NewAgentClient(agentGRPCConfig)
-	if err != nil {
-		logger.Fatal(err.Error())
-	}
-	defer agentGRPCClient.Close()
-
-	logger.Info(fmt.Sprintf("Successfully connected to agent grpc server at %s %s", agentGRPCConfig.URL, agentGRPCClient.Secure()))
-
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration: %s", err))
@@ -113,7 +98,7 @@ func main() {
 		logger.Fatal(err.Error())
 	}
 
-	svc := newService(agentClient, logger, tracer, qemuCfg)
+	svc := newService(logger, tracer, qemuCfg)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -154,8 +139,8 @@ func main() {
 	}
 }
 
-func newService(agentClient agent.AgentServiceClient, logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(agentClient, qemuCfg)
+func newService(logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
+	svc := manager.New(qemuCfg)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

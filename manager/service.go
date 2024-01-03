@@ -5,10 +5,13 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	agentgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 )
 
 var (
@@ -27,38 +30,44 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, computation []byte) (string, error)
+	Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error)
 }
 
 type managerService struct {
-	agent   agent.AgentServiceClient
 	qemuCfg qemu.Config
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(agentClient agent.AgentServiceClient, qemuCfg qemu.Config) Service {
+func New(qemuCfg qemu.Config) Service {
 	return &managerService{
-		agent:   agentClient,
 		qemuCfg: qemuCfg,
 	}
 }
 
-func (ms *managerService) Run(ctx context.Context, computation []byte) (string, error) {
+func (ms *managerService) Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error) {
 	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
 	if err != nil {
 		return "", err
 	}
 	// different VM guests can't forward ports to the same ports on the same host
-	ms.qemuCfg.HostFwd1++
-	ms.qemuCfg.NetDevConfig.HostFwd2++
-	ms.qemuCfg.NetDevConfig.HostFwd3++
+	defer func() {
+		ms.qemuCfg.HostFwd1++
+		ms.qemuCfg.NetDevConfig.HostFwd2++
+		ms.qemuCfg.NetDevConfig.HostFwd3++
+	}()
 
 	var res *agent.RunResponse
 
 	err = backoff.Retry(func() error {
-		res, err = ms.agent.Run(ctx, &agent.RunRequest{Computation: computation})
+		agentConfig.URL = fmt.Sprintf("localhost:%d", ms.qemuCfg.HostFwd3)
+		agentGRPCClient, agentClient, err := agentgrpc.NewAgentClient(agentConfig)
+		if err != nil {
+			return err
+		}
+		defer agentGRPCClient.Close()
+		res, err = agentClient.Run(ctx, &agent.RunRequest{Computation: computation})
 		return err
 	}, backoff.NewExponentialBackOff())
 

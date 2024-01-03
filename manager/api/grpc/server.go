@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/manager"
@@ -27,8 +28,15 @@ func NewServer(svc manager.Service) manager.ManagerServiceServer {
 
 func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*manager.RunRequest)
+	dur, err := time.ParseDuration(req.GetTimeout())
+	if err != nil {
+		return nil, err
+	}
 	return runReq{
 		Computation: req.GetComputation(),
+		ClientTLS:   req.ClientTls,
+		CACerts:     req.CaCerts,
+		Timeout:     dur,
 	}, nil
 }
 
