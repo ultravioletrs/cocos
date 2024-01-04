@@ -4,10 +4,11 @@ package sdk
 
 import (
 	"context"
-	"encoding/json"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var _ agent.Service = (*agentSDK)(nil)
@@ -25,14 +26,39 @@ func NewAgentSDK(log mglog.Logger, agentClient agent.AgentServiceClient) *agentS
 }
 
 func (sdk *agentSDK) Run(ctx context.Context, computation agent.Computation) (string, error) {
-	computationBytes, err := json.Marshal(computation)
-	if err != nil {
-		sdk.logger.Error("Failed to marshal computation")
-		return "", err
+	var datasets []*agent.DatasetReq
+	for _, data := range computation.Datasets {
+		datasets = append(datasets, &agent.DatasetReq{Id: data.ID, Provider: data.Provider})
 	}
+	var algos []*agent.AlgorithmReq
+	for _, algo := range computation.Algorithms {
+		algos = append(algos, &agent.AlgorithmReq{Id: algo.ID, Provider: algo.Provider})
+	}
+	var meta agent.MetadataReq
 
+	for k, v := range computation.Metadata {
+		val, err := structpb.NewValue(v)
+		if err != nil {
+			return "", err
+		}
+		meta.Fields[k] = val
+	}
 	request := &agent.RunRequest{
-		Computation: computationBytes,
+		Computation: &agent.ComputationReq{
+			Id:              computation.ID,
+			Name:            computation.Name,
+			Description:     computation.Description,
+			Status:          computation.Status,
+			Owner:           computation.Owner,
+			StartTime:       timestamppb.New(computation.StartTime),
+			EndTime:         timestamppb.New(computation.EndTime),
+			Datasets:        datasets,
+			Algorithms:      algos,
+			ResultConsumers: computation.ResultConsumers,
+			Ttl:             computation.Ttl,
+			Metadata:        &meta,
+			Timeout:         computation.Timeout.String(),
+		},
 	}
 	response, err := sdk.client.Run(ctx, request)
 	if err != nil {

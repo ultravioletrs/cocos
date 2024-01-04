@@ -30,7 +30,7 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error)
+	Run(ctx context.Context, computation *Computation, agentConfig grpc.Config) (string, error)
 }
 
 type managerService struct {
@@ -46,7 +46,7 @@ func New(qemuCfg qemu.Config) Service {
 	}
 }
 
-func (ms *managerService) Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error) {
+func (ms *managerService) Run(ctx context.Context, computation *Computation, agentConfig grpc.Config) (string, error) {
 	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
 	if err != nil {
 		return "", err
@@ -58,6 +58,27 @@ func (ms *managerService) Run(ctx context.Context, computation []byte, agentConf
 		ms.qemuCfg.NetDevConfig.HostFwd3++
 	}()
 
+	runReq := &agent.ComputationReq{
+		Id:              computation.Id,
+		Name:            computation.Name,
+		Description:     computation.Description,
+		Status:          computation.Status,
+		Owner:           computation.Owner,
+		StartTime:       computation.StartTime,
+		EndTime:         computation.EndTime,
+		ResultConsumers: computation.ResultConsumers,
+		Ttl:             computation.Ttl,
+		Timeout:         computation.Timeout,
+	}
+
+	for _, algo := range computation.Algorithms {
+		runReq.Algorithms = append(runReq.Algorithms, &agent.AlgorithmReq{Id: algo.Id, Provider: algo.Provider})
+	}
+	for _, data := range computation.Datasets {
+		runReq.Datasets = append(runReq.Datasets, &agent.DatasetReq{Id: data.Id, Provider: data.Provider})
+	}
+	runReq.Metadata.Fields = computation.Metadata.Fields
+
 	var res *agent.RunResponse
 
 	agentConfig.URL = fmt.Sprintf("localhost:%d", ms.qemuCfg.HostFwd3)
@@ -68,7 +89,9 @@ func (ms *managerService) Run(ctx context.Context, computation []byte, agentConf
 			return err
 		}
 		defer agentGRPCClient.Close()
-		res, err = agentClient.Run(ctx, &agent.RunRequest{Computation: computation})
+		res, err = agentClient.Run(ctx, &agent.RunRequest{
+			Computation: runReq,
+		})
 		return err
 	}, backoff.NewExponentialBackOff())
 

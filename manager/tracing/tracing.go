@@ -22,7 +22,7 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error) {
+func (tm *tracingMiddleware) Run(ctx context.Context, computation *manager.Computation, agentConfig grpc.Config) (string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
