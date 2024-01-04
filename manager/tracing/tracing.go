@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -21,9 +22,9 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte) (string, error) {
+func (tm *tracingMiddleware) Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
-	return tm.svc.Run(ctx, computation)
+	return tm.svc.Run(ctx, computation, agentConfig)
 }

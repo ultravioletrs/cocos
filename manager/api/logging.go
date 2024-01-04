@@ -13,6 +13,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 var _ manager.Service = (*loggingMiddleware)(nil)
@@ -27,7 +28,7 @@ func LoggingMiddleware(svc manager.Service, logger mglog.Logger) manager.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, computation []byte) (id string, err error) {
+func (lm *loggingMiddleware) Run(ctx context.Context, computation []byte, agentConfig grpc.Config) (id string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Run for computation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -37,5 +38,5 @@ func (lm *loggingMiddleware) Run(ctx context.Context, computation []byte) (id st
 		lm.logger.Info(fmt.Sprintf("%s with ID: %s", message, id))
 	}(time.Now())
 
-	return lm.svc.Run(ctx, computation)
+	return lm.svc.Run(ctx, computation, agentConfig)
 }
