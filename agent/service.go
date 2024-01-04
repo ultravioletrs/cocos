@@ -213,7 +213,7 @@ func (as *agentService) runComputation() {
 	defer as.sm.SendEvent(runComplete)
 	var cancel context.CancelFunc
 	if as.computation.Timeout.Duration != 0 {
-		ctx, cancel = context.WithDeadline(ctx, <-time.After(as.computation.Timeout.Duration))
+		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(as.computation.Timeout.Duration))
 		defer cancel()
 	}
 	result, err := run(ctx, as.algorithms[0], as.datasets[0])
@@ -247,13 +247,6 @@ func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
 	errorChannel := make(chan error)
 
 	var result []byte
-	select {
-	case <-ctx.Done():
-		return nil, errors.New("computation timed out")
-	case result = <-dataChannel:
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
-	}
 
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
@@ -270,5 +263,12 @@ func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
 		return nil, fmt.Errorf("python script execution error: %v", err)
 	}
 
-	return result, nil
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("computation timed out")
+	case result = <-dataChannel:
+		return result, nil
+	case err = <-errorChannel:
+		return nil, fmt.Errorf("error receiving data: %v", err)
+	}
 }
