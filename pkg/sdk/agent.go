@@ -35,6 +35,7 @@ func (sdk *agentSDK) Run(ctx context.Context, computation agent.Computation) (st
 		algos = append(algos, &agent.AlgorithmReq{Id: algo.ID, Provider: algo.Provider})
 	}
 	var meta agent.MetadataReq
+	meta.Fields = make(map[string]*structpb.Value)
 
 	for k, v := range computation.Metadata {
 		val, err := structpb.NewValue(v)
