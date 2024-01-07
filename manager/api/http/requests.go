@@ -4,7 +4,6 @@ package http
 
 import (
 	"github.com/ultravioletrs/cocos/agent"
-	"github.com/ultravioletrs/cocos/manager"
 )
 
 var _ apiReq = (*runReq)(nil)
@@ -14,10 +13,10 @@ type apiReq interface {
 }
 
 type runReq struct {
-	Computation *manager.Computation `json:"computation"`
-	ClientTLS   bool                 `json:"client_tls,omitempty"`
-	CACerts     string               `json:"ca_certs,omitempty"`
-	Timeout     agent.Duration       `json:"timeout,omitempty"`
+	Computation agent.Computation `json:"computation"`
+	ClientTLS   bool              `json:"client_tls,omitempty"`
+	CACerts     string            `json:"ca_certs,omitempty"`
+	Timeout     agent.Duration    `json:"timeout,omitempty"`
 }
 
 func (req *runReq) validate() error {
