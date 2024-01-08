@@ -42,8 +42,8 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			Ttl:             req.Computation.Ttl,
 			Timeout:         req.Computation.Timeout.String(),
 		}
-		for _, algos := range req.Computation.Algorithms {
-			computation.Algorithms = append(computation.Algorithms, &manager.Algorithm{Id: algos.ID, Provider: algos.Provider})
+		for _, algo := range req.Computation.Algorithms {
+			computation.Algorithms = append(computation.Algorithms, &manager.Algorithm{Id: algo.ID, Provider: algo.Provider})
 		}
 		for _, data := range req.Computation.Datasets {
 			computation.Datasets = append(computation.Datasets, &manager.Dataset{Id: data.ID, Provider: data.Provider})
