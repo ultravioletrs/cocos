@@ -4,16 +4,15 @@ package grpc
 
 import (
 	"errors"
+
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 type runReq struct {
-	Computation []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	Computation *agent.ComputationReq
 }
 
-func (req runReq) validate() error {
-	if len(req.Computation) == 0 {
-		return errors.New("algorithm binary is required")
-	}
+func (req *runReq) validate() error {
 	return nil
 }
 

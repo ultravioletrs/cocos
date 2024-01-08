@@ -12,10 +12,30 @@ service ManagerService {
 }
 
 message RunRequest {
-  bytes computation = 1;
+  Computation computation = 1;
   string ca_certs = 2;
   bool client_tls = 3;
   string timeout = 4;
+}
+
+message Computation {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated Dataset datasets = 4;
+  repeated Algorithm algorithms = 5;
+  repeated string result_consumers = 6;
+  string timeout = 7;
+}
+
+message Dataset {
+  string provider = 1;
+  string id = 2;
+}
+
+message Algorithm {
+  string provider = 1;
+  string id = 2;
 }
 
 message RunResponse { string ID = 1; }

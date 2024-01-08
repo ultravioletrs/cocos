@@ -15,7 +15,7 @@ service AgentService {
   rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
 }
 
-message RunRequest { bytes computation = 1; }
+message RunRequest { ComputationReq computation = 1; }
 
 message RunResponse { string Computation = 1; }
 
@@ -44,3 +44,23 @@ message ResultResponse { bytes file = 1; }
 message AttestationRequest { }
 
 message AttestationResponse { bytes file = 1; }
+
+message ComputationReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated DatasetReq datasets = 4;
+  repeated AlgorithmReq algorithms = 5;
+  repeated string result_consumers = 6;
+  string timeout = 7;
+}
+
+message DatasetReq {
+  string provider = 1;
+  string id = 2;
+}
+
+message AlgorithmReq {
+  string provider = 1;
+  string id = 2;
+}

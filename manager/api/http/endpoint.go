@@ -27,8 +27,23 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		if agentConf.Timeout == 0 {
 			agentConf.Timeout = 60 * time.Second
 		}
+
+		computation := manager.Computation{
+			Id:              req.Computation.ID,
+			Name:            req.Computation.Name,
+			Description:     req.Computation.Description,
+			ResultConsumers: req.Computation.ResultConsumers,
+			Timeout:         req.Computation.Timeout.String(),
+		}
+		for _, algo := range req.Computation.Algorithms {
+			computation.Algorithms = append(computation.Algorithms, &manager.Algorithm{Id: algo.ID, Provider: algo.Provider})
+		}
+		for _, data := range req.Computation.Datasets {
+			computation.Datasets = append(computation.Datasets, &manager.Dataset{Id: data.ID, Provider: data.Provider})
+		}
+
 		// Call the Run method on the service
-		runID, err := svc.Run(ctx, req.Computation, agentConf)
+		runID, err := svc.Run(ctx, &computation, agentConf)
 		if err != nil {
 			return nil, err
 		}

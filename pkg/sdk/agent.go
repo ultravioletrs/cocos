@@ -4,7 +4,6 @@ package sdk
 
 import (
 	"context"
-	"encoding/json"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
@@ -25,14 +24,25 @@ func NewAgentSDK(log mglog.Logger, agentClient agent.AgentServiceClient) *agentS
 }
 
 func (sdk *agentSDK) Run(ctx context.Context, computation agent.Computation) (string, error) {
-	computationBytes, err := json.Marshal(computation)
-	if err != nil {
-		sdk.logger.Error("Failed to marshal computation")
-		return "", err
+	var datasets []*agent.DatasetReq
+	for _, data := range computation.Datasets {
+		datasets = append(datasets, &agent.DatasetReq{Id: data.ID, Provider: data.Provider})
+	}
+	var algos []*agent.AlgorithmReq
+	for _, algo := range computation.Algorithms {
+		algos = append(algos, &agent.AlgorithmReq{Id: algo.ID, Provider: algo.Provider})
 	}
 
 	request := &agent.RunRequest{
-		Computation: computationBytes,
+		Computation: &agent.ComputationReq{
+			Id:              computation.ID,
+			Name:            computation.Name,
+			Description:     computation.Description,
+			Datasets:        datasets,
+			Algorithms:      algos,
+			ResultConsumers: computation.ResultConsumers,
+			Timeout:         computation.Timeout.String(),
+		},
 	}
 	response, err := sdk.client.Run(ctx, request)
 	if err != nil {
