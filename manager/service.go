@@ -12,7 +12,6 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	agentgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 var (
@@ -63,12 +62,8 @@ func (ms *managerService) Run(ctx context.Context, computation *Computation, age
 		Id:              computation.Id,
 		Name:            computation.Name,
 		Description:     computation.Description,
-		Status:          computation.Status,
 		Owner:           computation.Owner,
-		StartTime:       computation.StartTime,
-		EndTime:         computation.EndTime,
 		ResultConsumers: computation.ResultConsumers,
-		Ttl:             computation.Ttl,
 		Timeout:         computation.Timeout,
 	}
 
@@ -78,9 +73,6 @@ func (ms *managerService) Run(ctx context.Context, computation *Computation, age
 	for _, data := range computation.Datasets {
 		runReq.Datasets = append(runReq.Datasets, &agent.DatasetReq{Id: data.Id, Provider: data.Provider})
 	}
-	runReq.Metadata = &agent.MetadataReq{}
-	runReq.Metadata.Fields = make(map[string]*structpb.Value)
-	runReq.Metadata.Fields = computation.Metadata.Fields
 
 	var res *agent.RunResponse
 

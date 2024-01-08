@@ -19,15 +19,9 @@ type Computation struct {
 	ID              string     `json:"id,omitempty"`
 	Name            string     `json:"name,omitempty"`
 	Description     string     `json:"description,omitempty"`
-	Status          string     `json:"status,omitempty"`
-	Owner           string     `json:"owner,omitempty"`
-	StartTime       time.Time  `json:"start_time,omitempty"`
-	EndTime         time.Time  `json:"end_time,omitempty"`
 	Datasets        Datasets   `json:"datasets,omitempty"`
 	Algorithms      Algorithms `json:"algorithms,omitempty"`
 	ResultConsumers []string   `json:"result_consumers,omitempty"`
-	Ttl             int32      `json:"ttl,omitempty"`
-	Metadata        Metadata   `json:"metadata,omitempty"`
 	Timeout         Duration   `json:"timeout,omitempty"`
 }
 
@@ -75,8 +69,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		return errors.New("invalid duration")
 	}
 }
-
-type Metadata map[string]interface{}
 
 type Dataset struct {
 	Dataset  []byte `json:"-"`
