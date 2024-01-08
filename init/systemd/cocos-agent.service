@@ -13,7 +13,6 @@ Environment=AGENT_LOG_LEVEL=info
 
 ExecStartPre=ip link set dev $NETWORK_INTERFACE up
 ExecStartPre=dhclient $NETWORK_INTERFACE
-ExecStartPre=mkdir -p /var/log/cocos
 
 ExecStart=/bin/cocos-agent
 
