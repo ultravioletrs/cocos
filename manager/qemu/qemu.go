@@ -19,7 +19,7 @@ const (
 )
 
 func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
-	// create unique emu device identifiers
+	// Create unique emu device identifiers.
 	id, err := uuid.NewV4()
 	if err != nil {
 		return &exec.Cmd{}, err
@@ -29,7 +29,7 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
-	// copy firmware vars file
+	// Copy firmware vars file.
 	srcFile := qemuCfg.OVMFVarsConfig.File
 	dstFile := fmt.Sprintf("%s/%s-%s.fd", cfg.TmpFileLoc, firmwareVars, id)
 	err = internal.CopyFile(srcFile, dstFile)
@@ -38,7 +38,7 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	}
 	qemuCfg.OVMFVarsConfig.File = dstFile
 
-	// copy img files
+	// Copy img files.
 	srcFile = qemuCfg.DiskImgConfig.KernelFile
 	dstFile = fmt.Sprintf("%s/%s-%s", cfg.TmpFileLoc, KernelFile, id)
 	err = internal.CopyFile(srcFile, dstFile)
