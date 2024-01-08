@@ -139,11 +139,11 @@ func constructQemuArgs(config Config) []string {
 			config.VirtioScsiPciConfig.DisableLegacy,
 			config.VirtioScsiPciConfig.IOMMUPlatform))
 
-	args = append(args, "-kernel", fmt.Sprintf("%s", config.DiskImgConfig.KernelFile))
+	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
 	args = append(args, "-append", "earlyprintk=serial console=ttyS0")
 
-	args = append(args, "-initrd", fmt.Sprintf("%s", config.DiskImgConfig.RootFsFile))
+	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// network
 	args = append(args, "-netdev",
