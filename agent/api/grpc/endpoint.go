@@ -4,7 +4,7 @@ package grpc
 
 import (
 	"context"
-	"encoding/json"
+	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/cocos/agent"
@@ -18,11 +18,35 @@ func runEndpoint(svc agent.Service) endpoint.Endpoint {
 			return runRes{}, err
 		}
 
-		var computation agent.Computation
-		err := json.Unmarshal(req.Computation, &computation)
-		if err != nil {
-			return nil, err
+		computation := agent.Computation{
+			ID:              req.Computation.Id,
+			Name:            req.Computation.Name,
+			Description:     req.Computation.Description,
+			Status:          req.Computation.Status,
+			Owner:           req.Computation.Owner,
+			StartTime:       req.Computation.StartTime.AsTime(),
+			EndTime:         req.Computation.EndTime.AsTime(),
+			ResultConsumers: req.Computation.ResultConsumers,
+			Ttl:             req.Computation.Ttl,
 		}
+
+		for _, algo := range req.Computation.Algorithms {
+			computation.Algorithms = append(computation.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
+		}
+		for _, data := range req.Computation.Datasets {
+			computation.Datasets = append(computation.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
+		}
+		computation.Metadata = make(agent.Metadata)
+		for k, v := range req.Computation.Metadata.Fields {
+			if v != nil {
+				computation.Metadata[k] = v.AsInterface()
+			}
+		}
+		timeout, err := time.ParseDuration(req.Computation.Timeout)
+		if err != nil {
+			return runRes{}, err
+		}
+		computation.Timeout.Duration = timeout
 
 		computationStr, err := svc.Run(ctx, computation)
 		if err != nil {

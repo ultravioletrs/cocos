@@ -5,6 +5,9 @@ syntax = "proto3";
 
 package agent;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
 option go_package = "./agent";
 
 service AgentService {
@@ -15,7 +18,7 @@ service AgentService {
   rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
 }
 
-message RunRequest { bytes computation = 1; }
+message RunRequest { ComputationReq computation = 1; }
 
 message RunResponse { string Computation = 1; }
 
@@ -44,3 +47,33 @@ message ResultResponse { bytes file = 1; }
 message AttestationRequest { }
 
 message AttestationResponse { bytes file = 1; }
+
+message ComputationReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  string owner = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  repeated DatasetReq datasets = 8;
+  repeated AlgorithmReq algorithms = 9;
+  repeated string result_consumers = 10;
+  int32 ttl = 11;
+  MetadataReq metadata = 12;
+  string timeout = 13;
+}
+
+message DatasetReq {
+  string provider = 1;
+  string id = 2;
+}
+
+message AlgorithmReq {
+  string provider = 1;
+  string id = 2;
+}
+
+message MetadataReq {
+  map<string, google.protobuf.Value> fields = 1;
+}
