@@ -14,22 +14,22 @@ import (
 const (
 	qemuRelPath  = "qemu-system-x86_64"
 	firmwareVars = "OVMF_VARS"
-	qcow2Img     = "focal-server-cloudimg-amd64"
+	KernelFile   = "bzImage"
+	rootfsFile   = "rootfs.cpio"
 )
 
 func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
-	// create unique emu device identifiers
+	// Create unique emu device identifiers.
 	id, err := uuid.NewV4()
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
 	qemuCfg := cfg
 	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
-	qemuCfg.DiskImgConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.DiskImgConfig.ID, id)
 	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
-	// copy firmware vars file
+	// Copy firmware vars file.
 	srcFile := qemuCfg.OVMFVarsConfig.File
 	dstFile := fmt.Sprintf("%s/%s-%s.fd", cfg.TmpFileLoc, firmwareVars, id)
 	err = internal.CopyFile(srcFile, dstFile)
@@ -38,14 +38,22 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	}
 	qemuCfg.OVMFVarsConfig.File = dstFile
 
-	// copy qcow2 img file
-	srcFile = qemuCfg.DiskImgConfig.File
-	dstFile = fmt.Sprintf("%s/%s-%s.img", cfg.TmpFileLoc, qcow2Img, id)
+	// Copy img files.
+	srcFile = qemuCfg.DiskImgConfig.KernelFile
+	dstFile = fmt.Sprintf("%s/%s-%s", cfg.TmpFileLoc, KernelFile, id)
 	err = internal.CopyFile(srcFile, dstFile)
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
-	qemuCfg.DiskImgConfig.File = dstFile
+	qemuCfg.DiskImgConfig.KernelFile = dstFile
+
+	srcFile = qemuCfg.DiskImgConfig.RootFsFile
+	dstFile = fmt.Sprintf("%s/%s-%s.gz", cfg.TmpFileLoc, rootfsFile, id)
+	err = internal.CopyFile(srcFile, dstFile)
+	if err != nil {
+		return &exec.Cmd{}, err
+	}
+	qemuCfg.DiskImgConfig.RootFsFile = dstFile
 
 	exe, args, err := ExecutableAndArgs(qemuCfg)
 	if err != nil {

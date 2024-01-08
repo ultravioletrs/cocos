@@ -42,10 +42,8 @@ type VirtioNetPciConfig struct {
 }
 
 type DiskImgConfig struct {
-	File   string `env:"DISK_IMG_FILE" envDefault:"img/focal-server-cloudimg-amd64.img"`
-	If     string `env:"DISK_IMG_IF" envDefault:"none"`
-	ID     string `env:"DISK_IMG_ID" envDefault:"disk0"`
-	Format string `env:"DISK_IMG_FORMAT" envDefault:"qcow2"`
+	KernelFile string `env:"DISK_IMG_KERNEL_FILE" envDefault:"img/bzImage"`
+	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
 
 type VirtioScsiPciConfig struct {
@@ -141,15 +139,11 @@ func constructQemuArgs(config Config) []string {
 			config.VirtioScsiPciConfig.DisableLegacy,
 			config.VirtioScsiPciConfig.IOMMUPlatform))
 
-	args = append(args, "-drive",
-		fmt.Sprintf("file=%s,if=%s,id=%s,format=%s",
-			config.DiskImgConfig.File,
-			config.DiskImgConfig.If,
-			config.DiskImgConfig.ID,
-			config.DiskImgConfig.Format))
+	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
-	args = append(args, "-device",
-		fmt.Sprintf("scsi-hd,drive=%s", config.DiskImgConfig.ID))
+	args = append(args, "-append", "earlyprintk=serial console=ttyS0")
+
+	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// network
 	args = append(args, "-netdev",
