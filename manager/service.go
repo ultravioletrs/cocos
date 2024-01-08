@@ -62,7 +62,6 @@ func (ms *managerService) Run(ctx context.Context, computation *Computation, age
 		Id:              computation.Id,
 		Name:            computation.Name,
 		Description:     computation.Description,
-		Owner:           computation.Owner,
 		ResultConsumers: computation.ResultConsumers,
 		Timeout:         computation.Timeout,
 	}

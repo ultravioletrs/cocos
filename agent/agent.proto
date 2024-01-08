@@ -49,11 +49,10 @@ message ComputationReq {
   string id = 1;
   string name = 2;
   string description = 3;
-  string owner = 5;
-  repeated DatasetReq datasets = 8;
-  repeated AlgorithmReq algorithms = 9;
-  repeated string result_consumers = 10;
-  string timeout = 13;
+  repeated DatasetReq datasets = 4;
+  repeated AlgorithmReq algorithms = 5;
+  repeated string result_consumers = 6;
+  string timeout = 7;
 }
 
 message DatasetReq {

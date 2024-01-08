@@ -5,9 +5,6 @@ syntax = "proto3";
 
 package manager;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
-
 option go_package = "./manager";
 
 service ManagerService {
@@ -25,16 +22,10 @@ message Computation {
   string id = 1;
   string name = 2;
   string description = 3;
-  string status = 4;
-  string owner = 5;
-  google.protobuf.Timestamp start_time = 6;
-  google.protobuf.Timestamp end_time = 7;
-  repeated Dataset datasets = 8;
-  repeated Algorithm algorithms = 9;
-  repeated string result_consumers = 10;
-  int32 ttl = 11;
-  Metadata metadata = 12;
-  string timeout = 13;
+  repeated Dataset datasets = 4;
+  repeated Algorithm algorithms = 5;
+  repeated string result_consumers = 6;
+  string timeout = 7;
 }
 
 message Dataset {
@@ -45,10 +36,6 @@ message Dataset {
 message Algorithm {
   string provider = 1;
   string id = 2;
-}
-
-message Metadata {
-  map<string, google.protobuf.Value> fields = 1;
 }
 
 message RunResponse { string ID = 1; }
