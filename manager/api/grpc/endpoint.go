@@ -27,11 +27,11 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		if agentConf.Timeout == 0 {
 			agentConf.Timeout = 60 * time.Second
 		}
-		id, err := svc.Run(ctx, req.Computation, agentConf)
-		if err != nil {
+
+		if err := svc.Run(ctx, req.Computation); err != nil {
 			return runRes{}, err
 		}
 
-		return runRes{ID: id}, nil
+		return runRes{}, nil
 	}
 }

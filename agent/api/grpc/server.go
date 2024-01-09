@@ -10,7 +10,6 @@ import (
 )
 
 type grpcServer struct {
-	run         grpc.Handler
 	algo        grpc.Handler
 	data        grpc.Handler
 	result      grpc.Handler
@@ -21,11 +20,6 @@ type grpcServer struct {
 // NewServer returns new AgentServiceServer instance.
 func NewServer(svc agent.Service) agent.AgentServiceServer {
 	return &grpcServer{
-		run: grpc.NewServer(
-			runEndpoint(svc),
-			decodeRunRequest,
-			encodeRunResponse,
-		),
 		algo: grpc.NewServer(
 			algoEndpoint(svc),
 			decodeAlgoRequest,
@@ -47,21 +41,6 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			encodeAttestationResponse,
 		),
 	}
-}
-
-func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	req := grpcReq.(*agent.RunRequest)
-
-	return runReq{
-		Computation: req.Computation,
-	}, nil
-}
-
-func encodeRunResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(runRes)
-	return &agent.RunResponse{
-		Computation: res.Computation,
-	}, nil
 }
 
 func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
@@ -120,15 +99,6 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 	return &agent.AttestationResponse{
 		File: res.File,
 	}, nil
-}
-
-func (s *grpcServer) Run(ctx context.Context, req *agent.RunRequest) (*agent.RunResponse, error) {
-	_, res, err := s.run.ServeGRPC(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	rr := res.(*agent.RunResponse)
-	return rr, nil
 }
 
 func (s *grpcServer) Algo(ctx context.Context, req *agent.AlgoRequest) (*agent.AlgoResponse, error) {

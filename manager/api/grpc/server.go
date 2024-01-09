@@ -41,10 +41,7 @@ func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, erro
 }
 
 func encodeRunResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(runRes)
-	return &manager.RunResponse{
-		ID: res.ID,
-	}, nil
+	return &manager.RunResponse{}, nil
 }
 
 func (s *grpcServer) Run(ctx context.Context, req *manager.RunRequest) (*manager.RunResponse, error) {

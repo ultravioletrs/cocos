@@ -12,6 +12,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
+	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
@@ -82,7 +83,7 @@ func main() {
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 	}
-	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg, agent.Computation{})
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
 	}

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package qemu
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type MemoryConfig struct {
 	Size  string `env:"MEMORY_SIZE" envDefault:"2048M"`
@@ -92,7 +94,7 @@ type Config struct {
 	Monitor   string `env:"MONITOR" envDefault:"pty"`
 }
 
-func constructQemuArgs(config Config) []string {
+func constructQemuArgs(config Config, computation string) []string {
 	args := []string{}
 
 	// virtualization
@@ -141,7 +143,7 @@ func constructQemuArgs(config Config) []string {
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
-	args = append(args, "-append", "earlyprintk=serial console=ttyS0")
+	args = append(args, "-append", fmt.Sprintf("earlyprintk=serial console=ttyS0 computation=%s", computation))
 
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
