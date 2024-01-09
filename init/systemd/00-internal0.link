@@ -1,0 +1,6 @@
+[Match]
+OriginalName=*
+
+[Link]
+Name=internal0
+MACAddressPolicy=persistent
