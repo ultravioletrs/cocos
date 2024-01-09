@@ -9,8 +9,6 @@ import (
 	"os"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/messaging"
-	"github.com/absmach/magistrala/pkg/messaging/brokers"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
@@ -39,7 +37,6 @@ type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
 	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
-	BrokerURL  string `env:"COCOS_MESSAGE_BROKER_URL" envDefault:"nats://localhost:4222"`
 }
 
 func main() {
@@ -74,13 +71,7 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	pub, err := brokers.NewPublisher(ctx, cfg.BrokerURL)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
-	svc := newService(ctx, logger, tracer, pub)
+	svc := newService(ctx, logger, tracer)
 
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
@@ -106,8 +97,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer, publisher messaging.Publisher) agent.Service {
-	svc := agent.New(ctx, logger, publisher)
+func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer) agent.Service {
+	svc := agent.New(ctx, logger)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

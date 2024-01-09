@@ -15,7 +15,6 @@ import (
 	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/messaging"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -62,7 +61,6 @@ type agentService struct {
 	attestation []byte
 	sm          *StateMachine
 	runError    error
-	publisher   messaging.Publisher
 }
 
 const (
@@ -74,10 +72,9 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger mglog.Logger, publisher messaging.Publisher) Service {
+func New(ctx context.Context, logger mglog.Logger) Service {
 	svc := &agentService{
-		sm:        NewStateMachine(logger),
-		publisher: publisher,
+		sm: NewStateMachine(logger),
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
@@ -226,12 +223,6 @@ func (as *agentService) runComputation() {
 
 func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
 	return func() {
-		if err := as.publisher.Publish(ctx, notificationTopic, &messaging.Message{
-			Subtopic: subtopic,
-			Payload:  []byte(body),
-		}); err != nil {
-			as.sm.logger.Warn(err.Error())
-		}
 	}
 }
 
