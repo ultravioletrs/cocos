@@ -1,8 +1,6 @@
 run:
   timeout: 3m
-  build-tags:
-    - "nats"
-
+  
 issues:
   max-issues-per-linter: 10
   max-same-issues: 10

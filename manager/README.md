@@ -19,7 +19,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_SERVER_KEY  | Path to server key in pem format                         |                                   |
 | COCOS_JAEGER_URL         | Jaeger server URL                                        | http://localhost:14268/api/traces |
 | MANAGER_INSTANCE_ID      | Manager service instance ID                              |                                   |
-| COCOS_MESSAGE_BROKER_URL | Mesage broker url                                        | nats://localhost:4222             |
 
 ## Deployment
 
