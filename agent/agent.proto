@@ -8,16 +8,11 @@ package agent;
 option go_package = "./agent";
 
 service AgentService {
-  rpc Run(RunRequest) returns (RunResponse) {}
   rpc Algo(AlgoRequest) returns (AlgoResponse) {}
   rpc Data(DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
 }
-
-message RunRequest { ComputationReq computation = 1; }
-
-message RunResponse { string Computation = 1; }
 
 message AlgoRequest {
   bytes algorithm = 1;

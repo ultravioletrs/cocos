@@ -53,13 +53,11 @@ func encodeRunRequest(_ context.Context, request interface{}) (interface{}, erro
 // decodeRunResponse is a transport/grpc.DecodeResponseFunc that
 // converts a gRPC RunResponse to a user-domain response.
 func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
-	response, ok := grpcResponse.(*manager.RunResponse)
+	_, ok := grpcResponse.(*manager.RunResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
 	}
-	return runRes{
-		ID: response.ID,
-	}, nil
+	return runRes{}, nil
 }
 
 func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...grpc.CallOption) (*manager.RunResponse, error) {
@@ -78,11 +76,10 @@ func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...
 		Timeout:     dur,
 	}
 
-	res, err := client.run(ctx, runReq)
+	_, err = client.run(ctx, runReq)
 	if err != nil {
 		return nil, err
 	}
 
-	runRes := res.(runRes)
-	return &manager.RunResponse{ID: runRes.ID}, nil
+	return &manager.RunResponse{}, nil
 }

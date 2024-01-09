@@ -4,17 +4,7 @@ package grpc
 
 import (
 	"errors"
-
-	"github.com/ultravioletrs/cocos/agent"
 )
-
-type runReq struct {
-	Computation *agent.ComputationReq
-}
-
-func (req *runReq) validate() error {
-	return nil
-}
 
 type algoReq struct {
 	Algorithm []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`

@@ -10,9 +10,7 @@ import (
 
 var _ magistrala.Response = (*runRes)(nil)
 
-type runRes struct {
-	ID string `json:"id"`
-}
+type runRes struct{}
 
 func (res runRes) Code() int {
 	return http.StatusOK
@@ -23,5 +21,5 @@ func (res runRes) Headers() map[string]string {
 }
 
 func (res runRes) Empty() bool {
-	return false
+	return true
 }

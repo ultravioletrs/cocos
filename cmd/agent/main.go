@@ -88,12 +88,12 @@ func main() {
 
 	svc := newService(ctx, logger, tracer, pub)
 
-	if cmp, err := extractComputationValue(); err == nil {
-		if _, err := svc.Run(ctx, cmp); err != nil {
-			logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
-		}
-	} else {
-		logger.Warn(fmt.Sprintf("computation not loaded from timeline : %s", err.Error()))
+	cmp, err := extractComputationValue()
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
+	}
+	if _, err := svc.Run(ctx, cmp); err != nil {
+		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}

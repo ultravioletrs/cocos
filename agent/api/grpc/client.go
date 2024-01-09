@@ -16,7 +16,6 @@ import (
 const svcName = "agent.AgentService"
 
 type grpcClient struct {
-	run         endpoint.Endpoint
 	algo        endpoint.Endpoint
 	data        endpoint.Endpoint
 	result      endpoint.Endpoint
@@ -27,14 +26,6 @@ type grpcClient struct {
 // NewClient returns new gRPC client instance.
 func NewClient(conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceClient {
 	return &grpcClient{
-		run: kitgrpc.NewClient(
-			conn,
-			svcName,
-			"Run",
-			encodeRunRequest,
-			decodeRunResponse,
-			agent.RunResponse{},
-		).Endpoint(),
 		algo: kitgrpc.NewClient(
 			conn,
 			svcName,
@@ -69,31 +60,6 @@ func NewClient(conn *grpc.ClientConn, timeout time.Duration) agent.AgentServiceC
 		).Endpoint(),
 		timeout: timeout,
 	}
-}
-
-// encodeRunRequest is a transport/grpc.EncodeRequestFunc that
-// converts a user-domain runReq to a gRPC request.
-func encodeRunRequest(_ context.Context, request interface{}) (interface{}, error) {
-	req, ok := request.(*runReq)
-	if !ok {
-		return nil, fmt.Errorf("invalid request type: %T", request)
-	}
-
-	return &agent.RunRequest{
-		Computation: req.Computation,
-	}, nil
-}
-
-// decodeRunResponse is a transport/grpc.DecodeResponseFunc that
-// converts a gRPC RunResponse to a user-domain response.
-func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
-	response, ok := grpcResponse.(*agent.RunResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
-	}
-	return runRes{
-		Computation: response.Computation,
-	}, nil
 }
 
 // encodeAlgoRequest is a transport/grpc.EncodeRequestFunc that
@@ -196,20 +162,6 @@ func decodeAttestationResponse(_ context.Context, grpcResponse interface{}) (int
 	return attestationRes{
 		File: response.File,
 	}, nil
-}
-
-// Run implements the Run method of the agent.AgentServiceClient interface.
-func (c grpcClient) Run(ctx context.Context, request *agent.RunRequest, _ ...grpc.CallOption) (*agent.RunResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	res, err := c.run(ctx, &runReq{Computation: request.Computation})
-	if err != nil {
-		return nil, err
-	}
-
-	runRes := res.(runRes)
-	return &agent.RunResponse{Computation: runRes.Computation}, nil
 }
 
 // Algo implements the Algo method of the agent.AgentServiceClient interface.

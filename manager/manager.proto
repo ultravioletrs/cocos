@@ -38,4 +38,4 @@ message Algorithm {
   string id = 2;
 }
 
-message RunResponse { string ID = 1; }
+message RunResponse { }
