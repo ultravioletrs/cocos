@@ -4,9 +4,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/messaging"
@@ -34,6 +38,8 @@ const (
 	defSvcHTTPPort = "9031"
 	defSvcGRPCPort = "7002"
 )
+
+var errComputationNotFound = errors.New("computation not found in command line")
 
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
@@ -82,6 +88,14 @@ func main() {
 
 	svc := newService(ctx, logger, tracer, pub)
 
+	if cmp, err := extractComputationValue(); err == nil {
+		if _, err := svc.Run(ctx, cmp); err != nil {
+			logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
+		}
+	} else {
+		logger.Warn(fmt.Sprintf("computation not loaded from timeline : %s", err.Error()))
+	}
+
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		log.Printf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
@@ -115,4 +129,38 @@ func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer, p
 	svc = tracing.New(svc, tracer)
 
 	return svc
+}
+
+// extractComputationValue to extract computation value from the command line.
+func extractComputationValue() (agent.Computation, error) {
+	cmdLineBytes, err := os.ReadFile("/proc/cmdline")
+	if err != nil {
+		return agent.Computation{}, err
+	}
+	cmdLine := string(cmdLineBytes)
+	paramPrefix := "computation="
+	index := strings.Index(string(cmdLine), paramPrefix)
+
+	if index == -1 {
+		return agent.Computation{}, errComputationNotFound
+	}
+
+	start := index + len(paramPrefix)
+	end := strings.Index(cmdLine[start:], " ")
+
+	cmpUnescaped := cmdLine[start : start+end]
+	var computation agent.Computation
+	if end == -1 {
+		cmpUnescaped = cmdLine[start:]
+	}
+
+	escapedCmpStr, err := strconv.Unquote(cmpUnescaped)
+	if err != nil {
+		return agent.Computation{}, err
+	}
+
+	if err := json.Unmarshal([]byte(escapedCmpStr), &computation); err != nil {
+		return agent.Computation{}, err
+	}
+	return computation, nil
 }
