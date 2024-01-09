@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
@@ -47,8 +48,22 @@ func New(qemuCfg qemu.Config) Service {
 }
 
 func (ms *managerService) Run(ctx context.Context, computation *Computation, agentConfig grpc.Config) (string, error) {
-	_, err := qemu.CreateVM(ctx, ms.qemuCfg)
-	if err != nil {
+	agCmp := agent.Computation{
+		ID:              computation.Id,
+		Name:            computation.Name,
+		Description:     computation.Description,
+		ResultConsumers: computation.ResultConsumers,
+	}
+	dur, err := time.ParseDuration(computation.Timeout)
+	agCmp.Timeout.Duration = dur
+	for _, algo := range computation.Algorithms {
+		agCmp.Algorithms = append(agCmp.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
+	}
+	for _, data := range computation.Datasets {
+		agCmp.Datasets = append(agCmp.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
+	}
+
+	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, agCmp); err != nil {
 		return "", err
 	}
 	// different VM guests can't forward ports to the same ports on the same host
