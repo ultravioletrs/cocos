@@ -4,21 +4,17 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
-	"github.com/mainflux/mainflux/pkg/messaging"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
-type state string
-
-const (
-	idle              state = "idle"
-	running           state = "running"
-	notificationTopic       = "manager"
-)
+const notificationTopic = "manager"
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -40,21 +36,24 @@ type Service interface {
 }
 
 type managerService struct {
-	qemuCfg qemu.Config
-	state   state
+	qemuCfg  qemu.Config
+	logger   mglog.Logger
+	eventSvc events.Service
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config) Service {
+func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service) Service {
 	return &managerService{
-		qemuCfg: qemuCfg,
-		state:   idle,
+		qemuCfg:  qemuCfg,
+		logger:   logger,
+		eventSvc: eventSvc,
 	}
 }
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) error {
+	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
 		Name:            c.Name,
@@ -63,6 +62,17 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 	}
 	dur, err := time.ParseDuration(c.Timeout)
 	if err != nil {
+		detail := struct {
+			Error string `json:"error"`
+		}{
+			Error: err.Error(),
+		}
+		detailB, merr := json.Marshal(detail)
+		if merr != nil {
+			ms.logger.Warn(merr.Error())
+			return err
+		}
+		ms.publishEvent("vm-provision", c.Id, "failed", detailB)
 		return err
 	}
 	ac.Timeout.Duration = dur
@@ -73,7 +83,19 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
 	}
 
+	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
 	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+		detail := struct {
+			Error string `json:"error"`
+		}{
+			Error: err.Error(),
+		}
+		detailB, merr := json.Marshal(detail)
+		if merr != nil {
+			ms.logger.Warn(merr.Error())
+			return err
+		}
+		ms.publishEvent("vm-provision", c.Id, "failed", detailB)
 		return err
 	}
 	// different VM guests can't forward ports to the same ports on the same host
@@ -83,25 +105,12 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ms.qemuCfg.NetDevConfig.HostFwd3++
 	}()
 
-	ms.publishEvent(ctx, cmp.ID, "created vm")
+	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return nil
 }
 
-func (ms *managerService) setIdle(ctx context.Context) {
-	ms.state = idle
-	ms.publishEvent(ctx, string(ms.state), "")
-}
-
-func (ms *managerService) publishEvent(ctx context.Context, subtopic, body string) func() {
-	return func() {
-		if err := ms.publisher.Publish(ctx, notificationTopic, &messaging.Message{
-			Subtopic: subtopic,
-			Payload:  []byte(body),
-		}); err != nil {
-			ms.logger.Warn(err.Error())
-		}
-		if err := ms.notificationSvc.SendNotification(string(ms.state), subtopic); err != nil {
-			ms.logger.Warn(err.Error())
-		}
+func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
+	if err := ms.eventSvc.SendEvent(event, cmpID, status, details); err != nil {
+		ms.logger.Warn(err.Error())
 	}
 }

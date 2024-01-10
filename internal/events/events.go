@@ -1,6 +1,6 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package notifications
+package events
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ type service struct {
 }
 
 type Service interface {
-	SendNotification(event, computationId, status string, details json.RawMessage) error
+	SendEvent(event, computationId, status string, details json.RawMessage) error
 }
 
 func New(svc, serverUrl string) Service {
@@ -29,7 +29,7 @@ func New(svc, serverUrl string) Service {
 	}
 }
 
-func (s *service) SendNotification(event, computationId, status string, details json.RawMessage) error {
+func (s *service) SendEvent(event, computationId, status string, details json.RawMessage) error {
 	body := struct {
 		EventType     string          `json:"event_type"`
 		Timestamp     time.Time       `json:"timestamp"`

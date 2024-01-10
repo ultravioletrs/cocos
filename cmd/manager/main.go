@@ -15,6 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/internal/events"
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
@@ -90,7 +91,7 @@ func main() {
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
-	svc := newService(logger, tracer, qemuCfg)
+	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL))
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
@@ -131,8 +132,8 @@ func main() {
 	}
 }
 
-func newService(logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config) manager.Service {
-	svc := manager.New(qemuCfg)
+func newService(logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventSvc events.Service) manager.Service {
+	svc := manager.New(qemuCfg, logger, eventSvc)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

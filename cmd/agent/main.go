@@ -19,6 +19,7 @@ import (
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"golang.org/x/sync/errgroup"
@@ -63,13 +64,24 @@ func main() {
 		}
 	}
 
-	svc := newService(ctx, logger)
+	eventSvc := events.New(svcName, cfg.NotificationServerURL)
+	svc := newService(ctx, logger, eventSvc)
 
 	ac, err := extractComputationValue()
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
 	}
 	if _, err := svc.Run(ctx, ac); err != nil {
+		detail := struct {
+			Error string `json:"error"`
+		}{
+			Error: err.Error(),
+		}
+		detailB, merr := json.Marshal(detail)
+		if merr != nil {
+			logger.Warn(merr.Error())
+		}
+		eventSvc.SendEvent("init", ac.ID, "failed", detailB)
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
@@ -97,8 +109,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger) agent.Service {
-	svc := agent.New(ctx, logger)
+func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Service) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
