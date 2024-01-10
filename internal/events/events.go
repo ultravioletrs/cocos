@@ -53,6 +53,7 @@ func (s *service) SendEvent(event, computationId, status string, details json.Ra
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

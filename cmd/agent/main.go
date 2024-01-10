@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
@@ -144,12 +143,7 @@ func extractComputationValue() (agent.Computation, error) {
 		cmpUnescaped = cmdLine[start:]
 	}
 
-	escapedCmpStr, err := strconv.Unquote(cmpUnescaped)
-	if err != nil {
-		return agent.Computation{}, err
-	}
-
-	if err := json.Unmarshal([]byte(escapedCmpStr), &ac); err != nil {
+	if err := json.Unmarshal([]byte(cmpUnescaped), &ac); err != nil {
 		return agent.Computation{}, err
 	}
 	return ac, nil
