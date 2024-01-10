@@ -96,7 +96,7 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ms.publishEvent("vm-provision", c.Id, "failed", detailB)
 		return err
 	}
-	// different VM guests can't forward ports to the same ports on the same host
+	// Different VM guests can't forward ports to the same ports on the same host.
 	defer func() {
 		ms.qemuCfg.HostFwd1++
 		ms.qemuCfg.NetDevConfig.HostFwd2++
