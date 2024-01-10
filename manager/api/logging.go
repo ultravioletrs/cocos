@@ -27,7 +27,7 @@ func LoggingMiddleware(svc manager.Service, logger mglog.Logger) manager.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, computation *manager.Computation) (err error) {
+func (lm *loggingMiddleware) Run(ctx context.Context, mc *manager.Computation) (err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Run for computation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -37,5 +37,5 @@ func (lm *loggingMiddleware) Run(ctx context.Context, computation *manager.Compu
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.Run(ctx, computation)
+	return lm.svc.Run(ctx, mc)
 }

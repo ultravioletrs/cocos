@@ -46,7 +46,7 @@ var (
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, cmp Computation) (string, error)
+	Run(ctx context.Context, c Computation) (string, error)
 	Algo(ctx context.Context, algorithm Algorithm) (string, error)
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
@@ -88,16 +88,16 @@ func New(ctx context.Context, logger mglog.Logger) Service {
 	return svc
 }
 
-func (as *agentService) Run(ctx context.Context, cmp Computation) (string, error) {
+func (as *agentService) Run(ctx context.Context, c Computation) (string, error) {
 	if as.sm.GetState() != receivingManifests {
 		return "", errStateNotReady
 	}
-	cmpJSON, err := json.Marshal(cmp)
+	cmpJSON, err := json.Marshal(c)
 	if err != nil {
 		return "", err
 	}
 
-	as.computation = cmp
+	as.computation = c
 	as.sm.SendEvent(manifestsReceived)
 
 	// Calculate the SHA-256 hash of the algorithm

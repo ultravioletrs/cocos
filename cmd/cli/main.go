@@ -84,7 +84,6 @@ func main() {
 	rootCmd.AddCommand(cli.NewAlgorithmsCmd(agentSDK))
 	rootCmd.AddCommand(cli.NewDatasetsCmd(agentSDK))
 	rootCmd.AddCommand(cli.NewResultsCmd(agentSDK))
-	rootCmd.AddCommand(cli.NewRunCmd(agentSDK))
 	rootCmd.AddCommand(cli.NewAttestationCmd(agentSDK))
 
 	if err := rootCmd.Execute(); err != nil {

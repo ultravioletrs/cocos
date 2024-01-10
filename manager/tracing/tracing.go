@@ -21,9 +21,9 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Run(ctx context.Context, computation *manager.Computation) error {
+func (tm *tracingMiddleware) Run(ctx context.Context, mc *manager.Computation) error {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
-	return tm.svc.Run(ctx, computation)
+	return tm.svc.Run(ctx, mc)
 }

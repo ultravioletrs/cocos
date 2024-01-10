@@ -23,7 +23,7 @@ func NewAgentSDK(log mglog.Logger, agentClient agent.AgentServiceClient) *agentS
 	}
 }
 
-func (sdk *agentSDK) Run(ctx context.Context, computation agent.Computation) (string, error) {
+func (sdk *agentSDK) Run(ctx context.Context, ac agent.Computation) (string, error) {
 	return "", nil
 }
 
