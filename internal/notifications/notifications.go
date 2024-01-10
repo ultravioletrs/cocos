@@ -19,7 +19,7 @@ type service struct {
 }
 
 type Service interface {
-	SendNotification(event, computationId string) error
+	SendNotification(event, computationId, status string, details json.RawMessage) error
 }
 
 func New(svc, serverUrl string) Service {
@@ -29,21 +29,27 @@ func New(svc, serverUrl string) Service {
 	}
 }
 
-func (s *service) SendNotification(event, computationId string) error {
+func (s *service) SendNotification(event, computationId, status string, details json.RawMessage) error {
 	body := struct {
-		Event         string
-		Timestamp     time.Time
-		ComputationId string
+		EventType     string          `json:"event_type"`
+		Timestamp     time.Time       `json:"timestamp"`
+		ComputationID string          `json:"computation_id,omitempty"`
+		Details       json.RawMessage `json:"details,omitempty"`
+		Originator    string          `json:"originator"`
+		Status        string          `json:"status,omitempty"`
 	}{
-		Event:         event,
+		EventType:     event,
 		Timestamp:     time.Now(),
-		ComputationId: computationId,
+		ComputationID: computationId,
+		Originator:    s.service,
+		Status:        status,
+		Details:       details,
 	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/notification/%s", s.serverUrl, s.service), bytes.NewReader(jsonBody))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/computations/events", s.serverUrl), bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}
