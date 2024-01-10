@@ -27,9 +27,9 @@ func LoggingMiddleware(svc agent.Service, logger mglog.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, cmp agent.Computation) (response string, err error) {
+func (lm *loggingMiddleware) Run(ctx context.Context, ac agent.Computation) (response string, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Run for computation %s took %s to complete", cmp.ID, time.Since(begin))
+		message := fmt.Sprintf("Method Run for computation %s took %s to complete", ac.ID, time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
@@ -37,7 +37,7 @@ func (lm *loggingMiddleware) Run(ctx context.Context, cmp agent.Computation) (re
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
 
-	return lm.svc.Run(ctx, cmp)
+	return lm.svc.Run(ctx, ac)
 }
 
 func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (response string, err error) {

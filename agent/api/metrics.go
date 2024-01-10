@@ -32,13 +32,13 @@ func MetricsMiddleware(svc agent.Service, counter metrics.Counter, latency metri
 	}
 }
 
-func (ms *metricsMiddleware) Run(ctx context.Context, cmp agent.Computation) (string, error) {
+func (ms *metricsMiddleware) Run(ctx context.Context, ac agent.Computation) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "run").Add(1)
 		ms.latency.With("method", "run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Run(ctx, cmp)
+	return ms.svc.Run(ctx, ac)
 }
 
 func (ms *metricsMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (string, error) {

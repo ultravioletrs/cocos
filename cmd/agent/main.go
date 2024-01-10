@@ -17,13 +17,10 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
-	"github.com/ultravioletrs/cocos/agent/tracing"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
-	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
-	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -41,7 +38,6 @@ var errComputationNotFound = errors.New("computation not found in command line")
 
 type config struct {
 	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
 	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
 }
 
@@ -66,24 +62,13 @@ func main() {
 		}
 	}
 
-	tp, err := jaegerclient.NewProvider(ctx, svcName, cfg.JaegerURL, cfg.InstanceID)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to init Jaeger: %s", err))
-	}
-	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
-			logger.Error(fmt.Sprintf("Error shutting down tracer provider: %v", err))
-		}
-	}()
-	tracer := tp.Tracer(svcName)
+	svc := newService(ctx, logger)
 
-	svc := newService(ctx, logger, tracer)
-
-	cmp, err := extractComputationValue()
+	ac, err := extractComputationValue()
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
 	}
-	if _, err := svc.Run(ctx, cmp); err != nil {
+	if _, err := svc.Run(ctx, ac); err != nil {
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
@@ -111,13 +96,12 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger, tracer trace.Tracer) agent.Service {
+func newService(ctx context.Context, logger mglog.Logger) agent.Service {
 	svc := agent.New(ctx, logger)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
-	svc = tracing.New(svc, tracer)
 
 	return svc
 }
@@ -140,7 +124,7 @@ func extractComputationValue() (agent.Computation, error) {
 	end := strings.Index(cmdLine[start:], " ")
 
 	cmpUnescaped := cmdLine[start : start+end]
-	var computation agent.Computation
+	var ac agent.Computation
 	if end == -1 {
 		cmpUnescaped = cmdLine[start:]
 	}
@@ -150,8 +134,8 @@ func extractComputationValue() (agent.Computation, error) {
 		return agent.Computation{}, err
 	}
 
-	if err := json.Unmarshal([]byte(escapedCmpStr), &computation); err != nil {
+	if err := json.Unmarshal([]byte(escapedCmpStr), &ac); err != nil {
 		return agent.Computation{}, err
 	}
-	return computation, nil
+	return ac, nil
 }

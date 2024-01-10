@@ -21,7 +21,7 @@ const (
 	rootfsFile   = "rootfs.cpio"
 )
 
-func CreateVM(ctx context.Context, cfg Config, computation agent.Computation) (*exec.Cmd, error) {
+func CreateVM(ctx context.Context, cfg Config, ac agent.Computation) (*exec.Cmd, error) {
 	// Create unique emu device identifiers.
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -58,7 +58,7 @@ func CreateVM(ctx context.Context, cfg Config, computation agent.Computation) (*
 	}
 	qemuCfg.DiskImgConfig.RootFsFile = dstFile
 
-	exe, args, err := ExecutableAndArgs(qemuCfg, computation)
+	exe, args, err := ExecutableAndArgs(qemuCfg, ac)
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
@@ -70,13 +70,13 @@ func CreateVM(ctx context.Context, cfg Config, computation agent.Computation) (*
 	return cmd, nil
 }
 
-func ExecutableAndArgs(cfg Config, computation agent.Computation) (string, []string, error) {
+func ExecutableAndArgs(cfg Config, ac agent.Computation) (string, []string, error) {
 	exe, err := exec.LookPath(qemuRelPath)
 	if err != nil {
 		return "", nil, err
 	}
 
-	cmpBytes, err := json.Marshal(computation)
+	cmpBytes, err := json.Marshal(ac)
 	if err != nil {
 		return "", nil, err
 	}
