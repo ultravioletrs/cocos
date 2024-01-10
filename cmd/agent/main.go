@@ -81,7 +81,9 @@ func main() {
 		if merr != nil {
 			logger.Warn(merr.Error())
 		}
-		eventSvc.SendEvent("init", ac.ID, "failed", detailB)
+		if err := eventSvc.SendEvent("init", ac.ID, "failed", detailB); err != nil {
+			logger.Warn(err.Error())
+		}
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 

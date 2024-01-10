@@ -14,8 +14,6 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
-const notificationTopic = "manager"
-
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
