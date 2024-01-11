@@ -5,10 +5,12 @@ package manager
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"net"
+	"strconv"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -25,6 +27,9 @@ var (
 
 	// ErrNotFound indicates a non-existent entity request.
 	ErrNotFound = errors.New("entity not found")
+
+	// ErrFailedToAllocatePort indicates no free port was found on host.
+	ErrFailedToAllocatePort = errors.New("failed to allocate free port on host")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -37,15 +42,17 @@ type managerService struct {
 	qemuCfg  qemu.Config
 	logger   mglog.Logger
 	eventSvc events.Service
+	hostIP   string
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service) Service {
+func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service, hostIP string) Service {
 	return &managerService{
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,
+		hostIP:   hostIP,
 	}
 }
 
@@ -64,18 +71,38 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
 	}
 
+	agentPort, err := getFreePort()
+	if err != nil {
+		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		return "", errors.Wrap(ErrFailedToAllocatePort, err)
+	}
+	ms.qemuCfg.HostFwdAgent = agentPort
+
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
-	if _, err := qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
-	// Different VM guests can't forward ports to the same ports on the same host.
-	defer func() {
-		ms.qemuCfg.NetDevConfig.HostFwdAgent++
-	}()
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
-	return fmt.Sprintf("localhost:%d", ms.qemuCfg.HostFwdAgent), nil
+	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
+}
+
+func getFreePort() (int, error) {
+	listener, err := net.Listen("tcp", "")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	_, portStr, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		return 0, err
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0, err
+	}
+	return port, nil
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
