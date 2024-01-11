@@ -14,8 +14,6 @@ type apiReq interface {
 
 type runReq struct {
 	Computation agent.Computation `json:"computation"`
-	ClientTLS   bool              `json:"client_tls,omitempty"`
-	CACerts     string            `json:"ca_certs,omitempty"`
 }
 
 func (req *runReq) validate() error {
