@@ -111,15 +111,6 @@ components:
                   timeout:
                     type: string
                     example: "2s"
-              ca_certs:
-                description: agent grpc ca_certs
-                type: string
-              client_tls:
-                description: agent grpc client_tls enabled
-                type: boolean
-              timeout:
-                description: agent grpc timeout
-                type: string
 
   responses:
     ServiceError:

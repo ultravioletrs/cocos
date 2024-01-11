@@ -4,11 +4,9 @@ package http
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 func runEndpoint(svc manager.Service) endpoint.Endpoint {
@@ -17,14 +15,6 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 
 		if err := req.validate(); err != nil {
 			return nil, err
-		}
-
-		agentConf := grpc.Config{
-			ClientTLS: req.ClientTLS,
-			CACerts:   req.CACerts,
-		}
-		if agentConf.Timeout == 0 {
-			agentConf.Timeout = 60 * time.Second
 		}
 
 		mc := manager.Computation{

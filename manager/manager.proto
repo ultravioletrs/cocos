@@ -13,9 +13,6 @@ service ManagerService {
 
 message RunRequest {
   Computation computation = 1;
-  string ca_certs = 2;
-  bool client_tls = 3;
-  string timeout = 4;
 }
 
 message Computation {
