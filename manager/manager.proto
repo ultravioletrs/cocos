@@ -37,4 +37,6 @@ message Algorithm {
   string id = 2;
 }
 
-message RunResponse { }
+message RunResponse {
+  string agent_address = 1;
+}

@@ -28,13 +28,9 @@ type OVMFVarsConfig struct {
 }
 
 type NetDevConfig struct {
-	ID        string `env:"NETDEV_ID" envDefault:"vmnic"`
-	HostFwd1  int    `env:"HOST_FWD_1" envDefault:"2222"`
-	GuestFwd1 int    `env:"GUEST_FWD_1" envDefault:"22"`
-	HostFwd2  int    `env:"HOST_FWD_2" envDefault:"9301"`
-	GuestFwd2 int    `env:"GUEST_FWD_2" envDefault:"9031"`
-	HostFwd3  int    `env:"HOST_FWD_3" envDefault:"7020"`
-	GuestFwd3 int    `env:"GUEST_FWD_3" envDefault:"7002"`
+	ID            string `env:"NETDEV_ID"       envDefault:"vmnic"`
+	HostFwdAgent  int    `env:"HOST_FWD_AGENT"  envDefault:"7020"`
+	GuestFwdAgent int    `env:"GUEST_FWD_AGENT" envDefault:"7002"`
 }
 
 type VirtioNetPciConfig struct {
@@ -149,11 +145,9 @@ func constructQemuArgs(config Config, computation string) []string {
 
 	// network
 	args = append(args, "-netdev",
-		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d,hostfwd=tcp::%d-:%d,hostfwd=tcp::%d-:%d",
+		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d",
 			config.NetDevConfig.ID,
-			config.NetDevConfig.HostFwd1, config.NetDevConfig.GuestFwd1,
-			config.NetDevConfig.HostFwd2, config.NetDevConfig.GuestFwd2,
-			config.NetDevConfig.HostFwd3, config.NetDevConfig.GuestFwd3))
+			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
 
 	args = append(args, "-device",
 		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",

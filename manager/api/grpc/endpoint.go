@@ -28,10 +28,11 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			agentConf.Timeout = 60 * time.Second
 		}
 
-		if err := svc.Run(ctx, req.Computation); err != nil {
+		agAddr, err := svc.Run(ctx, req.Computation)
+		if err != nil {
 			return runRes{}, err
 		}
 
-		return runRes{}, nil
+		return runRes{AgentAddress: agAddr}, nil
 	}
 }

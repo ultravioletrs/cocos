@@ -10,7 +10,9 @@ import (
 
 var _ magistrala.Response = (*runRes)(nil)
 
-type runRes struct{}
+type runRes struct {
+	AgentAddress string `json:"agent_address"`
+}
 
 func (res runRes) Code() int {
 	return http.StatusOK
