@@ -47,190 +47,50 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-### Prepare focal-server-cloudimg-amd64.img
+### Prepare Cocos HAL
 
-*focal-server-cloudimg-amd64* is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine. We will put [Agent](https://github.com/ultravioletrs/cocos/agent) in the *focal-server-cloudimg-amd64*. In order to do that, we need to prepare the disk image.
+Cocos HAL for Linux is framework for building custom in-enclave Linux distribution. Use the instructions in [Readme](https://github.com/ultravioletrs/cocos/blob/main/hal/linux/README.md).
+Once the image is built copy the kernel and rootfs image to `cmd/manager/img` from `buildroot/output/images/bzImage` and `buildroot/output/images/rootfs.cpio.gz` respectively.
 
-#### Download focal-server-cloudimg-amd64.img and set up the root password
-
-First, we will download *focal-server-cloudimg-amd64*. It is a `qcow2` file with Ubuntu server preinstalled, ready to use with the QEMU virtual machine.
-
-```sh
-cd cmd/manager
-# Use this dir for focal-server-cloudimg-amd64.img and a test copy of firmware vars file.
-mkdir img
-# Use this dir for temporary firmware vars file and temporary disk image per virtual machine.
-mkdir tmp
-
-FOCAL=focal-server-cloudimg-amd64.img
-wget -O img/$FOCAL https://cloud-images.ubuntu.com/focal/current/$FOCAL
-# focal-server-cloudimg-amd64 comes without the root password
-sudo apt-get install libguestfs-tools
-PASSWORD=coolpass
-sudo virt-customize -a img/$FOCAL --root-password password:$PASSWORD
-```
-#### Resize disk image, partition and filesystem
-
-We need to resize the disk image:
-
-```sh
-qemu-img resize img/focal-server-cloudimg-amd64.img +1G
-```
-
-To resize `ext4` partition and filesystem on the `qcow2` disk image, start the virtual machine:
+#### Test VM creation
 
 ```sh
 cd cmd/manager
 
 sudo find / -name OVMF_CODE.fd
 # => /usr/share/OVMF/OVMF_CODE.fd
-export MANAGER_QEMU_OVMF_CODE_FILE=/usr/share/OVMF/OVMF_CODE.fd
+OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
 
 sudo find / -name OVMF_VARS.fd
 # => /usr/share/OVMF/OVMF_VARS.fd
-export MANAGER_QEMU_OVMF_VARS_FILE=/usr/share/OVMF/OVMF_VARS.fd
+OVMF_VARS=/usr/share/OVMF/OVMF_VARS.fd
 
-# Exported env vars are visible in subshell: start_VM.sh relies on MANAGER_QEMU_OVMF_CODE_FILE and MANAGER_QEMU_OVMF_VARS_FILE
-# use --sudo options to run as super user; use --sev option to enable AMD-SEV support
-./start_VM.sh
+KERNEL="img/bzImage"
+INITRD="img/rootfs.cpio.gz"
+
+qemu-system-x86_64 \
+    -enable-kvm \
+    -cpu EPYC-v4 \
+    -machine q35 \
+    -smp 4 \
+    -m 2048M,slots=5,maxmem=10240M \
+    -no-reboot \
+    -drive if=pflash,format=raw,unit=0,file=$OVMF_CODE,readonly=on \
+    -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 \
+    -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= \
+    -kernel $KERNEL \
+    -append "earlyprintk=serial console=ttyS0 computation={\"id\":\"c0d15c5e-e37d-4426-b3b7-b432c966fb09\",\"name\":\"Sample_Computation\",\"description\":\"A_sample_computation\",\"datasets\":[{\"provider\":\"Provider1\",\"id\":\"Dataset1\"},{\"provider\":\"Provider2\",\"id\":\"Dataset2\"}],\"algorithms\":[{\"provider\":\"AlgorithmProvider1\",\"id\":\"Algorithm1\"}],\"result_consumers\":[\"Consumer1\"], \"timeout\":\"10m\"}" \
+    -initrd $INITRD \
+    -nographic \
+    -monitor pty \
+    -monitor unix:monitor,server,nowait
 ```
-
-Once the VM is booted up, we need to find out the partition with `ext4` filesystem, i.e. partition that contains the root file system:
-
-```sh
-mount | grep "on / type"
-```
-
-An example (for focal) of this output is:
-```sh
-# /dev/sda1 on / type ext4 (rw,relatime)
-```
-So, the partition that holds the root file system is `/dev/sda1`.
-
-Check the current size of the partition:
-```sh
-df -h
-# Output: /dev/sda1       2.0G  1.5G  520M  74% /
-```
-
-Run the `parted` command to increase the `ext4` partition size. We will resize the `/dev/sda` because this is the QEMU hard disk containing the `/dev/sda1` partition and the newly added free space.
-```sh
-parted /dev/sda
-```
-In the prompt of the parted command, execute `print free` to display the partition table and to see the free space.
-```
-print free
-```
-After executing the `print free` command, the parted command may issue a warning.
-```
-Warning: Not all of the space available to /dev/sda appears to be used, you can
-fix the GPT to use all of the space (an extra 16777216 blocks) or continue with
-the current setting?
-Fix/Ignore?
-```
-Type `fix` here to use all of the available space.
-
-An example of the output of the `print free` command should be something like this:
-```
-Model: QEMU QEMU HARDDISK (scsi)
-Disk /dev/sda: 11.0GB
-Sector size (logical/physical): 512B/512B
-Partition Table: gpt
-Disk Flags:
-
-Number  Start   End     Size    File system  Name  Flags
-        17.4kB  1049kB  1031kB  Free Space
-14      1049kB  5243kB  4194kB                     bios_grub
-15      5243kB  116MB   111MB   fat32              boot, esp
- 1      116MB   2361MB  2245MB  ext4
-        2361MB  3435MB  1074MB  Free Space
-```
-
-Partition 1 contains the root file system. To resize this partition type:
-```
-resizepart 1
-```
-The parted command will then ask you the following question:
-```
-Warning: Partition /dev/sda1 is being used. Are you sure you want to continue?
-Yes/No?
-```
-Type `yes`.
-
-Next, when asked about the root partition's new end number, enter the free space's end number. In our example, this is the number 11GB. Example:
-```
-End?  [2361MB]? 3435MB
-```
-Exit the parted command by typing `quit`.
-
-The last step is to resize the filesystem of the root file system partition. To resize it, execute:
-```sh
-resize2fs /dev/sda1
-```
-Check the new size of the partition:
-```sh
-df -h
-# Output: /dev/sda1       3.0G  1.5G  1.5G  50% /
-```
-
-#### Set up the network interface
-
-We need to set up the network interface in order to be establish an HTTP and gRPC communication of the VM and the "external world".
-
-We are still in the VM. If the VM is not started, start it with `./start_VM` and log in with root. Set up the network interface:
-
-```sh
-# Find out the virtual network interface and store it in NETWORK_INTERFACE env var.
-NETWORK_INTERFACE=$(ip addr | awk '/^2: /{sub(/:/, "", $2); print $2}')
-# To be sure, you can compare the output of the following command with the output of 'ip addr' command.
-echo $NETWORK_INTERFACE
-
-# Bring the specified network interface up.
-ip link set dev $NETWORK_INTERFACE up
-# Use dhclient to automatically obtain an IP address and configure the specified network interface.
-dhclient $NETWORK_INTERFACE
-```
-
-#### Install Go language
-
-We install go language in our VM in order to compile an `Agent` in the VM.
-
-```sh
-# Download the Go programming language distribution version 1.21.0 for Linux AMD64.
-wget https://go.dev/dl/go1.21.4.linux-amd64.tar.gz
-
-# Remove any existing Go installation in /usr/local/go and extract the downloaded Go archive there.
-rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.4.linux-amd64.tar.gz
-
-# Update the PATH environment variable to include the directory containing the Go binary.
-export PATH=$PATH:/usr/local/go/bin
-
-# Verify the installed Go version by running the "go version" command.
-go version
-# => # go version go1.21.4 linux/amd64
-```
-
-#### Nats
-Both agent and manager require nats running on the host machine for push notifications.
-On the host machine start nats:
-```sh
-go install github.com/nats-io/nats-server/v2@latest
-nats-server -js
-```
+Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
 ```sh
-# set nats url
-export COCOS-MESSAGE-BROKER-URL=<host-ip>:4222
-
-git clone https://github.com/ultravioletrs/cocos
-cd cocos
-
-# Build the 'agent' executable and save it to the 'build' directory.
-go build -o build/agent cmd/agent/main.go
-
 # Start the 'agent' executable in the background using '&' at the end.
-./build/agent &
+cocos-agent &
 
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
 ps aux | grep agent
