@@ -25,7 +25,6 @@ message Computation {
   repeated Dataset datasets = 4;
   repeated Algorithm algorithms = 5;
   repeated string result_consumers = 6;
-  string timeout = 7;
 }
 
 message Dataset {

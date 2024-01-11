@@ -47,7 +47,6 @@ message ComputationReq {
   repeated DatasetReq datasets = 4;
   repeated AlgorithmReq algorithms = 5;
   repeated string result_consumers = 6;
-  string timeout = 7;
 }
 
 message DatasetReq {

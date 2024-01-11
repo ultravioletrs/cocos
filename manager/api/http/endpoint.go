@@ -22,7 +22,6 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		agentConf := grpc.Config{
 			ClientTLS: req.ClientTLS,
 			CACerts:   req.CACerts,
-			Timeout:   req.Timeout.Duration,
 		}
 		if agentConf.Timeout == 0 {
 			agentConf.Timeout = 60 * time.Second
@@ -33,7 +32,6 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			Name:            req.Computation.Name,
 			Description:     req.Computation.Description,
 			ResultConsumers: req.Computation.ResultConsumers,
-			Timeout:         req.Computation.Timeout.String(),
 		}
 		for _, algo := range req.Computation.Algorithms {
 			mc.Algorithms = append(mc.Algorithms, &manager.Algorithm{Id: algo.ID, Provider: algo.Provider})

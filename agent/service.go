@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
-	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/internal/events"
@@ -210,27 +209,11 @@ func (as *agentService) runComputation() {
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
-	ctx := context.Background()
-	var cancel context.CancelFunc
-	if as.computation.Timeout.Duration != 0 {
-		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(as.computation.Timeout.Duration))
-		defer cancel()
-	}
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := run(ctx, as.algorithms[0], as.datasets[0])
+	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
 		as.runError = err
-		detail := struct {
-			Error string `json:"error"`
-		}{
-			Error: err.Error(),
-		}
-		detailB, err := json.Marshal(detail)
-		if err != nil {
-			as.sm.logger.Warn(err.Error())
-			return
-		}
-		as.publishEvent("failed", detailB)()
+		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
 	as.publishEvent("complete", json.RawMessage{})()
@@ -245,7 +228,7 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 	}
 }
 
-func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
+func run(algoContent, dataContent []byte) ([]byte, error) {
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
@@ -274,8 +257,6 @@ func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
 	}
 
 	select {
-	case <-ctx.Done():
-		return nil, errors.New("computation timed out")
 	case result = <-dataChannel:
 		return result, nil
 	case err = <-errorChannel:

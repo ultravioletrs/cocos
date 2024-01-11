@@ -71,16 +71,7 @@ func main() {
 		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
 	}
 	if _, err := svc.Run(ctx, ac); err != nil {
-		detail := struct {
-			Error string `json:"error"`
-		}{
-			Error: err.Error(),
-		}
-		detailB, merr := json.Marshal(detail)
-		if merr != nil {
-			logger.Warn(merr.Error())
-		}
-		if err := eventSvc.SendEvent("init", ac.ID, "failed", detailB); err != nil {
+		if err := eventSvc.SendEvent("init", ac.ID, "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))

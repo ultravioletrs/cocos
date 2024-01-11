@@ -4,10 +4,8 @@ package agent
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
-	"time"
 )
 
 var (
@@ -22,7 +20,6 @@ type Computation struct {
 	Datasets        Datasets   `json:"datasets,omitempty"`
 	Algorithms      Algorithms `json:"algorithms,omitempty"`
 	ResultConsumers []string   `json:"result_consumers,omitempty"`
-	Timeout         Duration   `json:"timeout,omitempty"`
 }
 
 func (d *Datasets) String() string {
@@ -39,35 +36,6 @@ func (a *Algorithms) String() string {
 		return ""
 	}
 	return string(dat)
-}
-
-type Duration struct {
-	time.Duration
-}
-
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(d.String())
-}
-
-func (d *Duration) UnmarshalJSON(b []byte) error {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	switch value := v.(type) {
-	case float64:
-		d.Duration = time.Duration(value)
-		return nil
-	case string:
-		var err error
-		d.Duration, err = time.ParseDuration(value)
-		if err != nil {
-			return err
-		}
-		return nil
-	default:
-		return errors.New("invalid duration")
-	}
 }
 
 type Dataset struct {

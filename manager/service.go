@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
@@ -45,7 +44,6 @@ var _ Service = (*managerService)(nil)
 func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service) Service {
 	return &managerService{
 		qemuCfg:  qemuCfg,
-		logger:   logger,
 		eventSvc: eventSvc,
 	}
 }
@@ -58,22 +56,6 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
 	}
-	dur, err := time.ParseDuration(c.Timeout)
-	if err != nil {
-		detail := struct {
-			Error string `json:"error"`
-		}{
-			Error: err.Error(),
-		}
-		detailB, merr := json.Marshal(detail)
-		if merr != nil {
-			ms.logger.Warn(merr.Error())
-			return err
-		}
-		ms.publishEvent("vm-provision", c.Id, "failed", detailB)
-		return err
-	}
-	ac.Timeout.Duration = dur
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
 	}
@@ -82,18 +64,8 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 	}
 
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
-	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
-		detail := struct {
-			Error string `json:"error"`
-		}{
-			Error: err.Error(),
-		}
-		detailB, merr := json.Marshal(detail)
-		if merr != nil {
-			ms.logger.Warn(merr.Error())
-			return err
-		}
-		ms.publishEvent("vm-provision", c.Id, "failed", detailB)
+	if _, err := qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return err
 	}
 	// Different VM guests can't forward ports to the same ports on the same host.
