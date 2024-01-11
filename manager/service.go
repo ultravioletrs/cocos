@@ -4,10 +4,12 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"time"
 
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 )
 
@@ -31,30 +33,29 @@ type Service interface {
 }
 
 type managerService struct {
-	qemuCfg qemu.Config
+	qemuCfg  qemu.Config
+	logger   mglog.Logger
+	eventSvc events.Service
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config) Service {
+func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service) Service {
 	return &managerService{
-		qemuCfg: qemuCfg,
+		qemuCfg:  qemuCfg,
+		eventSvc: eventSvc,
 	}
 }
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) error {
+	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
 	}
-	dur, err := time.ParseDuration(c.Timeout)
-	if err != nil {
-		return err
-	}
-	ac.Timeout.Duration = dur
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
 	}
@@ -62,15 +63,24 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
 	}
 
-	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
+	if _, err := qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return err
 	}
-	// different VM guests can't forward ports to the same ports on the same host
+	// Different VM guests can't forward ports to the same ports on the same host.
 	defer func() {
 		ms.qemuCfg.HostFwd1++
 		ms.qemuCfg.NetDevConfig.HostFwd2++
 		ms.qemuCfg.NetDevConfig.HostFwd3++
 	}()
 
+	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return nil
+}
+
+func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
+	if err := ms.eventSvc.SendEvent(event, cmpID, status, details); err != nil {
+		ms.logger.Warn(err.Error())
+	}
 }

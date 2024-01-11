@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
-	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -61,6 +61,7 @@ type agentService struct {
 	attestation []byte
 	sm          *StateMachine
 	runError    error
+	eventSvc    events.Service
 }
 
 const (
@@ -72,18 +73,19 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger mglog.Logger) Service {
+func New(ctx context.Context, logger mglog.Logger, eventSvc events.Service) Service {
 	svc := &agentService{
-		sm: NewStateMachine(logger),
+		sm:       NewStateMachine(logger),
+		eventSvc: eventSvc,
 	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
-	svc.sm.StateFunctions[idle] = svc.publishEvent(ctx, "idle", "agent has started")
-	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent(ctx, "run", "agent ready to receive manifests")
-	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent(ctx, "algorithms", "agent is ready to receiving algorithms")
-	svc.sm.StateFunctions[receivingData] = svc.publishEvent(ctx, "datasets", "agent is ready to receiving datasets")
-	svc.sm.StateFunctions[resultsReady] = svc.publishEvent(ctx, "results", "agent computation results are ready")
-	svc.sm.StateFunctions[complete] = svc.publishEvent(ctx, "complete", "agent results have been consumed")
+	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }
@@ -204,29 +206,29 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
-	ctx := context.Background()
-	as.publishEvent(ctx, "running", "computation run has started")()
+	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
-	var cancel context.CancelFunc
-	if as.computation.Timeout.Duration != 0 {
-		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(as.computation.Timeout.Duration))
-		defer cancel()
-	}
-	result, err := run(ctx, as.algorithms[0], as.datasets[0])
+	as.publishEvent("in-progress", json.RawMessage{})()
+	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
 		as.runError = err
+		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
+	as.publishEvent("complete", json.RawMessage{})()
 	as.result = result
 }
 
-func (as *agentService) publishEvent(ctx context.Context, subtopic, body string) func() {
+func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
 	return func() {
+		if err := as.eventSvc.SendEvent(as.sm.State.String(), as.computation.ID, status, details); err != nil {
+			as.sm.logger.Warn(err.Error())
+		}
 	}
 }
 
-func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
+func run(algoContent, dataContent []byte) ([]byte, error) {
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
@@ -255,8 +257,6 @@ func run(ctx context.Context, algoContent, dataContent []byte) ([]byte, error) {
 	}
 
 	select {
-	case <-ctx.Done():
-		return nil, errors.New("computation timed out")
 	case result = <-dataChannel:
 		return result, nil
 	case err = <-errorChannel:

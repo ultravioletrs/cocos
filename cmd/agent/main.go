@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
@@ -19,6 +18,7 @@ import (
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"golang.org/x/sync/errgroup"
@@ -37,8 +37,9 @@ const (
 var errComputationNotFound = errors.New("computation not found in command line")
 
 type config struct {
-	LogLevel   string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	InstanceID string `env:"AGENT_INSTANCE_ID"        envDefault:""`
+	LogLevel              string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
+	InstanceID            string `env:"AGENT_INSTANCE_ID"        envDefault:""`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
 }
 
 func main() {
@@ -62,13 +63,17 @@ func main() {
 		}
 	}
 
-	svc := newService(ctx, logger)
+	eventSvc := events.New(svcName, cfg.NotificationServerURL)
+	svc := newService(ctx, logger, eventSvc)
 
 	ac, err := extractComputationValue()
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
 	}
 	if _, err := svc.Run(ctx, ac); err != nil {
+		if err := eventSvc.SendEvent("init", ac.ID, "failed", json.RawMessage{}); err != nil {
+			logger.Warn(err.Error())
+		}
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
@@ -96,8 +101,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger) agent.Service {
-	svc := agent.New(ctx, logger)
+func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Service) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
@@ -129,12 +134,7 @@ func extractComputationValue() (agent.Computation, error) {
 		cmpUnescaped = cmdLine[start:]
 	}
 
-	escapedCmpStr, err := strconv.Unquote(cmpUnescaped)
-	if err != nil {
-		return agent.Computation{}, err
-	}
-
-	if err := json.Unmarshal([]byte(escapedCmpStr), &ac); err != nil {
+	if err := json.Unmarshal([]byte(cmpUnescaped), &ac); err != nil {
 		return agent.Computation{}, err
 	}
 	return ac, nil
