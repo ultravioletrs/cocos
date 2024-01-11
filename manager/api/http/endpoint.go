@@ -41,13 +41,11 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 		}
 
 		// Call the Run method on the service
-		if err := svc.Run(ctx, &mc); err != nil {
+		agAddr, err := svc.Run(ctx, &mc)
+		if err != nil {
 			return nil, err
 		}
 
-		// Create the response
-		res := runRes{}
-
-		return res, nil
+		return runRes{AgentAddress: agAddr}, nil
 	}
 }

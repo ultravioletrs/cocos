@@ -295,6 +295,8 @@ type RunResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	AgentAddress string `protobuf:"bytes,1,opt,name=agent_address,json=agentAddress,proto3" json:"agent_address,omitempty"`
 }
 
 func (x *RunResponse) Reset() {
@@ -327,6 +329,13 @@ func (x *RunResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunResponse.ProtoReflect.Descriptor instead.
 func (*RunResponse) Descriptor() ([]byte, []int) {
 	return file_manager_manager_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RunResponse) GetAgentAddress() string {
+	if x != nil {
+		return x.AgentAddress
+	}
+	return ""
 }
 
 var File_manager_manager_proto protoreflect.FileDescriptor

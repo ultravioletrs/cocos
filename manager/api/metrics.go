@@ -32,7 +32,7 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) Run(ctx context.Context, mc *manager.Computation) error {
+func (ms *metricsMiddleware) Run(ctx context.Context, mc *manager.Computation) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())

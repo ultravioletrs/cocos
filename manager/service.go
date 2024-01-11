@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
@@ -29,7 +30,7 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, c *Computation) error
+	Run(ctx context.Context, c *Computation) (string, error)
 }
 
 type managerService struct {
@@ -48,7 +49,7 @@ func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service) Serv
 	}
 }
 
-func (ms *managerService) Run(ctx context.Context, c *Computation) error {
+func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
 	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
@@ -66,17 +67,15 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) error {
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
 	if _, err := qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
-		return err
+		return "", err
 	}
 	// Different VM guests can't forward ports to the same ports on the same host.
 	defer func() {
-		ms.qemuCfg.HostFwd1++
-		ms.qemuCfg.NetDevConfig.HostFwd2++
-		ms.qemuCfg.NetDevConfig.HostFwd3++
+		ms.qemuCfg.NetDevConfig.HostFwdAgent++
 	}()
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
-	return nil
+	return fmt.Sprintf("localhost:%d", ms.qemuCfg.HostFwdAgent), nil
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
