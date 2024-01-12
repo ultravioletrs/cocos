@@ -53,6 +53,7 @@ func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service, host
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,
 		hostIP:   hostIP,
+		logger:   logger,
 	}
 }
 
