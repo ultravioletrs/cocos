@@ -6,11 +6,10 @@ After=network.target
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 
-Environment=AGENT_GRPC_HOST=10.0.0.1
 Environment=AGENT_GRPC_PORT=7002
 Environment=AGENT_LOG_LEVEL=info
 
-ExecStart=/bin/cocos-agent
+ExecStart=/bin/agent_start_script.sh
 
 [Install]
 WantedBy=default.target
