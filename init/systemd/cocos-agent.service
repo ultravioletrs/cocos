@@ -9,7 +9,7 @@ StandardError=file:/var/log/cocos/agent.stderr
 Environment=AGENT_GRPC_PORT=7002
 Environment=AGENT_LOG_LEVEL=info
 
-ExecStart=/bin/agent_start_script.sh
+ExecStart=/cocos/agent_start_script.sh
 
 [Install]
 WantedBy=default.target

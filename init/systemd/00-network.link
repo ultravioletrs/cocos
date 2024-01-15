@@ -1,6 +1,0 @@
-[Match]
-OriginalName=*
-
-[Link]
-NamePolicy=kernel
-MACAddressPolicy=persistent
