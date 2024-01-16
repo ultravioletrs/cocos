@@ -17,7 +17,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/internal/env"
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
@@ -28,18 +27,20 @@ import (
 
 const (
 	svcName        = "agent"
-	envPrefixHTTP  = "AGENT_HTTP_"
 	envPrefixGRPC  = "AGENT_GRPC_"
-	defSvcHTTPPort = "9031"
 	defSvcGRPCPort = "7002"
 )
 
 var errComputationNotFound = errors.New("computation not found in command line")
 
 type config struct {
-	LogLevel              string `env:"AGENT_LOG_LEVEL"          envDefault:"info"`
-	InstanceID            string `env:"AGENT_INSTANCE_ID"        envDefault:""`
-	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
+	LogLevel              string `json:"log_level"`
+	InstanceID            string `json:"instance_id"`
+	NotificationServerURL string `json:"notification_server_url"`
+	Host                  string `json:"host"`
+	Port                  string `json:"port"`
+	CertFile              string `json:"cert_file"`
+	KeyFile               string `json:"server_key"`
 }
 
 func main() {
@@ -47,9 +48,6 @@ func main() {
 	g, ctx := errgroup.WithContext(ctx)
 
 	var cfg config
-	if err := env.Parse(&cfg); err != nil {
-		log.Fatalf("failed to load %s configuration : %s", svcName, err)
-	}
 
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
@@ -77,11 +75,10 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
-	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
-	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Printf("failed to load %s gRPC server configuration : %s", svcName, err.Error())
-		return
+	grpcServerConfig := server.Config{
+		Port: defSvcGRPCPort,
 	}
+
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
 		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
