@@ -5,14 +5,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
+	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
@@ -20,6 +19,7 @@ import (
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
+	"github.com/ultravioletrs/cocos/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -27,56 +27,45 @@ import (
 
 const (
 	svcName        = "agent"
-	envPrefixGRPC  = "AGENT_GRPC_"
 	defSvcGRPCPort = "7002"
 )
-
-var errComputationNotFound = errors.New("computation not found in command line")
-
-type config struct {
-	LogLevel              string `json:"log_level"`
-	InstanceID            string `json:"instance_id"`
-	NotificationServerURL string `json:"notification_server_url"`
-	Host                  string `json:"host"`
-	Port                  string `json:"port"`
-	CertFile              string `json:"cert_file"`
-	KeyFile               string `json:"server_key"`
-}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
-	var cfg config
+	cfg, err := readConfig()
+	if err != nil {
+		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
+	}
 
-	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
+	logger, err := mglog.New(os.Stdout, cfg.AgentConfig.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	if cfg.InstanceID == "" {
-		cfg.InstanceID, err = uuid.New().ID()
+	if cfg.AgentConfig.InstanceID == "" {
+		cfg.AgentConfig.InstanceID, err = uuid.New().ID()
 		if err != nil {
 			log.Fatalf("Failed to generate instanceID: %s", err)
 		}
 	}
 
-	eventSvc := events.New(svcName, cfg.NotificationServerURL)
+	eventSvc := events.New(svcName, cfg.AgentConfig.NotificationServerURL)
 	svc := newService(ctx, logger, eventSvc)
 
-	ac, err := extractComputationValue()
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("computation not loaded from cmdline : %s", err.Error()))
-	}
-	if _, err := svc.Run(ctx, ac); err != nil {
-		if err := eventSvc.SendEvent("init", ac.ID, "failed", json.RawMessage{}); err != nil {
+	if _, err := svc.Run(ctx, cfg); err != nil {
+		if err := eventSvc.SendEvent("init", cfg.ID, "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
 	}
 
 	grpcServerConfig := server.Config{
-		Port: defSvcGRPCPort,
+		Port:     cfg.AgentConfig.Port,
+		Host:     cfg.AgentConfig.Host,
+		CertFile: cfg.AgentConfig.CertFile,
+		KeyFile:  cfg.AgentConfig.KeyFile,
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
@@ -108,30 +97,24 @@ func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Servic
 	return svc
 }
 
-// extractComputationValue to extract computation value from the command line.
-func extractComputationValue() (agent.Computation, error) {
-	cmdLineBytes, err := os.ReadFile("/proc/cmdline")
+func readConfig() (agent.Computation, error) {
+	conn, err := vsock.Dial(vsock.Host, manager.ManagerPort, nil)
 	if err != nil {
 		return agent.Computation{}, err
 	}
-	cmdLine := string(cmdLineBytes)
-	paramPrefix := "computation="
-	index := strings.Index(string(cmdLine), paramPrefix)
-
-	if index == -1 {
-		return agent.Computation{}, errComputationNotFound
+	defer conn.Close()
+	b := make([]byte, 1024)
+	n, err := conn.Read(b)
+	if err != nil {
+		return agent.Computation{}, err
 	}
-
-	start := index + len(paramPrefix)
-	end := strings.Index(cmdLine[start:], " ")
-
-	cmpUnescaped := cmdLine[start : start+end]
-	var ac agent.Computation
-	if end == -1 {
-		cmpUnescaped = cmdLine[start:]
+	ac := agent.Computation{
+		AgentConfig: agent.AgentConfig{
+			LogLevel: "info",
+			Port:     defSvcGRPCPort,
+		},
 	}
-
-	if err := json.Unmarshal([]byte(cmpUnescaped), &ac); err != nil {
+	if err := json.Unmarshal(b[:n], &ac); err != nil {
 		return agent.Computation{}, err
 	}
 	return ac, nil

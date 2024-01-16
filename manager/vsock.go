@@ -1,19 +1,28 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package manager
 
-import "github.com/mdlayher/vsock"
+import (
+	"encoding/json"
 
-type sockService struct {
-	listener *vsock.Listener
-}
+	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/agent"
+)
 
-func NewVsock(cid int) (*sockService, error) {
-	listener, err := vsock.Listen(3, nil)
+const ManagerPort uint32 = 9999
+
+func SendAgentConfig(cid uint32, ac agent.Computation) error {
+	conn, err := vsock.Dial(cid, ManagerPort, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &sockService{listener: listener}, nil
+	defer conn.Close()
+	payload, err := json.Marshal(ac)
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Write(payload); err != nil {
+		return err
+	}
+	return nil
 }
-
-func (s *sockService) SendComputation() {}
-
-func (s *sockService) Close() {}
