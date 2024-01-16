@@ -9,6 +9,7 @@ require (
 	github.com/go-kit/kit v0.13.0
 	github.com/go-zoo/bone v1.3.0
 	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/mdlayher/vsock v1.2.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
@@ -38,6 +39,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
