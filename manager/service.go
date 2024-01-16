@@ -80,7 +80,7 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 	ms.qemuCfg.HostFwdAgent = agentPort
 
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
-	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
