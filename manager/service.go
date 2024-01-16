@@ -64,6 +64,15 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
+		AgentConfig: agent.AgentConfig{
+			Port:                  c.AgentConfig.Port,
+			Host:                  c.AgentConfig.Host,
+			KeyFile:               c.AgentConfig.KeyFile,
+			CertFile:              c.AgentConfig.CertFile,
+			LogLevel:              c.AgentConfig.LogLevel,
+			InstanceID:            c.AgentConfig.InstanceId,
+			NotificationServerURL: c.AgentConfig.NotificationsUrl,
+		},
 	}
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
