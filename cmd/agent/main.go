@@ -98,7 +98,12 @@ func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Servic
 }
 
 func readConfig() (agent.Computation, error) {
-	conn, err := vsock.Dial(vsock.Host, manager.ManagerPort, nil)
+	l, err := vsock.Listen(manager.ManagerPort, nil)
+	if err != nil {
+		return agent.Computation{}, err
+	}
+	defer l.Close()
+	conn, err := l.Accept()
 	if err != nil {
 		return agent.Computation{}, err
 	}
