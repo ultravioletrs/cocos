@@ -17,12 +17,13 @@ message RunRequest {
 
 message Computation {
   string id = 1;
-  string name = 2;
-  string description = 3;
-  repeated Dataset datasets = 4;
-  repeated Algorithm algorithms = 5;
-  repeated string result_consumers = 6;
-  AgentConfig agent_config = 7;
+  string key = 2;
+  string name = 3;
+  string description = 4;
+  repeated Dataset datasets = 5;
+  repeated Algorithm algorithms = 6;
+  repeated string result_consumers = 7;
+  AgentConfig agent_config = 8;
 }
 
 message Dataset {
