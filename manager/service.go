@@ -66,6 +66,7 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 	ms.publishEvent("vm-provision", c.Id, c.Key, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
+		Key:             c.Key,
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
