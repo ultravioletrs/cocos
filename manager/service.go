@@ -63,7 +63,7 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, host
 }
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
-	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
+	ms.publishEvent("vm-provision", c.Id, c.Key, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
 		Name:            c.Name,
@@ -87,14 +87,14 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 
 	agentPort, err := getFreePort()
 	if err != nil {
-		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		ms.publishEvent("vm-provision", c.Id, c.Key, "failed", json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
 
-	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
+	ms.publishEvent("vm-provision", c.Id, c.Key, "in-progress", json.RawMessage{})
 	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
-		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		ms.publishEvent("vm-provision", c.Id, c.Key, "failed", json.RawMessage{})
 		return "", err
 	}
 
@@ -108,7 +108,7 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 	}
 	ms.qemuCfg.VSockConfig.GuestCID++
 
-	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
+	ms.publishEvent("vm-provision", c.Id, c.Key, "complete", json.RawMessage{})
 	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
 }
 
@@ -129,8 +129,8 @@ func getFreePort() (int, error) {
 	return port, nil
 }
 
-func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
-	if err := ms.eventSvc.SendEvent(event, cmpID, status, details); err != nil {
+func (ms *managerService) publishEvent(event, cmpID, cmpKey, status string, details json.RawMessage) {
+	if err := ms.eventSvc.SendEvent(event, cmpID, cmpKey, status, details); err != nil {
 		ms.logger.Warn(err.Error())
 	}
 }

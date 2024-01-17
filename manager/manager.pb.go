@@ -77,6 +77,7 @@ type Computation struct {
 
 	Id              string       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name            string       `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Key 			string 		 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
 	Description     string       `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Datasets        []*Dataset   `protobuf:"bytes,4,rep,name=datasets,proto3" json:"datasets,omitempty"`
 	Algorithms      []*Algorithm `protobuf:"bytes,5,rep,name=algorithms,proto3" json:"algorithms,omitempty"`

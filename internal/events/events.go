@@ -28,8 +28,8 @@ type Event struct {
 }
 
 type Service interface {
-	SendEvent(event, computationId, status string, details json.RawMessage) error
-	SendRaw(body []byte) error
+	SendEvent(event, computationId, computationKey, status string, details json.RawMessage) error
+	SendRaw(body []byte, headers map[string]string) error
 }
 
 func New(svc, serverUrl string) Service {
@@ -39,7 +39,7 @@ func New(svc, serverUrl string) Service {
 	}
 }
 
-func (s *service) SendEvent(event, computationId, status string, details json.RawMessage) error {
+func (s *service) SendEvent(event, computationId, computationKey, status string, details json.RawMessage) error {
 	body := Event{
 		EventType:     event,
 		Timestamp:     time.Now(),
@@ -48,19 +48,28 @@ func (s *service) SendEvent(event, computationId, status string, details json.Ra
 		Status:        status,
 		Details:       details,
 	}
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+	headers["Authorization"] = computationKey
+
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
-	return s.SendRaw(jsonBody)
+	return s.SendRaw(jsonBody, headers)
 }
 
-func (s *service) SendRaw(body []byte) error {
+func (s *service) SendRaw(body []byte, headers map[string]string) error {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/computations/events", s.serverUrl), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
