@@ -11,13 +11,13 @@ jobs:
 
     steps:
     - name: Checkout cocos
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: 'ultravioletrs/cocos'
         path: cocos
 
     - name: Checkout buildroot
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: 'buildroot/buildroot'
         path: buildroot
@@ -30,7 +30,7 @@ jobs:
 
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: actions/create-release@latest
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -41,7 +41,7 @@ jobs:
 
     - name: Upload Release Asset
       id: upload-release-kernel
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-release-asset@latest
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -52,7 +52,7 @@ jobs:
 
     - name: Upload Release Asset
       id: upload-release-rootfs
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-release-asset@latest
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
