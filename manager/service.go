@@ -94,6 +94,11 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		return "", err
 	}
 
+	if err := SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac); err != nil {
+		return "", err
+	}
+	ms.qemuCfg.VSockConfig.GuestCID++
+
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
 }
