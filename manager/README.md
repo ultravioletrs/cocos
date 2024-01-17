@@ -47,17 +47,6 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-#### Add V-sock
-The necessary kernel modules must be loaded on the hypervisor.
-```shell
-sudo modprobe vhost_vsock
-ls -l /dev/vhost-vsock
-# crw-rw-rw- 1 root kvm 10, 241 Jan 16 12:05 /dev/vhost-vsock
-ls -l /dev/vsock
-# crw-rw-rw- 1 root root 10, 121 Jan 16 12:05 /dev/vsock
-```
-
-
 ### Prepare Cocos HAL
 
 Cocos HAL for Linux is framework for building custom in-enclave Linux distribution. Use the instructions in [Readme](https://github.com/ultravioletrs/cocos/blob/main/hal/linux/README.md).
@@ -89,9 +78,8 @@ qemu-system-x86_64 \
     -drive if=pflash,format=raw,unit=0,file=$OVMF_CODE,readonly=on \
     -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 \
     -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= \
-    -device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3 -vnc :0 \
     -kernel $KERNEL \
-    -append "earlyprintk=serial console=ttyS0" \
+    -append "earlyprintk=serial console=ttyS0 computation={\"id\":\"c0d15c5e-e37d-4426-b3b7-b432c966fb09\",\"name\":\"Sample_Computation\",\"description\":\"A_sample_computation\",\"datasets\":[{\"provider\":\"Provider1\",\"id\":\"Dataset1\"},{\"provider\":\"Provider2\",\"id\":\"Dataset2\"}],\"algorithms\":[{\"provider\":\"AlgorithmProvider1\",\"id\":\"Algorithm1\"}],\"result_consumers\":[\"Consumer1\"], \"timeout\":\"10m\"}" \
     -initrd $INITRD \
     -nographic \
     -monitor pty \
