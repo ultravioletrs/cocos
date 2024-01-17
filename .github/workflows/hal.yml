@@ -15,6 +15,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: 'ultravioletrs/cocos'
+        ref: ${{ github.ref }}
         path: cocos
 
     - name: Checkout buildroot
