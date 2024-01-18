@@ -19,8 +19,7 @@ jobs:
     - name: Checkout cocos
       uses: actions/checkout@v4
       with:
-        repository: 'sammyoina/cocos-ai'
-        ref: ${{ github.ref }}
+        repository: 'ultravioletrs/cocos'
         path: cocos
 
     - name: Checkout buildroot
