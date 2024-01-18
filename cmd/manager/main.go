@@ -96,7 +96,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("failed to start agent events service: %s", err))
 	}
-	go agEvents.Foward()
+	go agEvents.Forward()
 
 	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
 

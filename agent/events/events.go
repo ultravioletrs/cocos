@@ -4,14 +4,11 @@ package events
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/mdlayher/vsock"
 	agentevents "github.com/ultravioletrs/cocos/manager/agentEvents"
 )
-
-var errFailedToCreateNotification = errors.New("failed to create notification on server")
 
 type service struct {
 	service       string

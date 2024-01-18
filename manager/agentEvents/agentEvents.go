@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package agentevents
 
 import (
@@ -31,7 +33,7 @@ func New(eventServerUrl string, logger mglog.Logger) (*service, error) {
 	}, nil
 }
 
-func (s *service) Foward() {
+func (s *service) Forward() {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
