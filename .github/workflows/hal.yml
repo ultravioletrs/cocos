@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Update Ubuntu
+      run: |
+        sudo apt-get update
+        sudo apt-get upgrade -y
+
     - name: Checkout cocos
       uses: actions/checkout@v4
       with:
