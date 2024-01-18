@@ -3,6 +3,7 @@
 package agentevents
 
 import (
+	"context"
 	"net"
 
 	mglog "github.com/absmach/magistrala/logger"
@@ -21,7 +22,11 @@ type service struct {
 	logger   mglog.Logger
 }
 
-func New(eventServerUrl string, logger mglog.Logger) (*service, error) {
+type Service interface {
+	Forward(ctx context.Context, errChan chan<- error)
+}
+
+func New(eventServerUrl string) (Service, error) {
 	l, err := vsock.Listen(VsockEventsPort, nil)
 	if err != nil {
 		return nil, err
@@ -29,30 +34,30 @@ func New(eventServerUrl string, logger mglog.Logger) (*service, error) {
 	return &service{
 		svc:      events.New(svc, eventServerUrl),
 		listener: l,
-		logger:   logger,
 	}, nil
 }
 
-func (s *service) Forward() {
+func (s *service) Forward(ctx context.Context, errChan chan<- error) {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			s.logger.Warn(err.Error())
+			errChan <- err
 			continue
 		}
-		go s.handleConnections(conn)
+		go s.handleConnections(conn, errChan)
 	}
 }
 
-func (s *service) handleConnections(conn net.Conn) error {
+func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 	defer conn.Close()
 	b := make([]byte, 1024)
 	n, err := conn.Read(b)
 	if err != nil {
-		return err
+		errCh <- err
+		return
 	}
 	if err := s.svc.SendRaw(b[:n]); err != nil {
-		return err
+		errCh <- err
+		return
 	}
-	return nil
 }
