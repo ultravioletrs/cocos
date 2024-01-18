@@ -6,7 +6,6 @@ import (
 	"context"
 	"net"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/internal/events"
 )
@@ -19,7 +18,6 @@ const (
 type service struct {
 	svc      events.Service
 	listener *vsock.Listener
-	logger   mglog.Logger
 }
 
 type Service interface {
