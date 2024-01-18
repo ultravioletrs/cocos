@@ -14,7 +14,7 @@ import (
 	"slices"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos/internal/events"
+	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -222,7 +222,7 @@ func (as *agentService) runComputation() {
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
 	return func() {
-		if err := as.eventSvc.SendEvent(as.sm.State.String(), as.computation.ID, status, details); err != nil {
+		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

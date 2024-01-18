@@ -20,6 +20,7 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/cocos/internal/server/http"
 	"github.com/ultravioletrs/cocos/manager"
+	agentevents "github.com/ultravioletrs/cocos/manager/agentEvents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/cocos/manager/api/http"
@@ -90,6 +91,12 @@ func main() {
 		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+
+	agEvents, err := agentevents.New(cfg.NotificationServerURL, logger)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("failed to start agent events service: %s", err))
+	}
+	go agEvents.Foward()
 
 	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
 

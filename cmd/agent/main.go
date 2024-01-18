@@ -15,8 +15,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
@@ -51,11 +51,14 @@ func main() {
 		}
 	}
 
-	eventSvc := events.New(svcName, cfg.AgentConfig.NotificationServerURL)
+	eventSvc, err := events.New(svcName, cfg.ID)
+	if err != nil {
+		log.Fatalf("failed to create events service %s", err.Error())
+	}
 	svc := newService(ctx, logger, eventSvc)
 
 	if _, err := svc.Run(ctx, cfg); err != nil {
-		if err := eventSvc.SendEvent("init", cfg.ID, "failed", json.RawMessage{}); err != nil {
+		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}
 		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
@@ -98,7 +101,7 @@ func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Servic
 }
 
 func readConfig() (agent.Computation, error) {
-	l, err := vsock.Listen(manager.ManagerPort, nil)
+	l, err := vsock.Listen(manager.VsockConfigPort, nil)
 	if err != nil {
 		return agent.Computation{}, err
 	}

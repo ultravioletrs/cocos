@@ -9,10 +9,10 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 )
 
-const ManagerPort uint32 = 9999
+const VsockConfigPort uint32 = 9999
 
 func SendAgentConfig(cid uint32, ac agent.Computation) error {
-	conn, err := vsock.Dial(cid, ManagerPort, nil)
+	conn, err := vsock.Dial(cid, VsockConfigPort, nil)
 	if err != nil {
 		return err
 	}
