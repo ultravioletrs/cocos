@@ -43,18 +43,22 @@ type managerService struct {
 	logger   mglog.Logger
 	eventSvc events.Service
 	hostIP   string
+	agents   map[int]string // agent map of vsock cid to computationID.
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
 func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service, hostIP string) Service {
-	return &managerService{
+	ms := &managerService{
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,
 		hostIP:   hostIP,
 		logger:   logger,
+		agents:   make(map[int]string),
 	}
+	go ms.retrieveAgentLogs()
+	return ms
 }
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
@@ -92,6 +96,8 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
+
+	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
 
 	if err := SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac); err != nil {
 		return "", err

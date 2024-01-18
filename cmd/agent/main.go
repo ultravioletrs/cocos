@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
@@ -39,7 +38,12 @@ func main() {
 		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
 	}
 
-	logger, err := mglog.New(os.Stdout, cfg.AgentConfig.LogLevel)
+	conn, err := vsock.Dial(vsock.Host, manager.VsockLogsPort, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+	logger, err := mglog.New(conn, cfg.AgentConfig.LogLevel)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
