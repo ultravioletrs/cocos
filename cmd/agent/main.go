@@ -45,19 +45,22 @@ func main() {
 	defer conn.Close()
 	logger, err := mglog.New(conn, cfg.AgentConfig.LogLevel)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Print(err.Error())
+		return
 	}
 
 	if cfg.AgentConfig.InstanceID == "" {
 		cfg.AgentConfig.InstanceID, err = uuid.New().ID()
 		if err != nil {
-			log.Fatalf("Failed to generate instanceID: %s", err)
+			log.Printf("Failed to generate instanceID: %s", err)
+			return
 		}
 	}
 
 	eventSvc, err := events.New(svcName, cfg.ID)
 	if err != nil {
-		log.Fatalf("failed to create events service %s", err.Error())
+		log.Printf("failed to create events service %s", err.Error())
+		return
 	}
 	svc := newService(ctx, logger, eventSvc)
 
@@ -65,7 +68,8 @@ func main() {
 		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}
-		logger.Fatal(fmt.Sprintf("failed to run computation with err: %s", err))
+		logger.Error(fmt.Sprintf("failed to run computation with err: %s", err))
+		return
 	}
 
 	grpcServerConfig := server.Config{
