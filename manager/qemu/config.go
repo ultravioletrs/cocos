@@ -4,6 +4,7 @@ package qemu
 
 import (
 	"fmt"
+	"strconv"
 )
 
 type MemoryConfig struct {
@@ -146,11 +147,13 @@ func constructQemuArgs(config Config) []string {
 			config.VirtioScsiPciConfig.DisableLegacy,
 			config.VirtioScsiPciConfig.IOMMUPlatform))
 
-	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d -vnc :%d", config.VSockConfig.ID, config.VSockConfig.GuestCID, config.VSockConfig.vnc))
+	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
+
+	args = append(args, "-vnc", fmt.Sprintf(":%d", config.vnc))
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
-	args = append(args, "-append", `"earlyprintk=serial console=ttyS0"`)
+	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
 
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
