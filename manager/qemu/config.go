@@ -150,7 +150,7 @@ func constructQemuArgs(config Config) []string {
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
-	args = append(args, "-append", "earlyprintk=serial console=ttyS0")
+	args = append(args, "-append", `"earlyprintk=serial console=ttyS0"`)
 
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 

@@ -12,7 +12,7 @@ import (
 	"github.com/mdlayher/vsock"
 )
 
-const VsockLogsPort = 997
+const VsockLogsPort = 9997
 
 var errFailedToParseCID = errors.New("failed to parse cid from remote address")
 

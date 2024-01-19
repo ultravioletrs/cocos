@@ -11,6 +11,7 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -68,14 +69,17 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
-		AgentConfig: agent.AgentConfig{
+		AgentConfig:     agent.AgentConfig{},
+	}
+	if c.AgentConfig != nil {
+		ac.AgentConfig = agent.AgentConfig{
 			Port:       c.AgentConfig.Port,
 			Host:       c.AgentConfig.Host,
 			KeyFile:    c.AgentConfig.KeyFile,
 			CertFile:   c.AgentConfig.CertFile,
 			LogLevel:   c.AgentConfig.LogLevel,
 			InstanceID: c.AgentConfig.InstanceId,
-		},
+		}
 	}
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
@@ -99,7 +103,10 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 
 	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
 
-	if err := SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac); err != nil {
+	err = backoff.Retry(func() error {
+		return SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac)
+	}, backoff.NewExponentialBackOff())
+	if err != nil {
 		return "", err
 	}
 	ms.qemuCfg.VSockConfig.GuestCID++
