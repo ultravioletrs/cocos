@@ -4,13 +4,10 @@ package qemu
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os/exec"
-	"strconv"
 
 	"github.com/gofrs/uuid"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 )
 
@@ -21,7 +18,7 @@ const (
 	rootfsFile   = "rootfs.cpio"
 )
 
-func CreateVM(ctx context.Context, cfg Config, ac agent.Computation) (*exec.Cmd, error) {
+func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	// Create unique emu device identifiers.
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -58,7 +55,7 @@ func CreateVM(ctx context.Context, cfg Config, ac agent.Computation) (*exec.Cmd,
 	}
 	qemuCfg.DiskImgConfig.RootFsFile = dstFile
 
-	exe, args, err := ExecutableAndArgs(qemuCfg, ac)
+	exe, args, err := ExecutableAndArgs(qemuCfg)
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
@@ -70,18 +67,13 @@ func CreateVM(ctx context.Context, cfg Config, ac agent.Computation) (*exec.Cmd,
 	return cmd, nil
 }
 
-func ExecutableAndArgs(cfg Config, ac agent.Computation) (string, []string, error) {
+func ExecutableAndArgs(cfg Config) (string, []string, error) {
 	exe, err := exec.LookPath(qemuRelPath)
 	if err != nil {
 		return "", nil, err
 	}
 
-	cmpBytes, err := json.Marshal(ac)
-	if err != nil {
-		return "", nil, err
-	}
-
-	args := constructQemuArgs(cfg, strconv.Quote(string(cmpBytes)))
+	args := constructQemuArgs(cfg)
 
 	if cfg.UseSudo {
 		args = append([]string{exe}, args...)

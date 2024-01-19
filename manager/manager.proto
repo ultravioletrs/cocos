@@ -22,6 +22,7 @@ message Computation {
   repeated Dataset datasets = 4;
   repeated Algorithm algorithms = 5;
   repeated string result_consumers = 6;
+  AgentConfig agent_config = 7;
 }
 
 message Dataset {
@@ -36,4 +37,14 @@ message Algorithm {
 
 message RunResponse {
   string agent_address = 1;
+}
+
+message AgentConfig {
+  string port = 1;
+  string host = 2;
+  string cert_file = 3;
+  string key_file = 4;
+  string log_level = 5;
+  string notifications_url = 6;
+  string instance_id = 7;
 }

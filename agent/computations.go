@@ -13,13 +13,24 @@ var (
 	_ fmt.Stringer = (*Algorithms)(nil)
 )
 
+type AgentConfig struct {
+	LogLevel              string `json:"log_level"`
+	InstanceID            string `json:"instance_id"`
+	NotificationServerURL string `json:"notification_server_url"`
+	Host                  string `json:"host"`
+	Port                  string `json:"port"`
+	CertFile              string `json:"cert_file"`
+	KeyFile               string `json:"server_key"`
+}
+
 type Computation struct {
-	ID              string     `json:"id,omitempty"`
-	Name            string     `json:"name,omitempty"`
-	Description     string     `json:"description,omitempty"`
-	Datasets        Datasets   `json:"datasets,omitempty"`
-	Algorithms      Algorithms `json:"algorithms,omitempty"`
-	ResultConsumers []string   `json:"result_consumers,omitempty"`
+	ID              string      `json:"id,omitempty"`
+	Name            string      `json:"name,omitempty"`
+	Description     string      `json:"description,omitempty"`
+	Datasets        Datasets    `json:"datasets,omitempty"`
+	Algorithms      Algorithms  `json:"algorithms,omitempty"`
+	ResultConsumers []string    `json:"result_consumers,omitempty"`
+	AgentConfig     AgentConfig `json:"agent_config,omitempty"`
 }
 
 func (d *Datasets) String() string {

@@ -56,6 +56,12 @@ type SevConfig struct {
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
 }
 
+type VSockConfig struct {
+	ID       string `env:"VSOCK_ID"        envDefault:"vhost-vsock-pci0"`
+	GuestCID int    `env:"VSOCK_GUEST_CID" envDefault:"3"`
+	vnc      int    `env:"VSOCK_VNC"       envDefault:"0"`
+}
+
 type Config struct {
 	TmpFileLoc string `env:"TMP_FILE_LOC" envDefault:"tmp"`
 	UseSudo    bool   `env:"USE_SUDO" envDefault:"false"`
@@ -78,6 +84,9 @@ type Config struct {
 	NetDevConfig
 	VirtioNetPciConfig
 
+	// Vsock
+	VSockConfig
+
 	// disk
 	VirtioScsiPciConfig
 	DiskImgConfig
@@ -90,7 +99,7 @@ type Config struct {
 	Monitor   string `env:"MONITOR" envDefault:"pty"`
 }
 
-func constructQemuArgs(config Config, computation string) []string {
+func constructQemuArgs(config Config) []string {
 	args := []string{}
 
 	// virtualization
@@ -137,9 +146,11 @@ func constructQemuArgs(config Config, computation string) []string {
 			config.VirtioScsiPciConfig.DisableLegacy,
 			config.VirtioScsiPciConfig.IOMMUPlatform))
 
+	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d -vnc :%d", config.VSockConfig.ID, config.VSockConfig.GuestCID, config.VSockConfig.vnc))
+
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 
-	args = append(args, "-append", fmt.Sprintf("earlyprintk=serial console=ttyS0 computation=%s", computation))
+	args = append(args, "-append", "earlyprintk=serial console=ttyS0")
 
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 

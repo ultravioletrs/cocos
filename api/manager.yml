@@ -108,9 +108,23 @@ components:
                     type: array
                     items:
                       type: string
-                  timeout:
-                    type: string
-                    example: "2s"
+                  agent_config:
+                    type: object
+                    properties:
+                      log_level:
+                        type: string
+                      instance_id:
+                        type: string
+                      notification_server_url:
+                        type: string
+                      host:
+                        type: string
+                      port:
+                        type: string
+                      cert_file:
+                        type: string
+                      key_file:
+                        type: string
 
   responses:
     ServiceError:

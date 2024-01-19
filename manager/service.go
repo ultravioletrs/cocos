@@ -64,6 +64,15 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
+		AgentConfig: agent.AgentConfig{
+			Port:                  c.AgentConfig.Port,
+			Host:                  c.AgentConfig.Host,
+			KeyFile:               c.AgentConfig.KeyFile,
+			CertFile:              c.AgentConfig.CertFile,
+			LogLevel:              c.AgentConfig.LogLevel,
+			InstanceID:            c.AgentConfig.InstanceId,
+			NotificationServerURL: c.AgentConfig.NotificationsUrl,
+		},
 	}
 	for _, algo := range c.Algorithms {
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
@@ -80,10 +89,15 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 	ms.qemuCfg.HostFwdAgent = agentPort
 
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
-	if _, err = qemu.CreateVM(ctx, ms.qemuCfg, ac); err != nil {
+	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
+
+	if err := SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac); err != nil {
+		return "", err
+	}
+	ms.qemuCfg.VSockConfig.GuestCID++
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
