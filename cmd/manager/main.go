@@ -20,7 +20,7 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/cocos/internal/server/http"
 	"github.com/ultravioletrs/cocos/manager"
-	agentevents "github.com/ultravioletrs/cocos/manager/agentEvents"
+	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/cocos/manager/api/http"

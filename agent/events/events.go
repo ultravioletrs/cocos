@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mdlayher/vsock"
-	agentevents "github.com/ultravioletrs/cocos/manager/agentEvents"
+	"github.com/ultravioletrs/cocos/manager/agentevents"
 )
 
 type service struct {
