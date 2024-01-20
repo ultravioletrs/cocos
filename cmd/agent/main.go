@@ -125,13 +125,16 @@ func readConfig() (agent.Computation, error) {
 		return agent.Computation{}, err
 	}
 	ac := agent.Computation{
-		AgentConfig: agent.AgentConfig{
-			LogLevel: "info",
-			Port:     defSvcGRPCPort,
-		},
+		AgentConfig: agent.AgentConfig{},
 	}
 	if err := json.Unmarshal(b[:n], &ac); err != nil {
 		return agent.Computation{}, err
+	}
+	if ac.AgentConfig.LogLevel == "" {
+		ac.AgentConfig.LogLevel = "info"
+	}
+	if ac.AgentConfig.Port == "" {
+		ac.AgentConfig.Port = defSvcGRPCPort
 	}
 	return ac, nil
 }
