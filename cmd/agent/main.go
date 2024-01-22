@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
@@ -98,7 +99,7 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger mglog.Logger, eventSvc events.Service) agent.Service {
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service) agent.Service {
 	svc := agent.New(ctx, logger, eventSvc)
 
 	svc = api.LoggingMiddleware(svc, logger)

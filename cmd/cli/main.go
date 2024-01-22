@@ -39,12 +39,14 @@ func main() {
 
 	agentGRPCConfig := grpc.Config{}
 	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		return
 	}
 
 	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
 	if err != nil {
-		logger.Fatal(err.Error())
+		logger.Error(err.Error())
+		return
 	}
 	defer agentGRPCClient.Close()
 

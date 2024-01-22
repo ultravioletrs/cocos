@@ -6,10 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
@@ -41,7 +41,7 @@ type Service interface {
 
 type managerService struct {
 	qemuCfg  qemu.Config
-	logger   mglog.Logger
+	logger   *slog.Logger
 	eventSvc events.Service
 	hostIP   string
 	agents   map[int]string // agent map of vsock cid to computationID.
@@ -50,7 +50,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service, hostIP string) Service {
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, hostIP string) Service {
 	ms := &managerService{
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,

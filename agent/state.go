@@ -5,9 +5,8 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
-
-	mglog "github.com/absmach/magistrala/logger"
 )
 
 //go:generate stringer -type=state
@@ -41,11 +40,11 @@ type StateMachine struct {
 	EventChan      chan event
 	Transitions    map[state]map[event]state
 	StateFunctions map[state]func()
-	logger         mglog.Logger
+	logger         *slog.Logger
 }
 
 // NewStateMachine creates a new StateMachine.
-func NewStateMachine(logger mglog.Logger) *StateMachine {
+func NewStateMachine(logger *slog.Logger) *StateMachine {
 	sm := &StateMachine{
 		State:          idle,
 		EventChan:      make(chan event),
