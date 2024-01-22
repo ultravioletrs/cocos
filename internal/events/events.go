@@ -18,8 +18,18 @@ type service struct {
 	serverUrl string
 }
 
+type Event struct {
+	EventType     string          `json:"event_type"`
+	Timestamp     time.Time       `json:"timestamp"`
+	ComputationID string          `json:"computation_id,omitempty"`
+	Details       json.RawMessage `json:"details,omitempty"`
+	Originator    string          `json:"originator"`
+	Status        string          `json:"status,omitempty"`
+}
+
 type Service interface {
 	SendEvent(event, computationId, status string, details json.RawMessage) error
+	SendRaw(body []byte) error
 }
 
 func New(svc, serverUrl string) Service {
@@ -30,14 +40,7 @@ func New(svc, serverUrl string) Service {
 }
 
 func (s *service) SendEvent(event, computationId, status string, details json.RawMessage) error {
-	body := struct {
-		EventType     string          `json:"event_type"`
-		Timestamp     time.Time       `json:"timestamp"`
-		ComputationID string          `json:"computation_id,omitempty"`
-		Details       json.RawMessage `json:"details,omitempty"`
-		Originator    string          `json:"originator"`
-		Status        string          `json:"status,omitempty"`
-	}{
+	body := Event{
 		EventType:     event,
 		Timestamp:     time.Now(),
 		ComputationID: computationId,
@@ -49,7 +52,11 @@ func (s *service) SendEvent(event, computationId, status string, details json.Ra
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/computations/events", s.serverUrl), bytes.NewReader(jsonBody))
+	return s.SendRaw(jsonBody)
+}
+
+func (s *service) SendRaw(body []byte) error {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/computations/events", s.serverUrl), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

@@ -14,13 +14,12 @@ var (
 )
 
 type AgentConfig struct {
-	LogLevel              string `json:"log_level"`
-	InstanceID            string `json:"instance_id"`
-	NotificationServerURL string `json:"notification_server_url"`
-	Host                  string `json:"host"`
-	Port                  string `json:"port"`
-	CertFile              string `json:"cert_file"`
-	KeyFile               string `json:"server_key"`
+	LogLevel   string `json:"log_level"`
+	InstanceID string `json:"instance_id"`
+	Host       string `json:"host"`
+	Port       string `json:"port"`
+	CertFile   string `json:"cert_file"`
+	KeyFile    string `json:"server_key"`
 }
 
 type Computation struct {

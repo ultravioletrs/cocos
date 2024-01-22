@@ -23,5 +23,5 @@ func (res runRes) Headers() map[string]string {
 }
 
 func (res runRes) Empty() bool {
-	return true
+	return false
 }

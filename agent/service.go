@@ -10,11 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"slices"
 
-	mglog "github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos/internal/events"
+	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
@@ -73,7 +73,7 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger mglog.Logger, eventSvc events.Service) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service) Service {
 	svc := &agentService{
 		sm:       NewStateMachine(logger),
 		eventSvc: eventSvc,
@@ -222,7 +222,7 @@ func (as *agentService) runComputation() {
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
 	return func() {
-		if err := as.eventSvc.SendEvent(as.sm.State.String(), as.computation.ID, status, details); err != nil {
+		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

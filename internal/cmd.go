@@ -67,8 +67,7 @@ func RunCmdOutput(command string, args ...string) (string, error) {
 func RunCmdStart(command string, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(command, args...)
 
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting command '%s': %s", cmd.String(), err)
 	}
 

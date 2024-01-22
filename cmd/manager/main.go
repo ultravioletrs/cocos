@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -20,6 +21,7 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/cocos/internal/server/http"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/cocos/manager/api/http"
@@ -66,7 +68,8 @@ func main() {
 	if cfg.InstanceID == "" {
 		cfg.InstanceID, err = uuid.New().ID()
 		if err != nil {
-			logger.Fatal(fmt.Sprintf("Failed to generate instance ID: %s", err))
+			logger.Error(fmt.Sprintf("Failed to generate instance ID: %s", err))
+			return
 		}
 	}
 
@@ -83,19 +86,35 @@ func main() {
 
 	qemuCfg := qemu.Config{}
 	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load QEMU configuration: %s", err))
+		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
+		return
 	}
 	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
+		logger.Error(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
+		return
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+
+	agEvents, err := agentevents.New(cfg.NotificationServerURL)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to start agent events service: %s", err))
+		return
+	}
+	errChan := make(chan error)
+	go agEvents.Forward(ctx, errChan)
+	go func() {
+		for err := range errChan {
+			logger.Warn(err.Error())
+		}
+	}()
 
 	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
 	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
-		logger.Fatal(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
+		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
+		return
 	}
 	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
@@ -132,7 +151,7 @@ func main() {
 	}
 }
 
-func newService(logger mglog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventSvc events.Service, cfg config) manager.Service {
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventSvc events.Service, cfg config) manager.Service {
 	svc := manager.New(qemuCfg, logger, eventSvc, cfg.HostIP)
 
 	svc = api.LoggingMiddleware(svc, logger)

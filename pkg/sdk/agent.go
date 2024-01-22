@@ -4,8 +4,8 @@ package sdk
 
 import (
 	"context"
+	"log/slog"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/agent"
 )
 
@@ -13,10 +13,10 @@ var _ agent.Service = (*agentSDK)(nil)
 
 type agentSDK struct {
 	client agent.AgentServiceClient
-	logger mglog.Logger
+	logger *slog.Logger
 }
 
-func NewAgentSDK(log mglog.Logger, agentClient agent.AgentServiceClient) *agentSDK {
+func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) *agentSDK {
 	return &agentSDK{
 		client: agentClient,
 		logger: log,

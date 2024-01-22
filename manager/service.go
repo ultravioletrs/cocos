@@ -6,11 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -40,21 +41,25 @@ type Service interface {
 
 type managerService struct {
 	qemuCfg  qemu.Config
-	logger   mglog.Logger
+	logger   *slog.Logger
 	eventSvc events.Service
 	hostIP   string
+	agents   map[int]string // agent map of vsock cid to computationID.
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger mglog.Logger, eventSvc events.Service, hostIP string) Service {
-	return &managerService{
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, hostIP string) Service {
+	ms := &managerService{
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,
 		hostIP:   hostIP,
 		logger:   logger,
+		agents:   make(map[int]string),
 	}
+	go ms.retrieveAgentLogs()
+	return ms
 }
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
@@ -65,13 +70,12 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
 		AgentConfig: agent.AgentConfig{
-			Port:                  c.AgentConfig.Port,
-			Host:                  c.AgentConfig.Host,
-			KeyFile:               c.AgentConfig.KeyFile,
-			CertFile:              c.AgentConfig.CertFile,
-			LogLevel:              c.AgentConfig.LogLevel,
-			InstanceID:            c.AgentConfig.InstanceId,
-			NotificationServerURL: c.AgentConfig.NotificationsUrl,
+			Port:       c.AgentConfig.Port,
+			Host:       c.AgentConfig.Host,
+			KeyFile:    c.AgentConfig.KeyFile,
+			CertFile:   c.AgentConfig.CertFile,
+			LogLevel:   c.AgentConfig.LogLevel,
+			InstanceID: c.AgentConfig.InstanceId,
 		},
 	}
 	for _, algo := range c.Algorithms {
@@ -94,7 +98,12 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		return "", err
 	}
 
-	if err := SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac); err != nil {
+	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
+
+	err = backoff.Retry(func() error {
+		return SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac)
+	}, backoff.NewExponentialBackOff())
+	if err != nil {
 		return "", err
 	}
 	ms.qemuCfg.VSockConfig.GuestCID++

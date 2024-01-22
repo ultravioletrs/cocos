@@ -22,6 +22,14 @@ func runEndpoint(svc manager.Service) endpoint.Endpoint {
 			Name:            req.Computation.Name,
 			Description:     req.Computation.Description,
 			ResultConsumers: req.Computation.ResultConsumers,
+			AgentConfig: &manager.AgentConfig{
+				Port:       req.Computation.AgentConfig.Port,
+				Host:       req.Computation.AgentConfig.Host,
+				LogLevel:   req.Computation.AgentConfig.LogLevel,
+				InstanceId: req.Computation.AgentConfig.InstanceID,
+				CertFile:   req.Computation.AgentConfig.CertFile,
+				KeyFile:    req.Computation.AgentConfig.KeyFile,
+			},
 		}
 		for _, algo := range req.Computation.Algorithms {
 			mc.Algorithms = append(mc.Algorithms, &manager.Algorithm{Id: algo.ID, Provider: algo.Provider})

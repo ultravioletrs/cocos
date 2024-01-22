@@ -3,8 +3,9 @@ module github.com/ultravioletrs/cocos
 go 1.21.3
 
 require (
-	github.com/absmach/magistrala v0.0.0-20240110171157-9f573850fc4b
+	github.com/absmach/magistrala v0.0.0-20240119191055-d95283d31472
 	github.com/caarlos0/env/v7 v7.1.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/digitalocean/go-libvirt v0.0.0-20221205150000-2939327a8519
 	github.com/go-kit/kit v0.13.0
 	github.com/go-zoo/bone v1.3.0
@@ -28,7 +29,6 @@ require (
 require (
 	cloud.google.com/go/compute v1.23.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
