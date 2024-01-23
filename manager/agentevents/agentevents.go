@@ -56,9 +56,15 @@ func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 			errCh <- err
 			return
 		}
-		if err := s.svc.SendRaw(b[:n]); err != nil {
+
+		headers := map[string]string{
+			"Content-Type":  "application/json",
+			"Authorization": "compKey",
+		}
+
+		if err := s.svc.SendRaw(b[:n], headers); err != nil {
 			errCh <- err
-			continue
+			return
 		}
 	}
 }
