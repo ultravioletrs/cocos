@@ -54,7 +54,8 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	// No request parameters needed for retrieving attestation output
+	ReportData []byte
+	Vpml       uint32
 }
 
 func (req attestationReq) validate() error {

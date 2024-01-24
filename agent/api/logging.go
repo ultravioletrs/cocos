@@ -27,7 +27,7 @@ func LoggingMiddleware(svc agent.Service, logger *slog.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, ac agent.Computation) (response string, err error) {
+func (lm *loggingMiddleware) Run(ac agent.Computation) (response string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Run for computation %s took %s to complete", ac.ID, time.Since(begin))
 		if err != nil {
@@ -37,7 +37,7 @@ func (lm *loggingMiddleware) Run(ctx context.Context, ac agent.Computation) (res
 		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
 	}(time.Now())
 
-	return lm.svc.Run(ctx, ac)
+	return lm.svc.Run(ac)
 }
 
 func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (response string, err error) {
@@ -79,7 +79,7 @@ func (lm *loggingMiddleware) Result(ctx context.Context, consumer string) (respo
 	return lm.svc.Result(ctx, consumer)
 }
 
-func (lm *loggingMiddleware) Attestation(ctx context.Context) (response []byte, err error) {
+func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData []byte, vpml uint) (response []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -89,5 +89,5 @@ func (lm *loggingMiddleware) Attestation(ctx context.Context) (response []byte, 
 		lm.logger.Info(fmt.Sprintf("%s without errors", message))
 	}(time.Now())
 
-	return lm.svc.Attestation(ctx)
+	return lm.svc.Attestation(ctx, reportData, vpml)
 }
