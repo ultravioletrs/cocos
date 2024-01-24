@@ -48,14 +48,16 @@ func (s *service) Forward(ctx context.Context, errChan chan<- error) {
 
 func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 	defer conn.Close()
-	b := make([]byte, 1024)
-	n, err := conn.Read(b)
-	if err != nil {
-		errCh <- err
-		return
-	}
-	if err := s.svc.SendRaw(b[:n]); err != nil {
-		errCh <- err
-		return
+	for {
+		b := make([]byte, 1024)
+		n, err := conn.Read(b)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if err := s.svc.SendRaw(b[:n]); err != nil {
+			errCh <- err
+			return
+		}
 	}
 }

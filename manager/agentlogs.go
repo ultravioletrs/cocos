@@ -36,18 +36,20 @@ func (ms *managerService) retrieveAgentLogs() {
 
 func (ms *managerService) handleConnections(conn net.Conn) {
 	defer conn.Close()
-	b := make([]byte, 1024)
-	n, err := conn.Read(b)
-	if err != nil {
-		ms.logger.Warn(err.Error())
-		return
+	for {
+		b := make([]byte, 1024)
+		n, err := conn.Read(b)
+		if err != nil {
+			ms.logger.Warn(err.Error())
+			return
+		}
+		cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
+		if err != nil {
+			ms.logger.Warn(err.Error())
+			return
+		}
+		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
 	}
-	cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
-	if err != nil {
-		ms.logger.Warn(err.Error())
-		return
-	}
-	ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
 }
 
 func (ms *managerService) computationIDFromAddress(address string) (string, error) {
