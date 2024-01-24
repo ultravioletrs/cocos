@@ -12,32 +12,6 @@ Data is always encrypted, protected by hardware secure enclaves (Trusted Executi
 attested via secure remote attestation protocols, and invisible to cloud processors or any other
 3rd party to which computation is offloaded.
 
-## Install
-The following prerequisites are needed to run Cocos:
-
-- [Docker](https://docs.docker.com/install/)
-- [Docker compose](https://docs.docker.com/compose/install/)
-
-### Build Docker Images
-Currenty, there is no Docker registry, so Cocos images must be built by hand:
-```
-make dockers
-```
-
-For this you might be needing to setup DNS servers in your `/etc/resolf.conf` as explained
-[here](https://github.com/docker/cli/issues/2618) (i.e. add Google's `nameserver 8.8.8.8`).
-
-### Run Composition
-
-Once the images are built (`docker images` command should show you `ghcr.io/ultravioletrs/cocos/manager`),
-composition can be run:
-
-```bash
-make run
-```
-
-This will bring up the Cocos docker services and interconnect them. 
-
 ## Usage
 
 The quickest way to start using Cocos is via the CLI. The latest version can be downloaded from the [official releases page][rel].

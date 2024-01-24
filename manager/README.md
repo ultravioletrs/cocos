@@ -150,8 +150,6 @@ NB: we set environment variables that we will use in the shell process where we 
 
 ## Deployment
 
-### Standalone
-
 To start the service outside of the container, execute the following shell script:
 
 ```bash
@@ -181,23 +179,6 @@ MANAGER_QEMU_USE_SUDO=true \
 MANAGER_QEMU_ENABLE_SEV=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
-```
-
-
-### Docker
-```bash
-go get github.com/ultravioletrs/cocos
-
-cd $GOPATH/src/github.com/ultravioletrs/cocos
-
-# compile the manager
-make manager
-
-# create manager docker image
-make docker_dev_manager
-
-# start docker composition
-make run
 ```
 
 ### Create QEMU virtual machine (VM)
