@@ -57,7 +57,7 @@ func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 		}
 		if err := s.svc.SendRaw(b[:n]); err != nil {
 			errCh <- err
-			return
+			continue
 		}
 	}
 }

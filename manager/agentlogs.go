@@ -46,7 +46,7 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 		cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
 		if err != nil {
 			ms.logger.Warn(err.Error())
-			return
+			continue
 		}
 		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
 	}
