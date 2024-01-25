@@ -62,12 +62,12 @@ func (s *Server) Start() error {
 		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, s.Config.CertFile, s.Config.KeyFile))
 		s.server = grpc.NewServer(
 			grpc.Creds(creds),
-			grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+			grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		)
 	default:
 		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
 		s.server = grpc.NewServer(
-			grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+			grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		)
 	}
 

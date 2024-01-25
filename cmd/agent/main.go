@@ -63,6 +63,7 @@ func main() {
 		log.Printf("failed to create events service %s", err.Error())
 		return
 	}
+	defer eventSvc.Close()
 	svc := newService(ctx, logger, eventSvc)
 
 	if _, err := svc.Run(ctx, cfg); err != nil {
