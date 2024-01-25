@@ -7,12 +7,11 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos/agent"
 )
 
 const resultFilePath = "result.bin"
 
-func NewResultsCmd(sdk agent.Service) *cobra.Command {
+func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "result",
 		Short: "Retrieve computation result file",
@@ -20,7 +19,7 @@ func NewResultsCmd(sdk agent.Service) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
-			result, err := sdk.Result(cmd.Context(), args[0])
+			result, err := cli.agentSDK.Result(cmd.Context(), args[0])
 			if err != nil {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}

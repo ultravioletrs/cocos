@@ -14,12 +14,15 @@ import (
 	"github.com/ultravioletrs/cocos/internal/env"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
 const (
-	svcName            = "cli"
-	envPrefixAgentGRPC = "AGENT_GRPC_"
+	svcName              = "cli"
+	envPrefixAgentGRPC   = "AGENT_GRPC_"
+	envPrefixManagerGRPC = "MANAGER_GRPC_"
+	completion           = "completion"
 )
 
 type config struct {
@@ -42,6 +45,11 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}
+	managerGRPCConfig := grpc.Config{}
+	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixManagerGRPC}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		return
+	}
 
 	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
 	if err != nil {
@@ -50,22 +58,30 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	agentSDK := sdk.NewAgentSDK(logger, agentClient)
+	managerGRPCClient, managerClient, err := manager.NewManagerClient(managerGRPCConfig)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	defer managerGRPCClient.Close()
 
-	cli.SetSDK(agentSDK)
+	agentSDK := sdk.NewAgentSDK(logger, agentClient)
+	managerSDK := sdk.NewManagerSDK(managerClient, logger)
+
+	cliSVC := cli.New(agentSDK, managerSDK)
 
 	rootCmd := &cobra.Command{
 		Use:   "cocos-cli [command]",
-		Short: "CLI application for Computation Service API",
+		Short: "CLI application for CoCos Service API",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("CLI application for Computation Service API\n\n")
+			fmt.Printf("CLI application for CoCos Service API\n\n")
 			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
 			fmt.Printf("Available Commands:\n")
 
 			// Filter out "completion" command
 			availableCommands := make([]*cobra.Command, 0)
 			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != "completion" {
+				if subCmd.Name() != completion {
 					availableCommands = append(availableCommands, subCmd)
 				}
 			}
@@ -82,11 +98,74 @@ func main() {
 		},
 	}
 
-	// Root Commands
-	rootCmd.AddCommand(cli.NewAlgorithmsCmd(agentSDK))
-	rootCmd.AddCommand(cli.NewDatasetsCmd(agentSDK))
-	rootCmd.AddCommand(cli.NewResultsCmd(agentSDK))
-	rootCmd.AddCommand(cli.NewAttestationCmd(agentSDK))
+	agentCmd := &cobra.Command{
+		Use:   "agent [command]",
+		Short: "CLI application for agent Service API",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("CLI application for agent Service API\n\n")
+			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
+			fmt.Printf("Available Commands:\n")
+
+			// Filter out "completion" command
+			availableCommands := make([]*cobra.Command, 0)
+			for _, subCmd := range cmd.Commands() {
+				if subCmd.Name() != completion {
+					availableCommands = append(availableCommands, subCmd)
+				}
+			}
+
+			for _, subCmd := range availableCommands {
+				fmt.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
+			}
+
+			fmt.Printf("\nFlags:\n")
+			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+				fmt.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
+			})
+			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
+		},
+	}
+
+	managerCmd := &cobra.Command{
+		Use:   "manager [command]",
+		Short: "CLI application for manager Service API",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("CLI application for manager Service API\n\n")
+			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
+			fmt.Printf("Available Commands:\n")
+
+			// Filter out "completion" command
+			availableCommands := make([]*cobra.Command, 0)
+			for _, subCmd := range cmd.Commands() {
+				if subCmd.Name() != completion {
+					availableCommands = append(availableCommands, subCmd)
+				}
+			}
+
+			for _, subCmd := range availableCommands {
+				fmt.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
+			}
+
+			fmt.Printf("\nFlags:\n")
+			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+				fmt.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
+			})
+			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
+		},
+	}
+
+	// Root Commands.
+	rootCmd.AddCommand(agentCmd)
+	rootCmd.AddCommand(managerCmd)
+
+	// agent Commands.
+	agentCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
+	agentCmd.AddCommand(cliSVC.NewDatasetsCmd())
+	agentCmd.AddCommand(cliSVC.NewResultsCmd())
+	agentCmd.AddCommand(cliSVC.NewAttestationCmd())
+
+	// manager commands.
+	managerCmd.AddCommand(cliSVC.NewRunCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

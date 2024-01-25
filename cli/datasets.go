@@ -10,7 +10,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 )
 
-func NewDatasetsCmd(sdk agent.Service) *cobra.Command {
+func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "data",
 		Short:   "Upload a dataset CSV file",
@@ -32,7 +32,7 @@ func NewDatasetsCmd(sdk agent.Service) *cobra.Command {
 				Provider: args[2],
 			}
 
-			response, err := sdk.Data(cmd.Context(), dataReq)
+			response, err := cli.agentSDK.Data(cmd.Context(), dataReq)
 			if err != nil {
 				log.Fatalf("Error uploading dataset: %v", err)
 			}
