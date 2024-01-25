@@ -4,7 +4,17 @@ package cli
 
 import (
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/manager"
 )
 
-func SetSDK(s agent.Service) {
+type CLI struct {
+	agentSDK   agent.Service
+	managerSDK manager.Service
+}
+
+func New(agentSDK agent.Service, managerSDK manager.Service) *CLI {
+	return &CLI{
+		agentSDK:   agentSDK,
+		managerSDK: managerSDK,
+	}
 }

@@ -7,19 +7,18 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos/agent"
 )
 
 const attestationFilePath = "attestation.txt"
 
-func NewAttestationCmd(sdk agent.Service) *cobra.Command {
+func (cli *CLI) NewAttestationCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "attestation",
 		Short: "Retrieve attestation information",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			result, err := sdk.Attestation(cmd.Context())
+			result, err := cli.agentSDK.Attestation(cmd.Context())
 			if err != nil {
 				log.Fatalf("Error retrieving attestation: %v", err)
 			}

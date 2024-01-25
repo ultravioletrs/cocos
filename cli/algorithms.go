@@ -10,7 +10,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 )
 
-func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
+func (cli *CLI) NewAlgorithmsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "algo",
 		Short:   "Upload an algorithm binary",
@@ -32,7 +32,7 @@ func NewAlgorithmsCmd(sdk agent.Service) *cobra.Command {
 				Provider:  args[2],
 			}
 
-			response, err := sdk.Algo(cmd.Context(), algoReq)
+			response, err := cli.agentSDK.Algo(cmd.Context(), algoReq)
 			if err != nil {
 				log.Fatalf("Error uploading algorithm with ID %s and provider %s: %v", algoReq.ID, algoReq.Provider, err)
 			}
