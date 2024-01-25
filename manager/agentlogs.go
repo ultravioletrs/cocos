@@ -12,7 +12,10 @@ import (
 	"github.com/mdlayher/vsock"
 )
 
-const VsockLogsPort = 9997
+const (
+	VsockLogsPort     = 9997
+	messageSize   int = 1024
+)
 
 var errFailedToParseCID = errors.New("failed to parse cid from remote address")
 
@@ -37,7 +40,7 @@ func (ms *managerService) retrieveAgentLogs() {
 func (ms *managerService) handleConnections(conn net.Conn) {
 	defer conn.Close()
 	for {
-		b := make([]byte, 1024)
+		b := make([]byte, messageSize)
 		n, err := conn.Read(b)
 		if err != nil {
 			ms.logger.Warn(err.Error())

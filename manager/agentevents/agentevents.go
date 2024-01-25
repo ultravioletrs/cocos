@@ -13,6 +13,7 @@ import (
 const (
 	VsockEventsPort uint32 = 9998
 	svc             string = "agent"
+	messageSize     int    = 1024
 )
 
 type service struct {
@@ -49,7 +50,7 @@ func (s *service) Forward(ctx context.Context, errChan chan<- error) {
 func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 	defer conn.Close()
 	for {
-		b := make([]byte, 1024)
+		b := make([]byte, messageSize)
 		n, err := conn.Read(b)
 		if err != nil {
 			errCh <- err
