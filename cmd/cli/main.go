@@ -22,6 +22,7 @@ const (
 	svcName              = "cli"
 	envPrefixAgentGRPC   = "AGENT_GRPC_"
 	envPrefixManagerGRPC = "MANAGER_GRPC_"
+	completion           = "completion"
 )
 
 type config struct {
@@ -80,7 +81,7 @@ func main() {
 			// Filter out "completion" command
 			availableCommands := make([]*cobra.Command, 0)
 			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != "completion" {
+				if subCmd.Name() != completion {
 					availableCommands = append(availableCommands, subCmd)
 				}
 			}
@@ -108,7 +109,7 @@ func main() {
 			// Filter out "completion" command
 			availableCommands := make([]*cobra.Command, 0)
 			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != "completion" {
+				if subCmd.Name() != completion {
 					availableCommands = append(availableCommands, subCmd)
 				}
 			}
@@ -136,7 +137,7 @@ func main() {
 			// Filter out "completion" command
 			availableCommands := make([]*cobra.Command, 0)
 			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != "completion" {
+				if subCmd.Name() != completion {
 					availableCommands = append(availableCommands, subCmd)
 				}
 			}
