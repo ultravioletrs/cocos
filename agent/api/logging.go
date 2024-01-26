@@ -79,7 +79,7 @@ func (lm *loggingMiddleware) Result(ctx context.Context, consumer string) (respo
 	return lm.svc.Result(ctx, consumer)
 }
 
-func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData []byte, vpml uint) (response []byte, err error) {
+func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData []byte) (response []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -89,5 +89,5 @@ func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData []byte,
 		lm.logger.Info(fmt.Sprintf("%s without errors", message))
 	}(time.Now())
 
-	return lm.svc.Attestation(ctx, reportData, vpml)
+	return lm.svc.Attestation(ctx, reportData)
 }

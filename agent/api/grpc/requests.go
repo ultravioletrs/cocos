@@ -55,10 +55,11 @@ func (req resultReq) validate() error {
 
 type attestationReq struct {
 	ReportData []byte
-	Vpml       uint32
 }
 
 func (req attestationReq) validate() error {
-	// No request parameters to validate, so no validation logic needed
+	if req.ReportData == nil {
+		return errors.New("malformed entity")
+	}
 	return nil
 }

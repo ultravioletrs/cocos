@@ -70,7 +70,7 @@ func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return attestationRes{}, err
 		}
-		file, err := svc.Attestation(ctx, req.ReportData, uint(req.Vpml))
+		file, err := svc.Attestation(ctx, req.ReportData)
 		if err != nil {
 			return attestationRes{}, err
 		}

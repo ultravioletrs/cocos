@@ -90,8 +90,8 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 }
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	// No fields to extract from gRPC request, so returning an empty struct
-	return attestationReq{}, nil
+	req := grpcReq.(*agent.AttestationRequest)
+	return attestationReq{ReportData: req.ReportData}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {

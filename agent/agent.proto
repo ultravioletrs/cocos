@@ -38,7 +38,6 @@ message ResultResponse { bytes file = 1; }
 
 message AttestationRequest {
   bytes report_data = 1;
-  uint32 vpml = 2;
 }
 
 message AttestationResponse { bytes file = 1; }

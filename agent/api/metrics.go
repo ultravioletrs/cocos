@@ -68,11 +68,11 @@ func (ms *metricsMiddleware) Result(ctx context.Context, consumer string) ([]byt
 	return ms.svc.Result(ctx, consumer)
 }
 
-func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData []byte, vpml uint) ([]byte, error) {
+func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "attestation").Add(1)
 		ms.latency.With("method", "attestation").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Attestation(ctx, reportData, vpml)
+	return ms.svc.Attestation(ctx, reportData)
 }

@@ -52,7 +52,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) (string, error)
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
-	Attestation(ctx context.Context, reportData []byte, vpml uint) ([]byte, error)
+	Attestation(ctx context.Context, reportData []byte) ([]byte, error)
 }
 
 type agentService struct {
@@ -196,18 +196,12 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData []byte, vpml uint) ([]byte, error) {
-	device, err := client.OpenDevice()
+func (as *agentService) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
+	provider, err := client.GetQuoteProvider()
 	if err != nil {
 		return []byte{}, err
 	}
-	defer device.Close()
-
-	provider, err := client.GetLeveledQuoteProvider()
-	if err != nil {
-		return []byte{}, err
-	}
-	rawQuote, err := provider.GetRawQuoteAtLevel(sha512.Sum512(reportData), vpml)
+	rawQuote, err := provider.GetRawQuote(sha512.Sum512(reportData))
 	if err != nil {
 		return []byte{}, err
 	}
