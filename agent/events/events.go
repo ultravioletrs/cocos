@@ -16,8 +16,13 @@ type service struct {
 	conn          *vsock.Conn
 }
 
+type Header struct {
+	Key   string
+	Value string
+}
+
 type Service interface {
-	SendEvent(event, status string, details json.RawMessage) error
+	SendEvent(event, status string, details json.RawMessage, headers []Header) error
 	Close() error
 }
 
@@ -33,7 +38,7 @@ func New(svc, computationID string) (Service, error) {
 	}, nil
 }
 
-func (s *service) SendEvent(event, status string, details json.RawMessage) error {
+func (s *service) SendEvent(event, status string, details json.RawMessage, headers []Header) error {
 	body := struct {
 		EventType     string          `json:"event_type"`
 		Timestamp     time.Time       `json:"timestamp"`
@@ -53,7 +58,20 @@ func (s *service) SendEvent(event, status string, details json.RawMessage) error
 	if err != nil {
 		return err
 	}
-	if _, err := s.conn.Write(jsonBody); err != nil {
+
+	combinedData := struct {
+		Headers []Header
+		Body    []byte
+	}{
+		Headers: headers,
+		Body:    jsonBody,
+	}
+
+	serializedData, err := json.Marshal(combinedData)
+	if err != nil {
+		return err
+	}
+	if _, err := s.conn.Write(serializedData); err != nil {
 		return err
 	}
 	return nil

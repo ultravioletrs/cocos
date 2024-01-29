@@ -78,14 +78,25 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service) Serv
 		sm:       NewStateMachine(logger),
 		eventSvc: eventSvc,
 	}
+
+	header := []events.Header{
+		{
+			Key:   "Authorization",
+			Value: "Bearer " + svc.computation.Key,
+		},
+		{
+			Key:   "Content-Type",
+			Value: "application/json",
+		},
+	}
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
-	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{}, header)
+	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("in-progress", json.RawMessage{}, header)
+	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("in-progress", json.RawMessage{}, header)
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{}, header)
+	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{}, header)
+	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{}, header)
 	svc.sm.StateFunctions[running] = svc.runComputation
 	return svc
 }
@@ -206,23 +217,33 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
-	as.publishEvent("starting", json.RawMessage{})()
+	header := []events.Header{
+		{
+			Key:   "Authorization",
+			Value: "Bearer " + as.computation.Key,
+		},
+		{
+			Key:   "Content-Type",
+			Value: "application/json",
+		},
+	}
+	as.publishEvent("starting", json.RawMessage{}, header)()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
-	as.publishEvent("in-progress", json.RawMessage{})()
+	as.publishEvent("in-progress", json.RawMessage{}, header)()
 	result, err := run(as.algorithms[0], as.datasets[0])
 	if err != nil {
 		as.runError = err
-		as.publishEvent("failed", json.RawMessage{})()
+		as.publishEvent("failed", json.RawMessage{}, header)()
 		return
 	}
-	as.publishEvent("complete", json.RawMessage{})()
+	as.publishEvent("complete", json.RawMessage{}, header)()
 	as.result = result
 }
 
-func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
+func (as *agentService) publishEvent(status string, details json.RawMessage, headers []events.Header) func() {
 	return func() {
-		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
+		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details, headers); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}
