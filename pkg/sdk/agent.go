@@ -73,8 +73,10 @@ func (sdk *agentSDK) Result(ctx context.Context, consumer string) ([]byte, error
 	return response.File, nil
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context, reportData []byte, vpml uint) ([]byte, error) {
-	request := &agent.AttestationRequest{}
+func (sdk *agentSDK) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
+	request := &agent.AttestationRequest{
+		ReportData: reportData,
+	}
 
 	response, err := sdk.client.Attestation(ctx, request)
 	if err != nil {

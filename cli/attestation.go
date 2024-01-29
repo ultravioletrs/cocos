@@ -13,9 +13,10 @@ const attestationFilePath = "attestation.txt"
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "attestation",
-		Short: "Retrieve attestation information",
-		Args:  cobra.ExactArgs(1),
+		Use:     "attestation",
+		Short:   "Retrieve attestation information",
+		Example: "attestation <report_data>",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
