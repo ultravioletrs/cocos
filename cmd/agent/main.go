@@ -66,19 +66,8 @@ func main() {
 	defer eventSvc.Close()
 	svc := newService(ctx, logger, eventSvc)
 
-	header := []events.Header{
-		{
-			Key:   "Authorization",
-			Value: "Bearer " + eventsSvc.computation.Key,
-		},
-		{
-			Key:   "Content-Type",
-			Value: "application/json",
-		},
-	}
-
 	if _, err := svc.Run(ctx, cfg); err != nil {
-		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
+		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}, []events.Header{}); err != nil {
 			logger.Warn(err.Error())
 		}
 		logger.Error(fmt.Sprintf("failed to run computation with err: %s", err))
