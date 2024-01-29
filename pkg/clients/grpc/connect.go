@@ -12,7 +12,6 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-	gogrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -46,11 +45,11 @@ type Client interface {
 	Secure() string
 
 	// Connection returns the gRPC connection.
-	Connection() *gogrpc.ClientConn
+	Connection() *grpc.ClientConn
 }
 
 type client struct {
-	*gogrpc.ClientConn
+	*grpc.ClientConn
 	cfg    Config
 	secure security
 }
@@ -91,7 +90,7 @@ func (c *client) Secure() string {
 	}
 }
 
-func (c *client) Connection() *gogrpc.ClientConn {
+func (c *client) Connection() *grpc.ClientConn {
 	return c.ClientConn
 }
 

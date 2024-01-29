@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
+	"os"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/mdlayher/vsock"
@@ -37,6 +39,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
 	}
+
+	ac, err := createCertFiles(cfg.AgentConfig)
+	if err != nil {
+		log.Fatalf("failed to create cert files %s", err.Error())
+	}
+	cfg.AgentConfig = ac
 
 	conn, err := vsock.Dial(vsock.Host, manager.VsockLogsPort, nil)
 	if err != nil {
@@ -132,4 +140,53 @@ func readConfig() (agent.Computation, error) {
 		ac.AgentConfig.Port = defSvcGRPCPort
 	}
 	return ac, nil
+}
+
+func createCertFiles(cfg agent.AgentConfig) (agent.AgentConfig, error) {
+	if cfg.CertFile != "" {
+		path, err := createFile(cfg.CertFile)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.CertFile = path
+	}
+	if cfg.KeyFile != "" {
+		path, err := createFile(cfg.KeyFile)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.KeyFile = path
+	}
+	if cfg.ServerCAFile != "" {
+		path, err := createFile(cfg.ServerCAFile)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ServerCAFile = path
+	}
+	if cfg.ClientCAFile != "" {
+		path, err := createFile(cfg.ClientCAFile)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ClientCAFile = path
+	}
+	return cfg, nil
+}
+
+func createFile(content string) (string, error) {
+	provider := uuid.New()
+	id, err := provider.ID()
+	if err != nil {
+		return "", err
+	}
+	file, err := os.Create(fmt.Sprintf("%s.txt", id))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if _, err = io.WriteString(file, content); err != nil {
+		return "", err
+	}
+	return file.Name(), err
 }
