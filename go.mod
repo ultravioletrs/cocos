@@ -1,6 +1,6 @@
 module github.com/ultravioletrs/cocos
 
-go 1.21.3
+go 1.21.4
 
 require (
 	github.com/absmach/magistrala v0.0.0-20240119191055-d95283d31472
