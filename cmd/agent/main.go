@@ -67,7 +67,7 @@ func main() {
 	svc := newService(ctx, logger, eventSvc)
 
 	if _, err := svc.Run(ctx, cfg); err != nil {
-		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}, []events.Header{}); err != nil {
+		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}
 		logger.Error(fmt.Sprintf("failed to run computation with err: %s", err))

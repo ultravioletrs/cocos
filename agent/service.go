@@ -207,16 +207,6 @@ func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) runComputation() {
-	header := []events.Header{
-		{
-			Key:   "Authorization",
-			Value: "Bearer " + as.computation.Key,
-		},
-		{
-			Key:   "Content-Type",
-			Value: "application/json",
-		},
-	}
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
