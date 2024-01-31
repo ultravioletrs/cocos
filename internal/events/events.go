@@ -51,7 +51,7 @@ func (s *service) SendEvent(event, computationId, computationKey, status string,
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	headers["Authorization"] = computationKey
+	headers["Authorization"] = "Bearer " + computationKey
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
