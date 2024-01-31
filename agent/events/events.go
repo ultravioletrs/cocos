@@ -22,7 +22,7 @@ type Header struct {
 }
 
 type Service interface {
-	SendEvent(event, status string, details json.RawMessage, headers []Header) error
+	SendEvent(event, status string, details json.RawMessage) error
 	Close() error
 }
 
@@ -38,7 +38,7 @@ func New(svc, computationID string) (Service, error) {
 	}, nil
 }
 
-func (s *service) SendEvent(event, status string, details json.RawMessage, headers []Header) error {
+func (s *service) SendEvent(event, status string, details json.RawMessage) error {
 	body := struct {
 		EventType     string          `json:"event_type"`
 		Timestamp     time.Time       `json:"timestamp"`
@@ -59,19 +59,7 @@ func (s *service) SendEvent(event, status string, details json.RawMessage, heade
 		return err
 	}
 
-	combinedData := struct {
-		Headers []Header
-		Body    []byte
-	}{
-		Headers: headers,
-		Body:    jsonBody,
-	}
-
-	serializedData, err := json.Marshal(combinedData)
-	if err != nil {
-		return err
-	}
-	if _, err := s.conn.Write(serializedData); err != nil {
+	if _, err := s.conn.Write(jsonBody); err != nil {
 		return err
 	}
 	return nil
