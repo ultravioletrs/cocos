@@ -64,6 +64,7 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, host
 
 func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
 	ms.publishEvent("vm-provision", c.Id, c.Key, "starting", json.RawMessage{})
+
 	ac := agent.Computation{
 		ID:              c.Id,
 		Key:             c.Key,

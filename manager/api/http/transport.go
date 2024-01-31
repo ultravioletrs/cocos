@@ -18,7 +18,10 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-const contentType = "application/json"
+const (
+	contentType  = "application/json"
+	BearerPrefix = "Bearer "
+)
 
 var (
 	errUnsupportedContentType = errors.New("unsupported content type")

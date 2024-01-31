@@ -17,22 +17,24 @@ const (
 )
 
 type service struct {
-	svc      events.Service
-	listener *vsock.Listener
+	svc            events.Service
+	listener       *vsock.Listener
+	computationKey string
 }
 
 type Service interface {
 	Forward(ctx context.Context, errChan chan<- error)
 }
 
-func New(eventServerUrl string) (Service, error) {
+func New(eventServerUrl, compKey string) (Service, error) {
 	l, err := vsock.Listen(VsockEventsPort, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &service{
-		svc:      events.New(svc, eventServerUrl),
-		listener: l,
+		svc:            events.New(svc, eventServerUrl),
+		listener:       l,
+		computationKey: compKey,
 	}, nil
 }
 
@@ -59,7 +61,7 @@ func (s *service) handleConnections(conn net.Conn, errCh chan<- error) {
 
 		headers := map[string]string{
 			"Content-Type":  "application/json",
-			"Authorization": "compKey",
+			"Authorization": "Bearer " + s.computationKey,
 		}
 
 		if err := s.svc.SendRaw(b[:n], headers); err != nil {

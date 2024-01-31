@@ -16,11 +16,6 @@ type service struct {
 	conn          *vsock.Conn
 }
 
-type Header struct {
-	Key   string
-	Value string
-}
-
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
 	Close() error
