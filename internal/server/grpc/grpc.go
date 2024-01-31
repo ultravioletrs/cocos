@@ -63,7 +63,7 @@ func (s *Server) Start() error {
 
 	switch {
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
-		certificate, err := tls.LoadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
+		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
 			return fmt.Errorf("failed to load auth certificates: %w", err)
 		}
@@ -152,4 +152,30 @@ func loadCertFile(certFile string) ([]byte, error) {
 		return os.ReadFile(certFile)
 	}
 	return []byte{}, nil
+}
+
+func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
+	var cert, key []byte
+	var err error
+	if _, err = os.Stat(certfile); err == nil {
+		cert, err = os.ReadFile(certfile)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+	} else if os.IsNotExist(err) {
+		cert = []byte(certfile)
+	} else {
+		return tls.Certificate{}, err
+	}
+	if _, err := os.Stat(keyfile); err == nil {
+		cert, err = os.ReadFile(keyfile)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+	} else if os.IsNotExist(err) {
+		key = []byte(keyfile)
+	} else {
+		return tls.Certificate{}, err
+	}
+	return tls.X509KeyPair(cert, key)
 }
