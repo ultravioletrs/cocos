@@ -101,7 +101,7 @@ func main() {
 
 	compCfg, err := readConfig()
 	if err != nil {
-		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
+		logger.Error("failed to read agent configuration from vsock %s", err)
 		return
 	}
 

@@ -14,9 +14,8 @@ import (
 var errFailedToCreateNotification = errors.New("failed to create notification on server")
 
 type service struct {
-	service        string
-	serverUrl      string
-	computationKey string
+	service   string
+	serverUrl string
 }
 
 type Event struct {
