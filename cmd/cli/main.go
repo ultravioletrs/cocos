@@ -162,7 +162,12 @@ func main() {
 	agentCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
 	agentCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	agentCmd.AddCommand(cliSVC.NewResultsCmd())
-	agentCmd.AddCommand(cliSVC.NewAttestationCmd())
+	attestaionCmd := cliSVC.NewAttestationCmd()
+	agentCmd.AddCommand(attestaionCmd)
+
+	// attestation commands.
+	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
+	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
 
 	// manager commands.
 	managerCmd.AddCommand(cliSVC.NewRunCmd())
