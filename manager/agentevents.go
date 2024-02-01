@@ -60,7 +60,7 @@ func (ms *managerService) handleForwardConnections(conn net.Conn) {
 
 		headers := map[string]string{
 			"Content-Type":  "application/json",
-			"Authorization": "Bearer " + ms.keys[ms.agents[cid]],
+			"Authorization": "Bearer " + ms.agents[cid].key,
 		}
 
 		if err := ms.eventSvc.SendRaw(b[:n], headers); err != nil {

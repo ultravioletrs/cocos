@@ -45,25 +45,25 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 			ms.logger.Warn(err.Error())
 			return
 		}
-		cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
+		agInfo, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
 		if err != nil {
 			ms.logger.Warn(err.Error())
 			continue
 		}
-		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
+		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", agInfo.computationID, string(b[:n])))
 	}
 }
 
-func (ms *managerService) computationIDFromAddress(address string) (string, error) {
+func (ms *managerService) computationIDFromAddress(address string) (agentInfo, error) {
 	re := regexp.MustCompile(`vm\((\d+)\)`)
 	matches := re.FindStringSubmatch(address)
 
 	if len(matches) > 1 {
 		cid, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return "", err
+			return agentInfo{}, err
 		}
 		return ms.agents[cid], nil
 	}
-	return "", errFailedToParseCID
+	return agentInfo{}, errFailedToParseCID
 }

@@ -39,13 +39,16 @@ type Service interface {
 	Run(ctx context.Context, c *Computation) (string, error)
 }
 
+type agentInfo struct {
+	computationID string
+	key           string
+}
 type managerService struct {
 	qemuCfg  qemu.Config
 	logger   *slog.Logger
 	eventSvc events.Service
 	hostIP   string
-	agents   map[int]string    // agent map of vsock cid to computationID.
-	keys     map[string]string // key map of computationID to key.
+	agents   map[int]agentInfo // agent map of vsock cid to computationInfo.
 }
 
 var _ Service = (*managerService)(nil)
@@ -57,8 +60,7 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, host
 		eventSvc: eventSvc,
 		hostIP:   hostIP,
 		logger:   logger,
-		agents:   make(map[int]string),
-		keys:     make(map[string]string),
+		agents:   make(map[int]agentInfo),
 	}
 	go ms.retrieveAgentLogs()
 	go ms.forwardAgentEvents()
@@ -102,8 +104,10 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		return "", err
 	}
 
-	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
-	ms.keys[c.Id] = c.Key
+	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = agentInfo{
+		computationID: c.Id,
+		key:           c.Key,
+	}
 
 	err = backoff.Retry(func() error {
 		return SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac)
