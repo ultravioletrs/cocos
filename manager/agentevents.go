@@ -7,6 +7,8 @@ import (
 	"net"
 	"regexp"
 	"strconv"
+
+	"github.com/mdlayher/vsock"
 )
 
 const (
@@ -19,9 +21,14 @@ type AgenteventService interface {
 	Forward(ctx context.Context, errChan chan<- error)
 }
 
-func (ms *managerService) forward() {
+func (ms *managerService) forwardAgentEvents() {
+	l, err := vsock.Listen(VsockEventsPort, nil)
+	if err != nil {
+		ms.logger.Warn(err.Error())
+		return
+	}
 	for {
-		conn, err := ms.listener.Accept()
+		conn, err := l.Accept()
 		if err != nil {
 			ms.logger.Warn(err.Error())
 			continue
