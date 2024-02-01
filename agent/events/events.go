@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/mdlayher/vsock"
-	"github.com/ultravioletrs/cocos/manager/agentevents"
 )
 
 type service struct {
@@ -16,13 +15,15 @@ type service struct {
 	conn          *vsock.Conn
 }
 
+const VsockEventsPort uint32 = 9998
+
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
 	Close() error
 }
 
 func New(svc, computationID string) (Service, error) {
-	conn, err := vsock.Dial(vsock.Host, agentevents.VsockEventsPort, nil)
+	conn, err := vsock.Dial(vsock.Host, VsockEventsPort, nil)
 	if err != nil {
 		return nil, err
 	}

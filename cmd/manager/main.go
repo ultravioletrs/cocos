@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -14,8 +13,6 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
-	"github.com/mdlayher/vsock"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
 	"github.com/ultravioletrs/cocos/internal/events"
@@ -24,7 +21,6 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	httpserver "github.com/ultravioletrs/cocos/internal/server/http"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	httpapi "github.com/ultravioletrs/cocos/manager/api/http"
@@ -99,25 +95,6 @@ func main() {
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
-	compCfg, err := readConfig()
-	if err != nil {
-		logger.Error("failed to read agent configuration from vsock %s", err)
-		return
-	}
-
-	agEvents, err := agentevents.New(cfg.NotificationServerURL, compCfg.Key)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to start agent events service: %s", err))
-		return
-	}
-	errChan := make(chan error)
-	go agEvents.Forward(ctx, errChan)
-	go func() {
-		for err := range errChan {
-			logger.Warn(err.Error())
-		}
-	}()
-
 	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
 
 	httpServerConfig := server.Config{Port: defSvcHTTPPort}
@@ -169,35 +146,4 @@ func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, e
 	svc = tracing.New(svc, tracer)
 
 	return svc
-}
-
-func readConfig() (agent.Computation, error) {
-	l, err := vsock.Listen(manager.VsockConfigPort, nil)
-	if err != nil {
-		return agent.Computation{}, err
-	}
-	defer l.Close()
-	conn, err := l.Accept()
-	if err != nil {
-		return agent.Computation{}, err
-	}
-	defer conn.Close()
-	b := make([]byte, 1024)
-	n, err := conn.Read(b)
-	if err != nil {
-		return agent.Computation{}, err
-	}
-	ac := agent.Computation{
-		AgentConfig: agent.AgentConfig{},
-	}
-	if err := json.Unmarshal(b[:n], &ac); err != nil {
-		return agent.Computation{}, err
-	}
-	if ac.AgentConfig.LogLevel == "" {
-		ac.AgentConfig.LogLevel = "info"
-	}
-	if ac.AgentConfig.Port == "" {
-		ac.AgentConfig.Port = defSvcGRPCPort
-	}
-	return ac, nil
 }

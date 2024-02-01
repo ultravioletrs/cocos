@@ -12,6 +12,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -44,21 +45,31 @@ type managerService struct {
 	logger   *slog.Logger
 	eventSvc events.Service
 	hostIP   string
-	agents   map[int]string // agent map of vsock cid to computationID.
+	listener *vsock.Listener
+	agents   map[int]string    // agent map of vsock cid to computationID.
+	keys     map[string]string // key map of computationID to key.
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
 func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, hostIP string) Service {
+	l, err := vsock.Listen(VsockEventsPort, nil)
+	if err != nil {
+		return nil
+	}
+
 	ms := &managerService{
 		qemuCfg:  qemuCfg,
 		eventSvc: eventSvc,
 		hostIP:   hostIP,
 		logger:   logger,
+		listener: l,
 		agents:   make(map[int]string),
+		keys:     make(map[string]string),
 	}
 	go ms.retrieveAgentLogs()
+	go ms.forward()
 	return ms
 }
 
@@ -67,7 +78,6 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 
 	ac := agent.Computation{
 		ID:              c.Id,
-		Key:             c.Key,
 		Name:            c.Name,
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
@@ -101,6 +111,7 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 	}
 
 	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
+	ms.keys[c.Id] = c.Key
 
 	err = backoff.Retry(func() error {
 		return SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac)
@@ -112,6 +123,12 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 
 	ms.publishEvent("vm-provision", c.Id, c.Key, "complete", json.RawMessage{})
 	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
+}
+
+func (ms *managerService) GetComputationKey(ctx context.Context, cid int) string {
+	computationID := ms.agents[cid]
+	key := ms.keys[computationID]
+	return key
 }
 
 func getFreePort() (int, error) {

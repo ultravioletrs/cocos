@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	VsockLogsPort     = 9997
-	messageSize   int = 1024
+	VsockLogsPort = 9997
 )
 
 var errFailedToParseCID = errors.New("failed to parse cid from remote address")
