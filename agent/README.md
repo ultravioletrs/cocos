@@ -9,15 +9,10 @@ The service is configured using the environment variables from the following tab
 | Variable                      | Description                                            | Default                        |
 | ----------------------------- | ------------------------------------------------------ | ------------------------------ |
 | AGENT_LOG_LEVEL               | Log level for agent service (debug, info, warn, error) | info                           |
-| AGENT_HTTP_HOST               | Agent service HTTP host                                | ""                             |
-| AGENT_HTTP_PORT               | Agent service HTTP port                                | 9031                           |
-| AGENT_HTTP_SERVER_CERT        | Path to HTTP server certificate in pem format          | ""                             |
-| AGENT_HTTP_SERVER_KEY         | Path to HTTP server key in pem format                  | ""                             |
 | AGENT_GRPC_HOST               | Agent service gRPC host                                | ""                             |
 | AGENT_GRPC_PORT               | Agent service gRPC port                                | 7002                           |
 | AGENT_GRPC_SERVER_CERT        | Path to gRPC server certificate in pem format          | ""                             |
 | AGENT_GRPC_SERVER_KEY         | Path to gRPC server key in pem format                  | ""                             |
-| COCOS_NOTIFICATION_SERVER_URL | Server to receive notification events from agent.      | http:/localhost:9000           |
 
 
 ## Deployment

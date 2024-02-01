@@ -1,6 +1,6 @@
 # Manager
 
-Manager service provides a barebones HTTP and gRPC API and Service interface implementation for the development of the manager service.
+Manager service provides a barebones gRPC API and Service interface implementation for the development of the manager service.
 
 ## Configuration
 
@@ -9,10 +9,6 @@ The service is configured using the environment variables from the following tab
 | Variable                      | Description                                              | Default                           |
 | ----------------------------- | -------------------------------------------------------- | --------------------------------- |
 | MANAGER_LOG_LEVEL             | Log level for manager service (debug, info, warn, error) | info                              |
-| MANAGER_HTTP_HOST             | Manager service HTTP host                                |                                   |
-| MANAGER_HTTP_PORT             | Manager service HTTP port                                | 9021                              |
-| MANAGER_HTTP_SERVER_CERT      | Path to server certificate in pem format                 |                                   |
-| MANAGER_HTTP_SERVER_KEY       | Path to server key in pem format                         |                                   |
 | MANAGER_GRPC_HOST             | Manager service gRPC host                                |                                   |
 | MANAGER_GRPC_PORT             | Manager service gRPC port                                | 7001                              |
 | MANAGER_GRPC_SERVER_CERT      | Path to server certificate in pem format                 |                                   |
@@ -87,7 +83,7 @@ qemu-system-x86_64 \
     -m 2048M,slots=5,maxmem=10240M \
     -no-reboot \
     -drive if=pflash,format=raw,unit=0,file=$OVMF_CODE,readonly=on \
-    -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 \
+    -netdev user,id=vmnic,hostfwd=tcp::7020-:7002 \
     -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= \
     -device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3 -vnc :0 \
     -kernel $KERNEL \
@@ -101,9 +97,6 @@ Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
 ```sh
-# Start the 'agent' executable in the background using '&' at the end.
-cocos-agent &
-
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
 ps aux | grep cocos-agent
 # This command helps verify that the 'agent' process is running.
@@ -114,12 +107,6 @@ ps aux | grep cocos-agent
 We can also check if `Agent` is reachable from the host machine:
 
 ```sh
-# Use netcat (nc) to test the connection to localhost on port 9301.
-nc -zv localhost 9301
-# Output:
-# nc: connect to localhost (::1) port 9301 (tcp) failed: Connection refused
-# Connection to localhost (127.0.0.1) 9301 port [tcp/*] succeeded!
-
 # Use netcat (nc) to test the connection to localhost on port 7020.
 nc -zv localhost 7020
 # Output:
@@ -186,37 +173,7 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 To create an instance of VM and run a computation, run
 
 ```sh
-curl -sSi -X POST \
-  http://localhost:9021/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "computation": {
-   "id":"c0d15c5e-e37d-4426-b3b7-b432c966fb09",
-   "name":"Sample_Computation",
-   "description":"A_sample_computation",
-   "datasets":[
-      {
-         "provider":"Provider1",
-         "id":"Dataset1"
-      },
-      {
-         "provider":"Provider2",
-         "id":"Dataset2"
-      }
-   ],
-   "algorithms":[
-      {
-         "provider":"AlgorithmProvider1",
-         "id":"Algorithm1"
-      }
-   ],
-   "result_consumers":[
-      "Consumer1"
-   ],
-   "timeout":"10m"
-  }
-}'
-
+go run cmd/cli/main.go manager run '{"id":"123","name":"Sample Computation","description":"A sample computation","status":"Processing","owner":"John Doe","start_time":"2023-11-03T12:03:21.705171284+03:00","end_time":"2023-11-03T13:03:21.705171532+03:00","datasets":[{"provider":"Provider1","id":"Dataset1"},{"provider":"Provider2","id":"Dataset2"}],"algorithms":[{"provider":"AlgorithmProvider1","id":"Algorithm1"}],"result_consumers":["Consumer1","Consumer2"], "agent_config": {"port":"7002"}}'
 ```
 
 You should be able to create multiple instances by reruning the command.    

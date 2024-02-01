@@ -45,5 +45,4 @@ message AgentConfig {
   string cert_file = 3;
   string key_file = 4;
   string log_level = 5;
-  string instance_id = 6;
 }

@@ -19,12 +19,10 @@ import (
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
-	httpserver "github.com/ultravioletrs/cocos/internal/server/http"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
-	httpapi "github.com/ultravioletrs/cocos/manager/api/http"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -116,7 +114,6 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
 		return
 	}
-	hs := httpserver.New(ctx, cancel, svcName, httpServerConfig, httpapi.MakeHandler(svc, cfg.InstanceID), logger)
 
 	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
@@ -130,15 +127,7 @@ func main() {
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerManagerServiceServer, logger)
 
 	g.Go(func() error {
-		return hs.Start()
-	})
-
-	g.Go(func() error {
 		return gs.Start()
-	})
-
-	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, hs, gs)
 	})
 
 	if err := g.Wait(); err != nil {

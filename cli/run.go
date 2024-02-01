@@ -31,12 +31,11 @@ func (cli *CLI) NewRunCmd() *cobra.Command {
 				Name:            cmp.Name,
 				ResultConsumers: cmp.ResultConsumers,
 				AgentConfig: &manager.AgentConfig{
-					Port:       cmp.AgentConfig.Port,
-					Host:       cmp.AgentConfig.Host,
-					CertFile:   cmp.AgentConfig.CertFile,
-					KeyFile:    cmp.AgentConfig.KeyFile,
-					LogLevel:   cmp.AgentConfig.LogLevel,
-					InstanceId: cmp.AgentConfig.InstanceID,
+					Port:     cmp.AgentConfig.Port,
+					Host:     cmp.AgentConfig.Host,
+					CertFile: cmp.AgentConfig.CertFile,
+					KeyFile:  cmp.AgentConfig.KeyFile,
+					LogLevel: cmp.AgentConfig.LogLevel,
 				},
 			}
 
