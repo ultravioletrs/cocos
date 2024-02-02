@@ -29,9 +29,7 @@ const (
 )
 
 type config struct {
-	LogLevel              string `env:"AGENT_LOG_LEVEL"               envDefault:"info"`
-	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
-	HostIP                string `env:"MANAGER_HOST_IP"               envDefault:"localhost"`
+	LogLevel string `env:"AGENT_LOG_LEVEL"               envDefault:"info"`
 }
 
 func main() {

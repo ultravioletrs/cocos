@@ -66,9 +66,8 @@ type agentService struct {
 }
 
 const (
-	socketPath        = "unix_socket"
-	pyRuntime         = "python3"
-	notificationTopic = "agent"
+	socketPath = "unix_socket"
+	pyRuntime  = "python3"
 )
 
 var _ Service = (*agentService)(nil)
