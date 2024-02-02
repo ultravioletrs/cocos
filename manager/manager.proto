@@ -18,6 +18,7 @@ message WhoAmIRequest {
 
 message RunResponse{
   string agent_port = 1;
+  string computation_id = 2;
 }
 
 message AgentEvent {
