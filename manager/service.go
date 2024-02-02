@@ -36,7 +36,7 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, c *Computation) (string, error)
+	Run(ctx context.Context, c *ComputationRunReq) (string, error)
 }
 
 type managerService struct {
@@ -62,7 +62,7 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, host
 	return ms
 }
 
-func (ms *managerService) Run(ctx context.Context, c *Computation) (string, error) {
+func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
 	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,

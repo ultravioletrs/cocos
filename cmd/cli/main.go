@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/internal/events"
+	managersvc "github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
@@ -23,10 +26,13 @@ const (
 	envPrefixAgentGRPC   = "AGENT_GRPC_"
 	envPrefixManagerGRPC = "MANAGER_GRPC_"
 	completion           = "completion"
+	envPrefixQemu        = "MANAGER_QEMU_"
 )
 
 type config struct {
-	LogLevel string `env:"AGENT_LOG_LEVEL"      envDefault:"info"`
+	LogLevel              string `env:"AGENT_LOG_LEVEL"               envDefault:"info"`
+	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
+	HostIP                string `env:"MANAGER_HOST_IP"               envDefault:"localhost"`
 }
 
 func main() {
@@ -45,11 +51,6 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}
-	managerGRPCConfig := grpc.Config{}
-	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixManagerGRPC}); err != nil {
-		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
-		return
-	}
 
 	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
 	if err != nil {
@@ -58,15 +59,20 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	managerGRPCClient, managerClient, err := manager.NewManagerClient(managerGRPCConfig)
-	if err != nil {
-		logger.Error(err.Error())
+	qemuCfg := qemu.Config{}
+	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 		return
 	}
-	defer managerGRPCClient.Close()
+	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
+		return
+	}
+	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
 	agentSDK := sdk.NewAgentSDK(logger, agentClient)
-	managerSDK := sdk.NewManagerSDK(managerClient, logger)
+	managerSDK := managersvc.New(qemuCfg, logger, events.New(svcName, cfg.NotificationServerURL), cfg.HostIP)
 
 	cliSVC := cli.New(agentSDK, managerSDK)
 

@@ -6,10 +6,10 @@ import (
 	"github.com/ultravioletrs/cocos/manager"
 )
 
-type runReq struct {
-	Computation *manager.Computation `json:"computation"`
+type clientStreamReq struct {
+	*manager.ClientStreamMessage
 }
 
-func (req runReq) validate() error {
+func (req clientStreamReq) validate() error {
 	return nil
 }

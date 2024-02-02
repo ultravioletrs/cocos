@@ -4,72 +4,58 @@ package grpc
 
 import (
 	"context"
-	"fmt"
-	"time"
 
-	"github.com/go-kit/kit/endpoint"
-	kitgrpc "github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/manager"
-	"google.golang.org/grpc"
+	"golang.org/x/sync/errgroup"
 )
 
 const svcName = "manager.ManagerService"
 
-type grpcClient struct {
-	run     endpoint.Endpoint
-	timeout time.Duration
+type ManagerClient struct {
+	stream    manager.ManagerService_ProcessClient
+	svc       manager.Service
+	responses chan *manager.ClientStreamMessage
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(conn *grpc.ClientConn, timeout time.Duration) manager.ManagerServiceClient {
-	return &grpcClient{
-		run: kitgrpc.NewClient(
-			conn,
-			svcName,
-			"Run",
-			encodeRunRequest,
-			decodeRunResponse,
-			manager.RunResponse{},
-		).Endpoint(),
-		timeout: timeout,
+func NewClient(stream manager.ManagerService_ProcessClient, svc manager.Service, responses chan *manager.ClientStreamMessage) ManagerClient {
+	return ManagerClient{
+		stream:    stream,
+		svc:       svc,
+		responses: responses,
 	}
 }
 
-// encodeRunRequest is a transport/grpc.EncodeRequestFunc that
-// converts a user-domain runReq to a gRPC request.
-func encodeRunRequest(_ context.Context, request interface{}) (interface{}, error) {
-	req, ok := request.(runReq)
-	if !ok {
-		return nil, fmt.Errorf("invalid request type: %T", request)
-	}
-	return &manager.RunRequest{
-		Computation: req.Computation,
-	}, nil
-}
+func (client ManagerClient) Process(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
 
-// decodeRunResponse is a transport/grpc.DecodeResponseFunc that
-// converts a gRPC RunResponse to a user-domain response.
-func decodeRunResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
-	res, ok := grpcResponse.(*manager.RunResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
-	}
-	return runRes{AgentAddress: res.AgentAddress}, nil
-}
+	eg.Go(func() error {
+		for {
+			req, err := client.stream.Recv()
+			if err != nil {
+				return err
+			}
+			port, err := client.svc.Run(ctx, req)
+			if err != nil {
+				return err
+			}
+			runRes := &manager.ClientStreamMessage_RunRes{RunRes: &manager.RunResponse{AgentPort: port}}
+			if err := client.stream.Send(&manager.ClientStreamMessage{Message: runRes}); err != nil {
+				return err
+			}
+		}
+	})
 
-func (client grpcClient) Run(ctx context.Context, req *manager.RunRequest, _ ...grpc.CallOption) (*manager.RunResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, client.timeout)
-	defer cancel()
+	eg.Go(func() error {
+		for {
+			select {
+			case mes := <-client.responses:
+				if err := client.stream.Send(mes); err != nil {
+					return err
+				}
+			}
+		}
+	})
 
-	runReq := runReq{
-		Computation: req.GetComputation(),
-	}
-
-	res, err := client.run(ctx, runReq)
-	if err != nil {
-		return nil, err
-	}
-
-	runRes := res.(runRes)
-	return &manager.RunResponse{AgentAddress: runRes.AgentAddress}, nil
+	return eg.Wait()
 }

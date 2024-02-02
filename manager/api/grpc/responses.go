@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package grpc
 
-type runRes struct {
-	AgentAddress string `json:"agent_address"`
+import "github.com/ultravioletrs/cocos/manager"
+
+type runReq struct {
+	*manager.ComputationRunReq
 }

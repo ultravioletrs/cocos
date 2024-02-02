@@ -4,7 +4,6 @@ package manager
 
 import (
 	"github.com/ultravioletrs/cocos/manager"
-	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
@@ -15,5 +14,5 @@ func NewManagerClient(cfg grpc.Config) (grpc.Client, manager.ManagerServiceClien
 		return nil, nil, err
 	}
 
-	return client, managerapi.NewClient(client.Connection(), cfg.Timeout), nil
+	return client, manager.NewManagerServiceClient(client.Connection()), nil
 }

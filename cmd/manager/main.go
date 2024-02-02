@@ -17,28 +17,24 @@ import (
 	"github.com/ultravioletrs/cocos/internal/env"
 	"github.com/ultravioletrs/cocos/internal/events"
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
-	"github.com/ultravioletrs/cocos/internal/server"
-	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
-	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
+	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 const (
-	svcName            = "manager"
-	envPrefixHTTP      = "MANAGER_HTTP_"
-	envPrefixGRPC      = "MANAGER_GRPC_"
-	envPrefixAgentGRPC = "AGENT_GRPC_"
-	envPrefixQemu      = "MANAGER_QEMU_"
-	defSvcGRPCPort     = "7001"
-	defSvcHTTPPort     = "9021"
+	svcName        = "manager"
+	envPrefixGRPC  = "MANAGER_GRPC_"
+	envPrefixQemu  = "MANAGER_QEMU_"
+	defSvcGRPCPort = "7001"
+	defSvcHTTPPort = "9021"
 )
 
 type config struct {
@@ -50,7 +46,7 @@ type config struct {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	g, ctx := errgroup.WithContext(ctx)
 
 	var cfg config
@@ -107,27 +103,35 @@ func main() {
 		}
 	}()
 
+	managerGRPCConfig := grpc.Config{}
+	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		return
+	}
+
+	managerGRPCClient, managerClient, err := managergrpc.NewManagerClient(managerGRPCConfig)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	defer managerGRPCClient.Close()
+
+	pc, err := managerClient.Process(ctx)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	if err := pc.Send(&manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_WhoamiRequest{}}); err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
 	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
 
-	httpServerConfig := server.Config{Port: defSvcHTTPPort}
-	if err := env.Parse(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
-		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration: %s", svcName, err))
-		return
-	}
-
-	grpcServerConfig := server.Config{Port: defSvcGRPCPort}
-	if err := env.Parse(&grpcServerConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
-		log.Printf("failed to load %s gRPC server configuration: %s", svcName, err.Error())
-		return
-	}
-	registerManagerServiceServer := func(srv *grpc.Server) {
-		reflection.Register(srv)
-		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(svc))
-	}
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerManagerServiceServer, logger)
+	mc := managerapi.NewClient(pc, svc, make(chan *manager.ClientStreamMessage))
 
 	g.Go(func() error {
-		return gs.Start()
+		return mc.Process(ctx)
 	})
 
 	if err := g.Wait(); err != nil {

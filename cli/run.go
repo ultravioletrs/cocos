@@ -25,7 +25,7 @@ func (cli *CLI) NewRunCmd() *cobra.Command {
 				log.Fatalf("Error unmarshling computation json: %v", err)
 			}
 
-			req := manager.Computation{
+			req := manager.ComputationRunReq{
 				Id:              cmp.ID,
 				Description:     cmp.Description,
 				Name:            cmp.Name,
