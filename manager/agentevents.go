@@ -11,10 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const (
-	svc string = "agent"
-)
-
 func (s *managerService) retrieveAgentEvents() {
 	l, err := vsock.Listen(events.VsockEventsPort, nil)
 	if err != nil {
