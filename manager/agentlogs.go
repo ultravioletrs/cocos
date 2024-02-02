@@ -33,11 +33,11 @@ func (ms *managerService) retrieveAgentLogs() {
 			continue
 		}
 
-		go ms.handleConnections(conn)
+		go ms.handleLogsConnections(conn)
 	}
 }
 
-func (ms *managerService) handleConnections(conn net.Conn) {
+func (ms *managerService) handleLogsConnections(conn net.Conn) {
 	defer conn.Close()
 	for {
 		b := make([]byte, messageSize)
@@ -52,6 +52,7 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 			continue
 		}
 		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
+		ms.eventsChan <- &ClientStreamMessage{Message: &ClientStreamMessage_AgentLog{AgentLog: &AgentLog{ComputationId: cmpID, LogMessage: string(b[:n])}}}
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/internal/env"
-	"github.com/ultravioletrs/cocos/internal/events"
 	managersvc "github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
@@ -72,7 +71,7 @@ func main() {
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
 	agentSDK := sdk.NewAgentSDK(logger, agentClient)
-	managerSDK := managersvc.New(qemuCfg, logger, events.New(svcName, cfg.NotificationServerURL), cfg.HostIP)
+	managerSDK := managersvc.New(qemuCfg, logger, make(chan *managersvc.ClientStreamMessage))
 
 	cliSVC := cli.New(agentSDK, managerSDK)
 

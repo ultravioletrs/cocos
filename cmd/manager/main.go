@@ -15,10 +15,8 @@ import (
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/env"
-	"github.com/ultravioletrs/cocos/internal/events"
 	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/agentevents"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -38,11 +36,9 @@ const (
 )
 
 type config struct {
-	LogLevel              string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL             string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID            string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
-	NotificationServerURL string `env:"COCOS_NOTIFICATION_SERVER_URL" envDefault:"http://localhost:9000"`
-	HostIP                string `env:"MANAGER_HOST_IP"          envDefault:"localhost"`
+	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
+	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
 }
 
 func main() {
@@ -90,19 +86,6 @@ func main() {
 	}
 	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
 
-	agEvents, err := agentevents.New(cfg.NotificationServerURL)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to start agent events service: %s", err))
-		return
-	}
-	errChan := make(chan error)
-	go agEvents.Forward(ctx, errChan)
-	go func() {
-		for err := range errChan {
-			logger.Warn(err.Error())
-		}
-	}()
-
 	managerGRPCConfig := grpc.Config{}
 	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
@@ -126,9 +109,10 @@ func main() {
 		return
 	}
 
-	svc := newService(logger, tracer, qemuCfg, events.New(svcName, cfg.NotificationServerURL), cfg)
+	eventsChan := make(chan *manager.ClientStreamMessage)
+	svc := newService(logger, tracer, qemuCfg, eventsChan)
 
-	mc := managerapi.NewClient(pc, svc, make(chan *manager.ClientStreamMessage))
+	mc := managerapi.NewClient(pc, svc, eventsChan)
 
 	g.Go(func() error {
 		return mc.Process(ctx)
@@ -144,8 +128,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventSvc events.Service, cfg config) manager.Service {
-	svc := manager.New(qemuCfg, logger, eventSvc, cfg.HostIP)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage) manager.Service {
+	svc := manager.New(qemuCfg, logger, eventsChan)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

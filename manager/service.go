@@ -13,8 +13,8 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
-	"github.com/ultravioletrs/cocos/internal/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -40,25 +40,24 @@ type Service interface {
 }
 
 type managerService struct {
-	qemuCfg  qemu.Config
-	logger   *slog.Logger
-	eventSvc events.Service
-	hostIP   string
-	agents   map[int]string // agent map of vsock cid to computationID.
+	qemuCfg    qemu.Config
+	logger     *slog.Logger
+	agents     map[int]string // agent map of vsock cid to computationID.
+	eventsChan chan *ClientStreamMessage
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventSvc events.Service, hostIP string) Service {
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *ClientStreamMessage) Service {
 	ms := &managerService{
-		qemuCfg:  qemuCfg,
-		eventSvc: eventSvc,
-		hostIP:   hostIP,
-		logger:   logger,
-		agents:   make(map[int]string),
+		qemuCfg:    qemuCfg,
+		logger:     logger,
+		agents:     make(map[int]string),
+		eventsChan: eventsChan,
 	}
 	go ms.retrieveAgentLogs()
+	go ms.retrieveAgentEvents()
 	return ms
 }
 
@@ -108,7 +107,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	ms.qemuCfg.VSockConfig.GuestCID++
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
-	return fmt.Sprintf("%s:%d", ms.hostIP, ms.qemuCfg.HostFwdAgent), nil
+	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
 }
 
 func getFreePort() (int, error) {
@@ -129,7 +128,16 @@ func getFreePort() (int, error) {
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
-	if err := ms.eventSvc.SendEvent(event, cmpID, status, details); err != nil {
-		ms.logger.Warn(err.Error())
+	ms.eventsChan <- &ClientStreamMessage{
+		Message: &ClientStreamMessage_AgentEvent{
+			AgentEvent: &AgentEvent{
+				EventType:     event,
+				ComputationId: cmpID,
+				Status:        status,
+				Details:       details,
+				Timestamp:     timestamppb.Now(),
+				Originator:    "manager",
+			},
+		},
 	}
 }
