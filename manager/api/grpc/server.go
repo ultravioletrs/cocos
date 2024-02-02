@@ -39,14 +39,12 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 	})
 
 	eg.Go(func() error {
-		for {
-			select {
-			case resp := <-s.responses:
-				if err := stream.Send(resp); err != nil {
-					return err
-				}
+		for resp := range s.responses {
+			if err := stream.Send(resp); err != nil {
+				return err
 			}
 		}
+		return nil
 	})
 
 	return eg.Wait()

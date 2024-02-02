@@ -9,8 +9,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const svcName = "manager.ManagerService"
-
 type ManagerClient struct {
 	stream    manager.ManagerService_ProcessClient
 	svc       manager.Service
@@ -47,14 +45,12 @@ func (client ManagerClient) Process(ctx context.Context) error {
 	})
 
 	eg.Go(func() error {
-		for {
-			select {
-			case mes := <-client.responses:
-				if err := client.stream.Send(mes); err != nil {
-					return err
-				}
+		for mes := range client.responses {
+			if err := client.stream.Send(mes); err != nil {
+				return err
 			}
 		}
+		return nil
 	})
 
 	return eg.Wait()
