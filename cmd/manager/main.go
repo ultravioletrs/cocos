@@ -99,6 +99,19 @@ func main() {
 	}
 	defer managerGRPCClient.Close()
 
+	managerGRPCConfig := grpc.Config{}
+	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		return
+	}
+
+	managerGRPCClient, managerClient, err := managergrpc.NewManagerClient(managerGRPCConfig)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	defer managerGRPCClient.Close()
+
 	pc, err := managerClient.Process(ctx)
 	if err != nil {
 		logger.Error(err.Error())
