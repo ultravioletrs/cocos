@@ -1,20 +1,36 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"net"
+	"log/slog"
+	"os"
 
+	mglog "github.com/absmach/magistrala/logger"
+	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/ultravioletrs/cocos/internal/server"
+	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
-type svc struct{}
+const (
+	svcName     = "manager_test_server"
+	defaultPort = "7001"
+)
+
+type svc struct {
+	logger *slog.Logger
+}
 
 func (s *svc) Run(ipAdress string) manager.ComputationRunReq {
-	log.Println("received who am on ip address", ipAdress)
+	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
 	return manager.ComputationRunReq{
 		Id:              "1",
 		Name:            "sample computation",
@@ -30,37 +46,52 @@ func (s *svc) Run(ipAdress string) manager.ComputationRunReq {
 }
 
 func main() {
-
+	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 	incomingChan := make(chan *manager.ClientStreamMessage)
 
-	svc := managergrpc.NewServer(context.Background(), incomingChan, &svc{})
+	logger, err := mglog.New(os.Stdout, "debug")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	go func() {
 		for incoming := range incomingChan {
 			switch incoming.Message.(type) {
 			case *manager.ClientStreamMessage_WhoamiRequest:
-				fmt.Println("recived whoamI")
+				fmt.Println("received whoamI")
 			case *manager.ClientStreamMessage_RunRes:
-				fmt.Println("recived runRes")
+				fmt.Println("received runRes")
 			case *manager.ClientStreamMessage_AgentEvent:
-				fmt.Println("recived agent event")
+				fmt.Println("received agent event")
 			case *manager.ClientStreamMessage_AgentLog:
-				fmt.Println("recived agent log")
+				fmt.Println("received agent log")
 			}
 			fmt.Println(incoming.Message)
 		}
 	}()
 
-	grpcServer := grpc.NewServer()
-	manager.RegisterManagerServiceServer(grpcServer, svc)
-
-	lis, err := net.Listen("tcp", ":8282")
-	if err != nil {
-		log.Fatal(err)
+	registerAgentServiceServer := func(srv *grpc.Server) {
+		reflection.Register(srv)
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
+	}
+	grpcServerConfig := server.Config{Port: defaultPort}
+	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		return
 	}
 
-	log.Println("Server listening on port 8282")
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatal(err)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
+
+	g.Go(func() error {
+		return gs.Start()
+	})
+
+	g.Go(func() error {
+		return server.StopHandler(ctx, cancel, logger, svcName, gs)
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
 }

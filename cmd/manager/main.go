@@ -28,11 +28,9 @@ import (
 )
 
 const (
-	svcName        = "manager"
-	envPrefixGRPC  = "MANAGER_GRPC_"
-	envPrefixQemu  = "MANAGER_QEMU_"
-	defSvcGRPCPort = "7001"
-	defSvcHTTPPort = "9021"
+	svcName       = "manager"
+	envPrefixGRPC = "MANAGER_GRPC_"
+	envPrefixQemu = "MANAGER_QEMU_"
 )
 
 type config struct {

@@ -16,11 +16,7 @@ pip3 install pandas scikit-learn
 
 ### Agent-CLI interaction
 
-In the VM, open a console and start `agent`:
-
-```sh
-AGENT_LOG_LEVEL=info AGENT_GRPC_URL=10.0.2.15:7002 go run cmd/agent/main.go
-```
+Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
 
 Open console on the host, and run
 

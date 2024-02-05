@@ -6,26 +6,21 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/internal/env"
-	managersvc "github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
 const (
-	svcName              = "cli"
-	envPrefixAgentGRPC   = "AGENT_GRPC_"
-	envPrefixManagerGRPC = "MANAGER_GRPC_"
-	completion           = "completion"
-	envPrefixQemu        = "MANAGER_QEMU_"
+	svcName            = "cli"
+	envPrefixAgentGRPC = "AGENT_GRPC_"
+	completion         = "completion"
 )
 
 type config struct {
@@ -56,22 +51,9 @@ func main() {
 	}
 	defer agentGRPCClient.Close()
 
-	qemuCfg := qemu.Config{}
-	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
-		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
-		return
-	}
-	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
-		return
-	}
-	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
-
 	agentSDK := sdk.NewAgentSDK(logger, agentClient)
-	managerSDK := managersvc.New(qemuCfg, logger, make(chan *managersvc.ClientStreamMessage))
 
-	cliSVC := cli.New(agentSDK, managerSDK)
+	cliSVC := cli.New(agentSDK)
 
 	rootCmd := &cobra.Command{
 		Use:   "cocos-cli [command]",
