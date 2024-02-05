@@ -6,46 +6,45 @@ import (
 	"context"
 
 	"github.com/ultravioletrs/cocos/manager"
-	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/peer"
 )
 
 type grpcServer struct {
 	manager.UnimplementedManagerServiceServer
-	incoming  chan *manager.ClientStreamMessage
-	responses chan *manager.ComputationRunReq
-	ctx       context.Context
+	incoming chan *manager.ClientStreamMessage
+	ctx      context.Context
+	svc      Service
+}
+
+type Service interface {
+	Run(ipAddress string) manager.ComputationRunReq
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, responses chan *manager.ComputationRunReq) manager.ManagerServiceServer {
+func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, svc Service) manager.ManagerServiceServer {
 	return &grpcServer{
-		incoming:  incoming,
-		responses: responses,
+		incoming: incoming,
+		svc:      svc,
 	}
 }
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
-	eg, _ := errgroup.WithContext(s.ctx)
-
-	eg.Go(func() error {
-		for {
-			req, err := stream.Recv()
-			if err != nil {
-				return err
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		switch req.Message.(type) {
+		case *manager.ClientStreamMessage_WhoamiRequest:
+			peer, ok := peer.FromContext(stream.Context())
+			if ok {
+				req := s.svc.Run(peer.Addr.String())
+				if err := stream.Send(&req); err != nil {
+					return err
+				}
 			}
 
-			s.incoming <- req
 		}
-	})
-
-	eg.Go(func() error {
-		for resp := range s.responses {
-			if err := stream.Send(resp); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	return eg.Wait()
+		s.incoming <- req
+	}
 }
