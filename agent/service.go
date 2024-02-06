@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"os/exec"
 	"slices"
 
+	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
 )
@@ -46,11 +48,11 @@ var (
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, c Computation) (string, error)
+	Run(c Computation) (string, error)
 	Algo(ctx context.Context, algorithm Algorithm) (string, error)
 	Data(ctx context.Context, dataset Dataset) (string, error)
 	Result(ctx context.Context, consumer string) ([]byte, error)
-	Attestation(ctx context.Context) ([]byte, error)
+	Attestation(ctx context.Context, reportData []byte) ([]byte, error)
 }
 
 type agentService struct {
@@ -58,7 +60,6 @@ type agentService struct {
 	algorithms  [][]byte
 	datasets    [][]byte
 	result      []byte
-	attestation []byte
 	sm          *StateMachine
 	runError    error
 	eventSvc    events.Service
@@ -90,7 +91,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service) Serv
 	return svc
 }
 
-func (as *agentService) Run(ctx context.Context, c Computation) (string, error) {
+func (as *agentService) Run(c Computation) (string, error) {
 	if as.sm.GetState() != receivingManifests {
 		return "", errStateNotReady
 	}
@@ -195,14 +196,17 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context) ([]byte, error) {
-	// Implement the logic for the Attestation method here
-	// Use the provided ctx parameter as needed
-	var attestation []byte
+func (as *agentService) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
+	provider, err := client.GetQuoteProvider()
+	if err != nil {
+		return []byte{}, err
+	}
+	rawQuote, err := provider.GetRawQuote(sha512.Sum512(reportData))
+	if err != nil {
+		return []byte{}, err
+	}
 
-	as.attestation = attestation
-
-	return as.attestation, nil
+	return rawQuote, nil
 }
 
 func (as *agentService) runComputation() {

@@ -66,7 +66,7 @@ func main() {
 	defer eventSvc.Close()
 	svc := newService(ctx, logger, eventSvc)
 
-	if _, err := svc.Run(ctx, cfg); err != nil {
+	if _, err := svc.Run(cfg); err != nil {
 		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
 			logger.Warn(err.Error())
 		}

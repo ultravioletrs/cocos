@@ -23,7 +23,7 @@ func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) *agentS
 	}
 }
 
-func (sdk *agentSDK) Run(ctx context.Context, ac agent.Computation) (string, error) {
+func (sdk *agentSDK) Run(ac agent.Computation) (string, error) {
 	return "", nil
 }
 
@@ -73,8 +73,10 @@ func (sdk *agentSDK) Result(ctx context.Context, consumer string) ([]byte, error
 	return response.File, nil
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context) ([]byte, error) {
-	request := &agent.AttestationRequest{}
+func (sdk *agentSDK) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
+	request := &agent.AttestationRequest{
+		ReportData: reportData,
+	}
 
 	response, err := sdk.client.Attestation(ctx, request)
 	if err != nil {

@@ -32,13 +32,13 @@ func MetricsMiddleware(svc agent.Service, counter metrics.Counter, latency metri
 	}
 }
 
-func (ms *metricsMiddleware) Run(ctx context.Context, ac agent.Computation) (string, error) {
+func (ms *metricsMiddleware) Run(ac agent.Computation) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "run").Add(1)
 		ms.latency.With("method", "run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Run(ctx, ac)
+	return ms.svc.Run(ac)
 }
 
 func (ms *metricsMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (string, error) {
@@ -68,11 +68,11 @@ func (ms *metricsMiddleware) Result(ctx context.Context, consumer string) ([]byt
 	return ms.svc.Result(ctx, consumer)
 }
 
-func (ms *metricsMiddleware) Attestation(ctx context.Context) ([]byte, error) {
+func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "attestation").Add(1)
 		ms.latency.With("method", "attestation").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Attestation(ctx)
+	return ms.svc.Attestation(ctx, reportData)
 }
