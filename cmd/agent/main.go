@@ -10,7 +10,6 @@ import (
 	"log/slog"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
@@ -48,14 +47,6 @@ func main() {
 	if err != nil {
 		log.Print(err.Error())
 		return
-	}
-
-	if cfg.AgentConfig.InstanceID == "" {
-		cfg.AgentConfig.InstanceID, err = uuid.New().ID()
-		if err != nil {
-			log.Printf("Failed to generate instanceID: %s", err)
-			return
-		}
 	}
 
 	eventSvc, err := events.New(svcName, cfg.ID)

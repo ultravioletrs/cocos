@@ -70,12 +70,11 @@ func (ms *managerService) Run(ctx context.Context, c *Computation) (string, erro
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
 		AgentConfig: agent.AgentConfig{
-			Port:       c.AgentConfig.Port,
-			Host:       c.AgentConfig.Host,
-			KeyFile:    c.AgentConfig.KeyFile,
-			CertFile:   c.AgentConfig.CertFile,
-			LogLevel:   c.AgentConfig.LogLevel,
-			InstanceID: c.AgentConfig.InstanceId,
+			Port:     c.AgentConfig.Port,
+			Host:     c.AgentConfig.Host,
+			KeyFile:  c.AgentConfig.KeyFile,
+			CertFile: c.AgentConfig.CertFile,
+			LogLevel: c.AgentConfig.LogLevel,
 		},
 	}
 	for _, algo := range c.Algorithms {

@@ -26,9 +26,10 @@ Open console on the host, and run
 
 ```sh
 export AGENT_GRPC_URL=localhost:7002
+export MANAGER_GRPC_URL=localhost:7001
 
 # Run CLI to provide manifest
-go run cmd/cli/main.go run --computation '{"id":"123","name":"Sample Computation","description":"A sample computation","status":"Processing","owner":"John Doe","start_time":"2023-11-03T12:03:21.705171284+03:00","end_time":"2023-11-03T13:03:21.705171532+03:00","datasets":[{"provider":"Provider1","id":"Dataset1"},{"provider":"Provider2","id":"Dataset2"}],"algorithms":[{"provider":"AlgorithmProvider1","id":"Algorithm1"}],"result_consumers":["Consumer1","Consumer2"],"ttl":3600,"metadata":{"key1":"value1","key2":42}, "timeout": "2m"}'
+go run cmd/cli/main.go run '{"id":"123","name":"Sample Computation","description":"A sample computation","status":"Processing","owner":"John Doe","start_time":"2023-11-03T12:03:21.705171284+03:00","end_time":"2023-11-03T13:03:21.705171532+03:00","datasets":[{"provider":"Provider1","id":"Dataset1"},{"provider":"Provider2","id":"Dataset2"}],"algorithms":[{"provider":"AlgorithmProvider1","id":"Algorithm1"}],"result_consumers":["Consumer1","Consumer2"],"ttl":3600,"metadata":{"key1":"value1","key2":42}, "timeout": "2m"}'
 
 # Run the CLI program with algorithm input
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.py Algorithm1 AlgorithmProvider1
