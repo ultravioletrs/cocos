@@ -104,7 +104,7 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	if err := pc.Send(&manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_WhoamiRequest{}}); err != nil {
+	if err := pc.Send(&manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_Whoami{}}); err != nil {
 		logger.Error(err.Error())
 		return
 	}

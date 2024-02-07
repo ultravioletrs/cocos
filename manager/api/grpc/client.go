@@ -37,7 +37,7 @@ func (client ManagerClient) Process(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			runRes := &manager.ClientStreamMessage_RunRes{RunRes: &manager.RunResponse{AgentPort: port}}
+			runRes := &manager.ClientStreamMessage_RunRes{RunRes: &manager.RunResponse{AgentPort: port, ComputationId: req.Id}}
 			if err := client.stream.Send(&manager.ClientStreamMessage{Message: runRes}); err != nil {
 				return err
 			}
