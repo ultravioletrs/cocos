@@ -135,7 +135,7 @@ NB: we set environment variables that we will use in the shell process where we 
 
 ## Deployment
 
-To start the service outside of the container, execute the following shell script:
+To start the service, execute the following shell script (note a server needs to be running see  [here](../test/manager-server/README.md)):
 
 ```bash
 # download the latest version of the service
@@ -150,6 +150,7 @@ make manager
 make install
 
 # set the environment variables and run the service
+MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
 MANAGER_QEMU_ENABLE_SEV=false \
@@ -159,22 +160,13 @@ MANAGER_QEMU_ENABLE_SEV=false \
 To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
 
 ```sh
+MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=true \
 MANAGER_QEMU_ENABLE_SEV=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
 ```
-
-### Create QEMU virtual machine (VM)
-
-To create an instance of VM and run a computation, run
-
-```sh
-go run cmd/cli/main.go manager run '{"id":"123","name":"Sample Computation","description":"A sample computation","status":"Processing","owner":"John Doe","start_time":"2023-11-03T12:03:21.705171284+03:00","end_time":"2023-11-03T13:03:21.705171532+03:00","datasets":[{"provider":"Provider1","id":"Dataset1"},{"provider":"Provider2","id":"Dataset2"}],"algorithms":[{"provider":"AlgorithmProvider1","id":"Algorithm1"}],"result_consumers":["Consumer1","Consumer2"], "agent_config": {"port":"7002"}}'
-```
-
-You should be able to create multiple instances by reruning the command.    
 
 ### Verifying VM launch
 

@@ -4,17 +4,14 @@ package cli
 
 import (
 	"github.com/ultravioletrs/cocos/agent"
-	"github.com/ultravioletrs/cocos/manager"
 )
 
 type CLI struct {
-	agentSDK   agent.Service
-	managerSDK manager.Service
+	agentSDK agent.Service
 }
 
-func New(agentSDK agent.Service, managerSDK manager.Service) *CLI {
+func New(agentSDK agent.Service) *CLI {
 	return &CLI{
-		agentSDK:   agentSDK,
-		managerSDK: managerSDK,
+		agentSDK: agentSDK,
 	}
 }

@@ -72,5 +72,4 @@ message AgentConfig {
   string client_ca_file = 5;
   string server_ca_file = 6;
   string log_level = 7;
-  string instance_id = 8;
 }
