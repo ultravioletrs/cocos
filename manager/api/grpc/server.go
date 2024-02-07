@@ -5,44 +5,47 @@ package grpc
 import (
 	"context"
 
-	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/manager"
+	"golang.org/x/sync/errgroup"
 )
 
 type grpcServer struct {
-	run grpc.Handler
 	manager.UnimplementedManagerServiceServer
+	incoming  chan *manager.ClientStreamMessage
+	responses chan *manager.ComputationRunReq
+	ctx       context.Context
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(svc manager.Service) manager.ManagerServiceServer {
+func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, responses chan *manager.ComputationRunReq) manager.ManagerServiceServer {
 	return &grpcServer{
-		run: grpc.NewServer(
-			runEndpoint(svc),
-			decodeRunRequest,
-			encodeRunResponse,
-		),
+		incoming:  incoming,
+		responses: responses,
 	}
 }
 
-func decodeRunRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	req := grpcReq.(*manager.RunRequest)
+func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
+	eg, _ := errgroup.WithContext(s.ctx)
 
-	return runReq{
-		Computation: req.GetComputation(),
-	}, nil
-}
+	eg.Go(func() error {
+		for {
+			req, err := stream.Recv()
+			if err != nil {
+				return err
+			}
 
-func encodeRunResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(runRes)
-	return &manager.RunResponse{AgentAddress: res.AgentAddress}, nil
-}
+			s.incoming <- req
+		}
+	})
 
-func (s *grpcServer) Run(ctx context.Context, req *manager.RunRequest) (*manager.RunResponse, error) {
-	_, res, err := s.run.ServeGRPC(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	rr := res.(*manager.RunResponse)
-	return rr, nil
+	eg.Go(func() error {
+		for resp := range s.responses {
+			if err := stream.Send(resp); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return eg.Wait()
 }

@@ -3,19 +3,47 @@
 
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 package manager;
 
 option go_package = "./manager";
 
 service ManagerService {
-  rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Process(stream ClientStreamMessage) returns (stream ComputationRunReq) {}
 }
 
-message RunRequest {
-  Computation computation = 1;
+message WhoAmIRequest {
 }
 
-message Computation {
+message RunResponse{
+  string agent_port = 1;
+}
+
+message AgentEvent {
+  string event_type = 1;
+	google.protobuf.Timestamp timestamp = 2;
+	string	computation_id = 3;
+	bytes	details = 4;
+	string	originator = 5;
+	string	status = 6;
+}
+
+message AgentLog {
+  string log_message = 1;
+  string computation_id = 2;
+}
+
+message ClientStreamMessage {
+  oneof message {
+    WhoAmIRequest whoami_request = 1;
+    AgentLog agent_log = 2;
+    AgentEvent agent_event = 3;
+    RunResponse run_res = 4;
+  }
+}
+
+message ComputationRunReq {
   string id = 1;
   string name = 2;
   string description = 3;
@@ -35,14 +63,13 @@ message Algorithm {
   string id = 2;
 }
 
-message RunResponse {
-  string agent_address = 1;
-}
-
 message AgentConfig {
   string port = 1;
   string host = 2;
   string cert_file = 3;
   string key_file = 4;
-  string log_level = 5;
+  string client_ca_file = 5;
+  string server_ca_file = 6;
+  string log_level = 7;
+  string instance_id = 8;
 }

@@ -56,19 +56,18 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation
-	algorithms  [][]byte
-	datasets    [][]byte
-	result      []byte
-	sm          *StateMachine
-	runError    error
-	eventSvc    events.Service
+	computation Computation    // Holds the current computation request details.
+	algorithms  [][]byte       // Stores the algorithms received for the computation.
+	datasets    [][]byte       // Stores the datasets received for the computation.
+	result      []byte         // Stores the result of the computation.
+	sm          *StateMachine  // Manages the state transitions of the agent service.
+	runError    error          // Stores any error encountered during the computation run.
+	eventSvc    events.Service // Service for publishing events related to computation.
 }
 
 const (
-	socketPath        = "unix_socket"
-	pyRuntime         = "python3"
-	notificationTopic = "agent"
+	socketPath = "unix_socket"
+	pyRuntime  = "python3"
 )
 
 var _ Service = (*agentService)(nil)

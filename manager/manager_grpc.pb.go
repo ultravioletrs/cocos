@@ -22,14 +22,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ManagerService_Run_FullMethodName = "/manager.ManagerService/Run"
+	ManagerService_Process_FullMethodName = "/manager.ManagerService/Process"
 )
 
 // ManagerServiceClient is the client API for ManagerService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManagerServiceClient interface {
-	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error)
+	Process(ctx context.Context, opts ...grpc.CallOption) (ManagerService_ProcessClient, error)
 }
 
 type managerServiceClient struct {
@@ -40,20 +40,42 @@ func NewManagerServiceClient(cc grpc.ClientConnInterface) ManagerServiceClient {
 	return &managerServiceClient{cc}
 }
 
-func (c *managerServiceClient) Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error) {
-	out := new(RunResponse)
-	err := c.cc.Invoke(ctx, ManagerService_Run_FullMethodName, in, out, opts...)
+func (c *managerServiceClient) Process(ctx context.Context, opts ...grpc.CallOption) (ManagerService_ProcessClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ManagerService_ServiceDesc.Streams[0], ManagerService_Process_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &managerServiceProcessClient{stream}
+	return x, nil
+}
+
+type ManagerService_ProcessClient interface {
+	Send(*ClientStreamMessage) error
+	Recv() (*ComputationRunReq, error)
+	grpc.ClientStream
+}
+
+type managerServiceProcessClient struct {
+	grpc.ClientStream
+}
+
+func (x *managerServiceProcessClient) Send(m *ClientStreamMessage) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *managerServiceProcessClient) Recv() (*ComputationRunReq, error) {
+	m := new(ComputationRunReq)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility
 type ManagerServiceServer interface {
-	Run(context.Context, *RunRequest) (*RunResponse, error)
+	Process(ManagerService_ProcessServer) error
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -61,8 +83,8 @@ type ManagerServiceServer interface {
 type UnimplementedManagerServiceServer struct {
 }
 
-func (UnimplementedManagerServiceServer) Run(context.Context, *RunRequest) (*RunResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Run not implemented")
+func (UnimplementedManagerServiceServer) Process(ManagerService_ProcessServer) error {
+	return status.Errorf(codes.Unimplemented, "method Process not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 
@@ -77,22 +99,30 @@ func RegisterManagerServiceServer(s grpc.ServiceRegistrar, srv ManagerServiceSer
 	s.RegisterService(&ManagerService_ServiceDesc, srv)
 }
 
-func _ManagerService_Run_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RunRequest)
-	if err := dec(in); err != nil {
+func _ManagerService_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ManagerServiceServer).Process(&managerServiceProcessServer{stream})
+}
+
+type ManagerService_ProcessServer interface {
+	Send(*ComputationRunReq) error
+	Recv() (*ClientStreamMessage, error)
+	grpc.ServerStream
+}
+
+type managerServiceProcessServer struct {
+	grpc.ServerStream
+}
+
+func (x *managerServiceProcessServer) Send(m *ComputationRunReq) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *managerServiceProcessServer) Recv() (*ClientStreamMessage, error) {
+	m := new(ClientStreamMessage)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(ManagerServiceServer).Run(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ManagerService_Run_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagerServiceServer).Run(ctx, req.(*RunRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
@@ -101,12 +131,14 @@ func _ManagerService_Run_Handler(srv interface{}, ctx context.Context, dec func(
 var ManagerService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "manager.ManagerService",
 	HandlerType: (*ManagerServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "Run",
-			Handler:    _ManagerService_Run_Handler,
+			StreamName:    "Process",
+			Handler:       _ManagerService_Process_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "manager/manager.proto",
 }
