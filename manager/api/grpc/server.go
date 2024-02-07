@@ -59,5 +59,4 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 		return nil
 	})
 	return eg.Wait()
-
 }
