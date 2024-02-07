@@ -154,17 +154,22 @@ func main() {
 		},
 	}
 
-	// Root Commands.
+	// Root Commands
 	rootCmd.AddCommand(agentCmd)
 	rootCmd.AddCommand(managerCmd)
 
-	// agent Commands.
+	// Agent Commands
 	agentCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
 	agentCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	agentCmd.AddCommand(cliSVC.NewResultsCmd())
-	agentCmd.AddCommand(cliSVC.NewAttestationCmd())
+	attestaionCmd := cliSVC.NewAttestationCmd()
+	agentCmd.AddCommand(attestaionCmd)
 
-	// manager commands.
+	// Attestation commands
+	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
+	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+
+	// Manager commands
 	managerCmd.AddCommand(cliSVC.NewRunCmd())
 
 	if err := rootCmd.Execute(); err != nil {
