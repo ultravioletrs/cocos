@@ -31,7 +31,7 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 		if err != nil {
 			return err
 		}
-		if _, ok := req.Message.(*manager.ClientStreamMessage_WhoamiRequest); ok {
+		if _, ok := req.Message.(*manager.ClientStreamMessage_Whoami); ok {
 			client, ok := peer.FromContext(stream.Context())
 			if ok {
 				req := s.svc.Run(client.Addr.String())

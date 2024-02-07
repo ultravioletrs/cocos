@@ -58,7 +58,7 @@ func main() {
 	go func() {
 		for incoming := range incomingChan {
 			switch incoming.Message.(type) {
-			case *manager.ClientStreamMessage_WhoamiRequest:
+			case *manager.ClientStreamMessage_Whoami:
 				fmt.Println("received whoamI")
 			case *manager.ClientStreamMessage_RunRes:
 				fmt.Println("received runRes")
