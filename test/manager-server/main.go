@@ -20,6 +20,8 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+var _ managergrpc.Service = (*svc)(nil)
+
 const (
 	svcName     = "manager_test_server"
 	defaultPort = "7001"
@@ -29,9 +31,9 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ipAdress string) manager.ComputationRunReq {
+func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
-	return manager.ComputationRunReq{
+	reqChan <- &manager.ComputationRunReq{
 		Id:              "1",
 		Name:            "sample computation",
 		Description:     "sample descrption",
@@ -73,7 +75,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(ctx, incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.Config{Port: defaultPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
