@@ -83,79 +83,16 @@ func main() {
 		},
 	}
 
-	agentCmd := &cobra.Command{
-		Use:   "agent [command]",
-		Short: "CLI application for agent Service API",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("CLI application for agent Service API\n\n")
-			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
-			fmt.Printf("Available Commands:\n")
-
-			// Filter out "completion" command
-			availableCommands := make([]*cobra.Command, 0)
-			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != completion {
-					availableCommands = append(availableCommands, subCmd)
-				}
-			}
-
-			for _, subCmd := range availableCommands {
-				fmt.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
-			}
-
-			fmt.Printf("\nFlags:\n")
-			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-				fmt.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
-			})
-			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
-		},
-	}
-
-	managerCmd := &cobra.Command{
-		Use:   "manager [command]",
-		Short: "CLI application for manager Service API",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("CLI application for manager Service API\n\n")
-			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
-			fmt.Printf("Available Commands:\n")
-
-			// Filter out "completion" command
-			availableCommands := make([]*cobra.Command, 0)
-			for _, subCmd := range cmd.Commands() {
-				if subCmd.Name() != completion {
-					availableCommands = append(availableCommands, subCmd)
-				}
-			}
-
-			for _, subCmd := range availableCommands {
-				fmt.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
-			}
-
-			fmt.Printf("\nFlags:\n")
-			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-				fmt.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
-			})
-			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
-		},
-	}
-
-	// Root Commands
-	rootCmd.AddCommand(agentCmd)
-	rootCmd.AddCommand(managerCmd)
-
 	// Agent Commands
-	agentCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
-	agentCmd.AddCommand(cliSVC.NewDatasetsCmd())
-	agentCmd.AddCommand(cliSVC.NewResultsCmd())
+	rootCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
+	rootCmd.AddCommand(cliSVC.NewDatasetsCmd())
+	rootCmd.AddCommand(cliSVC.NewResultsCmd())
 	attestaionCmd := cliSVC.NewAttestationCmd()
-	agentCmd.AddCommand(attestaionCmd)
+	rootCmd.AddCommand(attestaionCmd)
 
 	// Attestation commands
 	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
 	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
-
-	// Manager commands
-	managerCmd.AddCommand(cliSVC.NewRunCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
