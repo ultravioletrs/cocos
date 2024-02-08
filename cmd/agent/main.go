@@ -66,10 +66,12 @@ func main() {
 	}
 
 	grpcServerConfig := server.Config{
-		Port:     cfg.AgentConfig.Port,
-		Host:     cfg.AgentConfig.Host,
-		CertFile: cfg.AgentConfig.CertFile,
-		KeyFile:  cfg.AgentConfig.KeyFile,
+		Port:         cfg.AgentConfig.Port,
+		Host:         cfg.AgentConfig.Host,
+		CertFile:     cfg.AgentConfig.CertFile,
+		KeyFile:      cfg.AgentConfig.KeyFile,
+		ServerCAFile: cfg.AgentConfig.ServerCAFile,
+		ClientCAFile: cfg.AgentConfig.ClientCAFile,
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {

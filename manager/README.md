@@ -13,6 +13,8 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_PORT             | Manager service gRPC port                                | 7001                              |
 | MANAGER_GRPC_SERVER_CERT      | Path to server certificate in pem format                 |                                   |
 | MANAGER_GRPC_SERVER_KEY       | Path to server key in pem format                         |                                   |
+| MANAGER_GRPC_SERVER_CA_CERTS  | Path to gRPC server CA certificate                       |                                   |
+| MANAGER_GRPC_CLIENT_CA_CERTS  | Path to gRPC client CA certificate                       |                                   |
 | COCOS_JAEGER_URL              | Jaeger server URL                                        | http://localhost:14268/api/traces |
 | MANAGER_INSTANCE_ID           | Manager service instance ID                              |                                   |
 
@@ -94,6 +96,7 @@ qemu-system-x86_64 \
 Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
+Agent is started automatically in the VM.
 ```sh
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
 ps aux | grep cocos-agent
