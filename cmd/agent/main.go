@@ -9,13 +9,13 @@ import (
 	"log"
 	"log/slog"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/internal"
+	"github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
@@ -43,11 +43,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer conn.Close()
-	logger, err := mglog.New(conn, cfg.AgentConfig.LogLevel)
-	if err != nil {
-		log.Print(err.Error())
-		return
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(cfg.AgentConfig.LogLevel)); err != nil {
+		log.Fatal(err)
 	}
+	handler := logger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
+	logger := slog.New(handler)
 
 	eventSvc, err := events.New(svcName, cfg.ID)
 	if err != nil {

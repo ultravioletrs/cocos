@@ -10,6 +10,8 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -51,8 +53,15 @@ func (ms *managerService) handleLogsConnections(conn net.Conn) {
 			ms.logger.Warn(err.Error())
 			continue
 		}
-		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
-		ms.eventsChan <- &ClientStreamMessage{Message: &ClientStreamMessage_AgentLog{AgentLog: &AgentLog{ComputationId: cmpID, LogMessage: string(b[:n])}}}
+		var log manager.AgentLog
+		if err := proto.Unmarshal(b[:n], &log); err != nil {
+			ms.logger.Warn(err.Error())
+			continue
+		}
+		log.ComputationId = cmpID
+
+		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, log.String()))
+		ms.eventsChan <- &manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentLog{AgentLog: &log}}
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ultravioletrs/cocos/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 var _ manager.Service = (*loggingMiddleware)(nil)
@@ -27,7 +28,7 @@ func LoggingMiddleware(svc manager.Service, logger *slog.Logger) manager.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (agentAddr string, err error) {
+func (lm *loggingMiddleware) Run(ctx context.Context, mc *pkgmanager.ComputationRunReq) (agentAddr string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Run for computation took %s to complete", time.Since(begin))
 		if err != nil {

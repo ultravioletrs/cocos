@@ -5,7 +5,7 @@ package grpc
 import (
 	"context"
 
-	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/peer"
 )

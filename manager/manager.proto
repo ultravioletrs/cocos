@@ -31,8 +31,10 @@ message AgentEvent {
 }
 
 message AgentLog {
-  string log_message = 1;
+  string message = 1;
   string computation_id = 2;
+  string level = 3;
+  google.protobuf.Timestamp timestamp = 4;
 }
 
 message ClientStreamMessage {
