@@ -15,7 +15,7 @@ import (
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/internal/logger"
+	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
@@ -45,9 +45,10 @@ func main() {
 	defer conn.Close()
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(cfg.AgentConfig.LogLevel)); err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
-	handler := logger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
+	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
 	logger := slog.New(handler)
 
 	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)

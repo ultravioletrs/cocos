@@ -15,7 +15,6 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/pkg/manager"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -38,10 +37,10 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 		Id:              "1",
 		Name:            "sample computation",
 		Description:     "sample descrption",
-		Datasets:        []*pkgmanager.Dataset{{Id: "1", Provider: "provider1"}},
-		Algorithms:      []*pkgmanager.Algorithm{{Id: "1", Provider: "provider1"}},
+		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1"}},
+		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1"}},
 		ResultConsumers: []string{"consumer1"},
-		AgentConfig: &pkgmanager.AgentConfig{
+		AgentConfig: &manager.AgentConfig{
 			Port:     "7002",
 			LogLevel: "debug",
 		},
@@ -51,7 +50,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	incomingChan := make(chan *pkgmanager.ClientStreamMessage)
+	incomingChan := make(chan *manager.ClientStreamMessage)
 
 	logger, err := mglog.New(os.Stdout, "debug")
 	if err != nil {
@@ -61,13 +60,13 @@ func main() {
 	go func() {
 		for incoming := range incomingChan {
 			switch incoming.Message.(type) {
-			case *pkgmanager.ClientStreamMessage_Whoami:
+			case *manager.ClientStreamMessage_Whoami:
 				fmt.Println("received whoamI")
-			case *pkgmanager.ClientStreamMessage_RunRes:
+			case *manager.ClientStreamMessage_RunRes:
 				fmt.Println("received runRes")
-			case *pkgmanager.ClientStreamMessage_AgentEvent:
+			case *manager.ClientStreamMessage_AgentEvent:
 				fmt.Println("received agent event")
-			case *pkgmanager.ClientStreamMessage_AgentLog:
+			case *manager.ClientStreamMessage_AgentLog:
 				fmt.Println("received agent log")
 			}
 			fmt.Println(incoming.Message)
@@ -76,7 +75,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		pkgmanager.RegisterManagerServiceServer(srv, managergrpc.NewServer(ctx, incomingChan, &svc{logger: logger}))
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(ctx, incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.Config{Port: defaultPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
