@@ -38,13 +38,13 @@ func (h *handler) Enabled(_ context.Context, l slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (h *handler) Handle(_ context.Context, r slog.Record) error {
-	agentLog := &manager.AgentLog{
+	agentLog := manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentLog{AgentLog: &manager.AgentLog{
 		Timestamp: timestamppb.New(r.Time),
 		Message:   r.Message,
 		Level:     r.Level.String(),
-	}
+	}}}
 
-	b, err := proto.Marshal(agentLog)
+	b, err := proto.Marshal(&agentLog)
 	if err != nil {
 		return err
 	}

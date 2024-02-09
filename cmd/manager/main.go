@@ -129,7 +129,7 @@ func main() {
 
 func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
 	svc := manager.New(qemuCfg, logger, eventsChan)
-
+	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)

@@ -40,3 +40,7 @@ func (lm *loggingMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 
 	return lm.svc.Run(ctx, mc)
 }
+
+func (tm *loggingMiddleware) RetrieveAgentEventsLogs() {
+	// no logging required.
+}

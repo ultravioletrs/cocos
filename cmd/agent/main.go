@@ -38,7 +38,7 @@ func main() {
 		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
 	}
 
-	conn, err := vsock.Dial(vsock.Host, manager.VsockLogsPort, nil)
+	conn, err := vsock.Dial(vsock.Host, manager.ManagerVsockPort, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func main() {
 	handler := logger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
 	logger := slog.New(handler)
 
-	eventSvc, err := events.New(svcName, cfg.ID)
+	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)
 	if err != nil {
 		log.Printf("failed to create events service %s", err.Error())
 		return

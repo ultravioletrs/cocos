@@ -37,7 +37,10 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
+	// Run create a computation.
 	Run(ctx context.Context, c *manager.ComputationRunReq) (string, error)
+	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
+	RetrieveAgentEventsLogs()
 }
 
 type managerService struct {
@@ -57,8 +60,6 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.Clie
 		agents:     make(map[int]string),
 		eventsChan: eventsChan,
 	}
-	go ms.retrieveAgentLogs()
-	go ms.retrieveAgentEvents()
 	return ms
 }
 

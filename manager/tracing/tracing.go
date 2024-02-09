@@ -28,3 +28,7 @@ func (tm *tracingMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 
 	return tm.svc.Run(ctx, mc)
 }
+
+func (tm *tracingMiddleware) RetrieveAgentEventsLogs() {
+	// no tracing required.
+}

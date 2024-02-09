@@ -12,8 +12,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const VsockEventsPort uint32 = 9998
-
 type service struct {
 	service       string
 	computationID string
@@ -34,8 +32,8 @@ type Service interface {
 	Close() error
 }
 
-func New(svc, computationID string) (Service, error) {
-	conn, err := vsock.Dial(vsock.Host, VsockEventsPort, nil)
+func New(svc, computationID string, sockPort uint32) (Service, error) {
+	conn, err := vsock.Dial(vsock.Host, sockPort, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,15 +45,14 @@ func New(svc, computationID string) (Service, error) {
 }
 
 func (s *service) SendEvent(event, status string, details json.RawMessage) error {
-
-	body := manager.AgentEvent{
+	body := manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentEvent{AgentEvent: &manager.AgentEvent{
 		EventType:     event,
 		Timestamp:     timestamppb.Now(),
 		ComputationId: s.computationID,
 		Originator:    s.service,
 		Status:        status,
 		Details:       details,
-	}
+	}}}
 	protoBody, err := proto.Marshal(&body)
 	if err != nil {
 		return err

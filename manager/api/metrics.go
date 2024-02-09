@@ -41,3 +41,7 @@ func (ms *metricsMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 
 	return ms.svc.Run(ctx, mc)
 }
+
+func (tm *metricsMiddleware) RetrieveAgentEventsLogs() {
+	// no metrics required.
+}
