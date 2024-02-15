@@ -30,5 +30,5 @@ func (tm *tracingMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 }
 
 func (tm *tracingMiddleware) RetrieveAgentEventsLogs() {
-	// no tracing required.
+	// No tracing required
 }
