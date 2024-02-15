@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-const VsockEventsPort uint32 = 9998
 
 type service struct {
 	service       string
@@ -31,8 +32,8 @@ type Service interface {
 	Close() error
 }
 
-func New(svc, computationID string) (Service, error) {
-	conn, err := vsock.Dial(vsock.Host, VsockEventsPort, nil)
+func New(svc, computationID string, sockPort uint32) (Service, error) {
+	conn, err := vsock.Dial(vsock.Host, sockPort, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -44,19 +45,19 @@ func New(svc, computationID string) (Service, error) {
 }
 
 func (s *service) SendEvent(event, status string, details json.RawMessage) error {
-	body := AgentEvent{
+	body := manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentEvent{AgentEvent: &manager.AgentEvent{
 		EventType:     event,
-		Timestamp:     time.Now(),
-		ComputationID: s.computationID,
+		Timestamp:     timestamppb.Now(),
+		ComputationId: s.computationID,
 		Originator:    s.service,
 		Status:        status,
 		Details:       details,
-	}
-	jsonBody, err := json.Marshal(body)
+	}}}
+	protoBody, err := proto.Marshal(&body)
 	if err != nil {
 		return err
 	}
-	if _, err := s.conn.Write(jsonBody); err != nil {
+	if _, err := s.conn.Write(protoBody); err != nil {
 		return err
 	}
 	return nil

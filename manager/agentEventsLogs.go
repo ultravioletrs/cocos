@@ -10,17 +10,20 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
-	VsockLogsPort     = 9997
-	messageSize   int = 1024
+	ManagerVsockPort     = 9997
+	messageSize      int = 1024
 )
 
 var errFailedToParseCID = errors.New("failed to parse cid from remote address")
 
-func (ms *managerService) retrieveAgentLogs() {
-	l, err := vsock.Listen(VsockLogsPort, nil)
+// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
+func (ms *managerService) RetrieveAgentEventsLogs() {
+	l, err := vsock.Listen(ManagerVsockPort, nil)
 	if err != nil {
 		ms.logger.Warn(err.Error())
 		return
@@ -33,11 +36,11 @@ func (ms *managerService) retrieveAgentLogs() {
 			continue
 		}
 
-		go ms.handleLogsConnections(conn)
+		go ms.handleConnections(conn)
 	}
 }
 
-func (ms *managerService) handleLogsConnections(conn net.Conn) {
+func (ms *managerService) handleConnections(conn net.Conn) {
 	defer conn.Close()
 	for {
 		b := make([]byte, messageSize)
@@ -51,8 +54,23 @@ func (ms *managerService) handleLogsConnections(conn net.Conn) {
 			ms.logger.Warn(err.Error())
 			continue
 		}
-		ms.logger.Info(fmt.Sprintf("Agent Log, Computation ID: %s, Log: %s", cmpID, string(b[:n])))
-		ms.eventsChan <- &ClientStreamMessage{Message: &ClientStreamMessage_AgentLog{AgentLog: &AgentLog{ComputationId: cmpID, LogMessage: string(b[:n])}}}
+		var message manager.ClientStreamMessage
+		if err := proto.Unmarshal(b[:n], &message); err != nil {
+			ms.logger.Warn(err.Error())
+			continue
+		}
+		switch mes := message.Message.(type) {
+		case *manager.ClientStreamMessage_AgentEvent:
+			mes.AgentEvent.ComputationId = cmpID
+			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
+		case *manager.ClientStreamMessage_AgentLog:
+			mes.AgentLog.ComputationId = cmpID
+			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
+		default:
+			ms.logger.Warn("Unexpected agent log or event type")
+		}
+
+		ms.logger.Info(fmt.Sprintf("Agent Log/Event, Computation ID: %s, Message: %s", cmpID, message.String()))
 	}
 }
 

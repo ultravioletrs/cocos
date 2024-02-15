@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -36,32 +37,33 @@ var (
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(ctx context.Context, c *ComputationRunReq) (string, error)
+	// Run create a computation.
+	Run(ctx context.Context, c *manager.ComputationRunReq) (string, error)
+	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
+	RetrieveAgentEventsLogs()
 }
 
 type managerService struct {
 	qemuCfg    qemu.Config
 	logger     *slog.Logger
 	agents     map[int]string // agent map of vsock cid to computationID.
-	eventsChan chan *ClientStreamMessage
+	eventsChan chan *manager.ClientStreamMessage
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *ClientStreamMessage) Service {
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage) Service {
 	ms := &managerService{
 		qemuCfg:    qemuCfg,
 		logger:     logger,
 		agents:     make(map[int]string),
 		eventsChan: eventsChan,
 	}
-	go ms.retrieveAgentLogs()
-	go ms.retrieveAgentEvents()
 	return ms
 }
 
-func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
+func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq) (string, error) {
 	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
 		ID:              c.Id,
@@ -130,9 +132,9 @@ func getFreePort() (int, error) {
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
-	ms.eventsChan <- &ClientStreamMessage{
-		Message: &ClientStreamMessage_AgentEvent{
-			AgentEvent: &AgentEvent{
+	ms.eventsChan <- &manager.ClientStreamMessage{
+		Message: &manager.ClientStreamMessage_AgentEvent{
+			AgentEvent: &manager.AgentEvent{
 				EventType:     event,
 				ComputationId: cmpID,
 				Status:        status,

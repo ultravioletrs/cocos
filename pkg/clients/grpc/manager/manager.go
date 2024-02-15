@@ -3,8 +3,8 @@
 package manager
 
 import (
-	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 // NewManagerClient creates new manager gRPC client instance.

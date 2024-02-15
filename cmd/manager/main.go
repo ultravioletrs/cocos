@@ -23,6 +23,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
@@ -102,12 +103,12 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	if err := pc.Send(&manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_Whoami{}}); err != nil {
+	if err := pc.Send(&pkgmanager.ClientStreamMessage{Message: &pkgmanager.ClientStreamMessage_Whoami{}}); err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	eventsChan := make(chan *manager.ClientStreamMessage)
+	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
 	svc := newService(logger, tracer, qemuCfg, eventsChan)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan)
@@ -126,9 +127,9 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage) manager.Service {
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
 	svc := manager.New(qemuCfg, logger, eventsChan)
-
+	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)

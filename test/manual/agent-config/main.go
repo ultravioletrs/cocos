@@ -11,6 +11,8 @@ import (
 	"log"
 
 	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/proto"
 )
 
 const VsockConfigPort uint32 = 9999
@@ -71,10 +73,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	l2, err := vsock.Listen(9998, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ac := Computation{
 		ID:              "123",
 		Datasets:        Datasets{Dataset{ID: "1", Provider: "pr1"}},
@@ -91,30 +89,23 @@ func main() {
 		for {
 			conn, err := l.Accept()
 			if err != nil {
+				log.Println(err)
 				continue
 			}
 			b := make([]byte, 1024)
 			n, err := conn.Read(b)
 			if err != nil {
+				log.Println(err)
 				continue
 			}
 			conn.Close()
-			fmt.Println(string(b[:n]))
+			var mes manager.ClientStreamMessage
+			if err := proto.Unmarshal(b[:n], &mes); err != nil {
+				log.Println(err)
+			}
+			fmt.Println(mes.String())
 		}
 	}()
-	for {
-		conn, err := l2.Accept()
-		if err != nil {
-			continue
-		}
-		b := make([]byte, 1024)
-		n, err := conn.Read(b)
-		if err != nil {
-			continue
-		}
-		conn.Close()
-		fmt.Println(string(b[:n]))
-	}
 }
 
 func SendAgentConfig(cid uint32, ac Computation) error {

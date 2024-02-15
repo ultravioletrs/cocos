@@ -6,17 +6,18 @@ import (
 	"context"
 
 	"github.com/ultravioletrs/cocos/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 )
 
 type ManagerClient struct {
-	stream    manager.ManagerService_ProcessClient
+	stream    pkgmanager.ManagerService_ProcessClient
 	svc       manager.Service
-	responses chan *manager.ClientStreamMessage
+	responses chan *pkgmanager.ClientStreamMessage
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream manager.ManagerService_ProcessClient, svc manager.Service, responses chan *manager.ClientStreamMessage) ManagerClient {
+func NewClient(stream pkgmanager.ManagerService_ProcessClient, svc manager.Service, responses chan *pkgmanager.ClientStreamMessage) ManagerClient {
 	return ManagerClient{
 		stream:    stream,
 		svc:       svc,
@@ -37,8 +38,8 @@ func (client ManagerClient) Process(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			runRes := &manager.ClientStreamMessage_RunRes{RunRes: &manager.RunResponse{AgentPort: port, ComputationId: req.Id}}
-			if err := client.stream.Send(&manager.ClientStreamMessage{Message: runRes}); err != nil {
+			runRes := &pkgmanager.ClientStreamMessage_RunRes{RunRes: &pkgmanager.RunResponse{AgentPort: port, ComputationId: req.Id}}
+			if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
 				return err
 			}
 		}
