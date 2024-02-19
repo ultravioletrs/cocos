@@ -59,11 +59,13 @@ message ComputationRunReq {
 message Dataset {
   string provider = 1;
   string id = 2;
+  bytes hash = 3;
 }
 
 message Algorithm {
   string provider = 1;
   string id = 2;
+  bytes hash = 3;
 }
 
 message AgentConfig {
