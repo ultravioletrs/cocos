@@ -71,8 +71,6 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		Description:     c.Description,
 		ResultConsumers: c.ResultConsumers,
 		AgentConfig: agent.AgentConfig{
-			Port:         c.AgentConfig.Port,
-			Host:         c.AgentConfig.Host,
 			KeyFile:      c.AgentConfig.KeyFile,
 			CertFile:     c.AgentConfig.CertFile,
 			ServerCAFile: c.AgentConfig.ServerCaFile,

@@ -19,15 +19,13 @@ import (
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
-const (
-	svcName        = "agent"
-	defSvcGRPCPort = "7002"
-)
+const svcName = "agent"
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -60,8 +58,7 @@ func main() {
 	svc := newService(ctx, logger, eventSvc, cfg)
 
 	grpcServerConfig := server.Config{
-		Port:         cfg.AgentConfig.Port,
-		Host:         cfg.AgentConfig.Host,
+		Port:         qemu.GuestFwdAgent,
 		CertFile:     cfg.AgentConfig.CertFile,
 		KeyFile:      cfg.AgentConfig.KeyFile,
 		ServerCAFile: cfg.AgentConfig.ServerCAFile,
@@ -121,9 +118,6 @@ func readConfig() (agent.Computation, error) {
 	}
 	if ac.AgentConfig.LogLevel == "" {
 		ac.AgentConfig.LogLevel = "info"
-	}
-	if ac.AgentConfig.Port == "" {
-		ac.AgentConfig.Port = defSvcGRPCPort
 	}
 	return ac, nil
 }

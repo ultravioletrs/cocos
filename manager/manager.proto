@@ -69,11 +69,9 @@ message Algorithm {
 }
 
 message AgentConfig {
-  string port = 1;
-  string host = 2;
-  string cert_file = 3;
-  string key_file = 4;
-  string client_ca_file = 5;
-  string server_ca_file = 6;
-  string log_level = 7;
+  string cert_file = 1;
+  string key_file = 2;
+  string client_ca_file = 3;
+  string server_ca_file = 4;
+  string log_level = 5;
 }

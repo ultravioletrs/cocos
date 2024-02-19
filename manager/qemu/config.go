@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+const GuestFwdAgent = "7002"
+
 type MemoryConfig struct {
 	Size  string `env:"MEMORY_SIZE" envDefault:"2048M"`
 	Slots int    `env:"MEMORY_SLOTS" envDefault:"5"`
@@ -29,9 +31,8 @@ type OVMFVarsConfig struct {
 }
 
 type NetDevConfig struct {
-	ID            string `env:"NETDEV_ID"       envDefault:"vmnic"`
-	HostFwdAgent  int    `env:"HOST_FWD_AGENT"  envDefault:"7020"`
-	GuestFwdAgent int    `env:"GUEST_FWD_AGENT" envDefault:"7002"`
+	ID           string `env:"NETDEV_ID"       envDefault:"vmnic"`
+	HostFwdAgent int    `env:"HOST_FWD_AGENT"  envDefault:"7020"`
 }
 
 type VirtioNetPciConfig struct {
@@ -159,9 +160,9 @@ func constructQemuArgs(config Config) []string {
 
 	// network
 	args = append(args, "-netdev",
-		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d",
+		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%s",
 			config.NetDevConfig.ID,
-			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
+			config.NetDevConfig.HostFwdAgent, GuestFwdAgent))
 
 	args = append(args, "-device",
 		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",

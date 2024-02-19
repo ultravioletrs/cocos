@@ -1,6 +1,6 @@
 # Agent
 
-Agent service provides a barebones HTTP and gRPC API and Service interface implementation for the development of the agent service.
+Agent service provides a barebones gRPC API and Service interface implementation for the development of the agent service.
 
 ## Configuration
 
@@ -9,14 +9,10 @@ The service is configured using the environment variables from the following tab
 | Variable                      | Description                                            | Default                        |
 | ----------------------------- | ------------------------------------------------------ | ------------------------------ |
 | AGENT_LOG_LEVEL               | Log level for agent service (debug, info, warn, error) | info                           |
-| AGENT_GRPC_HOST               | Agent service gRPC host                                | ""                             |
-| AGENT_GRPC_PORT               | Agent service gRPC port                                | 7002                           |
 | AGENT_GRPC_SERVER_CERT        | Path to gRPC server certificate in pem format          | ""                             |
 | AGENT_GRPC_SERVER_KEY         | Path to gRPC server key in pem format                  | ""                             |
 | AGENT_GRPC_SERVER_CA_CERTS    | Path to gRPC server CA certificate                     | ""                             |
 | AGENT_GRPC_CLIENT_CA_CERTS    | Path to gRPC client CA certificate                     | ""                             |
-| COCOS_NOTIFICATION_SERVER_URL | Server to receive notification events from agent.      | http:/localhost:9000           |
-
 
 ## Deployment
 

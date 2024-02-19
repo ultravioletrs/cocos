@@ -15,8 +15,6 @@ var (
 
 type AgentConfig struct {
 	LogLevel     string `json:"log_level"`
-	Host         string `json:"host"`
-	Port         string `json:"port"`
 	CertFile     string `json:"cert_file"`
 	KeyFile      string `json:"server_key"`
 	ServerCAFile string `json:"server_ca_file"`
