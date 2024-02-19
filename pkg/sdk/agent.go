@@ -23,40 +23,34 @@ func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) *agentS
 	}
 }
 
-func (sdk *agentSDK) Run(ac agent.Computation) (string, error) {
-	return "", nil
-}
-
-func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) (string, error) {
+func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) error {
 	request := &agent.AlgoRequest{
 		Algorithm: algorithm.Algorithm,
 		Provider:  algorithm.Provider,
 		Id:        algorithm.ID,
 	}
 
-	response, err := sdk.client.Algo(ctx, request)
-	if err != nil {
+	if _, err := sdk.client.Algo(ctx, request); err != nil {
 		sdk.logger.Error("Failed to call Algo RPC")
-		return "", err
+		return err
 	}
 
-	return response.AlgorithmID, nil
+	return nil
 }
 
-func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset) (string, error) {
+func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset) error {
 	request := &agent.DataRequest{
 		Dataset:  dataset.Dataset,
 		Provider: dataset.Provider,
 		Id:       dataset.ID,
 	}
 
-	response, err := sdk.client.Data(ctx, request)
-	if err != nil {
+	if _, err := sdk.client.Data(ctx, request); err != nil {
 		sdk.logger.Error("Failed to call Data RPC")
-		return "", err
+		return err
 	}
 
-	return response.DatasetID, nil
+	return nil
 }
 
 func (sdk *agentSDK) Result(ctx context.Context, consumer string) ([]byte, error) {

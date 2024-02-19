@@ -3,11 +3,9 @@
 package grpc
 
 type algoRes struct {
-	AlgorithmID string `json:"algorithmId,omitempty"`
 }
 
 type dataRes struct {
-	DatasetID string `json:"datasetId,omitempty"`
 }
 
 type resultRes struct {

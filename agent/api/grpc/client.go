@@ -80,14 +80,12 @@ func encodeAlgoRequest(_ context.Context, request interface{}) (interface{}, err
 // decodeAlgoResponse is a transport/grpc.DecodeResponseFunc that
 // converts a gRPC AlgoResponse to a user-domain response.
 func decodeAlgoResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
-	response, ok := grpcResponse.(*agent.AlgoResponse)
+	_, ok := grpcResponse.(*agent.AlgoResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
 	}
 
-	return algoRes{
-		AlgorithmID: response.AlgorithmID,
-	}, nil
+	return algoRes{}, nil
 }
 
 // encodeDataRequest is a transport/grpc.EncodeRequestFunc that
@@ -108,14 +106,12 @@ func encodeDataRequest(_ context.Context, request interface{}) (interface{}, err
 // decodeDataResponse is a transport/grpc.DecodeResponseFunc that
 // converts a gRPC DataResponse to a user-domain response.
 func decodeDataResponse(_ context.Context, grpcResponse interface{}) (interface{}, error) {
-	response, ok := grpcResponse.(*agent.DataResponse)
+	_, ok := grpcResponse.(*agent.DataResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: %T", grpcResponse)
 	}
 
-	return dataRes{
-		DatasetID: response.DatasetID,
-	}, nil
+	return dataRes{}, nil
 }
 
 // encodeResultRequest is a transport/grpc.EncodeRequestFunc that
@@ -172,13 +168,12 @@ func (c grpcClient) Algo(ctx context.Context, request *agent.AlgoRequest, _ ...g
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.algo(ctx, &algoReq{Algorithm: request.Algorithm, Provider: request.Provider, Id: request.Id})
+	_, err := c.algo(ctx, &algoReq{Algorithm: request.Algorithm, Provider: request.Provider, Id: request.Id})
 	if err != nil {
 		return nil, err
 	}
 
-	algoRes := res.(algoRes)
-	return &agent.AlgoResponse{AlgorithmID: algoRes.AlgorithmID}, nil
+	return &agent.AlgoResponse{}, nil
 }
 
 // Data implements the Data method of the agent.AgentServiceClient interface.
@@ -186,13 +181,12 @@ func (c grpcClient) Data(ctx context.Context, request *agent.DataRequest, _ ...g
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.data(ctx, &dataReq{Dataset: request.Dataset, Provider: request.Provider, Id: request.Id})
+	_, err := c.data(ctx, &dataReq{Dataset: request.Dataset, Provider: request.Provider, Id: request.Id})
 	if err != nil {
 		return nil, err
 	}
 
-	dataRes := res.(dataRes)
-	return &agent.DataResponse{DatasetID: dataRes.DatasetID}, nil
+	return &agent.DataResponse{}, nil
 }
 
 // Result implements the Result method of the agent.AgentServiceClient interface.
