@@ -41,7 +41,6 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1"}},
 		ResultConsumers: []string{"consumer1"},
 		AgentConfig: &manager.AgentConfig{
-			Port:     "7002",
 			LogLevel: "debug",
 		},
 	}
