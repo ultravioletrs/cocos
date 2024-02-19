@@ -19,12 +19,12 @@ func algoEndpoint(svc agent.Service) endpoint.Endpoint {
 
 		algo := agent.Algorithm{Algorithm: req.Algorithm, Provider: req.Provider, ID: req.Id}
 
-		algorithmID, err := svc.Algo(ctx, algo)
+		err := svc.Algo(ctx, algo)
 		if err != nil {
 			return algoRes{}, err
 		}
 
-		return algoRes{AlgorithmID: algorithmID}, nil
+		return algoRes{}, nil
 	}
 }
 
@@ -38,12 +38,12 @@ func dataEndpoint(svc agent.Service) endpoint.Endpoint {
 
 		dataset := agent.Dataset{Dataset: req.Dataset, Provider: req.Provider, ID: req.Id}
 
-		datasetID, err := svc.Data(ctx, dataset)
+		err := svc.Data(ctx, dataset)
 		if err != nil {
 			return dataRes{}, err
 		}
 
-		return dataRes{DatasetID: datasetID}, nil
+		return dataRes{}, nil
 	}
 }
 

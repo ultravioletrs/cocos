@@ -54,10 +54,7 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 }
 
 func encodeAlgoResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(algoRes)
-	return &agent.AlgoResponse{
-		AlgorithmID: res.AlgorithmID,
-	}, nil
+	return &agent.AlgoResponse{}, nil
 }
 
 func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
@@ -71,10 +68,7 @@ func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 }
 
 func encodeDataResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(dataRes)
-	return &agent.DataResponse{
-		DatasetID: res.DatasetID,
-	}, nil
+	return &agent.DataResponse{}, nil
 }
 
 func decodeResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {

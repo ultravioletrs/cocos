@@ -32,12 +32,11 @@ func (cli *CLI) NewAlgorithmsCmd() *cobra.Command {
 				Provider:  args[2],
 			}
 
-			response, err := cli.agentSDK.Algo(cmd.Context(), algoReq)
-			if err != nil {
+			if err := cli.agentSDK.Algo(cmd.Context(), algoReq); err != nil {
 				log.Fatalf("Error uploading algorithm with ID %s and provider %s: %v", algoReq.ID, algoReq.Provider, err)
 			}
 
-			log.Println("Successfully uploaded algorithm:", response)
+			log.Println("Successfully uploaded algorithm")
 		},
 	}
 }

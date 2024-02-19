@@ -20,7 +20,7 @@ message AlgoRequest {
   string id = 3;
 }
 
-message AlgoResponse { string algorithmID = 1; }
+message AlgoResponse {}
 
 message DataRequest {
   bytes dataset = 1;
@@ -28,16 +28,20 @@ message DataRequest {
   string id = 3;
 }
 
-message DataResponse { string datasetID = 1; }
+message DataResponse {}
 
 message ResultRequest {
   string consumer = 1;
 }
 
-message ResultResponse { bytes file = 1; }
+message ResultResponse {
+  bytes file = 1;
+}
 
 message AttestationRequest {
   bytes report_data = 1;
 }
 
-message AttestationResponse { bytes file = 1; }
+message AttestationResponse {
+  bytes file = 1;
+}

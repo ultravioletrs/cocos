@@ -57,15 +57,7 @@ func main() {
 		return
 	}
 	defer eventSvc.Close()
-	svc := newService(ctx, logger, eventSvc)
-
-	if _, err := svc.Run(cfg); err != nil {
-		if err := eventSvc.SendEvent("init", "failed", json.RawMessage{}); err != nil {
-			logger.Warn(err.Error())
-		}
-		logger.Error(fmt.Sprintf("failed to run computation with err: %s", err))
-		return
-	}
+	svc := newService(ctx, logger, eventSvc, cfg)
 
 	grpcServerConfig := server.Config{
 		Port:         cfg.AgentConfig.Port,
@@ -95,8 +87,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp agent.Computation) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, cmp)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

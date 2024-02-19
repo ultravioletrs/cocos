@@ -27,20 +27,7 @@ func LoggingMiddleware(svc agent.Service, logger *slog.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ac agent.Computation) (response string, err error) {
-	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Run for computation %s took %s to complete", ac.ID, time.Since(begin))
-		if err != nil {
-			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
-			return
-		}
-		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
-	}(time.Now())
-
-	return lm.svc.Run(ac)
-}
-
-func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (response string, err error) {
+func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Algo took %s to complete", time.Since(begin))
 		if err != nil {
@@ -53,7 +40,7 @@ func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm
 	return lm.svc.Algo(ctx, algorithm)
 }
 
-func (lm *loggingMiddleware) Data(ctx context.Context, dataset agent.Dataset) (response string, err error) {
+func (lm *loggingMiddleware) Data(ctx context.Context, dataset agent.Dataset) (err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Data took %s to complete", time.Since(begin))
 		if err != nil {

@@ -5,9 +5,7 @@ package agent
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
+	"golang.org/x/crypto/sha3"
 )
 
 var _ Service = (*agentService)(nil)
@@ -43,14 +42,15 @@ var (
 	errResultsNotReady = errors.New("computation results are not yet ready")
 	// errStateNotReady agent received a request in the wrong state.
 	errStateNotReady = errors.New("agent not expecting this operation in the current state")
+	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
+	errHashMismatch = errors.New("malformed data, hash does not match manifest")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
-	Run(c Computation) (string, error)
-	Algo(ctx context.Context, algorithm Algorithm) (string, error)
-	Data(ctx context.Context, dataset Dataset) (string, error)
+	Algo(ctx context.Context, algorithm Algorithm) error
+	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context, consumer string) ([]byte, error)
 	Attestation(ctx context.Context, reportData []byte) ([]byte, error)
 }
@@ -73,7 +73,7 @@ const (
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation) Service {
 	svc := &agentService{
 		sm:       NewStateMachine(logger),
 		eventSvc: eventSvc,
@@ -87,42 +87,32 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service) Serv
 	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
+
+	svc.computation = cmp
+	svc.sm.SendEvent(manifestsReceived)
 	return svc
 }
 
-func (as *agentService) Run(c Computation) (string, error) {
-	if as.sm.GetState() != receivingManifests {
-		return "", errStateNotReady
-	}
-	cmpJSON, err := json.Marshal(c)
-	if err != nil {
-		return "", err
-	}
-
-	as.computation = c
-	as.sm.SendEvent(manifestsReceived)
-
-	// Calculate the SHA-256 hash of the algorithm
-	hash := sha256.Sum256(cmpJSON)
-	cmpHash := hex.EncodeToString(hash[:])
-
-	return cmpHash, nil // return computation hash.
-}
-
-func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, error) {
+func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	if as.sm.GetState() != receivingAlgorithms {
-		return "", errStateNotReady
+		return errStateNotReady
 	}
 	if len(as.computation.Algorithms) == 0 {
-		return "", errAllManifestItemsReceived
+		return errAllManifestItemsReceived
 	}
+
+	hash := sha3.Sum256(algorithm.Algorithm)
+
 	index := containsID(as.computation.Algorithms, algorithm.ID)
 	switch index {
 	case -1:
-		return "", errUndeclaredAlgorithm
+		return errUndeclaredAlgorithm
 	default:
 		if as.computation.Algorithms[index].Provider != algorithm.Provider {
-			return "", errProviderMissmatch
+			return errProviderMissmatch
+		}
+		if hash != as.computation.Algorithms[index].Hash {
+			return errHashMismatch
 		}
 		as.computation.Algorithms = slices.Delete(as.computation.Algorithms, index, index+1)
 	}
@@ -133,28 +123,29 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) (string, 
 		as.sm.SendEvent(algorithmsReceived)
 	}
 
-	// Calculate the SHA-256 hash of the algorithm.
-	hash := sha256.Sum256(algorithm.Algorithm)
-	algorithmHash := hex.EncodeToString(hash[:])
-
-	// Return the algorithm hash or an error.
-	return algorithmHash, nil
+	return nil
 }
 
-func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, error) {
+func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if as.sm.GetState() != receivingData {
-		return "", errStateNotReady
+		return errStateNotReady
 	}
 	if len(as.computation.Datasets) == 0 {
-		return "", errAllManifestItemsReceived
+		return errAllManifestItemsReceived
 	}
+
+	hash := sha3.Sum256(dataset.Dataset)
+
 	index := containsID(as.computation.Datasets, dataset.ID)
 	switch index {
 	case -1:
-		return "", errUndeclaredDataset
+		return errUndeclaredDataset
 	default:
 		if as.computation.Datasets[index].Provider != dataset.Provider {
-			return "", errProviderMissmatch
+			return errProviderMissmatch
+		}
+		if hash != as.computation.Datasets[index].Hash {
+			return errHashMismatch
 		}
 		as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 	}
@@ -165,12 +156,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) (string, erro
 		as.sm.SendEvent(dataReceived)
 	}
 
-	// Calculate the SHA-256 hash of the dataset.
-	hash := sha256.Sum256(dataset.Dataset)
-	datasetHash := hex.EncodeToString(hash[:])
-
-	// Return the dataset hash or an error.
-	return datasetHash, nil
+	return nil
 }
 
 func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, error) {

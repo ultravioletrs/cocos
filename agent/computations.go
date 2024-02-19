@@ -50,17 +50,19 @@ func (a *Algorithms) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte `json:"-"`
-	Provider string `json:"provider,omitempty"`
-	ID       string `json:"id,omitempty"`
+	Dataset  []byte   `json:"-"`
+	Hash     [32]byte `json:"hash,omitempty"`
+	Provider string   `json:"provider,omitempty"`
+	ID       string   `json:"id,omitempty"`
 }
 
 type Datasets []Dataset
 
 type Algorithm struct {
-	Algorithm []byte `json:"-"`
-	Provider  string `json:"provider,omitempty"`
-	ID        string `json:"id,omitempty"`
+	Algorithm []byte   `json:"-"`
+	Hash      [32]byte `json:"hash,omitempty"`
+	Provider  string   `json:"provider,omitempty"`
+	ID        string   `json:"id,omitempty"`
 }
 
 type Algorithms []Algorithm

@@ -32,12 +32,11 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				Provider: args[2],
 			}
 
-			response, err := cli.agentSDK.Data(cmd.Context(), dataReq)
-			if err != nil {
+			if err := cli.agentSDK.Data(cmd.Context(), dataReq); err != nil {
 				log.Fatalf("Error uploading dataset: %v", err)
 			}
 
-			log.Println("Response:", response)
+			log.Println("Successfully uploaded dataset")
 		},
 	}
 }

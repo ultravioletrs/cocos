@@ -81,10 +81,10 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		},
 	}
 	for _, algo := range c.Algorithms {
-		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider})
+		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [32]byte(algo.Hash)})
 	}
 	for _, data := range c.Datasets {
-		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider})
+		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [32]byte(data.Hash)})
 	}
 
 	agentPort, err := getFreePort()
