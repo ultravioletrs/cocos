@@ -89,14 +89,14 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
-		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [32]byte(algo.Hash)})
+		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [hashLength]byte(algo.Hash)})
 	}
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
-		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [32]byte(data.Hash)})
+		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [hashLength]byte(data.Hash)})
 	}
 
 	agentPort, err := getFreePort()
