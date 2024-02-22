@@ -32,6 +32,8 @@ var (
 
 	// ErrFailedToAllocatePort indicates no free port was found on host.
 	ErrFailedToAllocatePort = errors.New("failed to allocate free port on host")
+
+	errInvalidHashLength = errors.New("hash must be of byte length 32")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -81,9 +83,17 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		},
 	}
 	for _, algo := range c.Algorithms {
+		if len(algo.Hash) < 32 {
+			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+			return "", errInvalidHashLength
+		}
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [32]byte(algo.Hash)})
 	}
 	for _, data := range c.Datasets {
+		if len(data.Hash) < 32 {
+			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+			return "", errInvalidHashLength
+		}
 		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [32]byte(data.Hash)})
 	}
 

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"log/slog"
@@ -33,12 +34,13 @@ type svc struct {
 
 func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
+	hash := sha256.Sum256([]byte("test"))
 	reqChan <- &manager.ComputationRunReq{
 		Id:              "1",
 		Name:            "sample computation",
 		Description:     "sample descrption",
-		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1"}},
-		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1"}},
+		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: hash[:]}},
+		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: hash[:]}},
 		ResultConsumers: []string{"consumer1"},
 		AgentConfig: &manager.AgentConfig{
 			Port:     "7002",
