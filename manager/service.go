@@ -83,14 +83,14 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		},
 	}
 	for _, algo := range c.Algorithms {
-		if len(algo.Hash) < 32 {
+		if len(algo.Hash) != 32 {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
 		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [32]byte(algo.Hash)})
 	}
 	for _, data := range c.Datasets {
-		if len(data.Hash) < 32 {
+		if len(data.Hash) != 32 {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
