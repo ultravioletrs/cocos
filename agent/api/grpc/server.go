@@ -85,7 +85,7 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	return attestationReq{ReportData: req.ReportData}, nil
+	return attestationReq{ReportData: [64]byte(req.ReportData)}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {

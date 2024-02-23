@@ -5,7 +5,6 @@ package agent
 
 import (
 	"context"
-	"crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,7 +51,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context, consumer string) ([]byte, error)
-	Attestation(ctx context.Context, reportData []byte) ([]byte, error)
+	Attestation(ctx context.Context, reportData [64]byte) ([]byte, error)
 }
 
 type agentService struct {
@@ -181,12 +180,12 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [64]byte) ([]byte, error) {
 	provider, err := client.GetQuoteProvider()
 	if err != nil {
 		return []byte{}, err
 	}
-	rawQuote, err := provider.GetRawQuote(sha512.Sum512(reportData))
+	rawQuote, err := provider.GetRawQuote(reportData)
 	if err != nil {
 		return []byte{}, err
 	}

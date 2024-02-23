@@ -6,6 +6,8 @@ import (
 	"errors"
 )
 
+const reportDataLen = 64
+
 type algoReq struct {
 	Algorithm []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	Provider  string `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -54,12 +56,12 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	ReportData []byte
+	ReportData [64]byte
 }
 
 func (req attestationReq) validate() error {
-	if req.ReportData == nil {
-		return errors.New("malformed entity")
+	if len(req.ReportData) != reportDataLen {
+		return errors.New("malformed report data, expect 64 bytes")
 	}
 	return nil
 }

@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +15,24 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+const reportDataLen = 64
+
+type ValidationVerificationOptions struct {
+	ReportData       [64]byte
+	Attestation      []byte
+	HostData         []byte
+	FamilyID         []byte
+	ImageID          []byte
+	ChipID           []byte
+	ReportID         []byte
+	ReportIdMa       []byte
+	Measurement      []byte
+	MinimumTCB       uint
+	MinimumTCBLaunch uint
+	GuestPolicy      [64]byte
+	MinimumBuild     byte
+}
 
 const attestationFilePath = "attestation.txt"
 
@@ -49,13 +69,23 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "get",
-		Short:   "Retrieve attestation information from agent",
+		Short:   "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.",
 		Example: "report <report_data>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Getting attestation")
 
-			result, err := cli.agentSDK.Attestation(cmd.Context(), []byte(args[0]))
+			reportData, err := hex.DecodeString(args[0])
+			if err != nil {
+				log.Fatalf("attestation validation and veification failed with error: %s", err)
+			}
+			if len(reportData) != reportDataLen {
+				reportDataSha512 := sha512.Sum512(reportData)
+				reportData = reportDataSha512[:]
+				log.Printf("length of report data is less than 64, will use sha512 of the data: %s", hex.EncodeToString(reportData))
+			}
+
+			result, err := cli.agentSDK.Attestation(cmd.Context(), [64]byte(reportData))
 			if err != nil {
 				log.Fatalf("Error retrieving attestation: %v", err)
 			}
@@ -72,13 +102,22 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "validate",
-		Short:   "Validate and verify attestation information",
-		Example: "validate <attestation> <report_data>",
+		Short:   "Validate and verify attestation information. The report and report data are provided in encoded hex string.",
+		Example: "validate <attestation_report> <report_data>",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			if err := verifyAndValidateAttestation([]byte(args[0]), []byte(args[1])); err != nil {
+			report, err := hex.DecodeString(args[0])
+			if err != nil {
+				log.Fatalf("attestation validation and veification failed with error: %s", err)
+			}
+			report_data, err := hex.DecodeString(args[1])
+			if err != nil {
+				log.Fatalf("attestation validation and veification failed with error: %s", err)
+			}
+
+			if err := verifyAndValidateAttestation(report, report_data); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 			log.Println("Attestation validation and verification is successful!")

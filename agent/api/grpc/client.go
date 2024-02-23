@@ -147,7 +147,7 @@ func encodeAttestationRequest(_ context.Context, request interface{}) (interface
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", request)
 	}
-	return &agent.AttestationRequest{ReportData: req.ReportData}, nil
+	return &agent.AttestationRequest{ReportData: req.ReportData[:]}, nil
 }
 
 // decodeAttestationResponse is a transport/grpc.DecodeResponseFunc that
@@ -208,7 +208,7 @@ func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationR
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.attestation(ctx, &attestationReq{ReportData: request.ReportData})
+	res, err := c.attestation(ctx, &attestationReq{ReportData: [64]byte(request.ReportData)})
 	if err != nil {
 		return nil, err
 	}
