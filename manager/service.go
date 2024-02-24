@@ -18,6 +18,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const hashLength = 32
+
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
@@ -32,6 +34,8 @@ var (
 
 	// ErrFailedToAllocatePort indicates no free port was found on host.
 	ErrFailedToAllocatePort = errors.New("failed to allocate free port on host")
+
+	errInvalidHashLength = errors.New("hash must be of byte length 32")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -81,10 +85,18 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		},
 	}
 	for _, algo := range c.Algorithms {
-		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [32]byte(algo.Hash)})
+		if len(algo.Hash) != hashLength {
+			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+			return "", errInvalidHashLength
+		}
+		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [hashLength]byte(algo.Hash)})
 	}
 	for _, data := range c.Datasets {
-		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [32]byte(data.Hash)})
+		if len(data.Hash) != hashLength {
+			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+			return "", errInvalidHashLength
+		}
+		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [hashLength]byte(data.Hash)})
 	}
 
 	agentPort, err := getFreePort()
