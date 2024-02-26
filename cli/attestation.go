@@ -125,6 +125,16 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cfgString, "config", "", "Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+`
 	{"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}`)
 	cmd.Flags().BytesHexVar(&cfg.Policy.HostData, "host_data", []byte{}, "The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.FamilyId, "family_id", []byte{}, "The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ImageId, "image_id", []byte{}, "The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", []byte{}, "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", []byte{}, "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", []byte{}, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", []byte{}, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", 0, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
+	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", 0, "The minimum acceptable value for LAUNCH_TCB.")
+	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", (1 << 17), "The most acceptable SnpPolicy component-wise in its 64-bit format.")
+
 	cmd.Flags().StringVar(&cfg.RootOfTrust.Product, "product", "", "The AMD product name for the chip that generated the attestation report.")
 
 	return cmd
