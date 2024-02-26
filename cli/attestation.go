@@ -8,31 +8,26 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
+	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const reportDataLen = 64
 
-type ValidationVerificationOptions struct {
-	ReportData       [64]byte
-	Attestation      []byte
-	HostData         []byte
-	FamilyID         []byte
-	ImageID          []byte
-	ChipID           []byte
-	ReportID         []byte
-	ReportIdMa       []byte
-	Measurement      []byte
-	MinimumTCB       uint
-	MinimumTCBLaunch uint
-	GuestPolicy      [64]byte
-	MinimumBuild     byte
-}
+var (
+	cfg           check.Config
+	cfgString     string
+	timeout       time.Duration
+	maxRetryDelay time.Duration
+)
 
 const attestationFilePath = "attestation.txt"
 
@@ -100,7 +95,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 }
 
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "validate",
 		Short:   "Validate and verify attestation information. The report and report data are provided in encoded hex string.",
 		Example: "validate <attestation_report> <report_data>",
@@ -117,24 +112,70 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 
+			if err := parseConfig(); err != nil {
+				log.Fatalf("attestation validation and veification failed with error: %s", err)
+			}
+
 			if err := verifyAndValidateAttestation(report, report_data); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 			log.Println("Attestation validation and verification is successful!")
 		},
 	}
+	cmd.Flags().StringVar(&cfgString, "config", "", "Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+`
+	{"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}`)
+	cmd.Flags().BytesHexVar(&cfg.Policy.HostData, "host_data", []byte{}, "The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().StringVar(&cfg.RootOfTrust.Product, "product", "", "The AMD product name for the chip that generated the attestation report.")
+
+	return cmd
 }
 
 func verifyAndValidateAttestation(attestation, reportData []byte) error {
+	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
+	if err != nil {
+		return err
+	}
+	sopts.Product = cfg.Policy.Product
+	sopts.Getter = &trust.RetryHTTPSGetter{
+		Timeout:       timeout,
+		MaxRetryDelay: maxRetryDelay,
+		Getter:        &trust.SimpleHTTPSGetter{},
+	}
 	attestationPB, err := abi.ReportCertsToProto(attestation)
 	if err != nil {
 		return err
 	}
-	if err = verify.SnpAttestation(attestationPB, verify.DefaultOptions()); err != nil {
+	if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
 		return err
 	}
-	if err = validate.SnpAttestation(attestationPB, &validate.Options{ReportData: reportData}); err != nil {
+	opts, err := validate.PolicyToOptions(cfg.Policy)
+	if err != nil {
 		return err
+	}
+	opts.ReportData = reportData
+	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
+		return err
+	}
+	return nil
+}
+
+// parseConfig decodes config passed as json for check.Config struct.
+// example
+// {"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59
+// Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}
+func parseConfig() error {
+	if cfgString == "" {
+		return nil
+	}
+	if err := protojson.Unmarshal([]byte(cfgString), &cfg); err != nil {
+		return err
+	}
+	// Populate fields that should not be nil
+	if cfg.RootOfTrust == nil {
+		cfg.RootOfTrust = &check.RootOfTrust{}
+	}
+	if cfg.Policy == nil {
+		cfg.Policy = &check.Policy{}
 	}
 	return nil
 }
