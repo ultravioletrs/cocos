@@ -18,15 +18,22 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const reportDataLen = 64
 
 var (
-	cfg           check.Config
-	cfgString     string
-	timeout       time.Duration
-	maxRetryDelay time.Duration
+	cfg                 check.Config
+	cfgString           string
+	timeout             time.Duration
+	maxRetryDelay       time.Duration
+	platformInfo        string
+	stepping            string
+	trustedAuthorKeys   []string
+	trustedAuthorHashes []string
+	trustedIdKeys       []string
+	trustedIdKeyHashes  []string
 )
 
 const attestationFilePath = "attestation.txt"
@@ -115,6 +122,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			if err := parseConfig(); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
+			cfg.Policy.Vmpl = wrapperspb.UInt32(0)
 
 			if err := verifyAndValidateAttestation(report, report_data); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
@@ -134,9 +142,24 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", 0, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", 0, "The minimum acceptable value for LAUNCH_TCB.")
 	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", (1 << 17), "The most acceptable SnpPolicy component-wise in its 64-bit format.")
-
+	cmd.Flags().Uint32Var(&cfg.Policy.MinimumBuild, "minimum_build", 0, "The 8-bit minimum build number for AMD-SP firmware")
+	cmd.Flags().BoolVar(&cfg.RootOfTrust.CheckCrl, "check_crl", false, "Download and check the CRL for revoked certificates.")
+	cmd.Flags().BoolVar(&cfg.RootOfTrust.DisallowNetwork, "disallow_network", false, "If true, then permitted to download necessary files for verification.")
+	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Minute, "Duration to continue to retry failed HTTP requests.")
+	cmd.Flags().DurationVar(&maxRetryDelay, "max_retry_delay", 30*time.Second, "Maximum Duration to wait between HTTP request retries.")
+	cmd.Flags().BoolVar(&cfg.Policy.RequireAuthorKey, "require_author_key", false, "Require that AUTHOR_KEY_EN is 1.")
+	cmd.Flags().BoolVar(&cfg.Policy.RequireIdBlock, "require_id_block", false, "Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key")
+	cmd.Flags().BoolVarP(&cfg.Policy.PermitProvisionalFirmware, "permit_privisional_software", "provisional", false, "Permit provisional firmware (i.e., committed values may be less than current values).")
+	cmd.Flags().StringVar(&platformInfo, "platform_info", "", "The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer")
+	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", "", "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
+	cmd.Flags().StringArrayVar(&trustedAuthorKeys, "trusted_author_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
+	cmd.Flags().StringArrayVar(&trustedAuthorHashes, "trusted_author_key_hashes", []string{}, "Hex-encoded SHA-384 hash values of trusted author keys in AMD public key format")
+	cmd.Flags().StringArrayVar(&trustedIdKeys, "trusted_id_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
+	cmd.Flags().StringArrayVar(&trustedIdKeyHashes, "trusted_id_key_hashes", []string{}, "Hex-encoded SHA-384 hash values of trusted identity keys in AMD public key format")
 	cmd.Flags().StringVar(&cfg.RootOfTrust.Product, "product", "", "The AMD product name for the chip that generated the attestation report.")
-
+	cmd.Flags().StringVar(&stepping, "stepping", "", "The machine stepping for the chip that generated the attestation report. Default unchecked.")
+	cmd.Flags().StringArrayVar(&cfg.RootOfTrust.CabundlePaths, "CA_bundles_paths", []string{}, "Paths to CA bundles for the AMD product. Must be in PEM format, ASK, then ARK certificates. If unset, uses embedded root certificates.")
+	cmd.Flags().StringArrayVar(&cfg.RootOfTrust.Cabundles, "CA_bundles", []string{}, "PEM format CA bundles for the AMD product. Combined with contents of cabundle_paths.")
 	return cmd
 }
 
