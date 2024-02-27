@@ -5,6 +5,7 @@ package cli
 import (
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +25,6 @@ import (
 )
 
 const (
-	reportDataLen                    = 64
 	defaultMinimumTcb                = 0
 	defaultMinimumLaunchTcb          = 0
 	defaultMinimumGuestSvn           = (1 << 17)
@@ -36,6 +36,10 @@ const (
 	defaultRequireAuthor             = false
 	defaultRequireIdBlock            = false
 	defaultPermitProvisionalSoftware = false
+	size16                           = 16
+	size32                           = 32
+	size48                           = 48
+	size64                           = 64
 )
 
 var (
@@ -96,13 +100,13 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
-			if len(reportData) != reportDataLen {
+			if len(reportData) != sha512.Size {
 				reportDataSha512 := sha512.Sum512(reportData)
 				reportData = reportDataSha512[:]
 				log.Printf("length of report data is less than 64, will use sha512 of the data: %s", hex.EncodeToString(reportData))
 			}
 
-			result, err := cli.agentSDK.Attestation(cmd.Context(), [64]byte(reportData))
+			result, err := cli.agentSDK.Attestation(cmd.Context(), [sha512.Size]byte(reportData))
 			if err != nil {
 				log.Fatalf("Error retrieving attestation: %v", err)
 			}
@@ -130,6 +134,12 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 
+			// This format is the attestation report in AMD's specified ABI format, immediately
+			// followed by the certificate table bytes.
+			if len(report) < abi.ReportSize {
+				log.Fatalf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(report), abi.ReportSize)
+			}
+
 			if err := parseConfig(); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
@@ -143,6 +153,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 			cfg.Policy.Vmpl = wrapperspb.UInt32(0)
+
+			if err := validateInput(); err != nil {
+				log.Fatalf("attestation validation and veification failed with error: %s", err)
+			}
 
 			if err := verifyAndValidateAttestation(report); err != nil {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
@@ -162,7 +176,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", []byte{}, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", defaultMinimumTcb, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", defaultMinimumLaunchTcb, "The minimum acceptable value for LAUNCH_TCB.")
-	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable SnpPolicy component-wise in its 64-bit format.")
+	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable SnpPolicy.")
 	cmd.Flags().Uint32Var(&cfg.Policy.MinimumBuild, "minimum_build", defaultMinimumBuild, "The 8-bit minimum build number for AMD-SP firmware")
 	cmd.Flags().BoolVar(&cfg.RootOfTrust.CheckCrl, "check_crl", defaultCheckCrl, "Download and check the CRL for revoked certificates.")
 	cmd.Flags().BoolVar(&cfg.RootOfTrust.DisallowNetwork, "disallow_network", defaultDisallowNetwork, "If true, then permitted to download necessary files for verification.")
@@ -219,7 +233,7 @@ func verifyAndValidateAttestation(attestation []byte) error {
 // parseConfig decodes config passed as json for check.Config struct.
 // example
 // {"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59
-// Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}
+// Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}.
 func parseConfig() error {
 	if cfgString == "" {
 		return nil
@@ -288,7 +302,6 @@ func parseUints() error {
 			}
 			cfg.Policy.Product.MachineStepping = wrapperspb.UInt32(uint32(num))
 		}
-
 	}
 	if platformInfo != "" {
 		if base := getBase(platformInfo); base == 10 {
@@ -309,7 +322,6 @@ func parseUints() error {
 }
 
 func getBase(val string) int {
-
 	switch {
 	case strings.HasPrefix(val, "0x"):
 		return 16
@@ -320,4 +332,42 @@ func getBase(val string) int {
 	default:
 		return 10
 	}
+}
+
+func validateInput() error {
+	if len(cfg.Policy.ReportData) != size64 {
+		return errors.New(fmt.Sprintf("report data length should be at least %d bytes long", size64))
+	}
+	if len(cfg.Policy.HostData) != size32 && cfg.Policy.HostData != nil {
+		return errors.New(fmt.Sprintf("host data length should be at least %d bytes long", size32))
+	}
+	if len(cfg.Policy.FamilyId) != size16 && cfg.Policy.FamilyId != nil {
+		return errors.New(fmt.Sprintf("family id length should be at least %d bytes long", size16))
+	}
+	if len(cfg.Policy.ImageId) != size16 && cfg.Policy.ImageId != nil {
+		return errors.New(fmt.Sprintf("image id length should be at least %d bytes long", size16))
+	}
+	if len(cfg.Policy.ReportId) != size32 && cfg.Policy.ReportId != nil {
+		return errors.New(fmt.Sprintf("report id length should be at least %d bytes long", size32))
+	}
+	if len(cfg.Policy.ReportIdMa) != size32 && cfg.Policy.ReportIdMa != nil {
+		return errors.New(fmt.Sprintf("report id ma length should be at least %d bytes long", size32))
+	}
+	if len(cfg.Policy.Measurement) != size48 && cfg.Policy.Measurement != nil {
+		return errors.New(fmt.Sprintf("measurement length should be at least %d bytes long", size48))
+	}
+	if len(cfg.Policy.ChipId) != size48 && cfg.Policy.ChipId != nil {
+		return errors.New(fmt.Sprintf("chip id length should be at least %d bytes long", size48))
+	}
+	for _, hash := range cfg.Policy.TrustedAuthorKeyHashes {
+		if len(hash) != sha512.Size384 {
+			return errors.New(fmt.Sprintf("trusted author key hashes length should be at least %d bytes long", sha512.Size384))
+		}
+	}
+	for _, hash := range cfg.Policy.TrustedIdKeyHashes {
+		if len(hash) != sha512.Size384 {
+			return errors.New(fmt.Sprintf("trusted id key hashes length should be at least %d bytes long", sha512.Size384))
+		}
+	}
+	return nil
 }
