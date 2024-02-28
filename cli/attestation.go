@@ -5,7 +5,6 @@ package cli
 import (
 	"crypto/sha512"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -101,9 +100,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				log.Fatalf("attestation validation and veification failed with error: %s", err)
 			}
 			if len(reportData) != sha512.Size {
-				reportDataSha512 := sha512.Sum512(reportData)
-				reportData = reportDataSha512[:]
-				log.Printf("length of report data is less than 64, will use sha512 of the data: %s", hex.EncodeToString(reportData))
+				log.Fatalf("report data must be a hex encoded string of length %d bytes", sha512.Size)
 			}
 
 			result, err := cli.agentSDK.Attestation(cmd.Context(), [sha512.Size]byte(reportData))
@@ -131,7 +128,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 
 			report, err := hex.DecodeString(args[0])
 			if err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 
 			// This format is the attestation report in AMD's specified ABI format, immediately
@@ -141,25 +138,25 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			}
 
 			if err := parseConfig(); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			if err := parseHashes(); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			if err := parseFiles(); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			if err := parseUints(); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			cfg.Policy.Vmpl = wrapperspb.UInt32(0)
 
 			if err := validateInput(); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 
 			if err := verifyAndValidateAttestation(report); err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			log.Println("Attestation validation and verification is successful!")
 		},
@@ -335,39 +332,46 @@ func getBase(val string) int {
 }
 
 func validateInput() error {
-	if len(cfg.Policy.ReportData) != size64 {
-		return errors.New(fmt.Sprintf("report data length should be at least %d bytes long", size64))
+	if err := validateFieldLength("report_data", cfg.Policy.ReportData, size64); err != nil {
+		return err
 	}
-	if len(cfg.Policy.HostData) != size32 && cfg.Policy.HostData != nil {
-		return errors.New(fmt.Sprintf("host data length should be at least %d bytes long", size32))
+	if err := validateFieldLength("host_data", cfg.Policy.HostData, size32); err != nil {
+		return err
 	}
-	if len(cfg.Policy.FamilyId) != size16 && cfg.Policy.FamilyId != nil {
-		return errors.New(fmt.Sprintf("family id length should be at least %d bytes long", size16))
+	if err := validateFieldLength("family_id", cfg.Policy.FamilyId, size16); err != nil {
+		return err
 	}
-	if len(cfg.Policy.ImageId) != size16 && cfg.Policy.ImageId != nil {
-		return errors.New(fmt.Sprintf("image id length should be at least %d bytes long", size16))
+	if err := validateFieldLength("image_id", cfg.Policy.ImageId, size16); err != nil {
+		return err
 	}
-	if len(cfg.Policy.ReportId) != size32 && cfg.Policy.ReportId != nil {
-		return errors.New(fmt.Sprintf("report id length should be at least %d bytes long", size32))
+	if err := validateFieldLength("report_id", cfg.Policy.ReportId, size32); err != nil {
+		return err
 	}
-	if len(cfg.Policy.ReportIdMa) != size32 && cfg.Policy.ReportIdMa != nil {
-		return errors.New(fmt.Sprintf("report id ma length should be at least %d bytes long", size32))
+	if err := validateFieldLength("report_id_ma", cfg.Policy.ReportIdMa, size32); err != nil {
+		return err
 	}
-	if len(cfg.Policy.Measurement) != size48 && cfg.Policy.Measurement != nil {
-		return errors.New(fmt.Sprintf("measurement length should be at least %d bytes long", size48))
+	if err := validateFieldLength("measurement", cfg.Policy.Measurement, size48); err != nil {
+		return err
 	}
-	if len(cfg.Policy.ChipId) != size48 && cfg.Policy.ChipId != nil {
-		return errors.New(fmt.Sprintf("chip id length should be at least %d bytes long", size48))
+	if err := validateFieldLength("chip_id", cfg.Policy.ChipId, size48); err != nil {
+		return err
 	}
 	for _, hash := range cfg.Policy.TrustedAuthorKeyHashes {
-		if len(hash) != sha512.Size384 {
-			return errors.New(fmt.Sprintf("trusted author key hashes length should be at least %d bytes long", sha512.Size384))
+		if err := validateFieldLength("trusted_author_key_hash", hash, sha512.Size384); err != nil {
+			return err
 		}
 	}
 	for _, hash := range cfg.Policy.TrustedIdKeyHashes {
-		if len(hash) != sha512.Size384 {
-			return errors.New(fmt.Sprintf("trusted id key hashes length should be at least %d bytes long", sha512.Size384))
+		if err := validateFieldLength("trusted_id_key_hash", hash, sha512.Size384); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateFieldLength(fieldName string, field []byte, expectedLength int) error {
+	if len(field) != expectedLength && field != nil {
+		return fmt.Errorf("%s length should be at least %d bytes long", fieldName, expectedLength)
 	}
 	return nil
 }
