@@ -97,7 +97,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			reportData, err := hex.DecodeString(args[0])
 			if err != nil {
-				log.Fatalf("attestation validation and veification failed with error: %s", err)
+				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			if len(reportData) != sha512.Size {
 				log.Fatalf("report data must be a hex encoded string of length %d bytes", sha512.Size)
@@ -181,7 +181,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&maxRetryDelay, "max_retry_delay", defaultMaxRetryDelay, "Maximum Duration to wait between HTTP request retries.")
 	cmd.Flags().BoolVar(&cfg.Policy.RequireAuthorKey, "require_author_key", defaultRequireAuthor, "Require that AUTHOR_KEY_EN is 1.")
 	cmd.Flags().BoolVar(&cfg.Policy.RequireIdBlock, "require_id_block", defaultRequireIdBlock, "Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key")
-	cmd.Flags().BoolVar(&cfg.Policy.PermitProvisionalFirmware, "permit_privisional_software", defaultPermitProvisionalSoftware, "Permit provisional firmware (i.e., committed values may be less than current values).")
+	cmd.Flags().BoolVar(&cfg.Policy.PermitProvisionalFirmware, "permit_provisional_software", defaultPermitProvisionalSoftware, "Permit provisional firmware (i.e., committed values may be less than current values).")
 	cmd.Flags().StringVar(&platformInfo, "platform_info", "", "The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer")
 	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", "", "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
 	cmd.Flags().StringArrayVar(&trustedAuthorKeys, "trusted_author_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
