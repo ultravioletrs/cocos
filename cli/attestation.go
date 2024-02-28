@@ -370,7 +370,7 @@ func validateInput() error {
 }
 
 func validateFieldLength(fieldName string, field []byte, expectedLength int) error {
-	if len(field) != expectedLength && field != nil {
+	if field != nil && len(field) != expectedLength {
 		return fmt.Errorf("%s length should be at least %d bytes long", fieldName, expectedLength)
 	}
 	return nil
