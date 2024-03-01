@@ -52,6 +52,8 @@ var (
 	trustedAuthorHashes []string
 	trustedIdKeys       []string
 	trustedIdKeyHashes  []string
+	attestationFile     string
+	attestation         []byte
 )
 
 const attestationFilePath = "attestation.txt"
@@ -120,22 +122,13 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "validate",
-		Short:   "Validate and verify attestation information. The report is provided in encoded hex string.",
-		Example: "validate <attestation_report>",
+		Short:   "Validate and verify attestation information. The report is provided as a file path.",
+		Example: "validate <attestation_report_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Checking attestation")
 
-			report, err := hex.DecodeString(args[0])
-			if err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
-			}
-
-			// This format is the attestation report in AMD's specified ABI format, immediately
-			// followed by the certificate table bytes.
-			if len(report) < abi.ReportSize {
-				log.Fatalf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(report), abi.ReportSize)
-			}
+			attestationFile = string(args[0])
 
 			if err := parseConfig(); err != nil {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
@@ -146,6 +139,11 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			if err := parseFiles(); err != nil {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
+			// This format is the attestation report in AMD's specified ABI format, immediately
+			// followed by the certificate table bytes.
+			if len(attestation) < abi.ReportSize {
+				log.Fatalf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(attestation), abi.ReportSize)
+			}
 			if err := parseUints(); err != nil {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
@@ -155,7 +153,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 
-			if err := verifyAndValidateAttestation(report); err != nil {
+			if err := verifyAndValidateAttestation(attestation); err != nil {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
 			log.Println("Attestation validation and verification is successful!")
@@ -267,6 +265,11 @@ func parseHashes() error {
 }
 
 func parseFiles() error {
+	file, err := os.ReadFile(attestationFile)
+	if err != nil {
+		return err
+	}
+	attestation = file
 	for _, path := range trustedAuthorKeys {
 		file, err := os.ReadFile(path)
 		if err != nil {
