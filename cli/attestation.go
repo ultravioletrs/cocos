@@ -27,7 +27,7 @@ const (
 	defaultMinimumTcb                = 0
 	defaultMinimumLaunchTcb          = 0
 	defaultMinimumGuestSvn           = 0
-	defaultGuestPolicy               = (1 << 17)
+	defaultGuestPolicy               = 0x0000000000030000
 	defaultMinimumBuild              = 0
 	defaultCheckCrl                  = false
 	defaultDisallowNetwork           = false
@@ -36,6 +36,7 @@ const (
 	defaultRequireAuthor             = false
 	defaultRequireIdBlock            = false
 	defaultPermitProvisionalSoftware = false
+	defaultMinVersion                = "0.0"
 	size16                           = 16
 	size32                           = 32
 	size48                           = 48
@@ -187,7 +188,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&cfg.Policy.RequireIdBlock, "require_id_block", defaultRequireIdBlock, "Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key")
 	cmd.Flags().BoolVar(&cfg.Policy.PermitProvisionalFirmware, "permit_provisional_software", defaultPermitProvisionalSoftware, "Permit provisional firmware (i.e., committed values may be less than current values).")
 	cmd.Flags().StringVar(&platformInfo, "platform_info", "", "The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer")
-	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", "", "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
+	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", defaultMinVersion, "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
 	cmd.Flags().StringArrayVar(&trustedAuthorKeys, "trusted_author_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
 	cmd.Flags().StringArrayVar(&trustedAuthorHashes, "trusted_author_key_hashes", []string{}, "Hex-encoded SHA-384 hash values of trusted author keys in AMD public key format")
 	cmd.Flags().StringArrayVar(&trustedIdKeys, "trusted_id_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
@@ -198,6 +199,18 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&cfg.RootOfTrust.Cabundles, "CA_bundles", []string{}, "PEM format CA bundles for the AMD product. Combined with contents of cabundle_paths.")
 
 	if err := cmd.MarkFlagRequired("report_data"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
+	if err := cmd.MarkFlagRequired("chip_id"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
+	if err := cmd.MarkFlagRequired("measurement"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
+	if err := cmd.MarkFlagRequired("report_id"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
+	if err := cmd.MarkFlagRequired("report_id_ma"); err != nil {
 		log.Fatalf("Failed to mark flag as required: %s", err)
 	}
 	return cmd
@@ -359,6 +372,7 @@ func validateInput() error {
 	if err := validateFieldLength("report_id_ma", cfg.Policy.ReportIdMa, size32); err != nil {
 		return err
 	}
+
 	if err := validateFieldLength("measurement", cfg.Policy.Measurement, size48); err != nil {
 		return err
 	}
