@@ -41,6 +41,7 @@ const (
 	size32                           = 32
 	size48                           = 48
 	size64                           = 64
+	attestationFilePath              = "attestation.bin"
 )
 
 var (
@@ -61,8 +62,6 @@ var (
 	empty48             = [size48]byte{}
 	empty64             = [size64]byte{}
 )
-
-const attestationFilePath = "attestation.txt"
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
 	return &cobra.Command{
