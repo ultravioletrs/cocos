@@ -59,8 +59,8 @@ var (
 	attestation         []byte
 	empty16             = [size16]byte{}
 	empty32             = [size32]byte{}
-	empty48             = [size48]byte{}
 	empty64             = [size64]byte{}
+	defaultReportIdMa   = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 )
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
@@ -170,10 +170,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().BytesHexVar(&cfg.Policy.ReportData, "report_data", empty64[:], "The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.")
 	cmd.Flags().BytesHexVar(&cfg.Policy.FamilyId, "family_id", empty16[:], "The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
 	cmd.Flags().BytesHexVar(&cfg.Policy.ImageId, "image_id", empty16[:], "The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", empty32[:], "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", empty32[:], "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", empty48[:], "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", empty64[:], "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", nil, "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", defaultReportIdMa, "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", nil, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", nil, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", defaultMinimumTcb, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", defaultMinimumLaunchTcb, "The minimum acceptable value for LAUNCH_TCB.")
 	cmd.Flags().Uint64Var(&cfg.Policy.Policy, "guest_policy", defaultGuestPolicy, "The most acceptable guest SnpPolicy.")
@@ -200,18 +200,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	if err := cmd.MarkFlagRequired("report_data"); err != nil {
 		log.Fatalf("Failed to mark flag as required: %s", err)
 	}
-	if err := cmd.MarkFlagRequired("chip_id"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
-	}
-	if err := cmd.MarkFlagRequired("measurement"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
-	}
-	if err := cmd.MarkFlagRequired("report_id"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
-	}
-	if err := cmd.MarkFlagRequired("report_id_ma"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
-	}
+
 	return cmd
 }
 
@@ -371,7 +360,6 @@ func validateInput() error {
 	if err := validateFieldLength("report_id_ma", cfg.Policy.ReportIdMa, size32); err != nil {
 		return err
 	}
-
 	if err := validateFieldLength("measurement", cfg.Policy.Measurement, size48); err != nil {
 		return err
 	}
