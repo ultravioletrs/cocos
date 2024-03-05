@@ -26,7 +26,8 @@ import (
 const (
 	defaultMinimumTcb                = 0
 	defaultMinimumLaunchTcb          = 0
-	defaultMinimumGuestSvn           = (1 << 17)
+	defaultMinimumGuestSvn           = 0
+	defaultGuestPolicy               = (1 << 17)
 	defaultMinimumBuild              = 0
 	defaultCheckCrl                  = false
 	defaultDisallowNetwork           = false
@@ -54,6 +55,10 @@ var (
 	trustedIdKeyHashes  []string
 	attestationFile     string
 	attestation         []byte
+	empty16             = [size16]byte{}
+	empty32             = [size32]byte{}
+	empty48             = [size48]byte{}
+	empty64             = [size64]byte{}
 )
 
 const attestationFilePath = "attestation.txt"
@@ -161,17 +166,18 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&cfgString, "config", "", "Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+`
 	{"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}`)
-	cmd.Flags().BytesHexVar(&cfg.Policy.HostData, "host_data", []byte{}, "The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportData, "report_data", []byte{}, "The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.FamilyId, "family_id", []byte{}, "The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ImageId, "image_id", []byte{}, "The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", []byte{}, "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", []byte{}, "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", []byte{}, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", []byte{}, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.HostData, "host_data", empty32[:], "The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportData, "report_data", empty64[:], "The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.FamilyId, "family_id", empty16[:], "The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ImageId, "image_id", empty16[:], "The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", empty32[:], "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", empty32[:], "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", empty48[:], "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
+	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", empty64[:], "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", defaultMinimumTcb, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
 	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", defaultMinimumLaunchTcb, "The minimum acceptable value for LAUNCH_TCB.")
-	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable SnpPolicy.")
+	cmd.Flags().Uint64Var(&cfg.Policy.Policy, "guest_policy", defaultGuestPolicy, "The most acceptable guest SnpPolicy.")
+	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable GUEST_SVN.")
 	cmd.Flags().Uint32Var(&cfg.Policy.MinimumBuild, "minimum_build", defaultMinimumBuild, "The 8-bit minimum build number for AMD-SP firmware")
 	cmd.Flags().BoolVar(&cfg.RootOfTrust.CheckCrl, "check_crl", defaultCheckCrl, "Download and check the CRL for revoked certificates.")
 	cmd.Flags().BoolVar(&cfg.RootOfTrust.DisallowNetwork, "disallow_network", defaultDisallowNetwork, "If true, then permitted to download necessary files for verification.")
@@ -356,7 +362,7 @@ func validateInput() error {
 	if err := validateFieldLength("measurement", cfg.Policy.Measurement, size48); err != nil {
 		return err
 	}
-	if err := validateFieldLength("chip_id", cfg.Policy.ChipId, size48); err != nil {
+	if err := validateFieldLength("chip_id", cfg.Policy.ChipId, size64); err != nil {
 		return err
 	}
 	for _, hash := range cfg.Policy.TrustedAuthorKeyHashes {
