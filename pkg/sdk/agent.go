@@ -11,6 +11,8 @@ import (
 
 var _ agent.Service = (*agentSDK)(nil)
 
+const size64 = 64
+
 type agentSDK struct {
 	client agent.AgentServiceClient
 	logger *slog.Logger
@@ -67,7 +69,7 @@ func (sdk *agentSDK) Result(ctx context.Context, consumer string) ([]byte, error
 	return response.File, nil
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context, reportData [64]byte) ([]byte, error) {
+func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
 	request := &agent.AttestationRequest{
 		ReportData: reportData[:],
 	}
