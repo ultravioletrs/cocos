@@ -168,7 +168,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	if _, err := os.Stat(keyfile); err == nil {
-		cert, err = os.ReadFile(keyfile)
+		key, err = os.ReadFile(keyfile)
 		if err != nil {
 			return tls.Certificate{}, err
 		}

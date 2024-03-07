@@ -24,24 +24,22 @@ import (
 )
 
 const (
-	defaultMinimumTcb                = 0
-	defaultMinimumLaunchTcb          = 0
-	defaultMinimumGuestSvn           = 0
-	defaultGuestPolicy               = 0x0000000000030000
-	defaultMinimumBuild              = 0
-	defaultCheckCrl                  = false
-	defaultDisallowNetwork           = false
-	defaultTimeout                   = 2 * time.Minute
-	defaultMaxRetryDelay             = 30 * time.Second
-	defaultRequireAuthor             = false
-	defaultRequireIdBlock            = false
-	defaultPermitProvisionalSoftware = false
-	defaultMinVersion                = "0.0"
-	size16                           = 16
-	size32                           = 32
-	size48                           = 48
-	size64                           = 64
-	attestationFilePath              = "attestation.bin"
+	defaultMinimumTcb       = 0
+	defaultMinimumLaunchTcb = 0
+	defaultMinimumGuestSvn  = 0
+	defaultGuestPolicy      = 0x0000000000030000
+	defaultMinimumBuild     = 0
+	defaultCheckCrl         = false
+	defaultTimeout          = 2 * time.Minute
+	defaultMaxRetryDelay    = 30 * time.Second
+	defaultRequireAuthor    = false
+	defaultRequireIdBlock   = false
+	defaultMinVersion       = "0.0"
+	size16                  = 16
+	size32                  = 32
+	size48                  = 48
+	size64                  = 64
+	attestationFilePath     = "attestation.bin"
 )
 
 var (
@@ -180,12 +178,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable GUEST_SVN.")
 	cmd.Flags().Uint32Var(&cfg.Policy.MinimumBuild, "minimum_build", defaultMinimumBuild, "The 8-bit minimum build number for AMD-SP firmware")
 	cmd.Flags().BoolVar(&cfg.RootOfTrust.CheckCrl, "check_crl", defaultCheckCrl, "Download and check the CRL for revoked certificates.")
-	cmd.Flags().BoolVar(&cfg.RootOfTrust.DisallowNetwork, "disallow_network", defaultDisallowNetwork, "If true, then permitted to download necessary files for verification.")
 	cmd.Flags().DurationVar(&timeout, "timeout", defaultTimeout, "Duration to continue to retry failed HTTP requests.")
 	cmd.Flags().DurationVar(&maxRetryDelay, "max_retry_delay", defaultMaxRetryDelay, "Maximum Duration to wait between HTTP request retries.")
 	cmd.Flags().BoolVar(&cfg.Policy.RequireAuthorKey, "require_author_key", defaultRequireAuthor, "Require that AUTHOR_KEY_EN is 1.")
 	cmd.Flags().BoolVar(&cfg.Policy.RequireIdBlock, "require_id_block", defaultRequireIdBlock, "Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key")
-	cmd.Flags().BoolVar(&cfg.Policy.PermitProvisionalFirmware, "permit_provisional_software", defaultPermitProvisionalSoftware, "Permit provisional firmware (i.e., committed values may be less than current values).")
 	cmd.Flags().StringVar(&platformInfo, "platform_info", "", "The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer")
 	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", defaultMinVersion, "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
 	cmd.Flags().StringArrayVar(&trustedAuthorKeys, "trusted_author_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
@@ -342,6 +338,10 @@ func getBase(val string) int {
 }
 
 func validateInput() error {
+	if len(cfg.RootOfTrust.CabundlePaths) != 0 || len(cfg.RootOfTrust.Cabundles) != 0 && cfg.RootOfTrust.Product == "" {
+		return fmt.Errorf("product name must be set if CA bundles are provided")
+	}
+
 	if err := validateFieldLength("report_data", cfg.Policy.ReportData, size64); err != nil {
 		return err
 	}
