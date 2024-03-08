@@ -1,7 +1,7 @@
 BUILD_DIR = build
 INSTALL_DIR = /usr/bin
 SERVICES = manager agent cli
-BINARIES = cocos-manager cocos-agent cocos-cli
+BINARIES = $(addprefix cocos-,$(SERVICES))
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
