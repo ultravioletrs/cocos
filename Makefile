@@ -1,13 +1,12 @@
 BUILD_DIR = build
+INSTALL_DIR = /usr/bin
 SERVICES = manager agent cli
+BINARIES = cocos-manager cocos-agent cocos-cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
-CLI_SOURCE = ./cmd/cli/main.go
-CLI_BIN = ${BUILD_DIR}/cocos-cli
-MANAGER_BIN = ${BUILD_DIR}/cocos-manager
 empty:=
 space:= $(empty) $(empty)
 
@@ -28,11 +27,10 @@ $(SERVICES):
 	$(call compile_service,$(@))
 
 
-install-cli: cli
-	cp ${CLI_BIN} /usr/bin/cocos-cli
+install: $(BINARIES)
 
-install-manager: manager
-	cp ${MANAGER_BIN} /usr/bin/cocos-manager
+$(BINARIES):
+	cp ${BUILD_DIR}/$(@) ${INSTALL_DIR}/$(@)
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
