@@ -7,6 +7,7 @@ COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 CLI_SOURCE = ./cmd/cli/main.go
 CLI_BIN = ${BUILD_DIR}/cocos-cli
+MANAGER_BIN = ${BUILD_DIR}/cocos-manager
 empty:=
 space:= $(empty) $(empty)
 
@@ -28,7 +29,10 @@ $(SERVICES):
 
 
 install-cli: cli
-	cp ${CLI_BIN} ~/.local/bin/cocos-cli
+	cp ${CLI_BIN} /usr/bin/cocos-cli
+
+install-manager: manager
+	cp ${MANAGER_BIN} /usr/bin/cocos-manager
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
