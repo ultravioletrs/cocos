@@ -147,10 +147,10 @@ git clone git@github.com:ultravioletrs/cocos.git
 cd cocos
 
 # compile the manager
-make manager
+make
 
 # copy binary to bin
-sudo make install-manager
+sudo make install
 
 # set the environment variables and run the service
 MANAGER_GRPC_URL=localhost:7001

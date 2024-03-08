@@ -66,8 +66,8 @@ Navigate to the project root and run the following command to build the CLI bina
 
 ```bash
 # compile the cli
-make cli
+make
 
 # copy binary to bin
-sudo make install-cli
+sudo make install
 ```
