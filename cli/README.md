@@ -65,5 +65,9 @@ To use the CLI, you have the option to install it globally on your system. Here'
 Navigate to the project root and run the following command to build the CLI binary:
 
 ```bash
-make install-cli
+# compile the cli
+make cli
+
+# copy binary to bin
+sudo make install-cli
 ```

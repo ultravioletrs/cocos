@@ -142,22 +142,22 @@ To start the service, execute the following shell script (note a server needs to
 
 ```bash
 # download the latest version of the service
-go get github.com/ultravioletrs/cocos
+git clone git@github.com:ultravioletrs/cocos.git
 
-cd $GOPATH/src/github.com/ultravioletrs/cocos
+cd cocos
 
 # compile the manager
 make manager
 
 # copy binary to bin
-make install
+sudo make install-manager
 
 # set the environment variables and run the service
 MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
 MANAGER_QEMU_ENABLE_SEV=false \
-./build/cocos-manager
+cocos-manager
 ```
 
 To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
