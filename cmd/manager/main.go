@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
@@ -35,9 +36,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	LogLevel          string        `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL         string        `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:14268/api/traces"`
+	InstanceID        string        `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	HeartbeatInterval time.Duration `env:"MANAGER_HEARTBEAT_INTERVAL" envDefault:"1s"`
 }
 
 func main() {
