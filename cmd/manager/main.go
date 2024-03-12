@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/uuid"
@@ -19,6 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
+	"github.com/ultravioletrs/cocos/manager/heartbeat"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
@@ -35,9 +37,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	LogLevel          string        `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL         string        `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:14268/api/traces"`
+	InstanceID        string        `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	HeartbeatInterval time.Duration `env:"MANAGER_HEARTBEAT_INTERVAL" envDefault:"1s"`
 }
 
 func main() {
@@ -107,6 +110,16 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
+	hc, err := managerClient.Heartbeat(ctx)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	hbs := heartbeat.New(hc, cfg.HeartbeatInterval)
+
+	g.Go(func() error {
+		return hbs.Send()
+	})
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
 	svc := newService(logger, tracer, qemuCfg, eventsChan)

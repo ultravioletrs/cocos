@@ -49,6 +49,10 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 	}
 }
 
+func (s *svc) Heartbeat(ipAddress string) {
+	s.logger.Debug(fmt.Sprintf("received heartbeat from %s", ipAddress))
+}
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
