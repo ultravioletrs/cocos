@@ -7,7 +7,7 @@ This repository contains the command-line interface (CLI) tool for interacting w
 From the project root:
 
 ```bash
-make cli
+make
 ```
 
 ## Usage
