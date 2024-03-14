@@ -8,6 +8,7 @@ import (
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 )
 
@@ -21,7 +22,7 @@ type grpcServer struct {
 }
 
 type Service interface {
-	Run(ipAddress string, runReqChan chan *manager.ComputationRunReq)
+	Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage, authInfo credentials.AuthInfo)
 	Heartbeat(ipAddress string)
 }
 
@@ -35,32 +36,45 @@ func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, 
 }
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
-	eg, _ := errgroup.WithContext(s.ctx)
-	runReqChan := make(chan *manager.ComputationRunReq)
+	eg, ctx := errgroup.WithContext(s.ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	managerReqChan := make(chan *manager.ServerStreamMessage)
+
 	eg.Go(func() error {
 		for {
-			req, err := stream.Recv()
-			if err != nil {
-				return err
-			}
-			if _, ok := req.Message.(*manager.ClientStreamMessage_Whoami); ok {
-				client, ok := peer.FromContext(stream.Context())
-				if ok {
-					s.svc.Run(client.Addr.String(), runReqChan)
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				req, err := stream.Recv()
+				if err != nil {
+					cancel()
+					return err
 				}
-			}
+				if _, ok := req.Message.(*manager.ClientStreamMessage_Whoami); ok {
+					client, ok := peer.FromContext(stream.Context())
+					if ok {
+						s.svc.Run(client.Addr.String(), managerReqChan, client.AuthInfo)
+					}
+				}
 
-			s.incoming <- req
+				s.incoming <- req
+			}
 		}
 	})
 
 	eg.Go(func() error {
-		for runReq := range runReqChan {
-			if err := stream.Send(runReq); err != nil {
-				return err
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case req := <-managerReqChan:
+				if err := stream.Send(req); err != nil {
+					cancel()
+					return err
+				}
 			}
 		}
-		return nil
 	})
 	return eg.Wait()
 }
