@@ -30,7 +30,9 @@ $(SERVICES):
 install: $(BINARIES)
 
 $(BINARIES):
-	cp ${BUILD_DIR}/$(@) ${INSTALL_DIR}/$(@)
+	if [ "$@" != "cocos-cli" ]; then \
+        cp "${BUILD_DIR}/$(@)" "${INSTALL_DIR}/$(@)"; \
+    fi
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto

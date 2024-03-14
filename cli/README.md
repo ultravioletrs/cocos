@@ -55,19 +55,3 @@ To retrieve the computation result, use the following command:
 ```bash
 ./build/cocos-cli agent result
 ```
-
-## Installtion
-
-To use the CLI, you have the option to install it globally on your system. Here's how:
-
-### Build the CLI:
-
-Navigate to the project root and run the following command to build the CLI binary:
-
-```bash
-# compile the cli
-make
-
-# copy binary to bin
-sudo make install
-```
