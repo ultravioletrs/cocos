@@ -90,7 +90,7 @@ func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface
 	if len(req.ReportData) != sha512.Size {
 		return nil, errors.New("malformed report data, expect 64 bytes")
 	}
-	return attestationReq{ReportData: [64]byte(req.ReportData)}, nil
+	return attestationReq{ReportData: [sha512.Size]byte(req.ReportData)}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
