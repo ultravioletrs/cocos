@@ -18,7 +18,6 @@ type grpcServer struct {
 	manager.UnimplementedManagerServiceServer
 	incoming chan *manager.ClientStreamMessage
 	svc      Service
-	ctx      context.Context
 }
 
 type Service interface {
@@ -27,16 +26,15 @@ type Service interface {
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, svc Service) manager.ManagerServiceServer {
+func NewServer(incoming chan *manager.ClientStreamMessage, svc Service) manager.ManagerServiceServer {
 	return &grpcServer{
 		incoming: incoming,
 		svc:      svc,
-		ctx:      ctx,
 	}
 }
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
-	eg, ctx := errgroup.WithContext(s.ctx)
+	eg, ctx := errgroup.WithContext(stream.Context())
 	ctx, cancel := context.WithCancel(ctx)
 	managerReqChan := make(chan *manager.ServerStreamMessage)
 
@@ -52,7 +50,7 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 					return err
 				}
 				if _, ok := req.Message.(*manager.ClientStreamMessage_Whoami); ok {
-					client, ok := peer.FromContext(stream.Context())
+					client, ok := peer.FromContext(ctx)
 					if ok {
 						s.svc.Run(client.Addr.String(), managerReqChan, client.AuthInfo)
 					}
