@@ -4,11 +4,14 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ultravioletrs/cocos/manager"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 )
+
+var errTerminationFromServer = errors.New("server requested client termination")
 
 type ManagerClient struct {
 	stream    pkgmanager.ManagerService_ProcessClient
@@ -25,7 +28,7 @@ func NewClient(stream pkgmanager.ManagerService_ProcessClient, svc manager.Servi
 	}
 }
 
-func (client ManagerClient) Process(ctx context.Context) error {
+func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFunc) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
@@ -34,24 +37,34 @@ func (client ManagerClient) Process(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			port, err := client.svc.Run(ctx, req)
-			if err != nil {
-				return err
-			}
-			runRes := &pkgmanager.ClientStreamMessage_RunRes{RunRes: &pkgmanager.RunResponse{AgentPort: port, ComputationId: req.Id}}
-			if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
-				return err
+			switch mes := req.Message.(type) {
+			case *pkgmanager.ServerStreamMessage_RunReq:
+				port, err := client.svc.Run(ctx, mes.RunReq)
+				if err != nil {
+					return err
+				}
+				runRes := &pkgmanager.ClientStreamMessage_RunRes{RunRes: &pkgmanager.RunResponse{AgentPort: port, ComputationId: mes.RunReq.Id}}
+				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
+					return err
+				}
+			case *pkgmanager.ServerStreamMessage_TerminateReq:
+				cancel()
+				return errors.Join(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
 			}
 		}
 	})
 
 	eg.Go(func() error {
-		for mes := range client.responses {
-			if err := client.stream.Send(mes); err != nil {
-				return err
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case mes := <-client.responses:
+				if err := client.stream.Send(mes); err != nil {
+					return err
+				}
 			}
 		}
-		return nil
 	})
 
 	return eg.Wait()

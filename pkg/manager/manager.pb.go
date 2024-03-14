@@ -333,6 +333,87 @@ func (*ClientStreamMessage_AgentEvent) isClientStreamMessage_Message() {}
 
 func (*ClientStreamMessage_RunRes) isClientStreamMessage_Message() {}
 
+type ServerStreamMessage struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Message:
+	//
+	//	*ServerStreamMessage_RunReq
+	//	*ServerStreamMessage_TerminateReq
+	Message isServerStreamMessage_Message `protobuf_oneof:"message"`
+}
+
+func (x *ServerStreamMessage) Reset() {
+	*x = ServerStreamMessage{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_manager_manager_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ServerStreamMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerStreamMessage) ProtoMessage() {}
+
+func (x *ServerStreamMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_manager_manager_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerStreamMessage.ProtoReflect.Descriptor instead.
+func (*ServerStreamMessage) Descriptor() ([]byte, []int) {
+	return file_manager_manager_proto_rawDescGZIP(), []int{6}
+}
+
+func (m *ServerStreamMessage) GetMessage() isServerStreamMessage_Message {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+func (x *ServerStreamMessage) GetRunReq() *ComputationRunReq {
+	if x, ok := x.GetMessage().(*ServerStreamMessage_RunReq); ok {
+		return x.RunReq
+	}
+	return nil
+}
+
+func (x *ServerStreamMessage) GetTerminateReq() *Terminate {
+	if x, ok := x.GetMessage().(*ServerStreamMessage_TerminateReq); ok {
+		return x.TerminateReq
+	}
+	return nil
+}
+
+type isServerStreamMessage_Message interface {
+	isServerStreamMessage_Message()
+}
+
+type ServerStreamMessage_RunReq struct {
+	RunReq *ComputationRunReq `protobuf:"bytes,1,opt,name=runReq,proto3,oneof"`
+}
+
+type ServerStreamMessage_TerminateReq struct {
+	TerminateReq *Terminate `protobuf:"bytes,2,opt,name=terminateReq,proto3,oneof"`
+}
+
+func (*ServerStreamMessage_RunReq) isServerStreamMessage_Message() {}
+
+func (*ServerStreamMessage_TerminateReq) isServerStreamMessage_Message() {}
+
 type ComputationRunReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -903,6 +984,30 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Algorithm); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_manager_manager_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*AgentConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_manager_manager_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*HeartBeatMessage); i {
 			case 0:
 				return &v.state
@@ -919,6 +1024,10 @@ func file_manager_manager_proto_init() {
 		(*ClientStreamMessage_AgentLog)(nil),
 		(*ClientStreamMessage_AgentEvent)(nil),
 		(*ClientStreamMessage_RunRes)(nil),
+	}
+	file_manager_manager_proto_msgTypes[6].OneofWrappers = []interface{}{
+		(*ServerStreamMessage_RunReq)(nil),
+		(*ServerStreamMessage_TerminateReq)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

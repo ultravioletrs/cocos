@@ -43,7 +43,7 @@ type config struct {
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
 	var cfg config
@@ -112,7 +112,7 @@ func main() {
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
 	g.Go(func() error {
-		return mc.Process(ctx)
+		return mc.Process(ctx, cancel)
 	})
 
 	if err := g.Wait(); err != nil {

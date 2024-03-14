@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -39,7 +40,7 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
+func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, auth credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
 	algo, err := os.ReadFile(algoPath)
 	if err != nil {
@@ -53,17 +54,20 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 	}
 	algoHash := sha3.Sum256(algo)
 	dataHash := sha3.Sum256(data)
-	reqChan <- &manager.ComputationRunReq{
-		Id:              "1",
-		Name:            "sample computation",
-		Description:     "sample descrption",
-		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:]}},
-		Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:]},
-		ResultConsumers: []string{"consumer1"},
-		AgentConfig: &manager.AgentConfig{
-			Port:        "7002",
-			LogLevel:    "debug",
-			AttestedTls: attestedTLS,
+	reqChan <- &manager.ServerStreamMessage{
+		Message: &manager.ServerStreamMessage_RunReq{
+			RunReq: &manager.ComputationRunReq{
+				Id:              "1",
+				Name:            "sample computation",
+				Description:     "sample descrption",
+				Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:]}},
+				Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:]},
+				ResultConsumers: []string{"consumer1"},
+				AgentConfig: &manager.AgentConfig{
+					Port:     "7002",
+					LogLevel: "debug",
+				},
+			},
 		},
 	}
 }

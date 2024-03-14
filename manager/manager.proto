@@ -11,8 +11,12 @@ package manager;
 option go_package = "./manager";
 
 service ManagerService {
-  rpc Process(stream ClientStreamMessage) returns (stream ComputationRunReq) {}
+  rpc Process(stream ClientStreamMessage) returns (stream ServerStreamMessage) {}
   rpc Heartbeat(stream HeartBeatMessage) returns (google.protobuf.Empty) {}
+}
+
+message Terminate {
+  string message = 1;
 }
 
 message RunResponse{
@@ -41,6 +45,13 @@ message ClientStreamMessage {
     AgentLog agent_log = 1;
     AgentEvent agent_event = 2;
     RunResponse run_res = 3;
+  }
+}
+
+message ServerStreamMessage {
+  oneof message {
+    ComputationRunReq runReq = 1;
+    Terminate terminateReq = 2;
   }
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 )
 
@@ -21,7 +22,7 @@ type grpcServer struct {
 }
 
 type Service interface {
-	Run(ipAddress string, runReqChan chan *manager.ComputationRunReq)
+	Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage, authInfo credentials.AuthInfo)
 	Heartbeat(ipAddress string)
 }
 
@@ -49,17 +50,23 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 				return err
 			}
 
-			s.incoming <- req
+				s.incoming <- req
+			}
 		}
 	})
 
 	eg.Go(func() error {
-		for runReq := range runReqChan {
-			if err := stream.Send(runReq); err != nil {
-				return err
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case req := <-managerReqChan:
+				if err := stream.Send(req); err != nil {
+					cancel()
+					return err
+				}
 			}
 		}
-		return nil
 	})
 	return eg.Wait()
 }
