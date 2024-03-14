@@ -113,7 +113,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(ctx, incomingChan, &svc{logger: logger}))
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.Config{Port: defaultPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
