@@ -37,6 +37,8 @@ type NetDevConfig struct {
 type VirtioNetPciConfig struct {
 	DisableLegacy string `env:"VIRTIO_NET_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_NET_PCI_IOMMU_PLATFORM" envDefault:"true"`
+	Bus           string `env:"VIRTIO_NET_PCI_BUS" envDefault:"pcie.0"`
+	Addr          string `env:"VIRTIO_NET_PCI_ADDR" envDefault:"0x2"`
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
@@ -140,6 +142,21 @@ func constructQemuArgs(config Config) []string {
 			config.OVMFVarsConfig.Unit,
 			config.OVMFVarsConfig.File))
 
+	// network
+	args = append(args, "-netdev",
+		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d",
+			config.NetDevConfig.ID,
+			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
+
+	args = append(args, "-device",
+		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,bus=%s,addr=%s,romfile=%s",
+			config.VirtioNetPciConfig.DisableLegacy,
+			config.VirtioNetPciConfig.IOMMUPlatform,
+			config.NetDevConfig.ID,
+			config.VirtioNetPciConfig.Bus,
+			config.VirtioNetPciConfig.Addr,
+			config.VirtioNetPciConfig.ROMFile))
+
 	// disk
 	args = append(args, "-device",
 		fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=%s,iommu_platform=%t",
@@ -156,19 +173,6 @@ func constructQemuArgs(config Config) []string {
 	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
 
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
-
-	// network
-	args = append(args, "-netdev",
-		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d",
-			config.NetDevConfig.ID,
-			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
-
-	args = append(args, "-device",
-		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",
-			config.VirtioNetPciConfig.DisableLegacy,
-			config.VirtioNetPciConfig.IOMMUPlatform,
-			config.NetDevConfig.ID,
-			config.VirtioNetPciConfig.ROMFile))
 
 	// SEV
 	if config.EnableSEV {
