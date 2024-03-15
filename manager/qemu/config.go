@@ -37,18 +37,13 @@ type NetDevConfig struct {
 type VirtioNetPciConfig struct {
 	DisableLegacy string `env:"VIRTIO_NET_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_NET_PCI_IOMMU_PLATFORM" envDefault:"true"`
+	Addr          string `env:"VIRTIO_NET_PCI_ADDR" envDefault:"0x2"`
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
 type DiskImgConfig struct {
 	KernelFile string `env:"DISK_IMG_KERNEL_FILE" envDefault:"img/bzImage"`
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
-}
-
-type VirtioScsiPciConfig struct {
-	ID            string `env:"VIRTIO_SCSI_PCI_ID" envDefault:"scsi"`
-	DisableLegacy string `env:"VIRTIO_SCSI_PCI_DISABLE_LEGACY" envDefault:"on"`
-	IOMMUPlatform bool   `env:"VIRTIO_SCSI_PCI_IOMMU_PLATFORM" envDefault:"true"`
 }
 
 type SevConfig struct {
@@ -89,7 +84,6 @@ type Config struct {
 	VSockConfig
 
 	// disk
-	VirtioScsiPciConfig
 	DiskImgConfig
 
 	// SEV
@@ -140,23 +134,6 @@ func constructQemuArgs(config Config) []string {
 			config.OVMFVarsConfig.Unit,
 			config.OVMFVarsConfig.File))
 
-	// disk
-	args = append(args, "-device",
-		fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=%s,iommu_platform=%t",
-			config.VirtioScsiPciConfig.ID,
-			config.VirtioScsiPciConfig.DisableLegacy,
-			config.VirtioScsiPciConfig.IOMMUPlatform))
-
-	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
-
-	args = append(args, "-vnc", fmt.Sprintf(":%d", config.vnc))
-
-	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-
-	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
-
-	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
-
 	// network
 	args = append(args, "-netdev",
 		fmt.Sprintf("user,id=%s,hostfwd=tcp::%d-:%d",
@@ -164,11 +141,18 @@ func constructQemuArgs(config Config) []string {
 			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
 
 	args = append(args, "-device",
-		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,romfile=%s",
+		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,addr=%s,romfile=%s",
 			config.VirtioNetPciConfig.DisableLegacy,
 			config.VirtioNetPciConfig.IOMMUPlatform,
 			config.NetDevConfig.ID,
+			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
+
+	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
+	args = append(args, "-vnc", fmt.Sprintf(":%d", config.vnc))
+	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
+	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
+	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// SEV
 	if config.EnableSEV {
