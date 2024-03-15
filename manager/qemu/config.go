@@ -37,7 +37,6 @@ type NetDevConfig struct {
 type VirtioNetPciConfig struct {
 	DisableLegacy string `env:"VIRTIO_NET_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_NET_PCI_IOMMU_PLATFORM" envDefault:"true"`
-	Bus           string `env:"VIRTIO_NET_PCI_BUS" envDefault:"pcie.0"`
 	Addr          string `env:"VIRTIO_NET_PCI_ADDR" envDefault:"0x2"`
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
@@ -142,11 +141,10 @@ func constructQemuArgs(config Config) []string {
 			config.NetDevConfig.HostFwdAgent, config.NetDevConfig.GuestFwdAgent))
 
 	args = append(args, "-device",
-		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,bus=%s,addr=%s,romfile=%s",
+		fmt.Sprintf("virtio-net-pci,disable-legacy=%s,iommu_platform=%v,netdev=%s,addr=%s,romfile=%s",
 			config.VirtioNetPciConfig.DisableLegacy,
 			config.VirtioNetPciConfig.IOMMUPlatform,
 			config.NetDevConfig.ID,
-			config.VirtioNetPciConfig.Bus,
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
 
