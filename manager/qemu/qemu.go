@@ -26,7 +26,6 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	}
 	qemuCfg := cfg
 	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
-	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
 	// Copy firmware vars file.

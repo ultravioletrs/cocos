@@ -47,12 +47,6 @@ type DiskImgConfig struct {
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
 
-type VirtioScsiPciConfig struct {
-	ID            string `env:"VIRTIO_SCSI_PCI_ID" envDefault:"scsi"`
-	DisableLegacy string `env:"VIRTIO_SCSI_PCI_DISABLE_LEGACY" envDefault:"on"`
-	IOMMUPlatform bool   `env:"VIRTIO_SCSI_PCI_IOMMU_PLATFORM" envDefault:"true"`
-}
-
 type SevConfig struct {
 	ID              string `env:"SEV_ID" envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS" envDefault:"51"`
@@ -91,7 +85,6 @@ type Config struct {
 	VSockConfig
 
 	// disk
-	VirtioScsiPciConfig
 	DiskImgConfig
 
 	// SEV
@@ -156,13 +149,6 @@ func constructQemuArgs(config Config) []string {
 			config.VirtioNetPciConfig.Bus,
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
-
-	// disk
-	args = append(args, "-device",
-		fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=%s,iommu_platform=%t",
-			config.VirtioScsiPciConfig.ID,
-			config.VirtioScsiPciConfig.DisableLegacy,
-			config.VirtioScsiPciConfig.IOMMUPlatform))
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
 
