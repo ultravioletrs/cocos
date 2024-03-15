@@ -18,6 +18,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -32,21 +33,29 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
+func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, auth credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
 	hash := sha256.Sum256([]byte("test"))
-	reqChan <- &manager.ComputationRunReq{
-		Id:              "1",
-		Name:            "sample computation",
-		Description:     "sample descrption",
-		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: hash[:]}},
-		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: hash[:]}},
-		ResultConsumers: []string{"consumer1"},
-		AgentConfig: &manager.AgentConfig{
-			Port:     "7002",
-			LogLevel: "debug",
+	reqChan <- &manager.ServerStreamMessage{
+		Message: &manager.ServerStreamMessage_RunReq{
+			RunReq: &manager.ComputationRunReq{
+				Id:              "1",
+				Name:            "sample computation",
+				Description:     "sample descrption",
+				Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: hash[:]}},
+				Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: hash[:]}},
+				ResultConsumers: []string{"consumer1"},
+				AgentConfig: &manager.AgentConfig{
+					Port:     "7002",
+					LogLevel: "debug",
+				},
+			},
 		},
 	}
+}
+
+func (s *svc) Heartbeat(ipAddress string) {
+	s.logger.Debug(fmt.Sprintf("received heartbeat from %s", ipAddress))
 }
 
 func main() {
@@ -77,7 +86,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(ctx, incomingChan, &svc{logger: logger}))
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.Config{Port: defaultPort}
 	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
