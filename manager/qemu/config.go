@@ -149,13 +149,9 @@ func constructQemuArgs(config Config) []string {
 			config.VirtioNetPciConfig.ROMFile))
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
-
 	args = append(args, "-vnc", fmt.Sprintf(":%d", config.vnc))
-
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-
 	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
-
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// SEV
