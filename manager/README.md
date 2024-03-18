@@ -149,15 +149,12 @@ cd cocos
 # compile the manager
 make
 
-# copy binary to bin
-sudo make install
-
 # set the environment variables and run the service
 MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
 MANAGER_QEMU_ENABLE_SEV=false \
-cocos-manager
+./build/cocos-manager
 ```
 
 To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 

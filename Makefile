@@ -1,7 +1,6 @@
 BUILD_DIR = build
 INSTALL_DIR = /usr/bin
 SERVICES = manager agent cli
-BINARIES = $(addprefix cocos-,$(SERVICES))
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
@@ -25,14 +24,6 @@ all: $(SERVICES)
 
 $(SERVICES):
 	$(call compile_service,$(@))
-
-
-install: $(BINARIES)
-
-$(BINARIES):
-	if [ "$@" != "cocos-cli" ]; then \
-        cp "${BUILD_DIR}/$(@)" "${INSTALL_DIR}/$(@)"; \
-    fi
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
