@@ -1,5 +1,4 @@
 BUILD_DIR = build
-INSTALL_DIR = /usr/bin
 SERVICES = manager agent cli
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
