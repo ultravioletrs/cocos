@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"log"
 	"log/slog"
@@ -16,6 +15,7 @@ import (
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/pkg/manager"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -28,19 +28,35 @@ const (
 	defaultPort = "7001"
 )
 
+var (
+	algoPath = "./test/manual/algo/lin_reg.py"
+	dataPath = "./test/manual/data/iris.csv"
+)
+
 type svc struct {
 	logger *slog.Logger
 }
 
 func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
-	hash := sha256.Sum256([]byte("test"))
+	algo, err := os.ReadFile(algoPath)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("failed to read algorithm file: %s", err))
+		return
+	}
+	data, err := os.ReadFile(dataPath)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
+		return
+	}
+	algoHash := sha3.Sum256(algo)
+	dataHash := sha3.Sum256(data)
 	reqChan <- &manager.ComputationRunReq{
 		Id:              "1",
 		Name:            "sample computation",
 		Description:     "sample descrption",
-		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: hash[:]}},
-		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: hash[:]}},
+		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:]}},
+		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: algoHash[:]}},
 		ResultConsumers: []string{"consumer1"},
 		AgentConfig: &manager.AgentConfig{
 			Port:     "7002",
@@ -50,6 +66,11 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 }
 
 func main() {
+	if len(os.Args) < 3 {
+		log.Fatalf("usage: %s <data-path> <algo-path>", os.Args[0])
+	}
+	dataPath = os.Args[1]
+	algoPath = os.Args[2]
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 	incomingChan := make(chan *manager.ClientStreamMessage)
