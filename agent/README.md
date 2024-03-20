@@ -29,7 +29,7 @@ git clone git@github.com:ultravioletrs/cocos.git
 cd cocos
 
 # compile the service
-make
+make agent
 
 # run the service
 ./build/cocos-agent
