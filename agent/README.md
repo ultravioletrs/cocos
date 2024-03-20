@@ -24,14 +24,14 @@ To start the service outside of the container, execute the following shell scrip
 
 ```bash
 # download the latest version of the service
-go get github.com/ultravioletrs/cocos
+git clone git@github.com:ultravioletrs/cocos.git
 
-cd $GOPATH/src/github.com/ultravioletrs/cocos
+cd cocos
 
-# compile the agent
+# compile the service
 make agent
 
-# set the environment variables and run the service
+# run the service
 ./build/cocos-agent
 ```
 
