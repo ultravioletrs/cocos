@@ -4,7 +4,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/sha512"
 	"errors"
 
 	"github.com/go-kit/kit/transport/grpc"
@@ -87,10 +86,10 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	if len(req.ReportData) != sha512.Size {
+	if len(req.ReportData) != agent.ReportDataSize {
 		return nil, errors.New("malformed report data, expect 64 bytes")
 	}
-	return attestationReq{ReportData: [sha512.Size]byte(req.ReportData)}, nil
+	return attestationReq{ReportData: [agent.ReportDataSize]byte(req.ReportData)}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {

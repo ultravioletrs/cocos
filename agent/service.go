@@ -20,7 +20,8 @@ import (
 
 var _ Service = (*agentService)(nil)
 
-const size64 = 64
+// ReportDataSize is the size of the report data expected by the attestation service.
+const ReportDataSize = 64
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -53,7 +54,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context, consumer string) ([]byte, error)
-	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
+	Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error)
 }
 
 type agentService struct {
@@ -182,7 +183,7 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error) {
 	provider, err := client.GetQuoteProvider()
 	if err != nil {
 		return []byte{}, err

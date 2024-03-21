@@ -4,7 +4,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/sha512"
 	"fmt"
 	"time"
 
@@ -209,7 +208,7 @@ func (c grpcClient) Attestation(ctx context.Context, request *agent.AttestationR
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	res, err := c.attestation(ctx, &attestationReq{ReportData: [sha512.Size]byte(request.ReportData)})
+	res, err := c.attestation(ctx, &attestationReq{ReportData: [agent.ReportDataSize]byte(request.ReportData)})
 	if err != nil {
 		return nil, err
 	}

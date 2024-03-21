@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -19,6 +18,7 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -104,11 +104,11 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("attestation validation and verification failed with error: %s", err)
 			}
-			if len(reportData) != sha512.Size {
-				log.Fatalf("report data must be a hex encoded string of length %d bytes", sha512.Size)
+			if len(reportData) != agent.ReportDataSize {
+				log.Fatalf("report data must be a hex encoded string of length %d bytes", agent.ReportDataSize)
 			}
 
-			result, err := cli.agentSDK.Attestation(cmd.Context(), [sha512.Size]byte(reportData))
+			result, err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData))
 			if err != nil {
 				log.Fatalf("Error retrieving attestation: %v", err)
 			}
@@ -367,12 +367,12 @@ func validateInput() error {
 		return err
 	}
 	for _, hash := range cfg.Policy.TrustedAuthorKeyHashes {
-		if err := validateFieldLength("trusted_author_key_hash", hash, sha512.Size384); err != nil {
+		if err := validateFieldLength("trusted_author_key_hash", hash, size48); err != nil {
 			return err
 		}
 	}
 	for _, hash := range cfg.Policy.TrustedIdKeyHashes {
-		if err := validateFieldLength("trusted_id_key_hash", hash, sha512.Size384); err != nil {
+		if err := validateFieldLength("trusted_id_key_hash", hash, size48); err != nil {
 			return err
 		}
 	}

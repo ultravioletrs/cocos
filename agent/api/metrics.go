@@ -16,8 +16,6 @@ import (
 
 var _ agent.Service = (*metricsMiddleware)(nil)
 
-const size64 = 64
-
 type metricsMiddleware struct {
 	counter metrics.Counter
 	latency metrics.Histogram
@@ -61,7 +59,7 @@ func (ms *metricsMiddleware) Result(ctx context.Context, consumer string) ([]byt
 	return ms.svc.Result(ctx, consumer)
 }
 
-func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
+func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [agent.ReportDataSize]byte) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "attestation").Add(1)
 		ms.latency.With("method", "attestation").Observe(time.Since(begin).Seconds())
