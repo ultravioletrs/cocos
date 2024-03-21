@@ -76,7 +76,7 @@ type Config struct {
 	MemoryConfig
 
 	// Kernel hash
-	KernelHash bool `env:"KERNEL_HASH" envDefault:"true"`
+	KernelHash bool `env:"KERNEL_HASH" envDefault:"false"`
 
 	// OVMF
 	OVMFCodeConfig

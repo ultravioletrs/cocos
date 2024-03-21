@@ -171,6 +171,35 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
 ```
 
+The kernel hash feature might not work with the current build of OVMF and QEMU. If so, build the host kernel, QEMU, and OVMF from the [AMD SEV GitHub](https://github.com/AMDESE/AMDSEV/tree/snp-latest) repository.
+
+To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, start manager like this 
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
+MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF Amd Sev built package> \
+./build/cocos-manager
+```
+
+To include the kernel hash into the measurement of the attestation report (SEV or SEV-SNP), start manager like this
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_KERNEL_HASH=true \
+./build/cocos-manager
+```
+
+
+
 ### Verifying VM launch
 
 NB: To verify that the manager successfully launched the VM, you need to open two terminals on the same machine. In one terminal, you need to launch `go run main.go` (with the environment variables of choice) and in the other, you can run the verification commands.
