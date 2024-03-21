@@ -59,9 +59,11 @@ type VSockConfig struct {
 }
 
 type Config struct {
-	TmpFileLoc string `env:"TMP_FILE_LOC" envDefault:"tmp"`
-	UseSudo    bool   `env:"USE_SUDO" envDefault:"false"`
-	EnableSEV  bool   `env:"ENABLE_SEV" envDefault:"true"`
+	QemuBinPath  string `env:"BIN_PATH" envDefault:"qemu-system-x86_64"`
+	TmpFileLoc   string `env:"TMP_FILE_LOC" envDefault:"tmp"`
+	UseSudo      bool   `env:"USE_SUDO" envDefault:"false"`
+	EnableSEV    bool   `env:"ENABLE_SEV" envDefault:"false"`
+	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
@@ -70,7 +72,11 @@ type Config struct {
 	CPU      string `env:"CPU" envDefault:"EPYC"`
 	SmpCount int    `env:"SMP_COUNT" envDefault:"4"`
 	MaxCpus  int    `env:"SMP_MAXCPUS" envDefault:"64"`
+	MEM_ID   string `env:"MEM_ID" envDefault:"ram1"`
 	MemoryConfig
+
+	// Kernel hash
+	KernelHash bool `env:"KERNEL_HASH" envDefault:"true"`
 
 	// OVMF
 	OVMFCodeConfig
@@ -127,12 +133,14 @@ func constructQemuArgs(config Config) []string {
 			config.OVMFCodeConfig.File,
 			config.OVMFCodeConfig.ReadOnly))
 
-	args = append(args, "-drive",
-		fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s",
-			config.OVMFVarsConfig.If,
-			config.OVMFVarsConfig.Format,
-			config.OVMFVarsConfig.Unit,
-			config.OVMFVarsConfig.File))
+	if !config.KernelHash {
+		args = append(args, "-drive",
+			fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s",
+				config.OVMFVarsConfig.If,
+				config.OVMFVarsConfig.Format,
+				config.OVMFVarsConfig.Unit,
+				config.OVMFVarsConfig.File))
+	}
 
 	// network
 	args = append(args, "-netdev",
@@ -150,17 +158,41 @@ func constructQemuArgs(config Config) []string {
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
 	args = append(args, "-vnc", fmt.Sprintf(":%d", config.vnc))
+
+	if config.EnableSEVSNP {
+		args = append(args, "-object",
+			fmt.Sprintf("memory-backend-memfd-private,id=%s,size=%s,share=true",
+				config.MEM_ID,
+				config.MemoryConfig.Size))
+		args = append(args, "-machine",
+			fmt.Sprintf("memory-backend=%s,kvm-type=protected",
+				config.MEM_ID))
+	}
+
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// SEV
-	if config.EnableSEV {
+	if config.EnableSEV || config.EnableSEVSNP {
+		sevType := "sev-guest"
+		kernelHash := ""
+
+		if config.EnableSEVSNP {
+			sevType = "sev-snp-guest"
+		}
+
+		if config.KernelHash {
+			kernelHash = ",discard=none,kernel-hashes=on"
+		}
+
 		args = append(args, "-object",
-			fmt.Sprintf("sev-guest,id=%s,cbitpos=%d,reduced-phys-bits=%d",
+			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s",
+				sevType,
 				config.SevConfig.ID,
 				config.SevConfig.CBitPos,
-				config.SevConfig.ReducedPhysBits))
+				config.SevConfig.ReducedPhysBits,
+				kernelHash))
 
 		args = append(args, "-machine",
 			fmt.Sprintf("memory-encryption=%s", config.SevConfig.ID))
