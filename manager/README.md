@@ -44,6 +44,7 @@ sudo apt install qemu-kvm
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
 #### Add V-sock
+
 The necessary kernel modules must be loaded on the hypervisor.
 ```shell
 sudo modprobe vhost_vsock
@@ -52,7 +53,6 @@ ls -l /dev/vhost-vsock
 ls -l /dev/vsock
 # crw-rw-rw- 1 root root 10, 121 Jan 16 12:05 /dev/vsock
 ```
-
 
 ### Prepare Cocos HAL
 
@@ -96,6 +96,7 @@ qemu-system-x86_64 \
 Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
+
 Agent is started automatically in the VM.
 ```sh
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
@@ -197,8 +198,6 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 MANAGER_QEMU_KERNEL_HASH=true \
 ./build/cocos-manager
 ```
-
-
 
 ### Verifying VM launch
 

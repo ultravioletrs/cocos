@@ -70,9 +70,9 @@ type Config struct {
 	// machine, CPU, RAM
 	Machine  string `env:"MACHINE" envDefault:"q35"`
 	CPU      string `env:"CPU" envDefault:"EPYC"`
-	SmpCount int    `env:"SMP_COUNT" envDefault:"4"`
-	MaxCpus  int    `env:"SMP_MAXCPUS" envDefault:"64"`
-	MEM_ID   string `env:"MEM_ID" envDefault:"ram1"`
+	SMPCount int    `env:"SMP_COUNT" envDefault:"4"`
+	MaxCPUs  int    `env:"SMP_MAXCPUS" envDefault:"64"`
+	MemID    string `env:"MEM_ID" envDefault:"ram1"`
 	MemoryConfig
 
 	// Kernel hash
@@ -117,7 +117,7 @@ func constructQemuArgs(config Config) []string {
 		args = append(args, "-cpu", config.CPU)
 	}
 
-	args = append(args, "-smp", fmt.Sprintf("%d,maxcpus=%d", config.SmpCount, config.MaxCpus))
+	args = append(args, "-smp", fmt.Sprintf("%d,maxcpus=%d", config.SMPCount, config.MaxCPUs))
 
 	args = append(args, "-m", fmt.Sprintf("%s,slots=%d,maxmem=%s",
 		config.MemoryConfig.Size,
@@ -162,11 +162,11 @@ func constructQemuArgs(config Config) []string {
 	if config.EnableSEVSNP {
 		args = append(args, "-object",
 			fmt.Sprintf("memory-backend-memfd-private,id=%s,size=%s,share=true",
-				config.MEM_ID,
+				config.MemID,
 				config.MemoryConfig.Size))
 		args = append(args, "-machine",
 			fmt.Sprintf("memory-backend=%s,kvm-type=protected",
-				config.MEM_ID))
+				config.MemID))
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
