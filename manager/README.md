@@ -43,7 +43,7 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-#### Add V-sock
+#### Add Vsock
 
 The necessary kernel modules must be loaded on the hypervisor.
 ```shell
