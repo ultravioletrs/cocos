@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
@@ -85,7 +86,10 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	return attestationReq{ReportData: req.ReportData}, nil
+	if len(req.ReportData) != agent.ReportDataSize {
+		return nil, errors.New("malformed report data, expect 64 bytes")
+	}
+	return attestationReq{ReportData: [agent.ReportDataSize]byte(req.ReportData)}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {

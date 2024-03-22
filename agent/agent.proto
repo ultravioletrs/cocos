@@ -39,7 +39,7 @@ message ResultResponse {
 }
 
 message AttestationRequest {
-  bytes report_data = 1;
+  bytes report_data = 1; // Should be of length 64.
 }
 
 message AttestationResponse {

@@ -54,12 +54,9 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	ReportData []byte
+	ReportData [64]byte
 }
 
 func (req attestationReq) validate() error {
-	if req.ReportData == nil {
-		return errors.New("malformed entity")
-	}
 	return nil
 }

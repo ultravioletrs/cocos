@@ -85,27 +85,25 @@ func main() {
 	}
 	fmt.Println(SendAgentConfig(3, ac))
 
-	go func() {
-		for {
-			conn, err := l.Accept()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			b := make([]byte, 1024)
-			n, err := conn.Read(b)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			conn.Close()
-			var mes manager.ClientStreamMessage
-			if err := proto.Unmarshal(b[:n], &mes); err != nil {
-				log.Println(err)
-			}
-			fmt.Println(mes.String())
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			log.Println(err)
+			continue
 		}
-	}()
+		b := make([]byte, 1024)
+		n, err := conn.Read(b)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		conn.Close()
+		var mes manager.ClientStreamMessage
+		if err := proto.Unmarshal(b[:n], &mes); err != nil {
+			log.Println(err)
+		}
+		fmt.Println(mes.String())
+	}
 }
 
 func SendAgentConfig(cid uint32, ac Computation) error {
