@@ -43,7 +43,8 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-#### Add V-sock
+#### Add Vsock
+
 The necessary kernel modules must be loaded on the hypervisor.
 ```shell
 sudo modprobe vhost_vsock
@@ -52,7 +53,6 @@ ls -l /dev/vhost-vsock
 ls -l /dev/vsock
 # crw-rw-rw- 1 root root 10, 121 Jan 16 12:05 /dev/vsock
 ```
-
 
 ### Prepare Cocos HAL
 
@@ -96,6 +96,7 @@ qemu-system-x86_64 \
 Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
+
 Agent is started automatically in the VM.
 ```sh
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
@@ -168,6 +169,33 @@ MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=true \
 MANAGER_QEMU_ENABLE_SEV=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
+./build/cocos-manager
+```
+
+The kernel hash feature might not work with the current build of OVMF and QEMU. If so, build the host kernel, QEMU, and OVMF from the [AMD SEV GitHub](https://github.com/AMDESE/AMDSEV/tree/snp-latest) repository.
+
+To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, start manager like this 
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
+MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF Amd Sev built package> \
+./build/cocos-manager
+```
+
+To include the kernel hash into the measurement of the attestation report (SEV or SEV-SNP), start manager like this
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_KERNEL_HASH=true \
 ./build/cocos-manager
 ```
 
