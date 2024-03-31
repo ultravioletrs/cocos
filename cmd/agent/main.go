@@ -66,6 +66,9 @@ func main() {
 		KeyFile:      cfg.AgentConfig.KeyFile,
 		ServerCAFile: cfg.AgentConfig.ServerCAFile,
 		ClientCAFile: cfg.AgentConfig.ClientCAFile,
+		ReadFromFile: !cfg.AgentConfig.AttestedTLS,
+		CertPath:     cfg.AgentConfig.CertPath,
+		KeyPath:      cfg.AgentConfig.KeyPath,
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {

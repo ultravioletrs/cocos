@@ -21,6 +21,9 @@ type AgentConfig struct {
 	KeyFile      string `json:"server_key"`
 	ServerCAFile string `json:"server_ca_file"`
 	ClientCAFile string `json:"client_ca_file"`
+	AttestedTLS  bool   `json:"attested_tls"`
+	CertPath     string `env:"SERVER_CERT_PATH" envDefault:""`
+	KeyPath      string `env:"SERVER_KEY_PATH"  envDefault:""`
 }
 
 type Computation struct {

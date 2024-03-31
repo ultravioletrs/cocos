@@ -61,7 +61,21 @@ func (s *Server) Start() error {
 	}
 	creds := grpc.Creds(insecure.NewCredentials())
 
+	if s.Config.ReadFromFile {
+		// TODO: Add read from file
+	}
+
 	switch {
+	// case !s.Config.ReadFromFile:
+	// 	certificate, err := tls.X509KeyPair(s.Config.ServerKeyPem, s.Config.ServerPem)
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to load server certificates: %w", err)
+	// 	}
+	// 	tlsConfig := &tls.Config{
+	// 		Certificates: []tls.Certificate{certificate},
+	// 	}
+
+	// 	creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
 		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
