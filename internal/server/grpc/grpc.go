@@ -5,14 +5,22 @@ package grpc
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net"
 	"os"
 	"time"
 
+	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -28,13 +36,14 @@ type Server struct {
 	server.BaseServer
 	server          *grpc.Server
 	registerService serviceRegister
+	agent           *agent.Service
 }
 
 type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agent *agent.Service) server.Server {
 	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 	return &Server{
 		BaseServer: server.BaseServer{
@@ -46,6 +55,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 			Logger:  logger,
 		},
 		registerService: registerService,
+		agent:           agent,
 	}
 }
 
@@ -61,21 +71,25 @@ func (s *Server) Start() error {
 	}
 	creds := grpc.Creds(insecure.NewCredentials())
 
-	if s.Config.ReadFromFile {
-		// TODO: Add read from file
-	}
-
 	switch {
-	// case !s.Config.ReadFromFile:
-	// 	certificate, err := tls.X509KeyPair(s.Config.ServerKeyPem, s.Config.ServerPem)
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to load server certificates: %w", err)
-	// 	}
-	// 	tlsConfig := &tls.Config{
-	// 		Certificates: []tls.Certificate{certificate},
-	// 	}
+	case s.Config.AttestedTLS:
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.agent)
+		if err != nil {
+			return fmt.Errorf("failed to create certificate: %w", err)
+		}
 
-	// 	creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+		certificate, err := tls.X509KeyPair(certificateBytes, privateKeyBytes)
+		if err != nil {
+			return fmt.Errorf("falied due to invalid key pair: %w", err)
+		}
+
+		tlsConfig := &tls.Config{
+			ClientAuth:   tls.NoClientCert,
+			Certificates: []tls.Certificate{certificate},
+		}
+
+		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
 		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
@@ -192,4 +206,69 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	return tls.X509KeyPair(cert, key)
+}
+
+func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// The Attestation Report will be added as an X.509 certificate extension
+	attestationReport, err := (*svc).Attestation(context.Background(), publicKeyBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(202403311),
+		Subject: pkix.Name{
+			Organization:  []string{"Ultraviolet"},
+			Country:       []string{"Serbia"},
+			Province:      []string{""},
+			Locality:      []string{"Belgrade"},
+			StreetAddress: []string{"Bulevar Arsenija Carnojevica 103"},
+			PostalCode:    []string{"11000"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6},
+				Critical: false,
+				Value:    attestationReport,
+			},
+		},
+	}
+
+	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, privateKey.PublicKey, privateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDERBytes,
+	})
+
+	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	})
+
+	return certBytes, keyBytes, nil
 }

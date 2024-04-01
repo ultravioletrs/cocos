@@ -5,23 +5,12 @@ package agent
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/big"
-	"os"
 	"os/exec"
-	"path"
 	"slices"
-	"time"
 
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
@@ -73,138 +62,20 @@ type agentService struct {
 	sm          *StateMachine  // Manages the state transitions of the agent service.
 	runError    error          // Stores any error encountered during the computation run.
 	eventSvc    events.Service // Service for publishing events related to computation.
-	AgentCert   []byte         // Agent Certificate for Attested TLS
-	AgentKey    []byte         // Agent Private Key for Attested TLS
-	attestedTLS bool
 }
 
 const (
-	socketPath   = "unix_socket"
-	pyRuntime    = "python3"
-	certFileName = "attested_tls_certificate.pem"
-	privKeyName  = "attested_tls_private_key.pem"
+	socketPath = "unix_socket"
+	pyRuntime  = "python3"
 )
 
 var _ Service = (*agentService)(nil)
-
-func getAttestationReport(reportData []byte) ([]byte, error) {
-	provider, err := client.GetQuoteProvider()
-	if err != nil {
-		return []byte{}, err
-	}
-	rawQuote, err := provider.GetRawQuote(sha3.Sum512(reportData))
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return rawQuote, nil
-}
-
-func generateCertificatesForATLS(svc *agentService, cmp Computation) error {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	// The Attestation Report will be added as an X.509 certificate extension
-	attestationReport, err := getAttestationReport(publicKeyBytes)
-	if err != nil {
-		return err
-	}
-
-	agentCertTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(202403311),
-		Subject: pkix.Name{
-			Organization:  []string{"Ultraviolet"},
-			Country:       []string{"Serbia"},
-			Province:      []string{""},
-			Locality:      []string{"Belgrade"},
-			StreetAddress: []string{"Bulevar Arsenija Carnojevica 103"},
-			PostalCode:    []string{"11000"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(1, 0, 0),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		ExtraExtensions: []pkix.Extension{
-			{
-				Id:       asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6},
-				Critical: true,
-				Value:    attestationReport,
-			},
-		},
-	}
-
-	agentCertDERBytes, err := x509.CreateCertificate(rand.Reader, agentCertTemplate, agentCertTemplate, privateKey.PublicKey, privateKey)
-	if err != nil {
-		return err
-	}
-
-	svc.AgentCert = pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: agentCertDERBytes,
-	})
-
-	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return err
-	}
-
-	svc.AgentKey = pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privateKeyBytes,
-	})
-
-	certOut, err := os.Create(path.Join(cmp.AgentConfig.CertPath, certFileName))
-	if err != nil {
-		return nil
-	}
-	defer certOut.Close()
-
-	if err := pem.Encode(certOut, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: agentCertDERBytes,
-	}); err != nil {
-		return err
-	}
-
-	keyOut, err := os.Create(path.Join(cmp.AgentConfig.CertPath, privKeyName))
-	if err != nil {
-		return nil
-	}
-	defer keyOut.Close()
-
-	if err := pem.Encode(keyOut, &pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privateKeyBytes,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // New instantiates the agent service implementation.
 func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation) Service {
 	svc := &agentService{
 		sm:       NewStateMachine(logger),
 		eventSvc: eventSvc,
-	}
-
-	if cmp.AgentConfig.AttestedTLS {
-		svc.attestedTLS = true
-		err := generateCertificatesForATLS(svc, cmp)
-		if err != nil {
-			svc.attestedTLS = false
-			fmt.Printf("agent will NOT use attested TLS %v", err)
-		}
 	}
 
 	go svc.sm.Start(ctx)
@@ -311,7 +182,16 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData []byte) ([]byte, error) {
-	return getAttestationReport(reportData)
+	provider, err := client.GetQuoteProvider()
+	if err != nil {
+		return []byte{}, err
+	}
+	rawQuote, err := provider.GetRawQuote(sha3.Sum512(reportData))
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return rawQuote, nil
 }
 
 func (as *agentService) runComputation() {

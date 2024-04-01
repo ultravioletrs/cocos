@@ -66,16 +66,14 @@ func main() {
 		KeyFile:      cfg.AgentConfig.KeyFile,
 		ServerCAFile: cfg.AgentConfig.ServerCAFile,
 		ClientCAFile: cfg.AgentConfig.ClientCAFile,
-		ReadFromFile: !cfg.AgentConfig.AttestedTLS,
-		CertPath:     cfg.AgentConfig.CertPath,
-		KeyPath:      cfg.AgentConfig.KeyPath,
+		AttestedTLS:  true,
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
 		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
 	}
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, &svc)
 
 	g.Go(func() error {
 		return gs.Start()

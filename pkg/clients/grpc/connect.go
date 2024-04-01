@@ -5,11 +5,18 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/asn1"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/validate"
+	"github.com/google/go-sev-guest/verify"
+	"github.com/google/go-sev-guest/verify/trust"
+	"github.com/ultravioletrs/cocos/agent"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -29,12 +36,21 @@ var (
 	errGrpcClose   = errors.New("failed to close grpc connection")
 )
 
+var (
+	customSEVSNPExtensionOID = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6}
+	computation              = agent.Computation{}
+	timeout                  = time.Minute * 2
+	maxTryDelay              = time.Second * 30
+)
+
 type Config struct {
 	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
 	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
 	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
 	URL          string        `env:"URL"             envDefault:"localhost:7001"`
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
+	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
+	Manifest     string        `env:"MANIFEST"        envDefault:""`
 }
 
 type Client interface {
@@ -105,6 +121,17 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	if cfg.ServerCAFile != "" {
 		tlsConfig := &tls.Config{}
 
+		err := readManifest(cfg)
+		if err != nil {
+			return nil, secure, fmt.Errorf("failed to read Manifest")
+		}
+
+		if cfg.AttestedTLS {
+			tlsConfig = &tls.Config{
+				VerifyPeerCertificate: verifyAttestationReportTLS,
+			}
+		}
+
 		// Loading root ca certificates file
 		rootCA, err := os.ReadFile(cfg.ServerCAFile)
 		if err != nil {
@@ -139,4 +166,69 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 		return nil, secure, errors.Wrap(errGrpcConnect, err)
 	}
 	return conn, secure, nil
+}
+
+func readManifest(cfg Config) error {
+	if cfg.Manifest != "" {
+		manifest, err := os.Open(cfg.Manifest)
+		if err != nil {
+			return fmt.Errorf("failed to open manifest %w", err)
+		}
+		defer manifest.Close()
+
+		decoder := json.NewDecoder(manifest)
+		err = decoder.Decode(&computation)
+		if err != nil {
+			return fmt.Errorf("manifest file is malformed %w", err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("manifest does not exist")
+}
+
+func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	cert, err := x509.ParseCertificate(rawCerts[0])
+	if err != nil {
+		return fmt.Errorf("failed to parse certficate %w", err)
+	}
+
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal(customSEVSNPExtensionOID) {
+			// Attestation verification and validation
+			sopts, err := verify.RootOfTrustToOptions(computation.RootOFTrust)
+			if err != nil {
+				return fmt.Errorf("attestation verification failed, root of trust to options failed %w", err)
+			}
+			sopts.Product = computation.SNPPolicy.Product
+			sopts.Getter = &trust.RetryHTTPSGetter{
+				Timeout:       timeout,
+				MaxRetryDelay: maxTryDelay,
+				Getter:        &trust.SimpleHTTPSGetter{},
+			}
+
+			attestationPB, err := abi.ReportCertsToProto(ext.Value)
+			if err != nil {
+				return fmt.Errorf("attestation verification failed, certs to proto failed %w", err)
+			}
+
+			if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
+				return fmt.Errorf("attestation verification failed: %w", err)
+			}
+
+			opts, err := validate.PolicyToOptions(computation.SNPPolicy)
+			if err != nil {
+				return fmt.Errorf("attestation verification failed, policy to options failed %w", err)
+			}
+
+			if err = validate.SnpAttestation(attestationPB, opts); err != nil {
+				return fmt.Errorf("attestation validation failed %w", err)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("custom extension for SEV-SNP not found")
 }
