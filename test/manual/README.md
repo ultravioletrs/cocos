@@ -24,6 +24,10 @@ Open console on the host, and run
 export AGENT_GRPC_URL=localhost:7002
 export MANAGER_GRPC_URL=localhost:7001
 
+# For attested TLS also define 
+export AGENT_GRPC_MANIFEST=./test/manual/computation/computation.json # change the path to the 
+export AGENT_GRPC_ATTESTED_TLS=true
+
 # Retieve Attestation
 go run cmd/cli/main.go attestation get '<report_data>'
 

@@ -50,7 +50,7 @@ type Config struct {
 	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
 	URL          string        `env:"URL"             envDefault:"localhost:7001"`
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"true"`
+	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
 	Manifest     string        `env:"MANIFEST"        envDefault:""`
 }
 
