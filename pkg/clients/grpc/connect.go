@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/ultravioletrs/cocos/agent"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -49,7 +50,7 @@ type Config struct {
 	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
 	URL          string        `env:"URL"             envDefault:"localhost:7001"`
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
+	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"true"`
 	Manifest     string        `env:"MANIFEST"        envDefault:""`
 }
 
@@ -118,45 +119,47 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	secure := withoutTLS
 	tc := insecure.NewCredentials()
 
-	if cfg.ServerCAFile != "" {
-		tlsConfig := &tls.Config{}
-
+	if cfg.AttestedTLS {
 		err := readManifest(cfg)
 		if err != nil {
-			return nil, secure, fmt.Errorf("failed to read Manifest")
+			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
 		}
 
-		if cfg.AttestedTLS {
-			tlsConfig = &tls.Config{
-				VerifyPeerCertificate: verifyAttestationReportTLS,
-			}
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify:    true,
+			VerifyPeerCertificate: verifyAttestationReportTLS,
 		}
-
-		// Loading root ca certificates file
-		rootCA, err := os.ReadFile(cfg.ServerCAFile)
-		if err != nil {
-			return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
-		}
-		if len(rootCA) > 0 {
-			capool := x509.NewCertPool()
-			if !capool.AppendCertsFromPEM(rootCA) {
-				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
-			}
-			tlsConfig.RootCAs = capool
-			secure = withTLS
-		}
-
-		// Loading mtls certificates file
-		if cfg.ClientCert != "" || cfg.ClientKey != "" {
-			certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
-			if err != nil {
-				return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
-			}
-			tlsConfig.Certificates = []tls.Certificate{certificate}
-			secure = withmTLS
-		}
-
 		tc = credentials.NewTLS(tlsConfig)
+	} else {
+		if cfg.ServerCAFile != "" {
+			tlsConfig := &tls.Config{}
+
+			// Loading root ca certificates file
+			rootCA, err := os.ReadFile(cfg.ServerCAFile)
+			if err != nil {
+				return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
+			}
+			if len(rootCA) > 0 {
+				capool := x509.NewCertPool()
+				if !capool.AppendCertsFromPEM(rootCA) {
+					return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
+				}
+				tlsConfig.RootCAs = capool
+				secure = withTLS
+			}
+
+			// Loading mtls certificates file
+			if cfg.ClientCert != "" || cfg.ClientKey != "" {
+				certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+				if err != nil {
+					return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
+				}
+				tlsConfig.Certificates = []tls.Certificate{certificate}
+				secure = withmTLS
+			}
+
+			tc = credentials.NewTLS(tlsConfig)
+		}
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
@@ -196,11 +199,26 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 
 	for _, ext := range cert.Extensions {
 		if ext.Id.Equal(customSEVSNPExtensionOID) {
+			// Check if the certificate is self-signed
+			err := checkIfCertificateSelfSigned(cert)
+			if err != nil {
+				return fmt.Errorf("attestation verification failed, certificate is not self-signed %w", err)
+			}
+
+			publicKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+			if err != nil {
+				return fmt.Errorf("attestation verification failed, PublicKey marshaling failed %w", err)
+			}
+
+			expectedReportData := sha3.Sum512(publicKeyBytes)
+			computation.SNPPolicy.ReportData = expectedReportData[:]
+
 			// Attestation verification and validation
 			sopts, err := verify.RootOfTrustToOptions(computation.RootOFTrust)
 			if err != nil {
 				return fmt.Errorf("attestation verification failed, root of trust to options failed %w", err)
 			}
+
 			sopts.Product = computation.SNPPolicy.Product
 			sopts.Getter = &trust.RetryHTTPSGetter{
 				Timeout:       timeout,
@@ -231,4 +249,20 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 	}
 
 	return fmt.Errorf("custom extension for SEV-SNP not found")
+}
+
+func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
+	certPool := x509.NewCertPool()
+	certPool.AddCert(cert)
+
+	opts := x509.VerifyOptions{
+		Roots:       certPool,
+		CurrentTime: time.Now(),
+	}
+
+	if _, err := cert.Verify(opts); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -209,19 +209,21 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 }
 
 func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	curve := elliptic.P256()
+	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to generate private/public key: %w", err)
 	}
 
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey)
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to marshal the public key: %w", err)
 	}
 
 	// The Attestation Report will be added as an X.509 certificate extension
 	attestationReport, err := (*svc).Attestation(context.Background(), publicKeyBytes)
 	if err != nil {
+
 		return nil, nil, err
 	}
 
@@ -237,10 +239,9 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(1, 0, 0),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		IsCA:                  true,
 		ExtraExtensions: []pkix.Extension{
 			{
 				Id:       asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6},
@@ -250,7 +251,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 		},
 	}
 
-	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, privateKey.PublicKey, privateKey)
+	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
 	if err != nil {
 		return nil, nil, err
 	}
