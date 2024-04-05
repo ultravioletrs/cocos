@@ -223,8 +223,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 	// The Attestation Report will be added as an X.509 certificate extension
 	attestationReport, err := (*svc).Attestation(context.Background(), publicKeyBytes)
 	if err != nil {
-
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to fetch the attestation report: %w", err)
 	}
 
 	certTemplate := &x509.Certificate{
@@ -253,7 +252,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 
 	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 
 	certBytes := pem.EncodeToMemory(&pem.Block{
@@ -263,7 +262,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 
 	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to marshal the private key: %w", err)
 	}
 
 	keyBytes := pem.EncodeToMemory(&pem.Block{

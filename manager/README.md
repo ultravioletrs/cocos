@@ -174,6 +174,8 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 
 The kernel hash feature might not work with the current build of OVMF and QEMU. If so, build the host kernel, QEMU, and OVMF from the [AMD SEV GitHub](https://github.com/AMDESE/AMDSEV/tree/snp-latest) repository.
 
+To build the OVMF with the kernel hash capability, we must build the AmdSev package of OVMF. The result of the build should be a single `OVMF.fd` file (unlike the regular two OVFM files). The OVMF package is located at `OvmfPkg/AmdSev/AmdSevX64.dsc`.
+
 To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, start manager like this 
 
 ```sh
@@ -183,7 +185,7 @@ MANAGER_QEMU_ENABLE_SEV=false \
 MANAGER_QEMU_ENABLE_SEV_SNP=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
-MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF Amd Sev built package> \
+MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF.fd Amd Sev built package> \
 ./build/cocos-manager
 ```
 
