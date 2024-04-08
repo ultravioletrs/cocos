@@ -40,6 +40,59 @@ const (
 	size48                  = 48
 	size64                  = 64
 	attestationFilePath     = "attestation.bin"
+	exampleJSONConfig       = `
+	{
+		"rootOfTrust":{
+		   "product":"test_product",
+		   "cabundlePaths":[
+			  "test_cabundlePaths"
+		   ],
+		   "cabundles":[
+			  "test_Cabundles"
+		   ],
+		   "checkCrl":true,
+		   "disallowNetwork":true
+		},
+		"policy":{
+		   "minimumGuestSvn":1,
+		   "policy":"1",
+		   "familyId":"AQIDBAUGBwgJCgsMDQ4PEA==",
+		   "imageId":"AQIDBAUGBwgJCgsMDQ4PEA==",
+		   "vmpl":0,
+		   "minimumTcb":"1",
+		   "minimumLaunchTcb":"1",
+		   "platformInfo":"1",
+		   "requireAuthorKey":true,
+		   "reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
+		   "measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4",
+		   "hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		   "reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		   "reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		   "chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
+		   "minimumBuild":1,
+		   "minimumVersion":"0.90",
+		   "permitProvisionalFirmware":true,
+		   "requireIdBlock":true,
+		   "trustedAuthorKeys":[
+			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		   ],
+		   "trustedAuthorKeyHashes":[
+			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		   ],
+		   "trustedIdKeys":[
+			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		   ],
+		   "trustedIdKeyHashes":[
+			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		   ],
+		   "product":{
+			  "name":"SEV_PRODUCT_MILAN",
+			  "stepping":1,
+			  "machineStepping":1
+		   }
+		}
+	}
+	`
 )
 
 var (
@@ -162,36 +215,180 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			log.Println("Attestation validation and verification is successful!")
 		},
 	}
-	cmd.Flags().StringVar(&cfgString, "config", "", "Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+`
-	{"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}`)
-	cmd.Flags().BytesHexVar(&cfg.Policy.HostData, "host_data", empty32[:], "The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportData, "report_data", empty64[:], "The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.FamilyId, "family_id", empty16[:], "The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ImageId, "image_id", empty16[:], "The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportId, "report_id", nil, "The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ReportIdMa, "report_id_ma", defaultReportIdMa, "The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.Measurement, "measurement", nil, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
-	cmd.Flags().BytesHexVar(&cfg.Policy.ChipId, "chip_id", nil, "The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.")
-	cmd.Flags().Uint64Var(&cfg.Policy.MinimumTcb, "minimum_tcb", defaultMinimumTcb, "The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.")
-	cmd.Flags().Uint64Var(&cfg.Policy.MinimumLaunchTcb, "minimum_lauch_tcb", defaultMinimumLaunchTcb, "The minimum acceptable value for LAUNCH_TCB.")
-	cmd.Flags().Uint64Var(&cfg.Policy.Policy, "guest_policy", defaultGuestPolicy, "The most acceptable guest SnpPolicy.")
-	cmd.Flags().Uint32Var(&cfg.Policy.MinimumGuestSvn, "minimum_guest_svn", defaultMinimumGuestSvn, "The most acceptable GUEST_SVN.")
-	cmd.Flags().Uint32Var(&cfg.Policy.MinimumBuild, "minimum_build", defaultMinimumBuild, "The 8-bit minimum build number for AMD-SP firmware")
-	cmd.Flags().BoolVar(&cfg.RootOfTrust.CheckCrl, "check_crl", defaultCheckCrl, "Download and check the CRL for revoked certificates.")
-	cmd.Flags().DurationVar(&timeout, "timeout", defaultTimeout, "Duration to continue to retry failed HTTP requests.")
-	cmd.Flags().DurationVar(&maxRetryDelay, "max_retry_delay", defaultMaxRetryDelay, "Maximum Duration to wait between HTTP request retries.")
-	cmd.Flags().BoolVar(&cfg.Policy.RequireAuthorKey, "require_author_key", defaultRequireAuthor, "Require that AUTHOR_KEY_EN is 1.")
-	cmd.Flags().BoolVar(&cfg.Policy.RequireIdBlock, "require_id_block", defaultRequireIdBlock, "Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key")
-	cmd.Flags().StringVar(&platformInfo, "platform_info", "", "The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer")
-	cmd.Flags().StringVar(&cfg.Policy.MinimumVersion, "minimum_version", defaultMinVersion, "Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.")
-	cmd.Flags().StringArrayVar(&trustedAuthorKeys, "trusted_author_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
-	cmd.Flags().StringArrayVar(&trustedAuthorHashes, "trusted_author_key_hashes", []string{}, "Hex-encoded SHA-384 hash values of trusted author keys in AMD public key format")
-	cmd.Flags().StringArrayVar(&trustedIdKeys, "trusted_id_keys", []string{}, "Paths to x.509 certificates of trusted author keys")
-	cmd.Flags().StringArrayVar(&trustedIdKeyHashes, "trusted_id_key_hashes", []string{}, "Hex-encoded SHA-384 hash values of trusted identity keys in AMD public key format")
-	cmd.Flags().StringVar(&cfg.RootOfTrust.Product, "product", "", "The AMD product name for the chip that generated the attestation report.")
-	cmd.Flags().StringVar(&stepping, "stepping", "", "The machine stepping for the chip that generated the attestation report. Default unchecked.")
-	cmd.Flags().StringArrayVar(&cfg.RootOfTrust.CabundlePaths, "CA_bundles_paths", []string{}, "Paths to CA bundles for the AMD product. Must be in PEM format, ASK, then ARK certificates. If unset, uses embedded root certificates.")
-	cmd.Flags().StringArrayVar(&cfg.RootOfTrust.Cabundles, "CA_bundles", []string{}, "PEM format CA bundles for the AMD product. Combined with contents of cabundle_paths.")
+	cmd.Flags().StringVar(
+		&cfgString,
+		"config",
+		"",
+		"Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.HostData,
+		"host_data",
+		empty32[:],
+		"The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.ReportData,
+		"report_data",
+		empty64[:],
+		"The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.FamilyId,
+		"family_id",
+		empty16[:],
+		"The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.ImageId,
+		"image_id",
+		empty16[:],
+		"The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.ReportId,
+		"report_id",
+		nil,
+		"The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.ReportIdMa,
+		"report_id_ma",
+		defaultReportIdMa,
+		"The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.Measurement,
+		"measurement",
+		nil,
+		"The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().BytesHexVar(
+		&cfg.Policy.ChipId,
+		"chip_id",
+		nil,
+		"The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.",
+	)
+	cmd.Flags().Uint64Var(
+		&cfg.Policy.MinimumTcb,
+		"minimum_tcb",
+		defaultMinimumTcb,
+		"The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.",
+	)
+	cmd.Flags().Uint64Var(
+		&cfg.Policy.MinimumLaunchTcb,
+		"minimum_lauch_tcb",
+		defaultMinimumLaunchTcb,
+		"The minimum acceptable value for LAUNCH_TCB.",
+	)
+	cmd.Flags().Uint64Var(
+		&cfg.Policy.Policy,
+		"guest_policy",
+		defaultGuestPolicy,
+		"The most acceptable guest SnpPolicy.",
+	)
+	cmd.Flags().Uint32Var(
+		&cfg.Policy.MinimumGuestSvn,
+		"minimum_guest_svn",
+		defaultMinimumGuestSvn,
+		"The most acceptable GUEST_SVN.",
+	)
+	cmd.Flags().Uint32Var(
+		&cfg.Policy.MinimumBuild,
+		"minimum_build",
+		defaultMinimumBuild,
+		"The 8-bit minimum build number for AMD-SP firmware",
+	)
+	cmd.Flags().BoolVar(
+		&cfg.RootOfTrust.CheckCrl,
+		"check_crl",
+		defaultCheckCrl,
+		"Download and check the CRL for revoked certificates.",
+	)
+	cmd.Flags().DurationVar(
+		&timeout,
+		"timeout",
+		defaultTimeout,
+		"Duration to continue to retry failed HTTP requests.",
+	)
+	cmd.Flags().DurationVar(
+		&maxRetryDelay,
+		"max_retry_delay",
+		defaultMaxRetryDelay,
+		"Maximum Duration to wait between HTTP request retries.",
+	)
+	cmd.Flags().BoolVar(
+		&cfg.Policy.RequireAuthorKey,
+		"require_author_key",
+		defaultRequireAuthor,
+		"Require that AUTHOR_KEY_EN is 1.",
+	)
+	cmd.Flags().BoolVar(
+		&cfg.Policy.RequireIdBlock,
+		"require_id_block",
+		defaultRequireIdBlock,
+		"Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key",
+	)
+	cmd.Flags().StringVar(
+		&platformInfo,
+		"platform_info",
+		"",
+		"The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer",
+	)
+	cmd.Flags().StringVar(
+		&cfg.Policy.MinimumVersion,
+		"minimum_version",
+		defaultMinVersion,
+		"Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.",
+	)
+	cmd.Flags().StringArrayVar(
+		&trustedAuthorKeys,
+		"trusted_author_keys",
+		[]string{},
+		"Paths to x.509 certificates of trusted author keys",
+	)
+	cmd.Flags().StringArrayVar(
+		&trustedAuthorHashes,
+		"trusted_author_key_hashes",
+		[]string{},
+		"Hex-encoded SHA-384 hash values of trusted author keys in AMD public key format",
+	)
+	cmd.Flags().StringArrayVar(
+		&trustedIdKeys,
+		"trusted_id_keys",
+		[]string{},
+		"Paths to x.509 certificates of trusted author keys",
+	)
+	cmd.Flags().StringArrayVar(
+		&trustedIdKeyHashes,
+		"trusted_id_key_hashes",
+		[]string{},
+		"Hex-encoded SHA-384 hash values of trusted identity keys in AMD public key format",
+	)
+	cmd.Flags().StringVar(
+		&cfg.RootOfTrust.Product,
+		"product",
+		"",
+		"The AMD product name for the chip that generated the attestation report.",
+	)
+	cmd.Flags().StringVar(
+		&stepping,
+		"stepping",
+		"",
+		"The machine stepping for the chip that generated the attestation report. Default unchecked.",
+	)
+	cmd.Flags().StringArrayVar(
+		&cfg.RootOfTrust.CabundlePaths,
+		"CA_bundles_paths",
+		[]string{},
+		"Paths to CA bundles for the AMD product. Must be in PEM format, ASK, then ARK certificates. If unset, uses embedded root certificates.",
+	)
+	cmd.Flags().StringArrayVar(
+		&cfg.RootOfTrust.Cabundles,
+		"CA_bundles",
+		[]string{},
+		"PEM format CA bundles for the AMD product. Combined with contents of cabundle_paths.",
+	)
 
 	if err := cmd.MarkFlagRequired("report_data"); err != nil {
 		log.Fatalf("Failed to mark flag as required: %s", err)
@@ -230,8 +427,57 @@ func verifyAndValidateAttestation(attestation []byte) error {
 
 // parseConfig decodes config passed as json for check.Config struct.
 // example
-// {"rootOfTrust":{"product":"test_product","cabundlePaths":["test_cabundlePaths"],"cabundles":["test_Cabundles"],"checkCrl":true,"disallowNetwork":true},"policy":{"minimumGuestSvn":1,"policy":"1","familyId":"AQIDBAUGBwgJCgsMDQ4PEA==","imageId":"AQIDBAUGBwgJCgsMDQ4PEA==","vmpl":0,"minimumTcb":"1","minimumLaunchTcb":"1","platformInfo":"1","requireAuthorKey":true,"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4","hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=","chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==","minimumBuild":1,"minimumVersion":"0.90","permitProvisionalFirmware":true,"requireIdBlock":true,"trustedAuthorKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedAuthorKeyHashes":["GSvLKpfu59
-// Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeys":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"trustedIdKeyHashes":["GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="],"product":{"name":"SEV_PRODUCT_MILAN","stepping":1,"machineStepping":1}}}.
+/* {
+	"rootOfTrust":{
+		"product":"test_product",
+		"cabundlePaths":[
+		   "test_cabundlePaths"
+		],
+		"cabundles":[
+		   "test_Cabundles"
+		],
+		"checkCrl":true,
+		"disallowNetwork":true
+	 },
+	 "policy":{
+		"minimumGuestSvn":1,
+		"policy":"1",
+		"familyId":"AQIDBAUGBwgJCgsMDQ4PEA==",
+		"imageId":"AQIDBAUGBwgJCgsMDQ4PEA==",
+		"vmpl":0,
+		"minimumTcb":"1",
+		"minimumLaunchTcb":"1",
+		"platformInfo":"1",
+		"requireAuthorKey":true,
+		"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
+		"measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4",
+		"hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		"reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		"reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
+		"chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
+		"minimumBuild":1,
+		"minimumVersion":"0.90",
+		"permitProvisionalFirmware":true,
+		"requireIdBlock":true,
+		"trustedAuthorKeys":[
+		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		],
+		"trustedAuthorKeyHashes":[
+		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		],
+		"trustedIdKeys":[
+		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		],
+		"trustedIdKeyHashes":[
+		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
+		],
+		"product":{
+		   "name":"SEV_PRODUCT_MILAN",
+		   "stepping":1,
+		   "machineStepping":1
+		}
+	 }
+  }*/
 func parseConfig() error {
 	if cfgString == "" {
 		return nil
