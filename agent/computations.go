@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-
-	"github.com/google/go-sev-guest/proto/check"
 )
 
 var (
@@ -26,15 +24,13 @@ type AgentConfig struct {
 }
 
 type Computation struct {
-	ID              string             `json:"id,omitempty"`
-	Name            string             `json:"name,omitempty"`
-	Description     string             `json:"description,omitempty"`
-	Datasets        Datasets           `json:"datasets,omitempty"`
-	Algorithms      Algorithms         `json:"algorithms,omitempty"`
-	ResultConsumers []string           `json:"result_consumers,omitempty"`
-	AgentConfig     AgentConfig        `json:"agent_config,omitempty"`
-	SNPPolicy       *check.Policy      `json:"snp_policy,omitempty"`
-	RootOFTrust     *check.RootOfTrust `json:"root_of_trust,omitempty"`
+	ID              string      `json:"id,omitempty"`
+	Name            string      `json:"name,omitempty"`
+	Description     string      `json:"description,omitempty"`
+	Datasets        Datasets    `json:"datasets,omitempty"`
+	Algorithms      Algorithms  `json:"algorithms,omitempty"`
+	ResultConsumers []string    `json:"result_consumers,omitempty"`
+	AgentConfig     AgentConfig `json:"agent_config,omitempty"`
 }
 
 func (d *Datasets) String() string {

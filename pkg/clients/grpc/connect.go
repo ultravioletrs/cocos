@@ -13,10 +13,10 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
-	"github.com/ultravioletrs/cocos/agent"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
@@ -39,7 +39,7 @@ var (
 
 var (
 	customSEVSNPExtensionOID = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6}
-	computation              = agent.Computation{}
+	attestationConfiguration = AttestationConfiguration{}
 	timeout                  = time.Minute * 2
 	maxTryDelay              = time.Second * 30
 )
@@ -52,6 +52,11 @@ type Config struct {
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
 	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
 	Manifest     string        `env:"MANIFEST"        envDefault:""`
+}
+
+type AttestationConfiguration struct {
+	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
+	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
 }
 
 type Client interface {
@@ -180,7 +185,7 @@ func readManifest(cfg Config) error {
 		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
-		err = decoder.Decode(&computation)
+		err = decoder.Decode(&attestationConfiguration)
 		if err != nil {
 			return fmt.Errorf("manifest file is malformed %w", err)
 		}
@@ -211,15 +216,15 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			}
 
 			expectedReportData := sha3.Sum512(publicKeyBytes)
-			computation.SNPPolicy.ReportData = expectedReportData[:]
+			attestationConfiguration.SNPPolicy.ReportData = expectedReportData[:]
 
 			// Attestation verification and validation
-			sopts, err := verify.RootOfTrustToOptions(computation.RootOFTrust)
+			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOFTrust)
 			if err != nil {
 				return fmt.Errorf("attestation verification failed, root of trust to options failed %w", err)
 			}
 
-			sopts.Product = computation.SNPPolicy.Product
+			sopts.Product = attestationConfiguration.SNPPolicy.Product
 			sopts.Getter = &trust.RetryHTTPSGetter{
 				Timeout:       timeout,
 				MaxRetryDelay: maxTryDelay,
@@ -235,7 +240,7 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 				return fmt.Errorf("attestation verification failed: %w", err)
 			}
 
-			opts, err := validate.PolicyToOptions(computation.SNPPolicy)
+			opts, err := validate.PolicyToOptions(attestationConfiguration.SNPPolicy)
 			if err != nil {
 				return fmt.Errorf("attestation verification failed, policy to options failed %w", err)
 			}
