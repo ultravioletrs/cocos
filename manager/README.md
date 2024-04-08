@@ -141,15 +141,15 @@ NB: we set environment variables that we will use in the shell process where we 
 To start the service, execute the following shell script (note a server needs to be running see  [here](../test/manager-server/README.md)):
 
 ```bash
-# download the latest version of the service
+# Download the latest version of the service
 git clone git@github.com:ultravioletrs/cocos.git
 
 cd cocos
 
-# compile the manager
+# Compile the manager
 make manager
 
-# set the environment variables and run the service
+# Set the environment variables and run the service
 MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
