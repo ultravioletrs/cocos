@@ -23,15 +23,15 @@ The service is configured using the environment variables from the following tab
 To start the service outside of the container, execute the following shell script:
 
 ```bash
-# download the latest version of the service
-go get github.com/ultravioletrs/cocos
+# Download the latest version of the service
+git clone git@github.com:ultravioletrs/cocos.git
 
-cd $GOPATH/src/github.com/ultravioletrs/cocos
+cd cocos
 
-# compile the agent
+# Compile the service
 make agent
 
-# set the environment variables and run the service
+# Run the service
 ./build/cocos-agent
 ```
 
