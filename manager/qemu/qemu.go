@@ -27,18 +27,20 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
-	// Copy firmware vars file.
-	srcFile := qemuCfg.OVMFVarsConfig.File
-	dstFile := fmt.Sprintf("%s/%s-%s.fd", cfg.TmpFileLoc, firmwareVars, id)
-	err = internal.CopyFile(srcFile, dstFile)
-	if err != nil {
-		return &exec.Cmd{}, err
+	if !cfg.KernelHash {
+		// Copy firmware vars file.
+		srcFile := qemuCfg.OVMFVarsConfig.File
+		dstFile := fmt.Sprintf("%s/%s-%s.fd", cfg.TmpFileLoc, firmwareVars, id)
+		err = internal.CopyFile(srcFile, dstFile)
+		if err != nil {
+			return &exec.Cmd{}, err
+		}
+		qemuCfg.OVMFVarsConfig.File = dstFile
 	}
-	qemuCfg.OVMFVarsConfig.File = dstFile
 
 	// Copy img files.
-	srcFile = qemuCfg.DiskImgConfig.KernelFile
-	dstFile = fmt.Sprintf("%s/%s-%s", cfg.TmpFileLoc, KernelFile, id)
+	srcFile := qemuCfg.DiskImgConfig.KernelFile
+	dstFile := fmt.Sprintf("%s/%s-%s", cfg.TmpFileLoc, KernelFile, id)
 	err = internal.CopyFile(srcFile, dstFile)
 	if err != nil {
 		return &exec.Cmd{}, err

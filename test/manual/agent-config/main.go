@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
@@ -18,12 +20,13 @@ import (
 const VsockConfigPort uint32 = 9999
 
 type AgentConfig struct {
-	LogLevel   string `json:"log_level"`
-	InstanceID string `json:"instance_id"`
-	Host       string `json:"host"`
-	Port       string `json:"port"`
-	CertFile   string `json:"cert_file"`
-	KeyFile    string `json:"server_key"`
+	LogLevel    string `json:"log_level"`
+	InstanceID  string `json:"instance_id"`
+	Host        string `json:"host"`
+	Port        string `json:"port"`
+	CertFile    string `json:"cert_file"`
+	KeyFile     string `json:"server_key"`
+	AttestedTls bool   `json:"attested_tls"`
 }
 
 type Computation struct {
@@ -69,6 +72,19 @@ type Algorithm struct {
 type Algorithms []Algorithm
 
 func main() {
+	attestedTLS := false
+
+	if len(os.Args) == 2 {
+		attestedTLSParam, err := strconv.ParseBool(os.Args[1])
+		if err != nil {
+			log.Fatalf("usage: %s <attested-tls> - <attested-tls> must be true or false", os.Args[0])
+		}
+
+		attestedTLS = attestedTLSParam
+	} else if len(os.Args) > 2 {
+		log.Fatalf("usage: %s <attested-tls>", os.Args[0])
+	}
+
 	l, err := vsock.Listen(9997, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -79,8 +95,9 @@ func main() {
 		Algorithms:      Algorithms{Algorithm{ID: "1", Provider: "pr1"}},
 		ResultConsumers: []string{"1"},
 		AgentConfig: AgentConfig{
-			LogLevel: "debug",
-			Port:     "7002",
+			LogLevel:    "debug",
+			Port:        "7002",
+			AttestedTls: attestedTLS,
 		},
 	}
 	fmt.Println(SendAgentConfig(3, ac))
