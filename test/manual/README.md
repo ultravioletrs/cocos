@@ -32,7 +32,7 @@ export AGENT_GRPC_ATTESTED_TLS=true
 go run cmd/cli/main.go attestation get '<report_data>'
 
 # Validate Attestation
-go run cmd/cli/main.go attestation validate '<attesation>' '<report_data>'
+go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>'
 
 # Run the CLI program with algorithm input
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.py Algorithm1 AlgorithmProvider1

@@ -23,6 +23,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -196,7 +197,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	if _, err := os.Stat(keyfile); err == nil {
-		cert, err = os.ReadFile(keyfile)
+		key, err = os.ReadFile(keyfile)
 		if err != nil {
 			return tls.Certificate{}, err
 		}
@@ -221,7 +222,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 	}
 
 	// The Attestation Report will be added as an X.509 certificate extension
-	attestationReport, err := (*svc).Attestation(context.Background(), publicKeyBytes)
+	attestationReport, err := (*svc).Attestation(context.Background(), sha3.Sum512(publicKeyBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch the attestation report: %w", err)
 	}
