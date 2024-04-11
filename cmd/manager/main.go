@@ -115,10 +115,10 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	hbs := heartbeat.New(hc, cfg.HeartbeatInterval)
+	hb := heartbeat.New(hc, cfg.HeartbeatInterval)
 
 	g.Go(func() error {
-		return hbs.Send()
+		return hb.Send()
 	})
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
