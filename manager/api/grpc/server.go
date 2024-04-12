@@ -34,7 +34,7 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 	runReqChan := make(chan *manager.ComputationRunReq)
 	client, ok := peer.FromContext(stream.Context())
 	if ok {
-		s.svc.Run(client.Addr.String(), runReqChan)
+		go s.svc.Run(client.Addr.String(), runReqChan)
 	}
 	eg, _ := errgroup.WithContext(s.ctx)
 
