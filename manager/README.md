@@ -43,7 +43,7 @@ sudo apt install qemu-kvm
 
 Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
 
-#### Add V-sock
+#### Add Vsock
 The necessary kernel modules must be loaded on the hypervisor. To check if `vhost_vsock` is loaded run:
 ```shell
 lsmod | grep vhost_vsock
@@ -203,7 +203,15 @@ MANAGER_QEMU_KERNEL_HASH=true \
 
 ### Verifying VM launch
 
-NB: To verify that the manager successfully launched the VM, you need to open three terminals on the same machine. In one terminal, you need to launch the Manager test server by executing go run ./test/manager-server/main.go (with the environment variables of choice), and in the second the manager by executing go run ./cmd/manager/main.go (with the environment variables of choice). Ensure that the Manager can connect to the Manager test server by setting the MANAGER_GRPC_PORT with the port value of the Manager test server. The Manager test server is listening on the default value of the MANAGER_GRPC_PORT. In the last one, you can run the verification commands.
+NB: To verify that the manager successfully launched the VM, you need to open three terminals on the same machine. In one terminal, you need to launch the Manager test server by executing (with the environment variables of choice):
+
+`go run ./test/manager-server/main.go`
+
+and in the second the manager by executing (with the environment variables of choice):
+
+`go run ./cmd/manager/main.go`
+
+Ensure that the Manager can connect to the Manager test server by setting the MANAGER_GRPC_PORT with the port value of the Manager test server. The Manager test server is listening on the default value of the MANAGER_GRPC_PORT. In the last one, you can run the verification commands.
 
 To verify that the manager launched the VM successfully, run the following command:
 
