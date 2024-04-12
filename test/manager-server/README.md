@@ -15,5 +15,5 @@ The service is configured using the environment variables from the following tab
 
 ## Running
 ```shell
-go run main.go
+go run main.go <dataset_path> <algo_path>
 ```

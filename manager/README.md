@@ -59,7 +59,6 @@ ls -l /dev/vsock
 # crw-rw-rw- 1 root root 10, 121 Jan 16 12:05 /dev/vsock
 ```
 
-
 ### Prepare Cocos HAL
 
 Cocos HAL for Linux is framework for building custom in-enclave Linux distribution. Use the instructions in [Readme](https://github.com/ultravioletrs/cocos/blob/main/hal/linux/README.md).
@@ -102,6 +101,7 @@ qemu-system-x86_64 \
 Once the VM is booted press enter and on the login use username `root`.
 
 #### Build and run Agent
+
 Agent is started automatically in the VM.
 ```sh
 # List running processes and use 'grep' to filter for processes containing 'agent' in their names.
@@ -147,18 +147,15 @@ NB: we set environment variables that we will use in the shell process where we 
 To start the service, execute the following shell script (note a server needs to be running see  [here](../test/manager-server/README.md)):
 
 ```bash
-# download the latest version of the service
-go get github.com/ultravioletrs/cocos
+# Download the latest version of the service
+git clone git@github.com:ultravioletrs/cocos.git
 
-cd $GOPATH/src/github.com/ultravioletrs/cocos
+cd cocos
 
-# compile the manager
+# Compile the manager
 make manager
 
-# copy binary to bin
-make install
-
-# set the environment variables and run the service
+# Set the environment variables and run the service
 MANAGER_GRPC_URL=localhost:7001
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
@@ -177,9 +174,36 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
 ```
 
+The kernel hash feature might not work with the current build of OVMF and QEMU. If so, build the host kernel, QEMU, and OVMF from the [AMD SEV GitHub](https://github.com/AMDESE/AMDSEV/tree/snp-latest) repository.
+
+To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, start manager like this 
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
+MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF Amd Sev built package> \
+./build/cocos-manager
+```
+
+To include the kernel hash into the measurement of the attestation report (SEV or SEV-SNP), start manager like this
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_KERNEL_HASH=true \
+./build/cocos-manager
+```
+
 ### Verifying VM launch
 
-NB: To verify that the manager successfully launched the VM, you need to open two terminals on the same machine. In one terminal, you need to launch `go run main.go` (with the environment variables of choice) and in the other, you can run the verification commands.
+NB: To verify that the manager successfully launched the VM, you need to open three terminals on the same machine. In one terminal, you need to launch the Manager test server by executing go run ./test/manager-server/main.go (with the environment variables of choice), and in the second the manager by executing go run ./cmd/manager/main.go (with the environment variables of choice). Ensure that the Manager can connect to the Manager test server by setting the MANAGER_GRPC_PORT with the port value of the Manager test server. The Manager test server is listening on the default value of the MANAGER_GRPC_PORT. In the last one, you can run the verification commands.
 
 To verify that the manager launched the VM successfully, run the following command:
 

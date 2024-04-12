@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	qemuRelPath  = "qemu-system-x86_64"
 	firmwareVars = "OVMF_VARS"
 	KernelFile   = "bzImage"
 	rootfsFile   = "rootfs.cpio"
@@ -26,7 +25,6 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 	}
 	qemuCfg := cfg
 	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
-	qemuCfg.VirtioScsiPciConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.VirtioScsiPciConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
 
 	// Copy firmware vars file.
@@ -68,7 +66,7 @@ func CreateVM(ctx context.Context, cfg Config) (*exec.Cmd, error) {
 }
 
 func ExecutableAndArgs(cfg Config) (string, []string, error) {
-	exe, err := exec.LookPath(qemuRelPath)
+	exe, err := exec.LookPath(cfg.QemuBinPath)
 	if err != nil {
 		return "", nil, err
 	}
