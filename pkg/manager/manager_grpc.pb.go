@@ -14,7 +14,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -23,8 +22,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ManagerService_Process_FullMethodName   = "/manager.ManagerService/Process"
-	ManagerService_Heartbeat_FullMethodName = "/manager.ManagerService/Heartbeat"
+	ManagerService_Process_FullMethodName = "/manager.ManagerService/Process"
 )
 
 // ManagerServiceClient is the client API for ManagerService service.
@@ -32,7 +30,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManagerServiceClient interface {
 	Process(ctx context.Context, opts ...grpc.CallOption) (ManagerService_ProcessClient, error)
-	Heartbeat(ctx context.Context, opts ...grpc.CallOption) (ManagerService_HeartbeatClient, error)
 }
 
 type managerServiceClient struct {
@@ -74,46 +71,11 @@ func (x *managerServiceProcessClient) Recv() (*ServerStreamMessage, error) {
 	return m, nil
 }
 
-func (c *managerServiceClient) Heartbeat(ctx context.Context, opts ...grpc.CallOption) (ManagerService_HeartbeatClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ManagerService_ServiceDesc.Streams[1], ManagerService_Heartbeat_FullMethodName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &managerServiceHeartbeatClient{stream}
-	return x, nil
-}
-
-type ManagerService_HeartbeatClient interface {
-	Send(*HeartBeatMessage) error
-	CloseAndRecv() (*emptypb.Empty, error)
-	grpc.ClientStream
-}
-
-type managerServiceHeartbeatClient struct {
-	grpc.ClientStream
-}
-
-func (x *managerServiceHeartbeatClient) Send(m *HeartBeatMessage) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *managerServiceHeartbeatClient) CloseAndRecv() (*emptypb.Empty, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(emptypb.Empty)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility
 type ManagerServiceServer interface {
 	Process(ManagerService_ProcessServer) error
-	Heartbeat(ManagerService_HeartbeatServer) error
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -123,9 +85,6 @@ type UnimplementedManagerServiceServer struct {
 
 func (UnimplementedManagerServiceServer) Process(ManagerService_ProcessServer) error {
 	return status.Errorf(codes.Unimplemented, "method Process not implemented")
-}
-func (UnimplementedManagerServiceServer) Heartbeat(ManagerService_HeartbeatServer) error {
-	return status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 
@@ -166,32 +125,6 @@ func (x *managerServiceProcessServer) Recv() (*ClientStreamMessage, error) {
 	return m, nil
 }
 
-func _ManagerService_Heartbeat_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ManagerServiceServer).Heartbeat(&managerServiceHeartbeatServer{stream})
-}
-
-type ManagerService_HeartbeatServer interface {
-	SendAndClose(*emptypb.Empty) error
-	Recv() (*HeartBeatMessage, error)
-	grpc.ServerStream
-}
-
-type managerServiceHeartbeatServer struct {
-	grpc.ServerStream
-}
-
-func (x *managerServiceHeartbeatServer) SendAndClose(m *emptypb.Empty) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *managerServiceHeartbeatServer) Recv() (*HeartBeatMessage, error) {
-	m := new(HeartBeatMessage)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -204,11 +137,6 @@ var ManagerService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "Process",
 			Handler:       _ManagerService_Process_Handler,
 			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "Heartbeat",
-			Handler:       _ManagerService_Heartbeat_Handler,
 			ClientStreams: true,
 		},
 	},

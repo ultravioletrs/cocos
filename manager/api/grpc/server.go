@@ -4,7 +4,6 @@ package grpc
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
@@ -67,17 +66,4 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 		}
 	})
 	return eg.Wait()
-}
-
-func (s *grpcServer) Heartbeat(stream manager.ManagerService_HeartbeatServer) error {
-	p, ok := peer.FromContext(stream.Context())
-	if !ok {
-		return errors.New("failed to get peer from context")
-	}
-	for {
-		if _, err := stream.Recv(); err != nil {
-			return err
-		}
-		s.svc.Heartbeat(p.Addr.String())
-	}
 }
