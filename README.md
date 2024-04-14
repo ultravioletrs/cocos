@@ -36,4 +36,5 @@ Cocos AI is a proprietary product created by Ultraviolet company.
 [cocos]: https://cocos.ai/
 [rel]: https://github.com/ultraviolet/cocos/releases
 [tee]: https://en.wikipedia.org/wiki/Trusted_execution_environment
+[docs]: https://docs.cocos.ultraviolet.rs
 
