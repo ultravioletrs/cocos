@@ -81,7 +81,6 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 		eventSvc: eventSvc,
 	}
 	go svc.sm.Start(ctx)
-	svc.sm.wg.Wait()
 	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("in-progress", json.RawMessage{})
