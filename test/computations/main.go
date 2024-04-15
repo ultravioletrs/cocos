@@ -72,10 +72,6 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 	}
 }
 
-func (s *svc) Heartbeat(ipAddress string) {
-	s.logger.Debug(fmt.Sprintf("received heartbeat from %s", ipAddress))
-}
-
 func main() {
 	if len(os.Args) < 4 {
 		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>", os.Args[0])

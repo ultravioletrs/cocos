@@ -21,7 +21,6 @@ type grpcServer struct {
 
 type Service interface {
 	Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage, authInfo credentials.AuthInfo)
-	Heartbeat(ipAddress string)
 }
 
 // NewServer returns new AuthServiceServer instance.
