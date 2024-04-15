@@ -26,20 +26,28 @@ Cocos AI is implementing the following features:
 
 ## Usage
 
-The quickest way to start using Cocos is via the CLI. The latest version can be downloaded from the [official releases page][rel].
-
-It can also be built and used from the project's root directory:
+Clone the repo and create binaries:
 
 ```bash
-make cli
-./build/cocos-cli version
+git clone git@github.com:ultravioletrs/cocos.git
+make
 ```
 
-Additional details on using the CLI can be found in the [CLI documentation][cli].
+This will create 3 binaries:
+```bash
+ls build/
+# cocos-agent  cocos-cli  cocos-manager
+```
+
+- Manager can be deployed on the AMD SEV-SNP host
+- Agent can be built into [EOS][eos]-based HAL
+- CLI can be used to communicate to remote Agent.
 
 ## Documentation
 
-Official documentation is hosted at [Cocos official docs page][docs]. Documentation is auto-generated, checkout the instructions on [official docs repository](https://github.com/ultravioletrs/docs).
+Project documentation is hosted at [Cocos AI official docs page][docs].
+
+Documentation is generated from the [docs repository](https://github.com/ultravioletrs/docs).
 
 ## License
 Cocos AI is published under permissive open-source [Apache-2.0](LICENSE) license.
@@ -50,3 +58,4 @@ Cocos AI is published under permissive open-source [Apache-2.0](LICENSE) license
 [tee]: https://en.wikipedia.org/wiki/Trusted_execution_environment
 [docs]: https://docs.cocos.ultraviolet.rs
 [cli]: https://docs.cocos.ultraviolet.rs/cli
+[eos]: https://github.com/ultravioletrs/eos
