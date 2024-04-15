@@ -30,7 +30,16 @@ import (
 )
 
 const (
-	stopWaitTime = 5 * time.Second
+	stopWaitTime  = 5 * time.Second
+	organization  = "Ultraviolet"
+	country       = "Serbia"
+	province      = ""
+	locality      = "Belgrade"
+	streetAddress = "Bulevar Arsenija Carnojevica 103"
+	postalCode    = "11000"
+	notAfterYear  = 1
+	notAfterMonth = 0
+	notAfterDay   = 0
 )
 
 type Server struct {
@@ -230,15 +239,15 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(202403311),
 		Subject: pkix.Name{
-			Organization:  []string{"Ultraviolet"},
-			Country:       []string{"Serbia"},
-			Province:      []string{""},
-			Locality:      []string{"Belgrade"},
-			StreetAddress: []string{"Bulevar Arsenija Carnojevica 103"},
-			PostalCode:    []string{"11000"},
+			Organization:  []string{organization},
+			Country:       []string{country},
+			Province:      []string{province},
+			Locality:      []string{locality},
+			StreetAddress: []string{streetAddress},
+			PostalCode:    []string{postalCode},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(1, 0, 0),
+		NotAfter:              time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,

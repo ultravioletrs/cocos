@@ -33,8 +33,15 @@ const (
 )
 
 var (
-	errGrpcConnect = errors.New("failed to connect to grpc server")
-	errGrpcClose   = errors.New("failed to close grpc connection")
+	errGrpcConnect      = errors.New("failed to connect to grpc server")
+	errGrpcClose        = errors.New("failed to close grpc connection")
+	errManifestOpen     = errors.New("failed to open Manifest")
+	errManifestMissing  = errors.New("failed due to missing Manifest")
+	errManifestDecode   = errors.New("failed to decode Manifest json")
+	errCertificateParse = errors.New("failed to parse x509 certificate")
+	errAttVerification  = errors.New("attestation verification failed")
+	errAttValidation    = errors.New("attestation validation failed")
+	errCustomExtension  = errors.New("failed due to missing custom extension")
 )
 
 var (
@@ -180,26 +187,26 @@ func readManifest(cfg Config) error {
 	if cfg.Manifest != "" {
 		manifest, err := os.Open(cfg.Manifest)
 		if err != nil {
-			return fmt.Errorf("failed to open manifest %w", err)
+			return errors.Wrap(errManifestOpen, err)
 		}
 		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
 		err = decoder.Decode(&attestationConfiguration)
 		if err != nil {
-			return fmt.Errorf("manifest file is malformed %w", err)
+			return errors.Wrap(errManifestDecode, err)
 		}
 
 		return nil
 	}
 
-	return fmt.Errorf("manifest does not exist")
+	return errManifestMissing
 }
 
 func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
-		return fmt.Errorf("failed to parse certficate %w", err)
+		return errors.Wrap(errCertificateParse, err)
 	}
 
 	for _, ext := range cert.Extensions {
@@ -207,12 +214,12 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			// Check if the certificate is self-signed
 			err := checkIfCertificateSelfSigned(cert)
 			if err != nil {
-				return fmt.Errorf("attestation verification failed, certificate is not self-signed %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			publicKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
 			if err != nil {
-				return fmt.Errorf("attestation verification failed, PublicKey marshaling failed %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			expectedReportData := sha3.Sum512(publicKeyBytes)
@@ -221,7 +228,7 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			// Attestation verification and validation
 			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOFTrust)
 			if err != nil {
-				return fmt.Errorf("attestation verification failed, root of trust to options failed %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			sopts.Product = attestationConfiguration.SNPPolicy.Product
@@ -233,27 +240,27 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 
 			attestationPB, err := abi.ReportCertsToProto(ext.Value)
 			if err != nil {
-				return fmt.Errorf("attestation verification failed, certs to proto failed %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
-				return fmt.Errorf("attestation verification failed: %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			opts, err := validate.PolicyToOptions(attestationConfiguration.SNPPolicy)
 			if err != nil {
-				return fmt.Errorf("attestation verification failed, policy to options failed %w", err)
+				return errors.Wrap(errAttVerification, err)
 			}
 
 			if err = validate.SnpAttestation(attestationPB, opts); err != nil {
-				return fmt.Errorf("attestation validation failed %w", err)
+				return errors.Wrap(errAttValidation, err)
 			}
 
 			return nil
 		}
 	}
 
-	return fmt.Errorf("custom extension for SEV-SNP not found")
+	return errCustomExtension
 }
 
 func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
