@@ -33,6 +33,7 @@ func TestStateMachineTransitions(t *testing.T) {
 				sm.Start(ctx)
 				close(done)
 			}()
+			sm.wg.Wait()
 			sm.SetState(testCase.fromState)
 
 			sm.SendEvent(testCase.event)
