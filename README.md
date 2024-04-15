@@ -30,10 +30,12 @@ Additional details on using the CLI can be found in the [CLI documentation](http
 Official documentation is hosted at [Cocos official docs page][docs]. Documentation is auto-generated, checkout the instructions on [official docs repository](https://github.com/ultravioletrs/docs).
 
 ## License
-Cocos AI is a proprietary product created by Ultraviolet company.
+Cocos AI is published under permissive open-source [Apache-2.0](LICENSE) license.
 
 [cc]: https://confidentialcomputing.io/white-papers-reports/
 [cocos]: https://cocos.ai/
 [rel]: https://github.com/ultraviolet/cocos/releases
 [tee]: https://en.wikipedia.org/wiki/Trusted_execution_environment
+[docs]: https://docs.cocos.ultraviolet.rs
+[rel]: https://github.com/ultravioletrs/cocos/releases
 
