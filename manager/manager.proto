@@ -13,9 +13,6 @@ service ManagerService {
   rpc Process(stream ClientStreamMessage) returns (stream ComputationRunReq) {}
 }
 
-message WhoAmI {
-}
-
 message RunResponse{
   string agent_port = 1;
   string computation_id = 2;
@@ -39,10 +36,9 @@ message AgentLog {
 
 message ClientStreamMessage {
   oneof message {
-    WhoAmI whoami = 1;
-    AgentLog agent_log = 2;
-    AgentEvent agent_event = 3;
-    RunResponse run_res = 4;
+    AgentLog agent_log = 1;
+    AgentEvent agent_event = 2;
+    RunResponse run_res = 3;
   }
 }
 
