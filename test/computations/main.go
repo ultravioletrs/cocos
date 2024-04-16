@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strconv"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/ultravioletrs/cocos/internal/env"
@@ -29,8 +30,9 @@ const (
 )
 
 var (
-	algoPath = "./test/manual/algo/lin_reg.py"
-	dataPath = "./test/manual/data/iris.csv"
+	algoPath    = "./test/manual/algo/lin_reg.py"
+	dataPath    = "./test/manual/data/iris.csv"
+	attestedTLS = false
 )
 
 type svc struct {
@@ -59,18 +61,25 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: algoHash[:]}},
 		ResultConsumers: []string{"consumer1"},
 		AgentConfig: &manager.AgentConfig{
-			Port:     "7002",
-			LogLevel: "debug",
+			Port:        "7002",
+			LogLevel:    "debug",
+			AttestedTls: attestedTLS,
 		},
 	}
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalf("usage: %s <data-path> <algo-path>", os.Args[0])
+	if len(os.Args) < 4 {
+		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>", os.Args[0])
 	}
 	dataPath = os.Args[1]
 	algoPath = os.Args[2]
+	attestedTLSParam, err := strconv.ParseBool(os.Args[3])
+	if err != nil {
+		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
+	}
+	attestedTLS = attestedTLSParam
+
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 	incomingChan := make(chan *manager.ClientStreamMessage)
@@ -104,7 +113,7 @@ func main() {
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil)
 
 	g.Go(func() error {
 		return gs.Start()

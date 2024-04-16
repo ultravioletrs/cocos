@@ -1,0 +1,15 @@
+{
+  "snp_policy": {
+      "minimum_guest_svn": 0,
+      "policy": 196608,
+      "minimum_tcb": 1,
+      "minimum_version": "1.0",
+      "minimum_launch_tcb": 1,
+      "measurement": [232, 141, 188, 114, 162, 221, 214, 6, 150, 248, 3, 173, 230, 39, 48, 120, 105, 243, 15, 242, 79, 67, 112, 128, 44, 119, 216, 226, 170, 255, 212, 154, 58, 68, 231, 30, 20, 235, 228, 42, 43, 1, 95, 191, 51, 113, 19, 72],
+      "minimum_build": 1
+    },
+  "root_of_trust": {
+      "product": "Milan",
+      "check_crl": true
+  }
+}

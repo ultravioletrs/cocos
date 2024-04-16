@@ -80,6 +80,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 		sm:       NewStateMachine(logger),
 		eventSvc: eventSvc,
 	}
+
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})

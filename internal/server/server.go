@@ -17,12 +17,13 @@ type Server interface {
 }
 
 type Config struct {
-	Host         string `env:"HOST"            envDefault:""`
-	Port         string `env:"PORT"            envDefault:""`
-	CertFile     string `env:"SERVER_CERT"     envDefault:""`
-	KeyFile      string `env:"SERVER_KEY"      envDefault:""`
-	ServerCAFile string `env:"SERVER_CA_CERTS" envDefault:""`
-	ClientCAFile string `env:"CLIENT_CA_CERTS" envDefault:""`
+	Host         string `env:"HOST"               envDefault:""`
+	Port         string `env:"PORT"               envDefault:""`
+	CertFile     string `env:"SERVER_CERT"        envDefault:""`
+	KeyFile      string `env:"SERVER_KEY"         envDefault:""`
+	ServerCAFile string `env:"SERVER_CA_CERTS"    envDefault:""`
+	ClientCAFile string `env:"CLIENT_CA_CERTS"    envDefault:""`
+	AttestedTLS  bool   `env:"ATTESTED_TLS"       envDefault:"false"`
 }
 
 type BaseServer struct {

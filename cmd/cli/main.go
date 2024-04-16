@@ -24,7 +24,7 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"AGENT_LOG_LEVEL"               envDefault:"info"`
+	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"info"`
 }
 
 func main() {
