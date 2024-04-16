@@ -160,7 +160,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 				secure = withTLS
 			}
 
-			// Loading mtls certificates file
+			// Loading mTLS certificates file
 			if cfg.ClientCert != "" || cfg.ClientKey != "" {
 				certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
 				if err != nil {
