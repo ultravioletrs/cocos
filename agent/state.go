@@ -41,6 +41,7 @@ type StateMachine struct {
 	Transitions    map[state]map[event]state
 	StateFunctions map[state]func()
 	logger         *slog.Logger
+	wg             *sync.WaitGroup
 }
 
 // NewStateMachine creates a new StateMachine.
@@ -51,6 +52,7 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 		Transitions:    make(map[state]map[event]state),
 		StateFunctions: make(map[state]func()),
 		logger:         logger,
+		wg:             &sync.WaitGroup{},
 	}
 
 	sm.Transitions[idle] = make(map[event]state)
@@ -76,6 +78,8 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 
 // Start the state machine.
 func (sm *StateMachine) Start(ctx context.Context) {
+	sm.wg.Add(1)
+	defer sm.wg.Done()
 	for {
 		select {
 		case event := <-sm.EventChan:

@@ -31,19 +31,18 @@ func NewServer(ctx context.Context, incoming chan *manager.ClientStreamMessage, 
 }
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
-	eg, _ := errgroup.WithContext(s.ctx)
 	runReqChan := make(chan *manager.ComputationRunReq)
+	client, ok := peer.FromContext(stream.Context())
+	if ok {
+		go s.svc.Run(client.Addr.String(), runReqChan)
+	}
+	eg, _ := errgroup.WithContext(s.ctx)
+
 	eg.Go(func() error {
 		for {
 			req, err := stream.Recv()
 			if err != nil {
 				return err
-			}
-			if _, ok := req.Message.(*manager.ClientStreamMessage_Whoami); ok {
-				client, ok := peer.FromContext(stream.Context())
-				if ok {
-					s.svc.Run(client.Addr.String(), runReqChan)
-				}
 			}
 
 			s.incoming <- req

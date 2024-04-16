@@ -144,7 +144,7 @@ NB: we set environment variables that we will use in the shell process where we 
 
 ## Deployment
 
-To start the service, execute the following shell script (note a server needs to be running see  [here](../test/manager-server/README.md)):
+To start the service, execute the following shell script (note a server needs to be running see  [here](../test/computations/README.md)):
 
 ```bash
 # Download the latest version of the service

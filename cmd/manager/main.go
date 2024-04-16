@@ -103,10 +103,6 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	if err := pc.Send(&pkgmanager.ClientStreamMessage{Message: &pkgmanager.ClientStreamMessage_Whoami{}}); err != nil {
-		logger.Error(err.Error())
-		return
-	}
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
 	svc := newService(logger, tracer, qemuCfg, eventsChan)

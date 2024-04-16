@@ -27,12 +27,11 @@ func TestStateMachineTransitions(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("Transition from %v to %v", testCase.fromState, testCase.expected), func(t *testing.T) {
 			sm := NewStateMachine(mglog.NewMock())
-			done := make(chan struct{})
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
 				sm.Start(ctx)
-				close(done)
 			}()
+			sm.wg.Wait()
 			sm.SetState(testCase.fromState)
 
 			sm.SendEvent(testCase.event)
@@ -42,7 +41,6 @@ func TestStateMachineTransitions(t *testing.T) {
 			}
 			close(sm.EventChan)
 			cancel()
-			<-done
 		})
 	}
 }
