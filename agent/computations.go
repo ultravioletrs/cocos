@@ -8,9 +8,7 @@ import (
 	"reflect"
 )
 
-var (
-	_ fmt.Stringer = (*Datasets)(nil)
-)
+var _ fmt.Stringer = (*Datasets)(nil)
 
 type AgentConfig struct {
 	LogLevel     string `json:"log_level"`
