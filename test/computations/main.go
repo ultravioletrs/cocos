@@ -58,7 +58,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ComputationRunReq) {
 		Name:            "sample computation",
 		Description:     "sample descrption",
 		Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:]}},
-		Algorithms:      []*manager.Algorithm{{Id: "1", Provider: "provider1", Hash: algoHash[:]}},
+		Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:]},
 		ResultConsumers: []string{"consumer1"},
 		AgentConfig: &manager.AgentConfig{
 			Port:        "7002",

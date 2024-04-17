@@ -47,7 +47,7 @@ message ComputationRunReq {
   string name = 2;
   string description = 3;
   repeated Dataset datasets = 4;
-  repeated Algorithm algorithms = 5;
+  Algorithm algorithm = 5;
   repeated string result_consumers = 6;
   AgentConfig agent_config = 7;
 }

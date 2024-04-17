@@ -59,7 +59,7 @@ type Service interface {
 
 type agentService struct {
 	computation Computation    // Holds the current computation request details.
-	algorithms  [][]byte       // Stores the algorithms received for the computation.
+	algorithm   []byte         // Stores the algorithm received for the computation.
 	datasets    [][]byte       // Stores the datasets received for the computation.
 	result      []byte         // Stores the result of the computation.
 	sm          *StateMachine  // Manages the state transitions of the agent service.
@@ -84,46 +84,45 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingManifests] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingAlgorithms] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
 
 	svc.computation = cmp
-	svc.sm.SendEvent(manifestsReceived)
+	svc.sm.SendEvent(manifestReceived)
 	return svc
 }
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
-	if as.sm.GetState() != receivingAlgorithms {
+	if as.sm.GetState() != receivingAlgorithm {
 		return errStateNotReady
 	}
-	if len(as.computation.Algorithms) == 0 {
+	if as.algorithm != nil {
 		return errAllManifestItemsReceived
 	}
 
 	hash := sha3.Sum256(algorithm.Algorithm)
 
-	index := containsID(as.computation.Algorithms, algorithm.ID)
+	index := containsID(as.computation.Algorithm, algorithm.ID)
 	switch index {
 	case -1:
 		return errUndeclaredAlgorithm
 	default:
-		if as.computation.Algorithms[index].Provider != algorithm.Provider {
+		if as.computation.Algorithm.Provider != algorithm.Provider {
 			return errProviderMissmatch
 		}
-		if hash != as.computation.Algorithms[index].Hash {
+		if hash != as.computation.Algorithm.Hash {
 			return errHashMismatch
 		}
-		as.computation.Algorithms = slices.Delete(as.computation.Algorithms, index, index+1)
 	}
 
-	as.algorithms = append(as.algorithms, algorithm.Algorithm)
+	as.algorithm = algorithm.Algorithm
 
-	if len(as.computation.Algorithms) == 0 {
-		as.sm.SendEvent(algorithmsReceived)
+	if as.algorithm != nil {
+		as.sm.SendEvent(algorithmReceived)
 	}
 
 	return nil
@@ -202,7 +201,7 @@ func (as *agentService) runComputation() {
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := run(as.algorithms[0], as.datasets[0])
+	result, err := run(as.algorithm, as.datasets[0])
 	if err != nil {
 		as.runError = err
 		as.publishEvent("failed", json.RawMessage{})()

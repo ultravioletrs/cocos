@@ -14,8 +14,8 @@ type state int
 
 const (
 	idle state = iota
-	receivingManifests
-	receivingAlgorithms
+	receivingManifest
+	receivingAlgorithm
 	receivingData
 	running
 	resultsReady
@@ -26,8 +26,8 @@ type event int
 
 const (
 	start event = iota
-	manifestsReceived
-	algorithmsReceived
+	manifestReceived
+	algorithmReceived
 	dataReceived
 	runComplete
 	resultsConsumed
@@ -56,13 +56,13 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 	}
 
 	sm.Transitions[idle] = make(map[event]state)
-	sm.Transitions[idle][start] = receivingManifests
+	sm.Transitions[idle][start] = receivingManifest
 
-	sm.Transitions[receivingManifests] = make(map[event]state)
-	sm.Transitions[receivingManifests][manifestsReceived] = receivingAlgorithms
+	sm.Transitions[receivingManifest] = make(map[event]state)
+	sm.Transitions[receivingManifest][manifestReceived] = receivingAlgorithm
 
-	sm.Transitions[receivingAlgorithms] = make(map[event]state)
-	sm.Transitions[receivingAlgorithms][algorithmsReceived] = receivingData
+	sm.Transitions[receivingAlgorithm] = make(map[event]state)
+	sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
 
 	sm.Transitions[receivingData] = make(map[event]state)
 	sm.Transitions[receivingData][dataReceived] = running
