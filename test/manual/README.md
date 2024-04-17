@@ -2,15 +2,13 @@
 
 ## CLI
 
-Throughout the tests, we assume that our current working directory is the root of the `agent` repository, both on the host machine and in the VM.
+Throughout the tests, we assume that our current working directory is the root of the `cocos` repository, both on the host machine and in the VM.
 
 ### Python requirements
 
-Do this both on the host machine and in the VM.
+Do this in the VM.
 
 ```sh
-apt update
-apt install python3-pip
 pip3 install pandas scikit-learn
 ```
 
@@ -22,7 +20,6 @@ Open console on the host, and run
 
 ```sh
 export AGENT_GRPC_URL=localhost:7002
-export MANAGER_GRPC_URL=localhost:7001
 
 # For attested TLS, also define the path to the computation.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./test/manual/computation/computation.json

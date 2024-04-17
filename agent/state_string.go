@@ -9,8 +9,8 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[idle-0]
-	_ = x[receivingManifests-1]
-	_ = x[receivingAlgorithms-2]
+	_ = x[receivingManifest-1]
+	_ = x[receivingAlgorithm-2]
 	_ = x[receivingData-3]
 	_ = x[running-4]
 	_ = x[resultsReady-5]

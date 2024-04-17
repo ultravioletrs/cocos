@@ -16,9 +16,9 @@ func TestStateMachineTransitions(t *testing.T) {
 		event     event
 		expected  state
 	}{
-		{idle, start, receivingManifests},
-		{receivingManifests, manifestsReceived, receivingAlgorithms},
-		{receivingAlgorithms, algorithmsReceived, receivingData},
+		{idle, start, receivingManifest},
+		{receivingManifest, manifestReceived, receivingAlgorithm},
+		{receivingAlgorithm, algorithmReceived, receivingData},
 		{receivingData, dataReceived, running},
 		{running, runComplete, resultsReady},
 		{resultsReady, resultsConsumed, complete},

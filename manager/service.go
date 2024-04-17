@@ -84,13 +84,8 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			LogLevel:     c.AgentConfig.LogLevel,
 		},
 	}
-	for _, algo := range c.Algorithms {
-		if len(algo.Hash) != hashLength {
-			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
-			return "", errInvalidHashLength
-		}
-		ac.Algorithms = append(ac.Algorithms, agent.Algorithm{ID: algo.Id, Provider: algo.Provider, Hash: [hashLength]byte(algo.Hash)})
-	}
+	ac.Algorithm = agent.Algorithm{ID: c.Algorithm.Id, Provider: c.Algorithm.Provider, Hash: [hashLength]byte(c.Algorithm.Hash)}
+
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
