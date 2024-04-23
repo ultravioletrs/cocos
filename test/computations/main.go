@@ -64,8 +64,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 				Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:]},
 				ResultConsumers: []string{"consumer1"},
 				AgentConfig: &manager.AgentConfig{
-					Port:     "7002",
-					LogLevel: "debug",
+					Port:        "7002",
+					LogLevel:    "debug",
+					AttestedTls: attestedTLS,
 				},
 			},
 		},
