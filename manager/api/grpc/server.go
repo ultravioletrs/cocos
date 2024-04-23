@@ -3,8 +3,6 @@
 package grpc
 
 import (
-	"context"
-
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
@@ -35,9 +33,9 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 	runReqChan := make(chan *manager.ServerStreamMessage)
 	client, ok := peer.FromContext(stream.Context())
 	if ok {
-		go s.svc.Run(client.Addr.String(), runReqChan)
+		go s.svc.Run(client.Addr.String(), runReqChan, client.AuthInfo)
 	}
-	eg, _ := errgroup.WithContext(s.ctx)
+	eg, ctx := errgroup.WithContext(stream.Context())
 
 	eg.Go(func() error {
 		for {
@@ -46,8 +44,7 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 				return err
 			}
 
-				s.incoming <- req
-			}
+			s.incoming <- req
 		}
 	})
 
@@ -56,9 +53,8 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 			select {
 			case <-ctx.Done():
 				return nil
-			case req := <-managerReqChan:
+			case req := <-runReqChan:
 				if err := stream.Send(req); err != nil {
-					cancel()
 					return err
 				}
 			}
