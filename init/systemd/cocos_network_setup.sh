@@ -1,16 +1,17 @@
 #!/bin/sh
 
-# The variable ETH_IFACE contains the name the systemd gave to the network interface. 
-# The systemd configures the name based on the QEMU parameters. 
-# The parts of the name enp0s2 mean:
-#  en - ethernet interface.
-#  p  - means that the interface is connected to a PCI bus.
-#  0  - the interface is connected to bus 0.
-#  s2 - the interface is connected to slot 2.
+# IFACES are all network interfaces excluding lo (LOOPBACK) and sit interfaces 
+IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')
 
-# The variable ETH_IFACE value must match the name configured through QEMU parameters for the network device. 
-# The bus number and slot number are configured through QEMU device parameters, parameters
-# addr (for slot number), and bus (for bus number).
-ETH_IFACE=enp0s2
+# This for loop brings up all network interfaces in IFACE and dhclient obtains an IP address for the every interface
+for IFACE in $IFACES; do
+    STATE=$(ip link show $IFACE | grep DOWN)
+    if [ -n "$STATE" ]; then
+        ip link set $IFACE up
+    fi
 
-dhclient $ETH_IFACE
+    IP_ADDR=$(ip addr show $IFACE | grep 'inet ')
+    if [ -z "$IP_ADDR" ]; then
+        dhclient $IFACE
+    fi
+done

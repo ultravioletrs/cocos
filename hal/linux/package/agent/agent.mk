@@ -19,8 +19,8 @@ endef
 
 define AGENT_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0640 $(@D)/init/systemd/cocos-agent.service $(TARGET_DIR)/usr/lib/systemd/system/cocos-agent.service
-	$(INSTALL) -D -m 0750 $(@D)/init/systemd/agent_start_script.sh $(TARGET_DIR)/cocos/agent_start_script.sh
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/cocos_network_setup.sh $(TARGET_DIR)/cocos/cocos_network_setup.sh
+	$(INSTALL) -D -m 0750 $(@D)/init/systemd/agent_start_script.sh $(TARGET_DIR)/cocos/agent_start_script.sh
 endef
 
 $(eval $(golang-package))
