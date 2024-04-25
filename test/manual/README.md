@@ -4,13 +4,14 @@
 
 Throughout the tests, we assume that our current working directory is the root of the `cocos` repository, both on the host machine and in the VM.
 
-### Python requirements
+### Algorithm requirements
 
-Do this in the VM.
-
-```sh
-pip3 install pandas scikit-learn
+Agent accepts algorithms as binaries that take in two command line arguments.
+```shell
+algorithm-file <dataset as string> <unix socket path>
 ```
+
+The algorithms program should return the results to a socket and an example can be seen in this [file](./algo/lin_reg.py).
 
 ### Agent-CLI interaction
 
@@ -32,8 +33,8 @@ go run cmd/cli/main.go attestation get '<report_data>'
 go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>'
 
 # Run the CLI program with algorithm input
-go run cmd/cli/main.go algo test/manual/algo/lin_reg.py Algorithm1 AlgorithmProvider1
-# 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.py
+go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin Algorithm1 AlgorithmProvider1
+# 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
 # Run the CLI program with dataset input
 go run cmd/cli/main.go data test/manual/data/iris.csv Dataset1 Provider1
