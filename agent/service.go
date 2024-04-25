@@ -21,8 +21,12 @@ import (
 
 var _ Service = (*agentService)(nil)
 
-// ReportDataSize is the size of the report data expected by the attestation service.
-const ReportDataSize = 64
+const (
+	// ReportDataSize is the size of the report data expected by the attestation service.
+	ReportDataSize     = 64
+	socketPath         = "unix_socket"
+	algoFilePermission = 0o700
+)
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -67,8 +71,6 @@ type agentService struct {
 	runError    error          // Stores any error encountered during the computation run.
 	eventSvc    events.Service // Service for publishing events related to computation.
 }
-
-const socketPath = "unix_socket"
 
 var _ Service = (*agentService)(nil)
 
@@ -242,9 +244,11 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 	if _, err := f.Write(algoContent); err != nil {
 		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
 	}
-	if err := os.Chmod(f.Name(), 0700); err != nil {
+
+	if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
 		return nil, fmt.Errorf("error changing file permissions: %v", err)
 	}
+
 	if err := f.Close(); err != nil {
 		return nil, fmt.Errorf("error closing file: %v", err)
 	}
