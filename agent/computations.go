@@ -26,7 +26,7 @@ type Computation struct {
 	Name            string      `json:"name,omitempty"`
 	Description     string      `json:"description,omitempty"`
 	Datasets        Datasets    `json:"datasets,omitempty"`
-	Algorithm       Algorithm   `json:"algorithms,omitempty"`
+	Algorithm       Algorithm   `json:"algorithm,omitempty"`
 	ResultConsumers []string    `json:"result_consumers,omitempty"`
 	AgentConfig     AgentConfig `json:"agent_config,omitempty"`
 }

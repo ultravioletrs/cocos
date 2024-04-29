@@ -1,6 +1,6 @@
 # Agent CLI
 
-This repository contains the command-line interface (CLI) tool for interacting with the Agent and manager service. The CLI allows you to perform various tasks such as running computations, uploading algorithms and datasets, and retrieving results.
+This repository contains the command-line interface (CLI) tool for interacting with the Agent and manager service. The CLI allows you to perform various tasks such as running computations, uploading algorithm and datasets, and retrieving results.
 
 ## Build
 

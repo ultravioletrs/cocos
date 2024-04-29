@@ -10,7 +10,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 )
 
-func (cli *CLI) NewAlgorithmsCmd() *cobra.Command {
+func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "algo",
 		Short:   "Upload an algorithm binary",

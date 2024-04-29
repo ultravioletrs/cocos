@@ -17,7 +17,7 @@ func _() {
 	_ = x[complete-6]
 }
 
-const _state_name = "idlereceivingManifestsreceivingAlgorithmsreceivingDatarunningresultsReadycomplete"
+const _state_name = "idlereceivingManifestsreceivingAlgorithmreceivingDatarunningresultsReadycomplete"
 
 var _state_index = [...]uint8{0, 4, 22, 41, 54, 61, 73, 81}
 

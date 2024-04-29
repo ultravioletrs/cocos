@@ -6,12 +6,12 @@ Throughout the tests, we assume that our current working directory is the root o
 
 ### Algorithm requirements
 
-Agent accepts algorithms as binaries that take in two command line arguments.
+Agent accepts the algorithm as a binary that take in two command line arguments.
 ```shell
 algorithm-file <dataset as string> <unix socket path>
 ```
 
-The algorithms program should return the results to a socket and an example can be seen in this [file](./algo/lin_reg.py).
+The algorithm program should return the results to a socket and an example can be seen in this [file](./algo/lin_reg.py).
 
 ### Agent-CLI interaction
 
