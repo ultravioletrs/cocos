@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"slices"
 
@@ -20,8 +21,12 @@ import (
 
 var _ Service = (*agentService)(nil)
 
-// ReportDataSize is the size of the report data expected by the attestation service.
-const ReportDataSize = 64
+const (
+	// ReportDataSize is the size of the report data expected by the attestation service.
+	ReportDataSize     = 64
+	socketPath         = "unix_socket"
+	algoFilePermission = 0o700
+)
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -66,11 +71,6 @@ type agentService struct {
 	runError    error          // Stores any error encountered during the computation run.
 	eventSvc    events.Service // Service for publishing events related to computation.
 }
-
-const (
-	socketPath = "unix_socket"
-	pyRuntime  = "python3"
-)
 
 var _ Service = (*agentService)(nil)
 
@@ -204,6 +204,7 @@ func (as *agentService) runComputation() {
 	result, err := run(as.algorithm, as.datasets[0])
 	if err != nil {
 		as.runError = err
+		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
 		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
@@ -234,17 +235,34 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
-	// Construct the Python script content with CSV data as a command-line argument
-	script := string(algoContent)
+	f, err := os.CreateTemp("", "algorithm")
+	if err != nil {
+		return nil, fmt.Errorf("error creating algorithm file: %v", err)
+	}
+	defer os.Remove(f.Name())
+
+	if _, err := f.Write(algoContent); err != nil {
+		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
+	}
+
+	if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
+		return nil, fmt.Errorf("error changing file permissions: %v", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return nil, fmt.Errorf("error closing file: %v", err)
+	}
+
+	// Construct the executable with CSV data as a command-line argument
 	data := string(dataContent)
-	cmd := exec.Command(pyRuntime, "-c", script, data, socketPath)
+	cmd := exec.Command(f.Name(), data, socketPath)
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting Python script: %v", err)
+		return nil, fmt.Errorf("error starting algorithm: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("python script execution error: %v", err)
+		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
 	select {
