@@ -51,7 +51,7 @@ func (c *managerServiceClient) Process(ctx context.Context, opts ...grpc.CallOpt
 
 type ManagerService_ProcessClient interface {
 	Send(*ClientStreamMessage) error
-	Recv() (*ComputationRunReq, error)
+	Recv() (*ServerStreamMessage, error)
 	grpc.ClientStream
 }
 
@@ -63,8 +63,8 @@ func (x *managerServiceProcessClient) Send(m *ClientStreamMessage) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *managerServiceProcessClient) Recv() (*ComputationRunReq, error) {
-	m := new(ComputationRunReq)
+func (x *managerServiceProcessClient) Recv() (*ServerStreamMessage, error) {
+	m := new(ServerStreamMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func _ManagerService_Process_Handler(srv interface{}, stream grpc.ServerStream) 
 }
 
 type ManagerService_ProcessServer interface {
-	Send(*ComputationRunReq) error
+	Send(*ServerStreamMessage) error
 	Recv() (*ClientStreamMessage, error)
 	grpc.ServerStream
 }
@@ -113,7 +113,7 @@ type managerServiceProcessServer struct {
 	grpc.ServerStream
 }
 
-func (x *managerServiceProcessServer) Send(m *ComputationRunReq) error {
+func (x *managerServiceProcessServer) Send(m *ServerStreamMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 
