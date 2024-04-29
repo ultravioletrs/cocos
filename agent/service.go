@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"syscall"
 
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
@@ -255,6 +256,9 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 	// Construct the executable with CSV data as a command-line argument
 	data := string(dataContent)
 	cmd := exec.Command(f.Name(), data, socketPath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWUTS,
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting algorithm: %v", err)
