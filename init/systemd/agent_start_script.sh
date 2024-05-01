@@ -5,7 +5,7 @@ NUM_OF_PERMITED_IFACE=1
 NUM_OF_IFACE=$(ip route | grep -Eo 'dev [a-z0-9]+' | awk '{ print $2 }' | sort | uniq | wc -l)
 
 if [ $NUM_OF_IFACE -gt $NUM_OF_PERMITED_IFACE ]; then
-    echo "more then one network interface in the VM"
+    echo "More then one network interface in the VM"
     exit 1
 fi
 
