@@ -17,9 +17,9 @@ func _() {
 	_ = x[complete-6]
 }
 
-const _state_name = "idlereceivingManifestsreceivingAlgorithmsreceivingDatarunningresultsReadycomplete"
+const _state_name = "idlereceivingManifestreceivingAlgorithmreceivingDatarunningresultsReadycomplete"
 
-var _state_index = [...]uint8{0, 4, 22, 41, 54, 61, 73, 81}
+var _state_index = [...]uint8{0, 4, 21, 39, 52, 59, 71, 79}
 
 func (i state) String() string {
 	if i < 0 || i >= state(len(_state_index)-1) {

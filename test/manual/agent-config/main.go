@@ -13,63 +13,11 @@ import (
 	"strconv"
 
 	"github.com/mdlayher/vsock"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 )
-
-const VsockConfigPort uint32 = 9999
-
-type AgentConfig struct {
-	LogLevel    string `json:"log_level"`
-	InstanceID  string `json:"instance_id"`
-	Host        string `json:"host"`
-	Port        string `json:"port"`
-	CertFile    string `json:"cert_file"`
-	KeyFile     string `json:"server_key"`
-	AttestedTls bool   `json:"attested_tls"`
-}
-
-type Computation struct {
-	ID              string      `json:"id,omitempty"`
-	Name            string      `json:"name,omitempty"`
-	Description     string      `json:"description,omitempty"`
-	Datasets        Datasets    `json:"datasets,omitempty"`
-	Algorithms      Algorithms  `json:"algorithms,omitempty"`
-	ResultConsumers []string    `json:"result_consumers,omitempty"`
-	AgentConfig     AgentConfig `json:"agent_config,omitempty"`
-}
-
-func (d *Datasets) String() string {
-	dat, err := json.Marshal(d)
-	if err != nil {
-		return ""
-	}
-	return string(dat)
-}
-
-func (a *Algorithms) String() string {
-	dat, err := json.Marshal(a)
-	if err != nil {
-		return ""
-	}
-	return string(dat)
-}
-
-type Dataset struct {
-	Dataset  []byte `json:"-"`
-	Provider string `json:"provider,omitempty"`
-	ID       string `json:"id,omitempty"`
-}
-
-type Datasets []Dataset
-
-type Algorithm struct {
-	Algorithm []byte `json:"-"`
-	Provider  string `json:"provider,omitempty"`
-	ID        string `json:"id,omitempty"`
-}
-
-type Algorithms []Algorithm
 
 func main() {
 	attestedTLS := false
@@ -85,16 +33,16 @@ func main() {
 		log.Fatalf("usage: %s <attested-tls>", os.Args[0])
 	}
 
-	l, err := vsock.Listen(9997, nil)
+	l, err := vsock.Listen(manager.ManagerVsockPort, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ac := Computation{
+	ac := agent.Computation{
 		ID:              "123",
-		Datasets:        Datasets{Dataset{ID: "1", Provider: "pr1"}},
-		Algorithms:      Algorithms{Algorithm{ID: "1", Provider: "pr1"}},
+		Datasets:        agent.Datasets{agent.Dataset{ID: "1", Provider: "pr1"}},
+		Algorithm:       agent.Algorithm{ID: "1", Provider: "pr1"},
 		ResultConsumers: []string{"1"},
-		AgentConfig: AgentConfig{
+		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
 			Port:        "7002",
 			AttestedTls: attestedTLS,
@@ -115,7 +63,7 @@ func main() {
 			continue
 		}
 		conn.Close()
-		var mes manager.ClientStreamMessage
+		var mes pkgmanager.ClientStreamMessage
 		if err := proto.Unmarshal(b[:n], &mes); err != nil {
 			log.Println(err)
 		}
@@ -123,8 +71,8 @@ func main() {
 	}
 }
 
-func SendAgentConfig(cid uint32, ac Computation) error {
-	conn, err := vsock.Dial(cid, VsockConfigPort, nil)
+func SendAgentConfig(cid uint32, ac agent.Computation) error {
+	conn, err := vsock.Dial(cid, manager.VsockConfigPort, nil)
 	if err != nil {
 		return err
 	}

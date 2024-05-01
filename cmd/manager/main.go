@@ -35,13 +35,13 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"        envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"         envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"      envDefault:""`
+	LogLevel   string `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL  string `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:14268/api/traces"`
+	InstanceID string `env:"MANAGER_INSTANCE_ID"        envDefault:""`
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
 	var cfg config
@@ -110,7 +110,7 @@ func main() {
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
 	g.Go(func() error {
-		return mc.Process(ctx)
+		return mc.Process(ctx, cancel)
 	})
 
 	if err := g.Wait(); err != nil {

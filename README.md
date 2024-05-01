@@ -7,7 +7,7 @@ based on the [Confidential Computing][cc] and [Trusted Execution Environments (T
 </p>
 
 With Cocos AI it becomes possible to run AI/ML workloads on combined datasets from multiple organizations
-while guaranteeing the privacy and security of the data and the algorithms.
+while guaranteeing the privacy and security of the data and the algorithm.
 Data is always encrypted, protected by hardware secure enclaves (Trusted Execution Environments),
 attested via secure remote attestation protocols, and invisible to cloud processors or any other
 3rd party to which computation is offloaded.

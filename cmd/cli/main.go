@@ -84,7 +84,7 @@ func main() {
 	}
 
 	// Agent Commands
-	rootCmd.AddCommand(cliSVC.NewAlgorithmsCmd())
+	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
 	rootCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
 	attestaionCmd := cliSVC.NewAttestationCmd()
