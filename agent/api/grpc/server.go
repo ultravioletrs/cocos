@@ -5,10 +5,15 @@ package grpc
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
 type grpcServer struct {
 	algo        grpc.Handler
@@ -99,22 +104,52 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 	}, nil
 }
 
-func (s *grpcServer) Algo(ctx context.Context, req *agent.AlgoRequest) (*agent.AlgoResponse, error) {
-	_, res, err := s.algo.ServeGRPC(ctx, req)
+// Algo implements agent.AgentServiceServer.
+func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
+	var algoFile []byte
+	var provider, id string
+	for {
+		algoChunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		provider = algoChunk.Provider
+		id = algoChunk.Id
+		algoFile = append(algoFile, algoChunk.Algorithm...)
+	}
+	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Provider: provider, Id: id})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	ar := res.(*agent.AlgoResponse)
-	return ar, nil
+	return stream.SendAndClose(ar)
 }
 
-func (s *grpcServer) Data(ctx context.Context, req *agent.DataRequest) (*agent.DataResponse, error) {
-	_, res, err := s.data.ServeGRPC(ctx, req)
-	if err != nil {
-		return nil, err
+// Data implements agent.AgentServiceServer.
+func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
+	var dataFile []byte
+	var provider, id string
+	for {
+		dataChunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		provider = dataChunk.Provider
+		id = dataChunk.Id
+		dataFile = append(dataFile, dataChunk.Dataset...)
 	}
-	dr := res.(*agent.DataResponse)
-	return dr, nil
+	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile, Provider: provider, Id: id})
+	if err != nil {
+		return err
+	}
+	ar := res.(*agent.DataResponse)
+	return stream.SendAndClose(ar)
 }
 
 func (s *grpcServer) Result(ctx context.Context, req *agent.ResultRequest) (*agent.ResultResponse, error) {

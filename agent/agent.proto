@@ -8,8 +8,8 @@ package agent;
 option go_package = "./agent";
 
 service AgentService {
-  rpc Algo(AlgoRequest) returns (AlgoResponse) {}
-  rpc Data(DataRequest) returns (DataResponse) {}
+  rpc Algo(stream AlgoRequest) returns (AlgoResponse) {}
+  rpc Data(stream DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
 }
