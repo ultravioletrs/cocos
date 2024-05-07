@@ -5,5 +5,5 @@ In this example we'll use [pyinstaller](https://pypi.org/project/pyinstaller/)
 
 ```shell
 pip install -U pyinstaller
-pyinstaller lin_reg.py
+pyinstaller --onefile lin_reg.py
 ```
