@@ -6,8 +6,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
-dataset = sys.argv[1]
-iris = pd.read_csv(io.StringIO(dataset))
+csv_file_path = sys.argv[2]
+iris = pd.read_csv(csv_file_path)
 
 # Droping the Species since we only need the measurements
 X = iris.drop(['Species'], axis=1)
@@ -30,7 +30,7 @@ joblib.dump(log_reg, model_buffer)
 model_bytes = model_buffer.getvalue()
 
 # Define the path for the Unix domain socket
-socket_path = sys.argv[2]
+socket_path = sys.argv[1]
 
 # Create a Unix domain socket client
 client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

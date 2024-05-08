@@ -8,7 +8,7 @@ Throughout the tests, we assume that our current working directory is the root o
 
 Agent accepts the algorithm as a binary that take in two command line arguments.
 ```shell
-algorithm-file <dataset as string> <unix socket path>
+algorithm-file <unix socket path> <dataset file paths> 
 ```
 
 The algorithm program should return the results to a socket and an example can be seen in this [file](./algo/lin_reg.py).
