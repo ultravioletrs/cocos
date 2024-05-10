@@ -4,19 +4,23 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"slices"
 	"syscall"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -27,6 +31,10 @@ const (
 	ReportDataSize     = 64
 	socketPath         = "unix_socket"
 	algoFilePermission = 0o700
+	newRoot            = "/cocos/newRoot"
+	oldRoot            = "./oldRoot"
+	hostName           = "cocos-algo"
+	filePermission     = 0x755
 )
 
 var (
@@ -52,10 +60,6 @@ var (
 	errStateNotReady = errors.New("agent not expecting this operation in the current state")
 	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
 	errHashMismatch = errors.New("malformed data, hash does not match manifest")
-
-	// new root directory
-	newRoot = "./newRoot"
-	oldRoot = "./oldRoot"
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -225,25 +229,19 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 }
 
 func run(algoContent, dataContent []byte) ([]byte, error) {
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
+	var resultBuffer bytes.Buffer
+	var errorBuffer bytes.Buffer
+
+	if err := os.MkdirAll(newRoot, fs.FileMode(filePermission)); err != nil {
+		return nil, fmt.Errorf("error could not create new root dir: %v", err)
 	}
-	defer listener.Close()
+	// defer os.RemoveAll(newRoot)
 
-	// Create channels for received data and errors
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
-
-	var result []byte
-
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
-
-	f, err := os.CreateTemp("", "algorithm")
+	f, err := os.Create(path.Join(newRoot, "algorithm"))
 	if err != nil {
 		return nil, fmt.Errorf("error creating algorithm file: %v", err)
 	}
-	defer os.Remove(f.Name())
+	// defer os.Remove(f.Name())
 
 	if _, err := f.Write(algoContent); err != nil {
 		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
@@ -259,71 +257,117 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 
 	// Construct the executable with CSV data as a command-line argument
 	data := string(dataContent)
-	cmd := exec.Command(f.Name(), data, socketPath)
+	reexec.Register("namespaceInit", namespaceInit)
+	if reexec.Init() {
+		return nil, fmt.Errorf("error while initializing namespace: %v", err)
+	}
+
+	// cmd := exec.Command(f.Name(), data, socketPath)
+	cmd := reexec.Command("namespaceInit", f.Name(), data) // , socketPath
+	cmd.Stdout = &resultBuffer
+	cmd.Stderr = &errorBuffer
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNET | syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+		Cloneflags: syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWIPC |
+			syscall.CLONE_NEWUSER,
 		UidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
-				HostID:      os.Geteuid(),
+				HostID:      os.Getuid(),
 				Size:        1,
 			},
 		},
 		GidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
-				HostID:      os.Geteuid(),
+				HostID:      os.Getgid(),
 				Size:        1,
 			},
 		},
 	}
 
-	namespaceInit()
-
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
+		return nil, fmt.Errorf("error starting reexec: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
+		return nil, fmt.Errorf("reexec execution error: %v", err)
 	}
 
-	select {
-	case result = <-dataChannel:
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
+	if errorBuffer.Len() > 0 {
+		return nil, fmt.Errorf("error occured during algorithm run: %v", err)
 	}
+
+	return resultBuffer.Bytes(), nil
 }
 
 func namespaceInit() {
-	if err := syscall.Mount(newRoot, newRoot, "", syscall.MS_BIND, ""); err != nil {
-		fmt.Println("failed to mount new root filesystem: ", err)
+	// Mount /proc
+	newProc := filepath.Join(newRoot, "/proc")
+	if err := os.MkdirAll(newProc, fs.FileMode(filePermission)); err != nil {
 		os.Exit(1)
 	}
 
-	if err := syscall.Mkdir(newRoot+oldRoot, 0700); err != nil {
-		fmt.Println("failed to mkdir: ", err)
+	if err := syscall.Mount("proc", newProc, "proc", 0, ""); err != nil {
 		os.Exit(1)
 	}
 
-	if err := syscall.PivotRoot(newRoot, newRoot+oldRoot); err != nil {
-		fmt.Println("failed to pivot root: ", err)
+	if err := pivotRoot(newRoot); err != nil {
 		os.Exit(1)
 	}
 
-	if err := syscall.Chdir("/"); err != nil {
-		fmt.Println("failed to chdir to /: ", err)
+	if err := syscall.Sethostname([]byte(hostName)); err != nil {
 		os.Exit(1)
 	}
 
-	// if err := syscall.Mount("proc", "/proc", "proc", 0, ""); err != nil {
-	// 	fmt.Println("failed to mount /proc: ", err)
-	// 	os.Exit(1)
-	// }
+	if err := namespaceRun(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func pivotRoot(newRootPath string) error {
+	oldRootPath := filepath.Join(newRootPath, oldRoot)
+
+	if err := syscall.Mount(newRootPath, newRootPath, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(oldRootPath, algoFilePermission); err != nil {
+		return err
+	}
+
+	if err := syscall.PivotRoot(newRootPath, oldRootPath); err != nil {
+		return err
+	}
+
+	if err := os.Chdir("/"); err != nil {
+		return err
+	}
 
 	if err := syscall.Unmount(oldRoot, syscall.MNT_DETACH); err != nil {
-		fmt.Println("failed to unmount the old root filesystem: ", err)
-		os.Exit(1)
+		return err
 	}
+
+	if err := os.RemoveAll(oldRoot); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func namespaceRun() error {
+	cmd := exec.Command(os.Args[0], os.Args[1])
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("error starting algorithm: %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("algorithm execution error: %v", err)
+	}
+
+	return nil
 }
