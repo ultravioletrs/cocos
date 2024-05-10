@@ -235,13 +235,13 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 	if err := os.MkdirAll(newRoot, fs.FileMode(filePermission)); err != nil {
 		return nil, fmt.Errorf("error could not create new root dir: %v", err)
 	}
-	// defer os.RemoveAll(newRoot)
+	defer os.RemoveAll(newRoot)
 
 	f, err := os.Create(path.Join(newRoot, "algorithm"))
 	if err != nil {
 		return nil, fmt.Errorf("error creating algorithm file: %v", err)
 	}
-	// defer os.Remove(f.Name())
+	defer os.Remove(f.Name())
 
 	if _, err := f.Write(algoContent); err != nil {
 		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
@@ -262,8 +262,7 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 		return nil, fmt.Errorf("error while initializing namespace: %v", err)
 	}
 
-	// cmd := exec.Command(f.Name(), data, socketPath)
-	cmd := reexec.Command("namespaceInit", f.Name(), data) // , socketPath
+	cmd := reexec.Command("namespaceInit", "algorithm", data)
 	cmd.Stdout = &resultBuffer
 	cmd.Stderr = &errorBuffer
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -298,7 +297,7 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 	}
 
 	if errorBuffer.Len() > 0 {
-		return nil, fmt.Errorf("error occured during algorithm run: %v", err)
+		return nil, fmt.Errorf("error occurred during algorithm run: %v", err)
 	}
 
 	return resultBuffer.Bytes(), nil
