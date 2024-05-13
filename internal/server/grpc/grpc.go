@@ -46,14 +46,14 @@ type Server struct {
 	server.BaseServer
 	server          *grpc.Server
 	registerService serviceRegister
-	agent           *agent.Service
+	agent           agent.Service
 }
 
 type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agentSvc *agent.Service) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agentSvc agent.Service) server.Server {
 	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 	return &Server{
 		BaseServer: server.BaseServer{
@@ -73,6 +73,7 @@ func (s *Server) Start() error {
 	errCh := make(chan error)
 	grpcServerOptions := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.StreamInterceptor()
 	}
 
 	listener, err := net.Listen("tcp", s.Address)
@@ -218,7 +219,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
+func generateCertificatesForATLS(svc agent.Service) ([]byte, []byte, error) {
 	curve := elliptic.P256()
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
@@ -231,7 +232,7 @@ func generateCertificatesForATLS(svc *agent.Service) ([]byte, []byte, error) {
 	}
 
 	// The Attestation Report will be added as an X.509 certificate extension
-	attestationReport, err := (*svc).Attestation(context.Background(), sha3.Sum512(publicKeyBytes))
+	attestationReport, err := svc.Attestation(context.Background(), sha3.Sum512(publicKeyBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch the attestation report: %w", err)
 	}

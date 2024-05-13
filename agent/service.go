@@ -196,7 +196,7 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived
 	}
-	index := slices.Index(as.computation.ResultConsumers, consumer)
+	index := containsID(as.computation.ResultConsumers, consumer)
 	switch index {
 	case -1:
 		return []byte{}, errUndeclaredConsumer

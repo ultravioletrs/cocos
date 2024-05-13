@@ -73,7 +73,7 @@ func main() {
 		reflection.Register(srv)
 		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
 	}
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, &svc)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc)
 
 	g.Go(func() error {
 		return gs.Start()

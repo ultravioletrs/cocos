@@ -3,6 +3,7 @@
 package agent
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -40,19 +41,21 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte   `json:"-"`
-	Hash     [32]byte `json:"hash,omitempty"`
-	Provider string   `json:"provider,omitempty"`
-	ID       string   `json:"id,omitempty"`
+	Dataset  []byte         `json:"-"`
+	Hash     [32]byte       `json:"hash,omitempty"`
+	Provider string         `json:"provider,omitempty"`
+	ID       string         `json:"id,omitempty"`
+	UserKey  *rsa.PublicKey `json:"user_key,omitempty"`
 }
 
 type Datasets []Dataset
 
 type Algorithm struct {
-	Algorithm []byte   `json:"-"`
-	Hash      [32]byte `json:"hash,omitempty"`
-	Provider  string   `json:"provider,omitempty"`
-	ID        string   `json:"id,omitempty"`
+	Algorithm []byte         `json:"-"`
+	Hash      [32]byte       `json:"hash,omitempty"`
+	Provider  string         `json:"provider,omitempty"`
+	ID        string         `json:"id,omitempty"`
+	UserKey   *rsa.PublicKey `json:"user_key,omitempty"`
 }
 
 func containsID(slice interface{}, id string) int {
