@@ -6,3 +6,5 @@ cmd/manager/iso
 cmd/manager/tmp
 
 .cov
+
+*.pem

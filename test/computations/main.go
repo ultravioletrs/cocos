@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"log/slog"
@@ -58,6 +59,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 		s.logger.Error(fmt.Sprintf("failed to read public key file: %s", err))
 		return
 	}
+	pubPem, _ := pem.Decode(pubKey)
 	algoHash := sha3.Sum256(algo)
 	dataHash := sha3.Sum256(data)
 	reqChan <- &manager.ServerStreamMessage{
@@ -66,9 +68,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
-				Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:], UserKey: pubKey}},
-				Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:], UserKey: pubKey},
-				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubKey, Consumer: "consumer1"}},
+				Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:], UserKey: pubPem.Bytes}},
+				Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:], UserKey: pubPem.Bytes},
+				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes, Consumer: "consumer1"}},
 				AgentConfig: &manager.AgentConfig{
 					Port:        "7002",
 					LogLevel:    "debug",

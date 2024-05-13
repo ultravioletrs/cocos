@@ -4,6 +4,7 @@ package cli
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"log"
 	"os"
 
@@ -38,7 +39,9 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				log.Fatalf("Error reading private key file: %v", err)
 			}
 
-			privKey, err := x509.ParsePKCS1PrivateKey(privKeyFile)
+			pemBlock, _ := pem.Decode(privKeyFile)
+
+			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
 			if err != nil {
 				log.Fatalf("Error parsing private key: %v", err)
 			}
