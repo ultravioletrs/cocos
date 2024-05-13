@@ -3,7 +3,6 @@
 package agent
 
 import (
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -23,13 +22,18 @@ type AgentConfig struct {
 }
 
 type Computation struct {
-	ID              string      `json:"id,omitempty"`
-	Name            string      `json:"name,omitempty"`
-	Description     string      `json:"description,omitempty"`
-	Datasets        Datasets    `json:"datasets,omitempty"`
-	Algorithm       Algorithm   `json:"algorithm,omitempty"`
-	ResultConsumers []string    `json:"result_consumers,omitempty"`
-	AgentConfig     AgentConfig `json:"agent_config,omitempty"`
+	ID              string           `json:"id,omitempty"`
+	Name            string           `json:"name,omitempty"`
+	Description     string           `json:"description,omitempty"`
+	Datasets        Datasets         `json:"datasets,omitempty"`
+	Algorithm       Algorithm        `json:"algorithm,omitempty"`
+	ResultConsumers []ResultConsumer `json:"result_consumers,omitempty"`
+	AgentConfig     AgentConfig      `json:"agent_config,omitempty"`
+}
+
+type ResultConsumer struct {
+	Consumer string `json:"consumer,omitempty"`
+	UserKey  []byte `json:"user_key,omitempty"`
 }
 
 func (d *Datasets) String() string {
@@ -41,21 +45,21 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte         `json:"-"`
-	Hash     [32]byte       `json:"hash,omitempty"`
-	Provider string         `json:"provider,omitempty"`
-	ID       string         `json:"id,omitempty"`
-	UserKey  *rsa.PublicKey `json:"user_key,omitempty"`
+	Dataset  []byte   `json:"-"`
+	Hash     [32]byte `json:"hash,omitempty"`
+	Provider string   `json:"provider,omitempty"`
+	ID       string   `json:"id,omitempty"`
+	UserKey  []byte   `json:"user_key,omitempty"`
 }
 
 type Datasets []Dataset
 
 type Algorithm struct {
-	Algorithm []byte         `json:"-"`
-	Hash      [32]byte       `json:"hash,omitempty"`
-	Provider  string         `json:"provider,omitempty"`
-	ID        string         `json:"id,omitempty"`
-	UserKey   *rsa.PublicKey `json:"user_key,omitempty"`
+	Algorithm []byte   `json:"-"`
+	Hash      [32]byte `json:"hash,omitempty"`
+	Provider  string   `json:"provider,omitempty"`
+	ID        string   `json:"id,omitempty"`
+	UserKey   []byte   `json:"user_key,omitempty"`
 }
 
 func containsID(slice interface{}, id string) int {

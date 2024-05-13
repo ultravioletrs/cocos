@@ -73,7 +73,6 @@ func (s *Server) Start() error {
 	errCh := make(chan error)
 	grpcServerOptions := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.StreamInterceptor()
 	}
 
 	listener, err := net.Listen("tcp", s.Address)

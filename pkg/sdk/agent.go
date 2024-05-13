@@ -5,13 +5,24 @@ package sdk
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"io"
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/auth"
+	"google.golang.org/grpc/metadata"
 )
 
-var _ agent.Service = (*agentSDK)(nil)
+type SDK interface {
+	Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error
+	Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error
+	Result(ctx context.Context, consumer string, privKey *rsa.PrivateKey) ([]byte, error)
+	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
+}
 
 const (
 	size64     = 64
@@ -23,14 +34,21 @@ type agentSDK struct {
 	logger *slog.Logger
 }
 
-func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) *agentSDK {
+func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) SDK {
 	return &agentSDK{
 		client: agentClient,
 		logger: log,
 	}
 }
 
-func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) error {
+func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error {
+	md, err := generateMetadata(algorithm.Provider, privKey)
+	if err != nil {
+		sdk.logger.Error("Failed to generate metadata")
+		return err
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Algo(ctx)
 	if err != nil {
 		sdk.logger.Error("Failed to call Algo RPC")
@@ -61,7 +79,14 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) error 
 	return nil
 }
 
-func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset) error {
+func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error {
+	md, err := generateMetadata(dataset.Provider, privKey)
+	if err != nil {
+		sdk.logger.Error("Failed to generate metadata")
+		return err
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Data(ctx)
 	if err != nil {
 		sdk.logger.Error("Failed to call Algo RPC")
@@ -92,11 +117,18 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset) error {
 	return nil
 }
 
-func (sdk *agentSDK) Result(ctx context.Context, consumer string) ([]byte, error) {
+func (sdk *agentSDK) Result(ctx context.Context, consumer string, privKey *rsa.PrivateKey) ([]byte, error) {
 	request := &agent.ResultRequest{
 		Consumer: consumer,
 	}
 
+	md, err := generateMetadata(consumer, privKey)
+	if err != nil {
+		sdk.logger.Error("Failed to generate metadata")
+		return nil, err
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	response, err := sdk.client.Result(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Result RPC")
@@ -118,4 +150,26 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 	}
 
 	return response.File, nil
+}
+
+func signData(userID string, privKey *rsa.PrivateKey) ([]byte, error) {
+	hash := sha256.Sum256([]byte(userID))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privKey, crypto.SHA256, hash[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return signature, nil
+}
+
+func generateMetadata(userID string, privateKey *rsa.PrivateKey) (metadata.MD, error) {
+	signature, err := signData(userID, privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	kv := make(map[string]string)
+	kv[auth.UserMetadataKey] = userID
+	kv[auth.SignatureMetadataKey] = string(signature)
+	return metadata.New(kv), nil
 }

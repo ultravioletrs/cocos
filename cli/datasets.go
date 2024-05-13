@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"crypto/x509"
 	"log"
 	"os"
 
@@ -15,7 +16,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 		Use:     "data",
 		Short:   "Upload a dataset CSV file",
 		Example: "data <dataset.csv> <id> <provider>",
-		Args:    cobra.ExactArgs(3),
+		Args:    cobra.ExactArgs(4),
 		Run: func(cmd *cobra.Command, args []string) {
 			datasetFile := args[0]
 
@@ -32,7 +33,17 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				Provider: args[2],
 			}
 
-			if err := cli.agentSDK.Data(cmd.Context(), dataReq); err != nil {
+			privKeyFile, err := os.ReadFile(args[3])
+			if err != nil {
+				log.Fatalf("Error reading private key file: %v", err)
+			}
+
+			privKey, err := x509.ParsePKCS1PrivateKey(privKeyFile)
+			if err != nil {
+				log.Fatalf("Error parsing private key: %v", err)
+			}
+
+			if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
 				log.Fatalf("Error uploading dataset: %v", err)
 			}
 

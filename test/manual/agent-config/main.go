@@ -41,7 +41,7 @@ func main() {
 		ID:              "123",
 		Datasets:        agent.Datasets{agent.Dataset{ID: "1", Provider: "pr1"}},
 		Algorithm:       agent.Algorithm{ID: "1", Provider: "pr1"},
-		ResultConsumers: []string{"1"},
+		ResultConsumers: []agent.ResultConsumer{{Consumer: "consumer1"}},
 		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
 			Port:        "7002",
