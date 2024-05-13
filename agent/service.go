@@ -358,7 +358,7 @@ func pivotRoot(newRootPath string) error {
 }
 
 func namespaceRun() error {
-	cmd := exec.Command(os.Args[0], os.Args[1])
+	cmd := exec.Command(os.Args[1], os.Args[2])
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("error starting algorithm: %v", err)
