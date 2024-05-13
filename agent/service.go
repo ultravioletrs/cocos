@@ -106,17 +106,16 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 
 	hash := sha3.Sum256(algorithm.Algorithm)
 
-	index := containsID(as.computation.Algorithm, algorithm.ID)
-	switch index {
-	case -1:
+	if as.computation.Algorithm.ID != algorithm.ID {
 		return errUndeclaredAlgorithm
-	default:
-		if as.computation.Algorithm.Provider != algorithm.Provider {
-			return errProviderMissmatch
-		}
-		if hash != as.computation.Algorithm.Hash {
-			return errHashMismatch
-		}
+	}
+
+	if as.computation.Algorithm.Provider != algorithm.Provider {
+		return errProviderMissmatch
+	}
+
+	if hash != as.computation.Algorithm.Hash {
+		return errHashMismatch
 	}
 
 	as.algorithm = algorithm.Algorithm

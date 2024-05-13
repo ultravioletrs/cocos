@@ -32,8 +32,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AgentServiceClient interface {
-	Algo(ctx context.Context, in *AlgoRequest, opts ...grpc.CallOption) (*AlgoResponse, error)
-	Data(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error)
+	Algo(ctx context.Context, opts ...grpc.CallOption) (AgentService_AlgoClient, error)
+	Data(ctx context.Context, opts ...grpc.CallOption) (AgentService_DataClient, error)
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error)
 	Attestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error)
 }
@@ -46,22 +46,72 @@ func NewAgentServiceClient(cc grpc.ClientConnInterface) AgentServiceClient {
 	return &agentServiceClient{cc}
 }
 
-func (c *agentServiceClient) Algo(ctx context.Context, in *AlgoRequest, opts ...grpc.CallOption) (*AlgoResponse, error) {
-	out := new(AlgoResponse)
-	err := c.cc.Invoke(ctx, AgentService_Algo_FullMethodName, in, out, opts...)
+func (c *agentServiceClient) Algo(ctx context.Context, opts ...grpc.CallOption) (AgentService_AlgoClient, error) {
+	stream, err := c.cc.NewStream(ctx, &AgentService_ServiceDesc.Streams[0], AgentService_Algo_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &agentServiceAlgoClient{stream}
+	return x, nil
 }
 
-func (c *agentServiceClient) Data(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error) {
-	out := new(DataResponse)
-	err := c.cc.Invoke(ctx, AgentService_Data_FullMethodName, in, out, opts...)
+type AgentService_AlgoClient interface {
+	Send(*AlgoRequest) error
+	CloseAndRecv() (*AlgoResponse, error)
+	grpc.ClientStream
+}
+
+type agentServiceAlgoClient struct {
+	grpc.ClientStream
+}
+
+func (x *agentServiceAlgoClient) Send(m *AlgoRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *agentServiceAlgoClient) CloseAndRecv() (*AlgoResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(AlgoResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *agentServiceClient) Data(ctx context.Context, opts ...grpc.CallOption) (AgentService_DataClient, error) {
+	stream, err := c.cc.NewStream(ctx, &AgentService_ServiceDesc.Streams[1], AgentService_Data_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &agentServiceDataClient{stream}
+	return x, nil
+}
+
+type AgentService_DataClient interface {
+	Send(*DataRequest) error
+	CloseAndRecv() (*DataResponse, error)
+	grpc.ClientStream
+}
+
+type agentServiceDataClient struct {
+	grpc.ClientStream
+}
+
+func (x *agentServiceDataClient) Send(m *DataRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *agentServiceDataClient) CloseAndRecv() (*DataResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(DataResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *agentServiceClient) Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error) {
@@ -86,8 +136,8 @@ func (c *agentServiceClient) Attestation(ctx context.Context, in *AttestationReq
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility
 type AgentServiceServer interface {
-	Algo(context.Context, *AlgoRequest) (*AlgoResponse, error)
-	Data(context.Context, *DataRequest) (*DataResponse, error)
+	Algo(AgentService_AlgoServer) error
+	Data(AgentService_DataServer) error
 	Result(context.Context, *ResultRequest) (*ResultResponse, error)
 	Attestation(context.Context, *AttestationRequest) (*AttestationResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
@@ -97,11 +147,11 @@ type AgentServiceServer interface {
 type UnimplementedAgentServiceServer struct {
 }
 
-func (UnimplementedAgentServiceServer) Algo(context.Context, *AlgoRequest) (*AlgoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Algo not implemented")
+func (UnimplementedAgentServiceServer) Algo(AgentService_AlgoServer) error {
+	return status.Errorf(codes.Unimplemented, "method Algo not implemented")
 }
-func (UnimplementedAgentServiceServer) Data(context.Context, *DataRequest) (*DataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Data not implemented")
+func (UnimplementedAgentServiceServer) Data(AgentService_DataServer) error {
+	return status.Errorf(codes.Unimplemented, "method Data not implemented")
 }
 func (UnimplementedAgentServiceServer) Result(context.Context, *ResultRequest) (*ResultResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Result not implemented")
@@ -122,40 +172,56 @@ func RegisterAgentServiceServer(s grpc.ServiceRegistrar, srv AgentServiceServer)
 	s.RegisterService(&AgentService_ServiceDesc, srv)
 }
 
-func _AgentService_Algo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AlgoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AgentServiceServer).Algo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AgentService_Algo_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentServiceServer).Algo(ctx, req.(*AlgoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+func _AgentService_Algo_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AgentServiceServer).Algo(&agentServiceAlgoServer{stream})
 }
 
-func _AgentService_Data_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DataRequest)
-	if err := dec(in); err != nil {
+type AgentService_AlgoServer interface {
+	SendAndClose(*AlgoResponse) error
+	Recv() (*AlgoRequest, error)
+	grpc.ServerStream
+}
+
+type agentServiceAlgoServer struct {
+	grpc.ServerStream
+}
+
+func (x *agentServiceAlgoServer) SendAndClose(m *AlgoResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *agentServiceAlgoServer) Recv() (*AlgoRequest, error) {
+	m := new(AlgoRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(AgentServiceServer).Data(ctx, in)
+	return m, nil
+}
+
+func _AgentService_Data_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AgentServiceServer).Data(&agentServiceDataServer{stream})
+}
+
+type AgentService_DataServer interface {
+	SendAndClose(*DataResponse) error
+	Recv() (*DataRequest, error)
+	grpc.ServerStream
+}
+
+type agentServiceDataServer struct {
+	grpc.ServerStream
+}
+
+func (x *agentServiceDataServer) SendAndClose(m *DataResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *agentServiceDataServer) Recv() (*DataRequest, error) {
+	m := new(DataRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
 	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AgentService_Data_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentServiceServer).Data(ctx, req.(*DataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 func _AgentService_Result_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -202,14 +268,6 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AgentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Algo",
-			Handler:    _AgentService_Algo_Handler,
-		},
-		{
-			MethodName: "Data",
-			Handler:    _AgentService_Data_Handler,
-		},
-		{
 			MethodName: "Result",
 			Handler:    _AgentService_Result_Handler,
 		},
@@ -218,6 +276,17 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AgentService_Attestation_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Algo",
+			Handler:       _AgentService_Algo_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "Data",
+			Handler:       _AgentService_Data_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "agent/agent.proto",
 }

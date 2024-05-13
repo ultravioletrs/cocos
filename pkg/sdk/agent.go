@@ -3,7 +3,9 @@
 package sdk
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent"
@@ -11,7 +13,10 @@ import (
 
 var _ agent.Service = (*agentSDK)(nil)
 
-const size64 = 64
+const (
+	size64     = 64
+	bufferSize = 1024 * 1024
+)
 
 type agentSDK struct {
 	client agent.AgentServiceClient
@@ -26,14 +31,30 @@ func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) *agentS
 }
 
 func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) error {
-	request := &agent.AlgoRequest{
-		Algorithm: algorithm.Algorithm,
-		Provider:  algorithm.Provider,
-		Id:        algorithm.ID,
+	stream, err := sdk.client.Algo(ctx)
+	if err != nil {
+		sdk.logger.Error("Failed to call Algo RPC")
+		return err
+	}
+	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
+
+	buf := make([]byte, bufferSize)
+	for {
+		n, err := algoBuffer.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		err = stream.Send(&agent.AlgoRequest{Id: algorithm.ID, Provider: algorithm.Provider, Algorithm: buf[:n]})
+		if err != nil {
+			return err
+		}
 	}
 
-	if _, err := sdk.client.Algo(ctx, request); err != nil {
-		sdk.logger.Error("Failed to call Algo RPC")
+	if _, err := stream.CloseAndRecv(); err != nil {
 		return err
 	}
 
@@ -41,14 +62,30 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm) error 
 }
 
 func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset) error {
-	request := &agent.DataRequest{
-		Dataset:  dataset.Dataset,
-		Provider: dataset.Provider,
-		Id:       dataset.ID,
+	stream, err := sdk.client.Data(ctx)
+	if err != nil {
+		sdk.logger.Error("Failed to call Algo RPC")
+		return err
+	}
+	dataBuffer := bytes.NewBuffer(dataset.Dataset)
+
+	buf := make([]byte, bufferSize)
+	for {
+		n, err := dataBuffer.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		err = stream.Send(&agent.DataRequest{Id: dataset.ID, Provider: dataset.Provider, Dataset: buf[:n]})
+		if err != nil {
+			return err
+		}
 	}
 
-	if _, err := sdk.client.Data(ctx, request); err != nil {
-		sdk.logger.Error("Failed to call Data RPC")
+	if _, err := stream.CloseAndRecv(); err != nil {
 		return err
 	}
 

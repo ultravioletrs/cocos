@@ -4,7 +4,6 @@ package agent
 
 import (
 	"github.com/ultravioletrs/cocos/agent"
-	agentapi "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
@@ -15,5 +14,5 @@ func NewAgentClient(cfg grpc.Config) (grpc.Client, agent.AgentServiceClient, err
 		return nil, nil, err
 	}
 
-	return client, agentapi.NewClient(client.Connection(), cfg.Timeout), nil
+	return client, agent.NewAgentServiceClient(client.Connection()), nil
 }
