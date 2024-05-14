@@ -62,11 +62,11 @@ type Algorithm struct {
 	UserKey   []byte   `json:"user_key,omitempty"`
 }
 
-func containsID(slice interface{}, id string) int {
+func containsID(slice interface{}, id, fieldName string) int {
 	rangeOnMe := reflect.ValueOf(slice)
 	for i := 0; i < rangeOnMe.Len(); i++ {
 		s := rangeOnMe.Index(i)
-		f := s.FieldByName("ID")
+		f := s.FieldByName(fieldName)
 		if f.IsValid() {
 			if f.Interface() == id {
 				return i

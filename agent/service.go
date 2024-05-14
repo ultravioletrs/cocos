@@ -154,7 +154,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 	hash := sha3.Sum256(dataset.Dataset)
 
-	index := containsID(as.computation.Datasets, dataset.ID)
+	index := containsID(as.computation.Datasets, dataset.ID, "ID")
 	switch index {
 	case -1:
 		return errUndeclaredDataset
@@ -196,7 +196,7 @@ func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, er
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived
 	}
-	index := containsID(as.computation.ResultConsumers, consumer)
+	index := containsID(as.computation.ResultConsumers, consumer, "Consumer")
 	switch index {
 	case -1:
 		return []byte{}, errUndeclaredConsumer
