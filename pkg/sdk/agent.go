@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"io"
 	"log/slog"
 
@@ -170,6 +171,6 @@ func generateMetadata(userID string, privateKey *rsa.PrivateKey) (metadata.MD, e
 
 	kv := make(map[string]string)
 	kv[auth.UserMetadataKey] = userID
-	kv[auth.SignatureMetadataKey] = string(signature)
+	kv[auth.SignatureMetadataKey] = base64.StdEncoding.EncodeToString(signature)
 	return metadata.New(kv), nil
 }

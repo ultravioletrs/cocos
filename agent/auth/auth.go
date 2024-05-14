@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 
 	"github.com/ultravioletrs/cocos/agent"
@@ -168,7 +169,11 @@ func extractSignatureAndUserID(md metadata.MD) (string, string, error) {
 
 func verifySignature(userID, signature string, publicKey *rsa.PublicKey) (bool, error) {
 	hash := sha256.Sum256([]byte(userID))
-	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], []byte(signature)); err != nil {
+	sigByte, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		return false, err
+	}
+	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
 		return false, err
 	}
 	return true, nil

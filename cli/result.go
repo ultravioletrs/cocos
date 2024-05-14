@@ -15,9 +15,10 @@ const resultFilePath = "result.bin"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "result",
-		Short: "Retrieve computation result file",
-		Args:  cobra.ExactArgs(2),
+		Use:     "result",
+		Short:   "Retrieve computation result file",
+		Example: "result <consumer> <private_key_file_path>",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
