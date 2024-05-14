@@ -61,7 +61,6 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 			}
 
 			log.Println("Successfully generated public/private key pair")
-
 		},
 	}
 }
