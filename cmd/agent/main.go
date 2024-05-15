@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 
@@ -115,15 +116,24 @@ func readConfig() (agent.Computation, error) {
 		return agent.Computation{}, err
 	}
 	defer conn.Close()
-	b := make([]byte, 1024)
-	n, err := conn.Read(b)
-	if err != nil {
-		return agent.Computation{}, err
+
+	var buffer []byte
+	for {
+		chunk := make([]byte, 1024)
+		n, err := conn.Read(chunk)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return agent.Computation{}, err
+		}
+		buffer = append(buffer, chunk[:n]...)
 	}
+
 	ac := agent.Computation{
 		AgentConfig: agent.AgentConfig{},
 	}
-	if err := json.Unmarshal(b[:n], &ac); err != nil {
+	if err := json.Unmarshal(buffer, &ac); err != nil {
 		return agent.Computation{}, err
 	}
 	if ac.AgentConfig.LogLevel == "" {
