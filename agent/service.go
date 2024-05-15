@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -229,7 +230,7 @@ func (as *agentService) runComputation() {
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := run(as.algorithm, as.datasets)
+	result, err := as.run(as.algorithm, as.datasets)
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
@@ -248,7 +249,7 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 	}
 }
 
-func run(algoFile string, dataFiles []string) ([]byte, error) {
+func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error) {
 	defer os.Remove(algoFile)
 	defer func() {
 		for _, file := range dataFiles {
@@ -267,21 +268,27 @@ func run(algoFile string, dataFiles []string) ([]byte, error) {
 
 	var result []byte
 
+	var outStd, outErr bytes.Buffer
+
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
 	args := append([]string{socketPath}, dataFiles...)
 	cmd := exec.Command(algoFile, args...)
+	cmd.Stderr = &outErr
+	cmd.Stdout = &outStd
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting algorithm: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
+		as.sm.logger.Debug(outErr.String())
 		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
 	select {
 	case result = <-dataChannel:
+		as.sm.logger.Debug(outStd.String())
 		return result, nil
 	case err = <-errorChannel:
 		return nil, fmt.Errorf("error receiving data: %v", err)
