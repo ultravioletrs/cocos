@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -35,6 +36,7 @@ const (
 	oldRoot            = "./oldRoot"
 	hostName           = "cocos-algo"
 	filePermission     = 0x755
+	algoName           = "./algorithm"
 )
 
 var (
@@ -73,8 +75,8 @@ type Service interface {
 
 type agentService struct {
 	computation Computation    // Holds the current computation request details.
-	algorithm   []byte         // Stores the algorithm received for the computation.
-	datasets    [][]byte       // Stores the datasets received for the computation.
+	algorithm   string         // Filepath to the algorithm received for the computation.
+	datasets    []string       // Filepath to the datasets received for the computation.
 	result      []byte         // Stores the result of the computation.
 	sm          *StateMachine  // Manages the state transitions of the agent service.
 	runError    error          // Stores any error encountered during the computation run.
@@ -109,7 +111,7 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	if as.sm.GetState() != receivingAlgorithm {
 		return errStateNotReady
 	}
-	if as.algorithm != nil {
+	if as.algorithm != "" {
 		return errAllManifestItemsReceived
 	}
 
@@ -127,9 +129,26 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 		return errHashMismatch
 	}
 
-	as.algorithm = algorithm.Algorithm
+	f, err := os.CreateTemp("", "algorithm")
+	if err != nil {
+		return fmt.Errorf("error creating algorithm file: %v", err)
+	}
 
-	if as.algorithm != nil {
+	if _, err := f.Write(algorithm.Algorithm); err != nil {
+		return fmt.Errorf("error writing algorithm to file: %v", err)
+	}
+
+	if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
+		return fmt.Errorf("error changing file permissions: %v", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("error closing file: %v", err)
+	}
+
+	as.algorithm = f.Name()
+
+	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)
 	}
 
@@ -160,7 +179,19 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 	}
 
-	as.datasets = append(as.datasets, dataset.Dataset)
+	f, err := os.CreateTemp("", fmt.Sprintf("dataset-%s", dataset.ID))
+	if err != nil {
+		return fmt.Errorf("error creating dataset file: %v", err)
+	}
+
+	if _, err := f.Write(dataset.Dataset); err != nil {
+		return fmt.Errorf("error writing dataset to file: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("error closing file: %v", err)
+	}
+
+	as.datasets = append(as.datasets, f.Name())
 
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
@@ -209,7 +240,7 @@ func (as *agentService) runComputation() {
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := run(as.algorithm, as.datasets[0])
+	result, err := run(as.algorithm, as.datasets)
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
@@ -228,41 +259,46 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 	}
 }
 
-func run(algoContent, dataContent []byte) ([]byte, error) {
+func run(algoFile string, dataFiles []string) ([]byte, error) {
+	defer os.Remove(algoFile)
+	defer func() {
+		for _, file := range dataFiles {
+			os.Remove(file)
+		}
+	}()
 	var resultBuffer bytes.Buffer
 	var errorBuffer bytes.Buffer
+	var args []string
 
 	if err := os.MkdirAll(newRoot, fs.FileMode(filePermission)); err != nil {
 		return nil, fmt.Errorf("error could not create new root dir: %v", err)
 	}
 	defer os.RemoveAll(newRoot)
 
-	f, err := os.Create(path.Join(newRoot, "algorithm"))
-	if err != nil {
-		return nil, fmt.Errorf("error creating algorithm file: %v", err)
-	}
-	defer os.Remove(f.Name())
-
-	if _, err := f.Write(algoContent); err != nil {
+	if err := copyFile(algoFile, path.Join(newRoot, algoName)); err != nil {
 		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
 	}
 
-	if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
-		return nil, fmt.Errorf("error changing file permissions: %v", err)
+	args = append(args, "namespaceInit")
+	for _, file := range dataFiles {
+		dst := filepath.Join(newRoot, filepath.Base(file))
+
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return nil, fmt.Errorf("error creating directory %s: %v", filepath.Dir(dst), err)
+		}
+
+		if err := copyFile(file, dst); err != nil {
+			return nil, fmt.Errorf("error copying %s to %s: %v", file, dst, err)
+		}
+		args = append(args, filepath.Base(file))
 	}
 
-	if err := f.Close(); err != nil {
-		return nil, fmt.Errorf("error closing file: %v", err)
-	}
-
-	// Construct the executable with CSV data as a command-line argument
-	data := string(dataContent)
 	reexec.Register("namespaceInit", namespaceInit)
 	if reexec.Init() {
-		return nil, fmt.Errorf("error while initializing namespace: %v", err)
+		return nil, fmt.Errorf("error namespaceInit already called")
 	}
 
-	cmd := reexec.Command("namespaceInit", "algorithm", data)
+	cmd := reexec.Command(args...)
 	cmd.Stdout = &resultBuffer
 	cmd.Stderr = &errorBuffer
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -297,7 +333,7 @@ func run(algoContent, dataContent []byte) ([]byte, error) {
 	}
 
 	if errorBuffer.Len() > 0 {
-		return nil, fmt.Errorf("error occurred during algorithm run: %v", err)
+		return nil, fmt.Errorf("error occurred during algorithm run")
 	}
 
 	return resultBuffer.Bytes(), nil
@@ -358,7 +394,7 @@ func pivotRoot(newRootPath string) error {
 }
 
 func namespaceRun() error {
-	cmd := exec.Command(os.Args[1], os.Args[2])
+	cmd := exec.Command(os.Args[1], os.Args[2:]...)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("error starting algorithm: %v", err)
@@ -369,4 +405,30 @@ func namespaceRun() error {
 	}
 
 	return nil
+}
+
+func copyFile(src, dst string) error {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	return destination.Chmod(sourceFileStat.Mode())
 }
