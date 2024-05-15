@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/crypto/sha3"
@@ -47,13 +48,14 @@ type Server struct {
 	server          *grpc.Server
 	registerService serviceRegister
 	agent           agent.Service
+	authSvc         *auth.Service
 }
 
 type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agentSvc agent.Service) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agentSvc agent.Service, authSvc *auth.Service) server.Server {
 	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 	return &Server{
 		BaseServer: server.BaseServer{
@@ -66,6 +68,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 		},
 		registerService: registerService,
 		agent:           agentSvc,
+		authSvc:         authSvc,
 	}
 }
 
@@ -73,6 +76,11 @@ func (s *Server) Start() error {
 	errCh := make(chan error)
 	grpcServerOptions := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	}
+
+	if s.authSvc != nil {
+		grpcServerOptions = append(grpcServerOptions, grpc.UnaryInterceptor(s.authSvc.AuthUnaryInterceptor()))
+		grpcServerOptions = append(grpcServerOptions, grpc.StreamInterceptor(s.authSvc.AuthStreamInterceptor()))
 	}
 
 	listener, err := net.Listen("tcp", s.Address)

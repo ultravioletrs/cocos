@@ -13,6 +13,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/internal"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
@@ -73,7 +74,12 @@ func main() {
 		reflection.Register(srv)
 		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
 	}
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc)
+
+	authSvc, err := auth.New(cfg)
+	if err != nil {
+		log.Fatalf("failed to create auth service %s", err.Error())
+	}
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc, authSvc)
 
 	g.Go(func() error {
 		return gs.Start()
