@@ -55,7 +55,7 @@ func main() {
 
 	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)
 	if err != nil {
-		log.Printf("failed to create events service %s", err.Error())
+		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		return
 	}
 	defer eventSvc.Close()
@@ -78,7 +78,8 @@ func main() {
 
 	authSvc, err := auth.New(cfg)
 	if err != nil {
-		log.Fatalf("failed to create auth service %s", err.Error())
+		logger.Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
+		return
 	}
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc, authSvc)
 
