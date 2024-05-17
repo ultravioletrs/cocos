@@ -17,6 +17,8 @@ const (
 	keyBitSize     = 4096
 	privateKeyType = "RSA PRIVATE KEY"
 	publicKeyType  = "PUBLIC KEY"
+	publicKeyFile  = "public.pem"
+	privateKeyFile = "private.pem"
 )
 
 func (cli *CLI) NewKeysCmd() *cobra.Command {
@@ -34,7 +36,7 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 				log.Fatalf("Error marshalling public key: %v", err)
 			}
 
-			privFile, err := os.Create("private.pem")
+			privFile, err := os.Create(privateKeyFile)
 			if err != nil {
 				log.Fatalf("Error creating private key file: %v", err)
 			}
@@ -47,7 +49,7 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 				log.Fatalf("Error encoding private key: %v", err)
 			}
 
-			pubFile, err := os.Create("public.pem")
+			pubFile, err := os.Create(publicKeyFile)
 			if err != nil {
 				log.Fatalf("Error creating public key file: %v", err)
 			}

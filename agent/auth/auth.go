@@ -45,15 +45,18 @@ func New(manifest agent.Computation) (*Service, error) {
 			Role      UserRole
 		}),
 	}
+
 	for _, rc := range manifest.ResultConsumers {
 		pubKey, err := x509.ParsePKIXPublicKey(rc.UserKey)
 		if err != nil {
 			return nil, err
 		}
+
 		rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 		if !ok {
 			return nil, errNotRSAPublicKey
 		}
+
 		s.users[rc.Consumer] = struct {
 			PublicKey *rsa.PublicKey
 			Role      UserRole
@@ -62,15 +65,18 @@ func New(manifest agent.Computation) (*Service, error) {
 			Role:      consumerRole,
 		}
 	}
+
 	for _, dp := range manifest.Datasets {
 		pubKey, err := x509.ParsePKIXPublicKey(dp.UserKey)
 		if err != nil {
 			return nil, err
 		}
+
 		rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 		if !ok {
 			return nil, errNotRSAPublicKey
 		}
+
 		s.users[dp.Provider] = struct {
 			PublicKey *rsa.PublicKey
 			Role      UserRole
@@ -79,14 +85,17 @@ func New(manifest agent.Computation) (*Service, error) {
 			Role:      dataProviderRole,
 		}
 	}
+
 	pubKey, err := x509.ParsePKIXPublicKey(manifest.Algorithm.UserKey)
 	if err != nil {
 		return nil, err
 	}
+
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 	if !ok {
 		return nil, errNotRSAPublicKey
 	}
+
 	s.users[manifest.Algorithm.Provider] = struct {
 		PublicKey *rsa.PublicKey
 		Role      UserRole
@@ -94,6 +103,7 @@ func New(manifest agent.Computation) (*Service, error) {
 		PublicKey: rsaPubKey,
 		Role:      algorithmProviderRole,
 	}
+
 	return s, nil
 }
 
@@ -104,10 +114,12 @@ func (s *Service) AuthStreamInterceptor() grpc.StreamServerInterceptor {
 		default:
 			return handler(srv, stream)
 		}
+
 		md, ok := metadata.FromIncomingContext(stream.Context())
 		if !ok {
 			return status.Errorf(codes.Unauthenticated, "missing metadata")
 		}
+
 		userID, signature, err := extractSignatureAndUserID(md)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, "invalid metadata")
@@ -134,10 +146,12 @@ func (s *Service) AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 		default:
 			return handler(ctx, req)
 		}
+
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 		}
+
 		userID, signature, err := extractSignatureAndUserID(md)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "invalid metadata")
@@ -173,8 +187,10 @@ func verifySignature(userID, signature string, publicKey *rsa.PublicKey) (bool, 
 	if err != nil {
 		return false, err
 	}
+
 	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
 		return false, err
 	}
+	
 	return true, nil
 }
