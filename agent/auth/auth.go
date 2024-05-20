@@ -191,6 +191,5 @@ func verifySignature(userID, signature string, publicKey *rsa.PublicKey) (bool, 
 	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
 		return false, err
 	}
-	
 	return true, nil
 }
