@@ -4,18 +4,24 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"slices"
+	"syscall"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -26,6 +32,11 @@ const (
 	ReportDataSize     = 64
 	socketPath         = "unix_socket"
 	algoFilePermission = 0o700
+	newRoot            = "/cocos/newRoot"
+	oldRoot            = "./oldRoot"
+	hostName           = "cocos-algo"
+	filePermission     = 0x755
+	algoName           = "./algorithm"
 )
 
 var (
@@ -255,35 +266,169 @@ func run(algoFile string, dataFiles []string) ([]byte, error) {
 			os.Remove(file)
 		}
 	}()
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
+	var resultBuffer bytes.Buffer
+	var errorBuffer bytes.Buffer
+	var args []string
+
+	if err := os.MkdirAll(newRoot, fs.FileMode(filePermission)); err != nil {
+		return nil, fmt.Errorf("error could not create new root dir: %v", err)
 	}
-	defer listener.Close()
+	defer os.RemoveAll(newRoot)
 
-	// Create channels for received data and errors
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
+	if err := copyFile(algoFile, path.Join(newRoot, algoName)); err != nil {
+		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
+	}
 
-	var result []byte
+	args = append(args, "namespaceInit")
+	for _, file := range dataFiles {
+		dst := filepath.Join(newRoot, filepath.Base(file))
 
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return nil, fmt.Errorf("error creating directory %s: %v", filepath.Dir(dst), err)
+		}
 
-	args := append([]string{socketPath}, dataFiles...)
-	cmd := exec.Command(algoFile, args...)
+		if err := copyFile(file, dst); err != nil {
+			return nil, fmt.Errorf("error copying %s to %s: %v", file, dst, err)
+		}
+		args = append(args, filepath.Base(file))
+	}
+
+	reexec.Register("namespaceInit", namespaceInit)
+	if reexec.Init() {
+		return nil, fmt.Errorf("error namespaceInit already called")
+	}
+
+	cmd := reexec.Command(args...)
+	cmd.Stdout = &resultBuffer
+	cmd.Stderr = &errorBuffer
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWIPC |
+			syscall.CLONE_NEWUSER,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			},
+		},
+	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
+		return nil, fmt.Errorf("error starting reexec: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
+		return nil, fmt.Errorf("reexec execution error: %v", err)
 	}
 
-	select {
-	case result = <-dataChannel:
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
+	if errorBuffer.Len() > 0 {
+		return nil, fmt.Errorf("error occurred during algorithm run")
 	}
+
+	return resultBuffer.Bytes(), nil
+}
+
+func namespaceInit() {
+	// Mount /proc
+	newProc := filepath.Join(newRoot, "/proc")
+	if err := os.MkdirAll(newProc, fs.FileMode(filePermission)); err != nil {
+		os.Exit(1)
+	}
+
+	if err := syscall.Mount("proc", newProc, "proc", 0, ""); err != nil {
+		os.Exit(1)
+	}
+
+	if err := pivotRoot(newRoot); err != nil {
+		os.Exit(1)
+	}
+
+	if err := syscall.Sethostname([]byte(hostName)); err != nil {
+		os.Exit(1)
+	}
+
+	if err := namespaceRun(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func pivotRoot(newRootPath string) error {
+	oldRootPath := filepath.Join(newRootPath, oldRoot)
+
+	if err := syscall.Mount(newRootPath, newRootPath, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(oldRootPath, algoFilePermission); err != nil {
+		return err
+	}
+
+	if err := syscall.PivotRoot(newRootPath, oldRootPath); err != nil {
+		return err
+	}
+
+	if err := os.Chdir("/"); err != nil {
+		return err
+	}
+
+	if err := syscall.Unmount(oldRoot, syscall.MNT_DETACH); err != nil {
+		return err
+	}
+
+	if err := os.RemoveAll(oldRoot); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func namespaceRun() error {
+	cmd := exec.Command(os.Args[1], os.Args[2:]...)
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("error starting algorithm: %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("algorithm execution error: %v", err)
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	return destination.Chmod(sourceFileStat.Mode())
 }
