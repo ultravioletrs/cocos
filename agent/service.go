@@ -37,11 +37,7 @@ var (
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
 	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
-	errUndeclaredAlgorithm = errors.New("algorithm not declared in computation manifest")
-	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
 	errUndeclaredDataset = errors.New("dataset not declared in computation manifest")
-	// errProviderMissmatch algorithm/dataset provider does not match computation manifest.
-	errProviderMissmatch = errors.New("provider does not match declaration on manifest")
 	// errAllManifestItemsReceived indicates no new computation manifest items expected.
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
@@ -59,7 +55,7 @@ var (
 type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
-	Result(ctx context.Context, consumer string) ([]byte, error)
+	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error)
 }
 
@@ -107,14 +103,6 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 
 	hash := sha3.Sum256(algorithm.Algorithm)
 
-	if as.computation.Algorithm.ID != algorithm.ID {
-		return errUndeclaredAlgorithm
-	}
-
-	if as.computation.Algorithm.Provider != algorithm.Provider {
-		return errProviderMissmatch
-	}
-
 	if hash != as.computation.Algorithm.Hash {
 		return errHashMismatch
 	}
@@ -155,21 +143,17 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 	hash := sha3.Sum256(dataset.Dataset)
 
-	index := containsID(as.computation.Datasets, dataset.ID, "ID")
-	switch index {
-	case -1:
+	index, ok := IndexFromContext(ctx)
+	if !ok {
 		return errUndeclaredDataset
-	default:
-		if as.computation.Datasets[index].Provider != dataset.Provider {
-			return errProviderMissmatch
-		}
-		if hash != as.computation.Datasets[index].Hash {
-			return errHashMismatch
-		}
-		as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 	}
 
-	f, err := os.CreateTemp("", fmt.Sprintf("dataset-%s", dataset.ID))
+	if hash != as.computation.Datasets[index].Hash {
+		return errHashMismatch
+	}
+	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
+
+	f, err := os.CreateTemp("", fmt.Sprintf("dataset-%d", index))
 	if err != nil {
 		return fmt.Errorf("error creating dataset file: %v", err)
 	}
@@ -190,20 +174,18 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	return nil
 }
 
-func (as *agentService) Result(ctx context.Context, consumer string) ([]byte, error) {
+func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	if as.sm.GetState() != resultsReady {
 		return []byte{}, errResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived
 	}
-	index := containsID(as.computation.ResultConsumers, consumer, "Consumer")
-	switch index {
-	case -1:
+	index, ok := IndexFromContext(ctx)
+	if !ok {
 		return []byte{}, errUndeclaredConsumer
-	default:
-		as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 	}
+	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
 	if len(as.computation.ResultConsumers) == 0 {
 		as.sm.SendEvent(resultsConsumed)

@@ -21,7 +21,7 @@ import (
 type SDK interface {
 	Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error
 	Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error
-	Result(ctx context.Context, consumer string, privKey *rsa.PrivateKey) ([]byte, error)
+	Result(ctx context.Context, privKey *rsa.PrivateKey) ([]byte, error)
 	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
 }
 
@@ -43,7 +43,7 @@ func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) SDK {
 }
 
 func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error {
-	md, err := generateMetadata(algorithm.Provider, privKey)
+	md, err := generateMetadata(string(auth.AlgorithmProviderRole), privKey)
 	if err != nil {
 		sdk.logger.Error("Failed to generate metadata")
 		return err
@@ -67,7 +67,7 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 			return err
 		}
 
-		err = stream.Send(&agent.AlgoRequest{Id: algorithm.ID, Provider: algorithm.Provider, Algorithm: buf[:n]})
+		err = stream.Send(&agent.AlgoRequest{Algorithm: buf[:n]})
 		if err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 }
 
 func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error {
-	md, err := generateMetadata(dataset.Provider, privKey)
+	md, err := generateMetadata(string(auth.DataProviderRole), privKey)
 	if err != nil {
 		sdk.logger.Error("Failed to generate metadata")
 		return err
@@ -105,7 +105,7 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *r
 			return err
 		}
 
-		err = stream.Send(&agent.DataRequest{Id: dataset.ID, Provider: dataset.Provider, Dataset: buf[:n]})
+		err = stream.Send(&agent.DataRequest{Dataset: buf[:n]})
 		if err != nil {
 			return err
 		}
@@ -118,12 +118,10 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *r
 	return nil
 }
 
-func (sdk *agentSDK) Result(ctx context.Context, consumer string, privKey *rsa.PrivateKey) ([]byte, error) {
-	request := &agent.ResultRequest{
-		Consumer: consumer,
-	}
+func (sdk *agentSDK) Result(ctx context.Context, privKey *rsa.PrivateKey) ([]byte, error) {
+	request := &agent.ResultRequest{}
 
-	md, err := generateMetadata(consumer, privKey)
+	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
 	if err != nil {
 		sdk.logger.Error("Failed to generate metadata")
 		return nil, err

@@ -17,7 +17,7 @@ func algoEndpoint(svc agent.Service) endpoint.Endpoint {
 			return algoRes{}, err
 		}
 
-		algo := agent.Algorithm{Algorithm: req.Algorithm, Provider: req.Provider, ID: req.Id}
+		algo := agent.Algorithm{Algorithm: req.Algorithm}
 
 		err := svc.Algo(ctx, algo)
 		if err != nil {
@@ -36,7 +36,7 @@ func dataEndpoint(svc agent.Service) endpoint.Endpoint {
 			return dataRes{}, err
 		}
 
-		dataset := agent.Dataset{Dataset: req.Dataset, Provider: req.Provider, ID: req.Id}
+		dataset := agent.Dataset{Dataset: req.Dataset}
 
 		err := svc.Data(ctx, dataset)
 		if err != nil {
@@ -54,7 +54,7 @@ func resultEndpoint(svc agent.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return resultRes{}, err
 		}
-		file, err := svc.Result(ctx, req.Consumer)
+		file, err := svc.Result(ctx)
 		if err != nil {
 			return resultRes{}, err
 		}

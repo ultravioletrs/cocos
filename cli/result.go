@@ -17,12 +17,12 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "result",
 		Short:   "Retrieve computation result file",
-		Example: "result <consumer> <private_key_file_path>",
-		Args:    cobra.ExactArgs(2),
+		Example: "result <private_key_file_path>",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Retrieving computation result file")
 
-			privKeyFile, err := os.ReadFile(args[1])
+			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
 				log.Fatalf("Error reading private key file: %v", err)
 			}
@@ -34,7 +34,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				log.Fatalf("Error parsing private key: %v", err)
 			}
 
-			result, err := cli.agentSDK.Result(cmd.Context(), args[0], privKey)
+			result, err := cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}

@@ -64,22 +64,17 @@ message ComputationRunReq {
 }
 
 message ResultConsumer {
-  string consumer = 1;
-  bytes userKey = 2;
+  bytes userKey = 1;
 }
 
 message Dataset {
-  string provider = 1;
-  string id = 2;
-  bytes hash = 3; // should be sha3.Sum256, 32 byte length.
-  bytes userKey = 4;
+  bytes hash = 1; // should be sha3.Sum256, 32 byte length.
+  bytes userKey = 2;
 }
 
 message Algorithm {
-  string provider = 1;
-  string id = 2;
-  bytes hash = 3; // should be sha3.Sum256, 32 byte length.
-  bytes userKey = 4;
+  bytes hash = 1; // should be sha3.Sum256, 32 byte length.
+  bytes userKey = 2;
 }
 
 message AgentConfig {

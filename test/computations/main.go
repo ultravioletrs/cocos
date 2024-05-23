@@ -68,9 +68,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
-				Datasets:        []*manager.Dataset{{Id: "1", Provider: "provider1", Hash: dataHash[:], UserKey: pubPem.Bytes}},
-				Algorithm:       &manager.Algorithm{Id: "1", Provider: "provider1", Hash: algoHash[:], UserKey: pubPem.Bytes},
-				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes, Consumer: "consumer1"}},
+				Datasets:        []*manager.Dataset{{Hash: dataHash[:], UserKey: pubPem.Bytes}},
+				Algorithm:       &manager.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
+				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &manager.AgentConfig{
 					Port:        "7002",
 					LogLevel:    "debug",

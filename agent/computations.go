@@ -3,9 +3,9 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 )
 
 var _ fmt.Stringer = (*Datasets)(nil)
@@ -32,8 +32,7 @@ type Computation struct {
 }
 
 type ResultConsumer struct {
-	Consumer string `json:"consumer,omitempty"`
-	UserKey  []byte `json:"user_key,omitempty"`
+	UserKey []byte `json:"user_key,omitempty"`
 }
 
 func (d *Datasets) String() string {
@@ -45,11 +44,9 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte   `json:"-"`
-	Hash     [32]byte `json:"hash,omitempty"`
-	Provider string   `json:"provider,omitempty"`
-	ID       string   `json:"id,omitempty"`
-	UserKey  []byte   `json:"user_key,omitempty"`
+	Dataset []byte   `json:"-"`
+	Hash    [32]byte `json:"hash,omitempty"`
+	UserKey []byte   `json:"user_key,omitempty"`
 }
 
 type Datasets []Dataset
@@ -57,21 +54,16 @@ type Datasets []Dataset
 type Algorithm struct {
 	Algorithm []byte   `json:"-"`
 	Hash      [32]byte `json:"hash,omitempty"`
-	Provider  string   `json:"provider,omitempty"`
-	ID        string   `json:"id,omitempty"`
 	UserKey   []byte   `json:"user_key,omitempty"`
 }
 
-func containsID(slice interface{}, id, fieldName string) int {
-	rangeOnMe := reflect.ValueOf(slice)
-	for i := 0; i < rangeOnMe.Len(); i++ {
-		s := rangeOnMe.Index(i)
-		f := s.FieldByName(fieldName)
-		if f.IsValid() {
-			if f.Interface() == id {
-				return i
-			}
-		}
-	}
-	return -1
+type ManifestIndexKey struct{}
+
+func IndexToContext(ctx context.Context, index int) context.Context {
+	return context.WithValue(ctx, ManifestIndexKey{}, index)
+}
+
+func IndexFromContext(ctx context.Context) (int, bool) {
+	index, ok := ctx.Value(ManifestIndexKey{}).(int)
+	return index, ok
 }
