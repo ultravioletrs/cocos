@@ -12,14 +12,6 @@ make cli
 
 ## Usage
 
-#### Run Computation
-
-To run a computation, use the following command:
-
-```bash
-./build/cocos-cli manager run --computation '{"name": "my-computation"}'
-```
-
 #### Get attestation
 Retrieves attestation information from the SEV guest and saves it to a file.
 To retrieve attestation from agent, use the following command:
@@ -70,7 +62,7 @@ To validate and verify attestation from agent, use the following command:
 To upload an algorithm, use the following command:
 
 ```bash
-./build/cocos-cli agent algo /path/to/algorithm
+./build/cocos-cli agent algo /path/to/algorithm <private_key_file_path>
 ```
 
 #### Upload Dataset
@@ -78,7 +70,7 @@ To upload an algorithm, use the following command:
 To upload a dataset, use the following command:
 
 ```bash
-./build/cocos-cli agent data /path/to/dataset.csv
+./build/cocos-cli agent data /path/to/dataset.csv <private_key_file_path>
 ```
 
 #### Retrieve result
@@ -86,5 +78,5 @@ To upload a dataset, use the following command:
 To retrieve the computation result, use the following command:
 
 ```bash
-./build/cocos-cli agent result
+./build/cocos-cli agent result <private_key_file_path>
 ```
