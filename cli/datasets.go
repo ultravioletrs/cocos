@@ -16,8 +16,8 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "data",
 		Short:   "Upload a dataset CSV file",
-		Example: "data <dataset.csv> <id> <provider> <private_key_file_path>",
-		Args:    cobra.ExactArgs(4),
+		Example: "data <dataset.csv> <private_key_file_path>",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			datasetFile := args[0]
 
@@ -29,12 +29,10 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			}
 
 			dataReq := agent.Dataset{
-				Dataset:  dataset,
-				ID:       args[1],
-				Provider: args[2],
+				Dataset: dataset,
 			}
 
-			privKeyFile, err := os.ReadFile(args[3])
+			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
 				log.Fatalf("Error reading private key file: %v", err)
 			}

@@ -33,16 +33,16 @@ go run cmd/cli/main.go attestation get '<report_data>'
 go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>'
 
 # Run the CLI program with algorithm input
-go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin Algorithm1 AlgorithmProvider1
+go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin <private_key_file_path>
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
 # Run the CLI program with dataset input
-go run cmd/cli/main.go data test/manual/data/iris.csv Dataset1 Provider1
-go run cmd/cli/main.go data test/manual/data/iris.csv Dataset2 Provider2
+go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
+go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
 # 2023/09/21 10:45:25 Uploading dataset CSV: test/manual/data/iris.csv
 
 # Run the CLI program to fetch computation result
-go run cmd/cli/main.go result Consumer1
+go run cmd/cli/main.go result <private_key_file_path>
 # 2023/09/21 10:45:39 Retrieving computation result file
 # 2023/09/21 10:45:40 Computation result retrieved and saved successfully!
 ```

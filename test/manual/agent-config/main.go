@@ -56,9 +56,9 @@ func main() {
 	}
 	ac := agent.Computation{
 		ID:              "123",
-		Datasets:        agent.Datasets{agent.Dataset{ID: "1", Provider: "pr1", Hash: dataHash, UserKey: pubPem.Bytes}},
-		Algorithm:       agent.Algorithm{ID: "1", Provider: "pr1", Hash: algoHash, UserKey: pubPem.Bytes},
-		ResultConsumers: []agent.ResultConsumer{{Consumer: "consumer1", UserKey: pubPem.Bytes}},
+		Datasets:        agent.Datasets{agent.Dataset{Hash: dataHash, UserKey: pubPem.Bytes}},
+		Algorithm:       agent.Algorithm{Hash: algoHash, UserKey: pubPem.Bytes},
+		ResultConsumers: []agent.ResultConsumer{{UserKey: pubPem.Bytes}},
 		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
 			Port:        "7002",

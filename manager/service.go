@@ -83,18 +83,18 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			LogLevel:     c.AgentConfig.LogLevel,
 		},
 	}
-	ac.Algorithm = agent.Algorithm{ID: c.Algorithm.Id, Provider: c.Algorithm.Provider, Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
+	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
 
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
-		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey})
+		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey})
 	}
 
 	for _, rc := range c.ResultConsumers {
-		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{Consumer: rc.Consumer, UserKey: rc.UserKey})
+		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{UserKey: rc.UserKey})
 	}
 
 	agentPort, err := getFreePort()

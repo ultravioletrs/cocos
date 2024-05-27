@@ -16,22 +16,17 @@ service AgentService {
 
 message AlgoRequest {
   bytes algorithm = 1;
-  string provider = 2;
-  string id = 3;
 }
 
 message AlgoResponse {}
 
 message DataRequest {
   bytes dataset = 1;
-  string provider = 2;
-  string id = 3;
 }
 
 message DataResponse {}
 
 message ResultRequest {
-  string consumer = 1;
 }
 
 message ResultResponse {

@@ -24,28 +24,30 @@ type UserRole string
 const (
 	UserMetadataKey                = "user-id"
 	SignatureMetadataKey           = "signature"
-	consumerRole          UserRole = "consumer"
-	dataProviderRole      UserRole = "data-provider"
-	algorithmProviderRole UserRole = "algorithm-provider"
+	ConsumerRole          UserRole = "consumer"
+	DataProviderRole      UserRole = "data-provider"
+	AlgorithmProviderRole UserRole = "algorithm-provider"
 )
 
 var errNotRSAPublicKey = errors.New("not an RSA public key")
 
+type wrappedServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *wrappedServerStream) Context() context.Context {
+	return s.ctx
+}
+
 type Service struct {
-	users map[string]struct {
-		PublicKey *rsa.PublicKey
-		Role      UserRole
-	}
+	resultConsumers   []*rsa.PublicKey
+	datasetProviders  []*rsa.PublicKey
+	algorithmProvider *rsa.PublicKey
 }
 
 func New(manifest agent.Computation) (*Service, error) {
-	s := &Service{
-		users: make(map[string]struct {
-			PublicKey *rsa.PublicKey
-			Role      UserRole
-		}),
-	}
-
+	s := &Service{}
 	for _, rc := range manifest.ResultConsumers {
 		pubKey, err := x509.ParsePKIXPublicKey(rc.UserKey)
 		if err != nil {
@@ -57,13 +59,7 @@ func New(manifest agent.Computation) (*Service, error) {
 			return nil, errNotRSAPublicKey
 		}
 
-		s.users[rc.Consumer] = struct {
-			PublicKey *rsa.PublicKey
-			Role      UserRole
-		}{
-			PublicKey: rsaPubKey,
-			Role:      consumerRole,
-		}
+		s.resultConsumers = append(s.resultConsumers, rsaPubKey)
 	}
 
 	for _, dp := range manifest.Datasets {
@@ -77,13 +73,7 @@ func New(manifest agent.Computation) (*Service, error) {
 			return nil, errNotRSAPublicKey
 		}
 
-		s.users[dp.Provider] = struct {
-			PublicKey *rsa.PublicKey
-			Role      UserRole
-		}{
-			PublicKey: rsaPubKey,
-			Role:      dataProviderRole,
-		}
+		s.datasetProviders = append(s.datasetProviders, rsaPubKey)
 	}
 
 	pubKey, err := x509.ParsePKIXPublicKey(manifest.Algorithm.UserKey)
@@ -96,45 +86,47 @@ func New(manifest agent.Computation) (*Service, error) {
 		return nil, errNotRSAPublicKey
 	}
 
-	s.users[manifest.Algorithm.Provider] = struct {
-		PublicKey *rsa.PublicKey
-		Role      UserRole
-	}{
-		PublicKey: rsaPubKey,
-		Role:      algorithmProviderRole,
-	}
-
+	s.algorithmProvider = rsaPubKey
 	return s, nil
 }
 
 func (s *Service) AuthStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		switch info.FullMethod {
-		case agent.AgentService_Algo_FullMethodName, agent.AgentService_Data_FullMethodName:
+		case agent.AgentService_Algo_FullMethodName:
+			md, ok := metadata.FromIncomingContext(stream.Context())
+			if !ok {
+				return status.Errorf(codes.Unauthenticated, "missing metadata")
+			}
+			signature, err := extractSignature(md)
+			if err != nil {
+				return status.Errorf(codes.Unauthenticated, "invalid metadata")
+			}
+			isValid, err := verifySignature(AlgorithmProviderRole, signature, s.algorithmProvider)
+			if err != nil || !isValid {
+				return status.Errorf(codes.Unauthenticated, "signature verification failed")
+			}
+		case agent.AgentService_Data_FullMethodName:
+			md, ok := metadata.FromIncomingContext(stream.Context())
+			if !ok {
+				return status.Errorf(codes.Unauthenticated, "missing metadata")
+			}
+			signature, err := extractSignature(md)
+			if err != nil {
+				return status.Errorf(codes.Unauthenticated, "invalid metadata")
+			}
+			for index, dp := range s.datasetProviders {
+				isValid, err := verifySignature(DataProviderRole, signature, dp)
+				if err == nil || isValid {
+					ctx := agent.IndexToContext(stream.Context(), index)
+					wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
+					return handler(srv, wrapped)
+				}
+			}
+			return status.Errorf(codes.Unauthenticated, "signature verification failed")
 		default:
 			return handler(srv, stream)
 		}
-
-		md, ok := metadata.FromIncomingContext(stream.Context())
-		if !ok {
-			return status.Errorf(codes.Unauthenticated, "missing metadata")
-		}
-
-		userID, signature, err := extractSignatureAndUserID(md)
-		if err != nil {
-			return status.Errorf(codes.Unauthenticated, "invalid metadata")
-		}
-
-		userInfo, ok := s.users[userID]
-		if !ok {
-			return status.Errorf(codes.Unauthenticated, "user not found")
-		}
-
-		isValid, err := verifySignature(userID, signature, userInfo.PublicKey)
-		if err != nil || !isValid {
-			return status.Errorf(codes.Unauthenticated, "signature verification failed")
-		}
-
 		return handler(srv, stream)
 	}
 }
@@ -143,46 +135,39 @@ func (s *Service) AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		switch info.FullMethod {
 		case agent.AgentService_Result_FullMethodName:
+			md, ok := metadata.FromIncomingContext(ctx)
+			if !ok {
+				return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+			}
+			signature, err := extractSignature(md)
+			if err != nil {
+				return nil, status.Errorf(codes.Unauthenticated, "invalid metadata")
+			}
+			for index, rc := range s.resultConsumers {
+				isValid, err := verifySignature(ConsumerRole, signature, rc)
+				if err == nil || isValid {
+					ctx := agent.IndexToContext(ctx, index)
+					return handler(ctx, req)
+				}
+			}
+			return nil, status.Errorf(codes.Unauthenticated, "signature verification failed")
 		default:
 			return handler(ctx, req)
 		}
-
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
-		}
-
-		userID, signature, err := extractSignatureAndUserID(md)
-		if err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid metadata")
-		}
-
-		userInfo, ok := s.users[userID]
-		if !ok {
-			return nil, status.Errorf(codes.Unauthenticated, "user not found")
-		}
-
-		isValid, err := verifySignature(userID, signature, userInfo.PublicKey)
-		if err != nil || !isValid {
-			return nil, status.Errorf(codes.Unauthenticated, "signature verification failed")
-		}
-
-		return handler(ctx, req)
 	}
 }
 
-func extractSignatureAndUserID(md metadata.MD) (string, string, error) {
-	userID := md.Get(UserMetadataKey)
+func extractSignature(md metadata.MD) (string, error) {
 	signature := md.Get(SignatureMetadataKey)
-	if len(userID) != 1 || len(signature) != 1 {
-		return "", "", status.Errorf(codes.Unauthenticated, "invalid metadata")
+	if len(signature) != 1 {
+		return "", status.Errorf(codes.Unauthenticated, "invalid metadata")
 	}
 
-	return userID[0], signature[0], nil
+	return signature[0], nil
 }
 
-func verifySignature(userID, signature string, publicKey *rsa.PublicKey) (bool, error) {
-	hash := sha256.Sum256([]byte(userID))
+func verifySignature(role UserRole, signature string, publicKey *rsa.PublicKey) (bool, error) {
+	hash := sha256.Sum256([]byte(role))
 	sigByte, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return false, err
