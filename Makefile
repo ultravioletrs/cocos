@@ -1,5 +1,6 @@
 BUILD_DIR = build
 SERVICES = manager agent cli
+PLATFORM_INFO = platform_info
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
@@ -17,12 +18,15 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
-.PHONY: all $(SERVICES)
+.PHONY: all $(SERVICES) $(PLATFORM_INFO)
 
 all: $(SERVICES)
 
 $(SERVICES):
 	$(call compile_service,$(@))
+
+$(PLATFORM_INFO):
+	$(MAKE) -C ./scripts/platform_info
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
