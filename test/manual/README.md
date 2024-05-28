@@ -17,8 +17,6 @@ The algorithm program should return the results to a socket and an example can b
 
 Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
 
-For attested TLS you will have to calculate the measurement of 
-
 For attested TLS, you will have to calculate the VM's measurement, which can be done using a tool [sev-snp-measure](https://pypi.org/project/sev-snp-measure/).
 
 ```bash
