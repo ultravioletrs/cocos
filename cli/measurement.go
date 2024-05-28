@@ -50,7 +50,9 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Error marshaling the platform information JSON: %v", err)
 			}
-			os.WriteFile(manifest.Name(), fileJson, 0755)
+			if err = os.WriteFile(manifest.Name(), fileJson, 0755); err != nil {
+				log.Fatalf("Error writing into platform information JSON file: %v", err)
+			}
 		},
 	}
 }
