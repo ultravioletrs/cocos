@@ -44,7 +44,9 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 			}
 
 			attestationConfiguration.SNPPolicy.Measurement = measurement
-			manifest.Truncate(0)
+			if err = manifest.Truncate(0); err != nil {
+				log.Fatalf("Error could not truncate platform information JSON file: %v", err)
+			}
 
 			fileJson, err := json.MarshalIndent(attestationConfiguration, "", " ")
 			if err != nil {
