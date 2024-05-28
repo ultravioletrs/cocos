@@ -22,8 +22,21 @@ Open console on the host, and run
 ```sh
 export AGENT_GRPC_URL=localhost:7002
 
-# For attested TLS, also define the path to the computation.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_MANIFEST=./test/manual/computation/computation.json
+# For attested TLS, the CLI should also be aware of the VM measurement. To 
+# add the measurement to the .json file that contains the information about 
+# the platform, run CLI with the measurement in base64 format and the path 
+# of the platform_info.json file.:
+go run cmd/cli/main.go measurement '<measurement>' '<platform_info.json>'
+
+# The platform_info.json file can be generated using Rust by running:
+cd scripts/platform_info
+make
+sudo ./target/release/platform_info --policy 196608 # Default value of the policy should be 196608
+# The output file platform_info.json will be generated in the directory from which the executable has been called.
+cd ../..
+
+# For attested TLS, also define the path to the platform_info.json that contains reference values for the fields of the attestation report
+export AGENT_GRPC_MANIFEST=./scripts/platform_info/platform_info.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation
