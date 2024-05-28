@@ -54,8 +54,6 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 
 	return algoReq{
 		Algorithm: req.Algorithm,
-		Provider:  req.Provider,
-		Id:        req.Id,
 	}, nil
 }
 
@@ -67,9 +65,7 @@ func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	req := grpcReq.(*agent.DataRequest)
 
 	return dataReq{
-		Dataset:  req.Dataset,
-		Provider: req.Provider,
-		Id:       req.Id,
+		Dataset: req.Dataset,
 	}, nil
 }
 
@@ -78,8 +74,7 @@ func encodeDataResponse(_ context.Context, response interface{}) (interface{}, e
 }
 
 func decodeResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	req := grpcReq.(*agent.ResultRequest)
-	return resultReq{Consumer: req.Consumer}, nil
+	return resultReq{}, nil
 }
 
 func encodeResultResponse(_ context.Context, response interface{}) (interface{}, error) {
@@ -107,7 +102,6 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 // Algo implements agent.AgentServiceServer.
 func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 	var algoFile []byte
-	var provider, id string
 	for {
 		algoChunk, err := stream.Recv()
 		if err == io.EOF {
@@ -116,11 +110,9 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 		if err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
-		provider = algoChunk.Provider
-		id = algoChunk.Id
 		algoFile = append(algoFile, algoChunk.Algorithm...)
 	}
-	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Provider: provider, Id: id})
+	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile})
 	if err != nil {
 		return err
 	}
@@ -131,7 +123,6 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 // Data implements agent.AgentServiceServer.
 func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
 	var dataFile []byte
-	var provider, id string
 	for {
 		dataChunk, err := stream.Recv()
 		if err == io.EOF {
@@ -140,11 +131,9 @@ func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
 		if err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
-		provider = dataChunk.Provider
-		id = dataChunk.Id
 		dataFile = append(dataFile, dataChunk.Dataset...)
 	}
-	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile, Provider: provider, Id: id})
+	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile})
 	if err != nil {
 		return err
 	}

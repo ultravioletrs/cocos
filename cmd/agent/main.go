@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/internal"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
@@ -53,7 +55,7 @@ func main() {
 
 	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)
 	if err != nil {
-		log.Printf("failed to create events service %s", err.Error())
+		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		return
 	}
 	defer eventSvc.Close()
@@ -73,7 +75,13 @@ func main() {
 		reflection.Register(srv)
 		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
 	}
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, &svc)
+
+	authSvc, err := auth.New(cfg)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
+		return
+	}
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc, authSvc)
 
 	g.Go(func() error {
 		return gs.Start()
@@ -109,15 +117,24 @@ func readConfig() (agent.Computation, error) {
 		return agent.Computation{}, err
 	}
 	defer conn.Close()
-	b := make([]byte, 1024)
-	n, err := conn.Read(b)
-	if err != nil {
-		return agent.Computation{}, err
+
+	var buffer []byte
+	for {
+		chunk := make([]byte, 1024)
+		n, err := conn.Read(chunk)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return agent.Computation{}, err
+		}
+		buffer = append(buffer, chunk[:n]...)
 	}
+
 	ac := agent.Computation{
 		AgentConfig: agent.AgentConfig{},
 	}
-	if err := json.Unmarshal(b[:n], &ac); err != nil {
+	if err := json.Unmarshal(buffer, &ac); err != nil {
 		return agent.Computation{}, err
 	}
 	if ac.AgentConfig.LogLevel == "" {

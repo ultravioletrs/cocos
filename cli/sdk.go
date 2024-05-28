@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 package cli
 
-import (
-	"github.com/ultravioletrs/cocos/agent"
-)
+import "github.com/ultravioletrs/cocos/pkg/sdk"
 
 type CLI struct {
-	agentSDK agent.Service
+	agentSDK sdk.SDK
 }
 
-func New(agentSDK agent.Service) *CLI {
+func New(agentSDK sdk.SDK) *CLI {
 	return &CLI{
 		agentSDK: agentSDK,
 	}

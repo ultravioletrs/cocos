@@ -70,10 +70,9 @@ func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.Clie
 func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq) (string, error) {
 	ms.publishEvent("vm-provision", c.Id, "starting", json.RawMessage{})
 	ac := agent.Computation{
-		ID:              c.Id,
-		Name:            c.Name,
-		Description:     c.Description,
-		ResultConsumers: c.ResultConsumers,
+		ID:          c.Id,
+		Name:        c.Name,
+		Description: c.Description,
 		AgentConfig: agent.AgentConfig{
 			Port:         c.AgentConfig.Port,
 			Host:         c.AgentConfig.Host,
@@ -84,14 +83,18 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			LogLevel:     c.AgentConfig.LogLevel,
 		},
 	}
-	ac.Algorithm = agent.Algorithm{ID: c.Algorithm.Id, Provider: c.Algorithm.Provider, Hash: [hashLength]byte(c.Algorithm.Hash)}
+	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
 
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
-		ac.Datasets = append(ac.Datasets, agent.Dataset{ID: data.Id, Provider: data.Provider, Hash: [hashLength]byte(data.Hash)})
+		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey})
+	}
+
+	for _, rc := range c.ResultConsumers {
+		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{UserKey: rc.UserKey})
 	}
 
 	agentPort, err := getFreePort()
