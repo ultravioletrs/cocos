@@ -53,7 +53,7 @@ func (lm *loggingMiddleware) Data(ctx context.Context, dataset agent.Dataset) (e
 	return lm.svc.Data(ctx, dataset)
 }
 
-func (lm *loggingMiddleware) Result(ctx context.Context, consumer string) (response []byte, err error) {
+func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Result took %s to complete", time.Since(begin))
 		if err != nil {
@@ -63,7 +63,7 @@ func (lm *loggingMiddleware) Result(ctx context.Context, consumer string) (respo
 		lm.logger.Info(fmt.Sprintf("%s without errors", message))
 	}(time.Now())
 
-	return lm.svc.Result(ctx, consumer)
+	return lm.svc.Result(ctx)
 }
 
 func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData [agent.ReportDataSize]byte) (response []byte, err error) {

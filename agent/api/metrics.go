@@ -50,13 +50,13 @@ func (ms *metricsMiddleware) Data(ctx context.Context, dataset agent.Dataset) er
 	return ms.svc.Data(ctx, dataset)
 }
 
-func (ms *metricsMiddleware) Result(ctx context.Context, consumer string) ([]byte, error) {
+func (ms *metricsMiddleware) Result(ctx context.Context) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "result").Add(1)
 		ms.latency.With("method", "result").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Result(ctx, consumer)
+	return ms.svc.Result(ctx)
 }
 
 func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [agent.ReportDataSize]byte) ([]byte, error) {
