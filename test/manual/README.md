@@ -17,7 +17,20 @@ The algorithm program should return the results to a socket and an example can b
 
 Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
 
-Open console on the host, and run
+For attested TLS you will have to calculate the measurement of 
+
+For attested TLS, you will have to calculate the VM's measurement, which can be done using a tool [sev-snp-measure](https://pypi.org/project/sev-snp-measure/).
+
+```bash
+# Define the path to the OVMF, KERNEL, INITRD and CMD Kernel line arguments.
+OVMF_CODE="/home/cocosai/ovmf/Build/AmdSev/DEBUG_GCC5/FV/OVMF.fd"
+INITRD="/home/cocosai/initramfs.cpio.gz"
+KERNEL="/home/cocosai/bzImage"
+LINE="earlyprintk=serial console=ttyS0"
+
+# Call sev-snp-measure
+sev-snp-measure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --kernel $KERNEL --initrd $INITRD --append "$LINE" --output-format base64
+```
 
 ```sh
 export AGENT_GRPC_URL=localhost:7002
