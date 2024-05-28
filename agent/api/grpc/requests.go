@@ -28,8 +28,7 @@ func (req dataReq) validate() error {
 	return nil
 }
 
-type resultReq struct {
-}
+type resultReq struct {}
 
 func (req resultReq) validate() error {
 	// No request parameters to validate, so no validation logic needed
