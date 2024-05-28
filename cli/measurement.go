@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const filePermision = 0o755
+
 type AttestationConfiguration struct {
 	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
 	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
@@ -31,7 +33,7 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 
 			attestationConfiguration := AttestationConfiguration{}
 
-			manifest, err := os.OpenFile(args[1], os.O_RDWR, 0755)
+			manifest, err := os.OpenFile(args[1], os.O_RDWR, filePermision)
 			if err != nil {
 				log.Fatalf("Error opening the platform information file: %v", err)
 			}
@@ -52,7 +54,7 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Error marshaling the platform information JSON: %v", err)
 			}
-			if err = os.WriteFile(manifest.Name(), fileJson, 0755); err != nil {
+			if err = os.WriteFile(manifest.Name(), fileJson, filePermision); err != nil {
 				log.Fatalf("Error writing into platform information JSON file: %v", err)
 			}
 		},
