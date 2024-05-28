@@ -1,0 +1,14 @@
+[package]
+name = "platform_info"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sev = "3.1.1"
+sysinfo = "0.30.12"
+regex = "1.10.4"

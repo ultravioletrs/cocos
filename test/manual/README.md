@@ -17,13 +17,37 @@ The algorithm program should return the results to a socket and an example can b
 
 Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
 
-Open console on the host, and run
+For attested TLS, you will have to calculate the VM's measurement, which can be done using a tool [sev-snp-measure](https://pypi.org/project/sev-snp-measure/).
+
+```bash
+# Define the path to the OVMF, KERNEL, INITRD and CMD Kernel line arguments.
+OVMF_CODE="/home/cocosai/ovmf/Build/AmdSev/DEBUG_GCC5/FV/OVMF.fd"
+INITRD="/home/cocosai/initramfs.cpio.gz"
+KERNEL="/home/cocosai/bzImage"
+LINE="earlyprintk=serial console=ttyS0"
+
+# Call sev-snp-measure
+sev-snp-measure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --kernel $KERNEL --initrd $INITRD --append "$LINE" --output-format base64
+```
 
 ```sh
 export AGENT_GRPC_URL=localhost:7002
 
-# For attested TLS, also define the path to the computation.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_MANIFEST=./test/manual/computation/computation.json
+# For attested TLS, the CLI should also be aware of the VM measurement. To 
+# add the measurement to the .json file that contains the information about 
+# the platform, run CLI with the measurement in base64 format and the path 
+# of the platform_info.json file.:
+go run cmd/cli/main.go measurement '<measurement>' '<platform_info.json>'
+
+# The platform_info.json file can be generated using Rust by running:
+cd scripts/platform_info
+make
+sudo ./target/release/platform_info --policy 196608 # Default value of the policy should be 196608
+# The output file platform_info.json will be generated in the directory from which the executable has been called.
+cd ../..
+
+# For attested TLS, also define the path to the platform_info.json that contains reference values for the fields of the attestation report
+export AGENT_GRPC_MANIFEST=./scripts/platform_info/platform_info.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation
