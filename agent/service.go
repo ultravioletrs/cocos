@@ -61,13 +61,14 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation    // Holds the current computation request details.
-	algorithm   string         // Filepath to the algorithm received for the computation.
-	datasets    []string       // Filepath to the datasets received for the computation.
-	result      []byte         // Stores the result of the computation.
-	sm          *StateMachine  // Manages the state transitions of the agent service.
-	runError    error          // Stores any error encountered during the computation run.
-	eventSvc    events.Service // Service for publishing events related to computation.
+	computation      Computation    // Holds the current computation request details.
+	algorithm        string         // Filepath to the algorithm received for the computation.
+	datasets         []string       // Filepath to the datasets received for the computation.
+	result           []byte         // Stores the result of the computation.
+	sm               *StateMachine  // Manages the state transitions of the agent service.
+	runError         error          // Stores any error encountered during the computation run.
+	eventSvc         events.Service // Service for publishing events related to computation.
+	requirementsFile string
 }
 
 var _ Service = (*agentService)(nil)
@@ -126,6 +127,21 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	}
 
 	as.algorithm = f.Name()
+
+	rf, err := os.CreateTemp("", "requirements")
+	if err != nil {
+		return fmt.Errorf("error creating requirements file: %v", err)
+	}
+
+	if _, err := rf.Write(algorithm.Requirements); err != nil {
+		return fmt.Errorf("error writing requirements to file: %v", err)
+	}
+
+	if err := rf.Close(); err != nil {
+		return fmt.Errorf("error closing file: %v", err)
+	}
+
+	as.requirementsFile = rf.Name()
 
 	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)
@@ -233,6 +249,11 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 }
 
 func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error) {
+	rcmd := exec.Command(pyRuntime, "-m", "pip", "install", "-r", as.requirementsFile)
+	if err := rcmd.Run(); err != nil {
+		return nil, fmt.Errorf("error installing requirements: %v", err)
+	}
+
 	defer os.Remove(algoFile)
 	defer func() {
 		for _, file := range dataFiles {

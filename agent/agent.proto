@@ -16,6 +16,7 @@ service AgentService {
 
 message AlgoRequest {
   bytes algorithm = 1;
+  bytes requirements = 2;
 }
 
 message AlgoResponse {}
