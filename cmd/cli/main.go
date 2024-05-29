@@ -91,6 +91,7 @@ func main() {
 	rootCmd.AddCommand(attestaionCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	rootCmd.AddCommand(cliSVC.NewKeysCmd())
 
 	// Attestation commands
 	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
