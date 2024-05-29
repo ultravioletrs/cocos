@@ -27,6 +27,7 @@ const (
 	ReportDataSize     = 64
 	socketPath         = "unix_socket"
 	algoFilePermission = 0o700
+	pyRuntime          = "python3"
 )
 
 var (
@@ -254,8 +255,8 @@ func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error)
 
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
-	args := append([]string{socketPath}, dataFiles...)
-	cmd := exec.Command(algoFile, args...)
+	args := append([]string{algoFile, socketPath}, dataFiles...)
+	cmd := exec.Command(pyRuntime, args...)
 	cmd.Stderr = &outErr
 	cmd.Stdout = &outStd
 
