@@ -249,8 +249,11 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 }
 
 func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error) {
+	var reqErr bytes.Buffer
 	rcmd := exec.Command(pyRuntime, "-m", "pip", "install", "-r", as.requirementsFile)
+	rcmd.Stderr = &reqErr
 	if err := rcmd.Run(); err != nil {
+		as.sm.logger.Debug(reqErr.String())
 		return nil, fmt.Errorf("error installing requirements: %v", err)
 	}
 
