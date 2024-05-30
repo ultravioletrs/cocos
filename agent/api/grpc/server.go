@@ -16,7 +16,7 @@ import (
 
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
-const bufferSize = 1024 * 1024 * 4
+const bufferSize = 1024 * 1024
 
 type grpcServer struct {
 	algo        grpc.Handler
