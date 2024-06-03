@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"bytes"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/google/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -33,6 +35,9 @@ func main() {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
 
+	var buf bytes.Buffer
+	logger.Init(svcName, false, false, &buf)
+	
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf("Error creating logger: %s", err)
