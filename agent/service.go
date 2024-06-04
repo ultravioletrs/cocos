@@ -43,8 +43,8 @@ var (
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
 	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
-	// errResultsNotReady indicates the computation results are not ready.
-	errResultsNotReady = errors.New("computation results are not yet ready")
+	// ErrResultsNotReady indicates the computation results are not ready.
+	ErrResultsNotReady = errors.New("computation results are not yet ready")
 	// errStateNotReady agent received a request in the wrong state.
 	errStateNotReady = errors.New("agent not expecting this operation in the current state")
 	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
@@ -193,7 +193,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	if as.sm.GetState() != resultsReady {
-		return []byte{}, errResultsNotReady
+		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived

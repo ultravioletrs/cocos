@@ -8,7 +8,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 const resultFilePath = "result.bin"
@@ -35,6 +37,10 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			}
 
 			result, err := cli.agentSDK.Result(cmd.Context(), privKey)
+			if errors.Contains(err, agent.ErrResultsNotReady) {
+				log.Println("Computation results are not yet ready")
+				return
+			}
 			if err != nil {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}
