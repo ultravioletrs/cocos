@@ -8,6 +8,7 @@ COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
 empty:=
 space:= $(empty) $(empty)
+MOCKERY_VERSION=v2.42.0
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
@@ -31,3 +32,7 @@ $(PLATFORM_INFO):
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
 	protoc -I. --go_out=./pkg --go_opt=paths=source_relative --go-grpc_out=./pkg --go-grpc_opt=paths=source_relative manager/manager.proto
+
+mocks:
+	@which mockery > /dev/null || go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
+	@unset MOCKERY_VERSION && go generate ./...

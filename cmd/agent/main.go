@@ -81,6 +81,7 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
 		return
 	}
+
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc, authSvc)
 
 	g.Go(func() error {
