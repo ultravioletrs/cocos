@@ -128,7 +128,6 @@ func TestAuthenticateUser(t *testing.T) {
 					assert.False(t, ok, "expected no index in context")
 				}
 			}
-
 		})
 	}
 }

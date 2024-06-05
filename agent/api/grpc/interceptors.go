@@ -25,8 +25,8 @@ func (s *wrappedServerStream) Context() context.Context {
 	return s.ctx
 }
 
-func NewAuthInterceptor(auth auth.Authenticator) (grpc.UnaryServerInterceptor, grpc.StreamServerInterceptor) {
-	ai := &authInterceptor{auth: auth}
+func NewAuthInterceptor(authSvc auth.Authenticator) (grpc.UnaryServerInterceptor, grpc.StreamServerInterceptor) {
+	ai := &authInterceptor{auth: authSvc}
 	return ai.AuthUnaryInterceptor(), ai.AuthStreamInterceptor()
 }
 
