@@ -7,7 +7,7 @@ import (
 )
 
 type algoReq struct {
-	Algorithm []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	Algorithm    []byte
 	Requirements []byte
 }
 

@@ -90,7 +90,6 @@ func main() {
 	if len(os.Args) < 5 {
 		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>", os.Args[0])
 	}
-	//dataPath = os.Args[]
 	algoPath = os.Args[1]
 	pubKeyFile = os.Args[2]
 	attestedTLSParam, err := strconv.ParseBool(os.Args[3])

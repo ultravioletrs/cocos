@@ -3,13 +3,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
-	"bytes"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/google/logger"
+	glogger "github.com/google/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -36,8 +36,8 @@ func main() {
 	}
 
 	var buf bytes.Buffer
-	logger.Init(svcName, false, false, &buf)
-	
+	glogger.Init(svcName, false, false, &buf)
+
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
 		log.Fatalf("Error creating logger: %s", err)
