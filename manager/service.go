@@ -119,6 +119,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", err
 	}
 	ms.qemuCfg.VSockConfig.GuestCID++
+	ms.qemuCfg.VSockConfig.Vnc++
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
