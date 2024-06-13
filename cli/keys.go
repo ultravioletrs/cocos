@@ -55,8 +55,11 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 				if err != nil {
 					log.Fatalf("Error generating keys: %v", err)
 				}
-
-				generateAndWriteKeys(privEd25519Key, pubEd25519Key, ed25519KeyType)
+				pubKey, err := x509.MarshalPKIXPublicKey(pubEd25519Key)
+				if err != nil {
+					log.Fatalf("Error marshalling public key: %v", err)
+				}
+				generateAndWriteKeys(privEd25519Key, pubKey, ed25519KeyType)
 
 			// Default to RSA
 			default:
