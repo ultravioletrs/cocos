@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"log"
@@ -28,17 +29,43 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
+			var result []byte
+			switch pemBlock.Type {
+			case rsaKeyType:
+				privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
+				result, err = cli.agentSDK.Result(cmd.Context(), privKey)
+				if err != nil {
+					log.Fatalf("Error retrieving computation result: %v", err)
+				}
+			case ecdsaKeyType:
+				privKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+				result, err = cli.agentSDK.Result(cmd.Context(), privKey)
+				if err != nil {
+					log.Fatalf("Error retrieving computation result: %v", err)
+				}
+			case ed25519KeyType:
+				privKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+
+				ed25519Key, ok := privKey.(ed25519.PrivateKey)
+				if !ok {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+
+				result, err = cli.agentSDK.Result(cmd.Context(), ed25519Key)
+				if err != nil {
+					log.Fatalf("Error retrieving computation result: %v", err)
+				}
 			}
-
-			result, err := cli.agentSDK.Result(cmd.Context(), privKey)
-			if err != nil {
-				log.Fatalf("Error retrieving computation result: %v", err)
-			}
-
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
 				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
 			}

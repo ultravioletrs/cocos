@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"log"
@@ -39,13 +40,37 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
-			}
+			switch pemBlock.Type {
+			case rsaKeyType:
+				privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+				if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
+					log.Fatalf("Error uploading algorithm with error: %v", err)
+				}
+			case ecdsaKeyType:
+				privKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+				if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
+					log.Fatalf("Error uploading algorithm with error: %v", err)
+				}
+			case ed25519KeyType:
+				privKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
 
-			if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
-				log.Fatalf("Error uploading algorithm with error: %v", err)
+				ed25519Key, ok := privKey.(ed25519.PrivateKey)
+				if !ok {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+
+				if err := cli.agentSDK.Algo(cmd.Context(), algoReq, ed25519Key); err != nil {
+					log.Fatalf("Error uploading algorithm with error: %v", err)
+				}
 			}
 
 			log.Println("Successfully uploaded algorithm")
