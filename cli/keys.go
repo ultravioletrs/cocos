@@ -19,7 +19,7 @@ import (
 
 const (
 	keyBitSize     = 4096
-	rsaKeyType     = "RSA PRIVATE KEY"
+	rsaKeyType     = "PRIVATE KEY"
 	ecdsaKeyType   = "EC PRIVATE KEY"
 	ed25519KeyType = "PRIVATE KEY"
 	publicKeyType  = "PUBLIC KEY"
