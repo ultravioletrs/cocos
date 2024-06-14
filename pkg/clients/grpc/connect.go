@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -30,6 +31,11 @@ const (
 	withoutTLS security = iota
 	withTLS
 	withmTLS
+)
+
+const (
+	cocosDirectory = ".cocos"
+	caBundleName   = "ask_ark.pem"
 )
 
 var (
@@ -63,7 +69,7 @@ type Config struct {
 
 type AttestationConfiguration struct {
 	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
-	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
+	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
 }
 
 type Client interface {
@@ -132,7 +138,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := readManifest(cfg)
+		err := ReadManifest(cfg.Manifest, &attestationConfiguration)
 		if err != nil {
 			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
 		}
@@ -183,18 +189,28 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func readManifest(cfg Config) error {
-	if cfg.Manifest != "" {
-		manifest, err := os.Open(cfg.Manifest)
+func ReadManifest(manifestPath string, attestationConfiguration *AttestationConfiguration) error {
+	if manifestPath != "" {
+		manifest, err := os.Open(manifestPath)
 		if err != nil {
 			return errors.Wrap(errManifestOpen, err)
 		}
 		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
-		err = decoder.Decode(&attestationConfiguration)
+		err = decoder.Decode(attestationConfiguration)
 		if err != nil {
 			return errors.Wrap(errManifestDecode, err)
+		}
+
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return errors.Wrap(errAttVerification, err)
+		}
+
+		bundleFilePath := path.Join(homePath, cocosDirectory, attestationConfiguration.RootOfTrust.Product, caBundleName)
+		if _, err := os.Stat(bundleFilePath); err == nil {
+			attestationConfiguration.RootOfTrust.CabundlePaths = append(attestationConfiguration.RootOfTrust.CabundlePaths, bundleFilePath)
 		}
 
 		return nil
@@ -226,7 +242,7 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			attestationConfiguration.SNPPolicy.ReportData = expectedReportData[:]
 
 			// Attestation verification and validation
-			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOFTrust)
+			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOfTrust)
 			if err != nil {
 				return errors.Wrap(errAttVerification, err)
 			}
