@@ -184,11 +184,15 @@ func verifySignature(role UserRole, signature string, publicKey any) (bool, erro
 		ok = ed25519.Verify(publicKey, hash[:], sigByte)
 	}
 
+	if !ok {
+		return false, errors.New("signature verification failed")
+	}
+
 	if err != nil {
 		return false, err
 	}
 
-	return ok, nil
+	return true, nil
 }
 
 func decodePublicKey(key any) (pubKey any, err error) {
