@@ -23,7 +23,7 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 	return &cobra.Command{
 		Use:     "ca-bundle",
 		Short:   "Fetch AMD SEV-SNPs CA Bundle (ASK and ARK)",
-		Example: "ca-bundle <path_to_platfrom_info_json>",
+		Example: "ca-bundle <path_to_platform_info_json>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			attestationConfiguration := grpc.AttestationConfiguration{}
