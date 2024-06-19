@@ -3,13 +3,11 @@
 package cli
 
 import (
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"log"
 	"os"
 
-	mgerr "github.com/absmach/magistrala/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
 )
@@ -41,32 +39,24 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			bytes, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
-			switch {
-			case mgerr.Contains(err, errParsePKC):
-				privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+			switch pemBlock.Type {
+			case rsaKeyType:
+				privKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
 				if err != nil {
-					log.Fatalf("Error parsing private key: %v", err)
+					privKey, err = x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+					if err != nil {
+						log.Fatalf("Error parsing private key: %v", err)
+					}
 				}
-
 				if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
 					log.Fatalf("Error uploading dataset: %v", err)
 				}
-			case mgerr.Contains(err, errParseECP):
+			case ecdsaKeyType:
 				privKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
 				if err != nil {
 					log.Fatalf("Error parsing private key: %v", err)
 				}
 				if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
-					log.Fatalf("Error uploading dataset: %v", err)
-				}
-			case err == nil:
-				ed25519Key, ok := bytes.(ed25519.PrivateKey)
-				if !ok {
-					log.Fatalf("Error parsing private key: %v", err)
-				}
-
-				if err := cli.agentSDK.Data(cmd.Context(), dataReq, ed25519Key); err != nil {
 					log.Fatalf("Error uploading dataset: %v", err)
 				}
 			default:

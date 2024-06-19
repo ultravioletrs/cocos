@@ -6,13 +6,9 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"io"
 	"log/slog"
 
@@ -154,20 +150,12 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 	return response.File, nil
 }
 
-func signData(userID string, privKey any) ([]byte, error) {
+func signData(userID string, privKey crypto.Signer) ([]byte, error) {
 	hash := sha256.Sum256([]byte(userID))
 	var signature []byte
 	var err error
-	switch privKey := privKey.(type) {
-	case *rsa.PrivateKey:
-		signature, err = rsa.SignPKCS1v15(rand.Reader, privKey, crypto.SHA256, hash[:])
-	case ed25519.PrivateKey:
-		signature = ed25519.Sign(privKey, hash[:])
-	case *ecdsa.PrivateKey:
-		signature, err = ecdsa.SignASN1(rand.Reader, privKey, hash[:])
-	default:
-		return nil, errors.New("unsupported private key type")
-	}
+
+	signature, err = privKey.Sign(rand.Reader, hash[:], crypto.SHA256)
 	if err != nil {
 		return nil, err
 	}
@@ -175,8 +163,8 @@ func signData(userID string, privKey any) ([]byte, error) {
 	return signature, nil
 }
 
-func generateMetadata(userID string, privateKey any) (metadata.MD, error) {
-	signature, err := signData(userID, privateKey)
+func generateMetadata(userID string, privateKey crypto.PrivateKey) (metadata.MD, error) {
+	signature, err := signData(userID, privateKey.(crypto.Signer))
 	if err != nil {
 		return nil, err
 	}
