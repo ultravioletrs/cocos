@@ -15,6 +15,7 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
@@ -34,8 +35,10 @@ const (
 )
 
 const (
-	cocosDirectory = ".cocos"
-	caBundleName   = "ask_ark.pem"
+	cocosDirectory   = ".cocos"
+	caBundleName     = "ask_ark.pem"
+	productNameMilan = "Milan"
+	productNameGenoa = "Genoa"
 )
 
 var (
@@ -203,22 +206,25 @@ func ReadManifest(manifestPath string, attestationConfiguration *AttestationConf
 			return errors.Wrap(errManifestDecode, err)
 		}
 
-		homePath, err := os.UserHomeDir()
-		if err != nil {
-			return errors.Wrap(errAttVerification, err)
-		}
-
-		bundleFilePath := path.Join(homePath, cocosDirectory, attestationConfiguration.RootOfTrust.Product, caBundleName)
-		if _, err := os.Stat(bundleFilePath); err == nil {
-			attestationConfiguration.RootOfTrust.CabundlePaths = append(attestationConfiguration.RootOfTrust.CabundlePaths, bundleFilePath)
-		}
-
 		return nil
 	}
 
 	return errManifestMissing
 }
 
+/*
+homePath, err := os.UserHomeDir()
+
+	if err != nil {
+		return errors.Wrap(errAttVerification, err)
+	}
+
+bundleFilePath := path.Join(homePath, cocosDirectory, attestationConfiguration.RootOfTrust.Product, caBundleName)
+
+	if _, err := os.Stat(bundleFilePath); err == nil {
+		attestationConfiguration.RootOfTrust.CabundlePaths = append(attestationConfiguration.RootOfTrust.CabundlePaths, bundleFilePath)
+	}
+*/
 func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
@@ -259,6 +265,10 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 				return errors.Wrap(errAttVerification, err)
 			}
 
+			if err := fillInAttestationLocal(attestationPB); err != nil {
+				return err
+			}
+
 			if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
 				return errors.Wrap(errAttVerification, err)
 			}
@@ -290,6 +300,35 @@ func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
 
 	if _, err := cert.Verify(opts); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
+	product := attestationConfiguration.RootOfTrust.Product
+
+	chain := attestation.GetCertificateChain()
+	if chain == nil {
+		chain = &sevsnp.CertificateChain{}
+		attestation.CertificateChain = chain
+	}
+	if len(chain.GetAskCert()) == 0 || len(chain.GetArkCert()) == 0 {
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+
+		bundleFilePath := path.Join(homePath, cocosDirectory, product, caBundleName)
+		if _, err := os.Stat(bundleFilePath); err == nil {
+			amdRootCerts := trust.AMDRootCerts{}
+			if err := amdRootCerts.FromKDSCert(bundleFilePath); err != nil {
+				return err
+			}
+
+			chain.ArkCert = amdRootCerts.ProductCerts.Ark.Raw
+			chain.AskCert = amdRootCerts.ProductCerts.Ask.Raw
+		}
 	}
 
 	return nil
