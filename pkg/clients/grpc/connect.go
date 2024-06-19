@@ -212,19 +212,6 @@ func ReadManifest(manifestPath string, attestationConfiguration *AttestationConf
 	return errManifestMissing
 }
 
-/*
-homePath, err := os.UserHomeDir()
-
-	if err != nil {
-		return errors.Wrap(errAttVerification, err)
-	}
-
-bundleFilePath := path.Join(homePath, cocosDirectory, attestationConfiguration.RootOfTrust.Product, caBundleName)
-
-	if _, err := os.Stat(bundleFilePath); err == nil {
-		attestationConfiguration.RootOfTrust.CabundlePaths = append(attestationConfiguration.RootOfTrust.CabundlePaths, bundleFilePath)
-	}
-*/
 func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
