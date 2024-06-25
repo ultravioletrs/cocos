@@ -29,6 +29,7 @@ type config struct {
 
 func main() {
 	var cfg config
+	var keyType string
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
@@ -53,7 +54,7 @@ func main() {
 
 	agentSDK := sdk.NewAgentSDK(logger, agentClient)
 
-	cliSVC := cli.New(agentSDK)
+	cliSVC := cli.New(agentSDK, keyType)
 
 	rootCmd := &cobra.Command{
 		Use:   "cocos-cli [command]",
@@ -87,15 +88,24 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
 	rootCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
-	attestaionCmd := cliSVC.NewAttestationCmd()
-	rootCmd.AddCommand(attestaionCmd)
+	attestationCmd := cliSVC.NewAttestationCmd()
+	rootCmd.AddCommand(attestationCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
 	rootCmd.AddCommand(cliSVC.NewKeysCmd())
 
 	// Attestation commands
-	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
-	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+	attestationCmd.AddCommand(cliSVC.NewGetAttestationCmd())
+	attestationCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+
+	// Flags
+	rootCmd.PersistentFlags().StringVarP(
+		&keyType,
+		"key-type",
+		"k",
+		"rsa",
+		"User Key type",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
