@@ -114,14 +114,11 @@ func verifySignature(role UserRole, signature string, publicKey any) error {
 		if err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
 			return err
 		}
+		return nil
 	case *ecdsa.PublicKey:
 		ok = ecdsa.VerifyASN1(publicKey, hash[:], sigByte)
 	case ed25519.PublicKey:
-		ok = ed25519.Verify(publicKey, hash[:], sigByte)
-	}
-	
-	if err != nil {
-		return err
+		ok = ed25519.Verify(publicKey, []byte(role), sigByte)
 	}
 
 	if !ok {

@@ -27,16 +27,18 @@ const (
 	privateKeyFile = "private.pem"
 )
 
+var KeyType string
+
 func (cli *CLI) NewKeysCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "keys <algorithm>",
+		Use:   "keys",
 		Short: "Generate a new public/private key pair",
 		Long: "Generates a new public/private key pair using an algorithm of the users choice.\n" +
 			"Supported algorithms are RSA, ecdsa, and ed25519.",
-		Example: "./build/cocos-cli keys rsa",
-		Args:    cobra.ExactArgs(1),
+		Example: "./build/cocos-cli keys -k rsa",
+		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			switch args[0] {
+			switch KeyType {
 			case "ecdsa":
 				privEcdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				if err != nil {
@@ -72,7 +74,6 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 				if err != nil {
 					log.Fatalf("Error marshalling public key: %v", err)
 				}
-
 				generateAndWriteKeys(privKey, pubKeyBytes, rsaKeyType)
 			}
 		},

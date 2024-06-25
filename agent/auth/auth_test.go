@@ -5,6 +5,9 @@ package auth
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -20,13 +23,13 @@ import (
 )
 
 func TestAuthenticateUser(t *testing.T) {
-	resultConsumerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	resultConsumerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	dataProviderKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
-	algorithmProviderKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	pubEd25519Key, algorithmProviderKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	resultConsumerPubKey, err := x509.MarshalPKIXPublicKey(&resultConsumerKey.PublicKey)
@@ -35,7 +38,7 @@ func TestAuthenticateUser(t *testing.T) {
 	dataProviderPubKey, err := x509.MarshalPKIXPublicKey(&dataProviderKey.PublicKey)
 	require.NoError(t, err)
 
-	algorithmProviderPubKey, err := x509.MarshalPKIXPublicKey(&algorithmProviderKey.PublicKey)
+	algorithmProviderPubKey, err := x509.MarshalPKIXPublicKey(pubEd25519Key)
 	require.NoError(t, err)
 
 	manifest := agent.Computation{
@@ -52,7 +55,7 @@ func TestAuthenticateUser(t *testing.T) {
 	testCases := []struct {
 		name        string
 		role        UserRole
-		key         *rsa.PrivateKey
+		key         any
 		expectedErr error
 	}{
 		{
@@ -132,11 +135,24 @@ func TestAuthenticateUser(t *testing.T) {
 	}
 }
 
-func signRole(role UserRole, key *rsa.PrivateKey) (string, error) {
-	hash := sha256.Sum256([]byte(role))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hash[:])
+func signRole(role UserRole, key crypto.PrivateKey) (string, error) {
+	var signature []byte
+	var err error
+
+	switch k := key.(type) {
+	case ed25519.PrivateKey:
+		signature, err = k.Sign(rand.Reader, []byte(role), crypto.Hash(0))
+	case *rsa.PrivateKey, *ecdsa.PrivateKey:
+		hash := sha256.Sum256([]byte(role))
+		signer := key.(crypto.Signer)
+		signature, err = signer.Sign(rand.Reader, hash[:], crypto.SHA256)
+	default:
+		return "", errors.New("unsupported key type")
+	}
+
 	if err != nil {
 		return "", err
 	}
+
 	return base64.StdEncoding.EncodeToString(signature), nil
 }

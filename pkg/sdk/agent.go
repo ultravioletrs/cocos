@@ -6,9 +6,13 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"io"
 	"log/slog"
 
@@ -151,11 +155,19 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 }
 
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {
-	hash := sha256.Sum256([]byte(userID))
 	var signature []byte
 	var err error
 
-	signature, err = privKey.Sign(rand.Reader, hash[:], crypto.SHA256)
+	switch k := privKey.(type) {
+	case ed25519.PrivateKey:
+		signature, err = k.Sign(rand.Reader, []byte(userID), crypto.Hash(0))
+	case *rsa.PrivateKey, *ecdsa.PrivateKey:
+		hash := sha256.Sum256([]byte(userID))
+		signature, err = privKey.Sign(rand.Reader, hash[:], crypto.SHA256)
+	default:
+		return nil, errors.New("unsupported key type")
+	}
+
 	if err != nil {
 		return nil, err
 	}
