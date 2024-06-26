@@ -48,9 +48,14 @@ message ClientStreamMessage {
 
 message ServerStreamMessage {
   oneof message {
-    ComputationRunReq runReq = 1;
-    Terminate terminateReq = 2;
+    RunReqChunks runReqChunks = 1;
+    ComputationRunReq runReq = 2;
+    Terminate terminateReq = 3;
   }
+}
+
+message RunReqChunks {
+  bytes data = 1;
 }
 
 message ComputationRunReq {

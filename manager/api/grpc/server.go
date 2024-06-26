@@ -3,13 +3,19 @@
 package grpc
 
 import (
+	"bytes"
+	"io"
+
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ manager.ManagerServiceServer = (*grpcServer)(nil)
+
+const bufferSize = 1024 * 1024 // 1 MB
 
 type grpcServer struct {
 	manager.UnimplementedManagerServiceServer
@@ -54,8 +60,29 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 			case <-ctx.Done():
 				return nil
 			case req := <-runReqChan:
-				if err := stream.Send(req); err != nil {
+				data, err := proto.Marshal(req.GetRunReq())
+				if err != nil {
 					return err
+				}
+
+				dataBuffer := bytes.NewBuffer(data)
+				buf := make([]byte, bufferSize)
+				for {
+					n, err := dataBuffer.Read(buf)
+					if err == io.EOF {
+						break
+					}
+
+					chunk := &manager.ServerStreamMessage{
+						Message: &manager.ServerStreamMessage_RunReqChunks{
+							RunReqChunks: &manager.RunReqChunks{
+								Data: buf[:n],
+							},
+						},
+					}
+					if err := stream.Send(chunk); err != nil {
+						return err
+					}
 				}
 			}
 		}
