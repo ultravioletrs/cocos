@@ -62,7 +62,10 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
 
 	progressbar := progressbar.New()
-	progressbar.SendAlgorithm(algoProgressBarDescription, algoBuffer, &stream)
+	if err := progressbar.SendAlgorithm(algoProgressBarDescription, algoBuffer, &stream); err != nil {
+		sdk.logger.Error("Failed to send Algorithm")
+		return err
+	}
 
 	return nil
 }
@@ -83,7 +86,10 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
 	progressbar := progressbar.New()
-	progressbar.SendData(dataProgressBarDescription, dataBuffer, &stream)
+	if err := progressbar.SendData(dataProgressBarDescription, dataBuffer, &stream); err != nil {
+		sdk.logger.Error("Failed to send Data")
+		return err
+	}
 
 	return nil
 }
