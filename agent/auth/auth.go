@@ -6,11 +6,14 @@ package auth
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/grpc"
@@ -29,8 +32,6 @@ const (
 	AlgorithmProviderRole UserRole = "algorithm-provider"
 )
 
-var errNotRSAPublicKey = errors.New("not an RSA public key")
-
 type wrappedServerStream struct {
 	grpc.ServerStream
 	ctx context.Context
@@ -41,9 +42,9 @@ func (s *wrappedServerStream) Context() context.Context {
 }
 
 type Service struct {
-	resultConsumers   []*rsa.PublicKey
-	datasetProviders  []*rsa.PublicKey
-	algorithmProvider *rsa.PublicKey
+	resultConsumers   []interface{}
+	datasetProviders  []interface{}
+	algorithmProvider interface{}
 }
 
 func New(manifest agent.Computation) (*Service, error) {
@@ -54,12 +55,12 @@ func New(manifest agent.Computation) (*Service, error) {
 			return nil, err
 		}
 
-		rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-		if !ok {
-			return nil, errNotRSAPublicKey
+		pKey, err := decodePublicKey(pubKey)
+		if err != nil {
+			return nil, err
 		}
 
-		s.resultConsumers = append(s.resultConsumers, rsaPubKey)
+		s.resultConsumers = append(s.resultConsumers, pKey)
 	}
 
 	for _, dp := range manifest.Datasets {
@@ -68,12 +69,12 @@ func New(manifest agent.Computation) (*Service, error) {
 			return nil, err
 		}
 
-		rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-		if !ok {
-			return nil, errNotRSAPublicKey
+		pKey, err := decodePublicKey(pubKey)
+		if err != nil {
+			return nil, err
 		}
 
-		s.datasetProviders = append(s.datasetProviders, rsaPubKey)
+		s.datasetProviders = append(s.datasetProviders, pKey)
 	}
 
 	pubKey, err := x509.ParsePKIXPublicKey(manifest.Algorithm.UserKey)
@@ -81,12 +82,12 @@ func New(manifest agent.Computation) (*Service, error) {
 		return nil, err
 	}
 
-	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-	if !ok {
-		return nil, errNotRSAPublicKey
+	pKey, err := decodePublicKey(pubKey)
+	if err != nil {
+		return nil, err
 	}
 
-	s.algorithmProvider = rsaPubKey
+	s.algorithmProvider = pKey
 	return s, nil
 }
 
@@ -166,15 +167,43 @@ func extractSignature(md metadata.MD) (string, error) {
 	return signature[0], nil
 }
 
-func verifySignature(role UserRole, signature string, publicKey *rsa.PublicKey) (bool, error) {
+func verifySignature(role UserRole, signature string, publicKey any) (bool, error) {
 	hash := sha256.Sum256([]byte(role))
 	sigByte, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
 
-	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
-		return false, err
+	var ok bool
+
+	fmt.Println("------")
+	switch publicKey := publicKey.(type) {
+	case *rsa.PublicKey:
+		if err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
+			return false, err
+		}
+	case *ecdsa.PublicKey:
+		ok = ecdsa.VerifyASN1(publicKey, hash[:], sigByte)
+	case ed25519.PublicKey:
+		ok = ed25519.Verify(publicKey, hash[:], sigByte)
 	}
+
+	if !ok {
+		return false, errors.New("signature verification failed")
+	}
+
 	return true, nil
+}
+
+func decodePublicKey(key any) (pubKey any, err error) {
+	switch key := key.(type) {
+	case *rsa.PublicKey:
+		return key, nil
+	case *ecdsa.PublicKey:
+		return key, nil
+	case ed25519.PublicKey:
+		return key, nil
+	default:
+		return nil, errors.New("unsupported public key type")
+	}
 }

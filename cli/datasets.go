@@ -39,13 +39,28 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
-			}
-
-			if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
-				log.Fatalf("Error uploading dataset: %v", err)
+			switch pemBlock.Type {
+			case rsaKeyType:
+				privKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					privKey, err = x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+					if err != nil {
+						log.Fatalf("Error parsing private key: %v", err)
+					}
+				}
+				if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
+					log.Fatalf("Error uploading dataset: %v", err)
+				}
+			case ecdsaKeyType:
+				privKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+				if err := cli.agentSDK.Data(cmd.Context(), dataReq, privKey); err != nil {
+					log.Fatalf("Error uploading dataset: %v", err)
+				}
+			default:
+				log.Fatalf("Error reading private key file: %v", err)
 			}
 
 			log.Println("Successfully uploaded dataset")

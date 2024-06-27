@@ -39,13 +39,28 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
-			}
-
-			if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
-				log.Fatalf("Error uploading algorithm with error: %v", err)
+			switch pemBlock.Type {
+			case rsaKeyType:
+				privKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+				if err != nil {
+					privKey, err = x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+					if err != nil {
+						log.Fatalf("Error parsing private key: %v", err)
+					}
+				}
+				if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
+					log.Fatalf("Error uploading algorithm with error: %v", err)
+				}
+			case ecdsaKeyType:
+				privKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+				if err != nil {
+					log.Fatalf("Error parsing private key: %v", err)
+				}
+				if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
+					log.Fatalf("Error uploading algorithm with error: %v", err)
+				}
+			default:
+				log.Fatalf("ssh: unsupported key type %q", pemBlock.Type)
 			}
 
 			log.Println("Successfully uploaded algorithm")
