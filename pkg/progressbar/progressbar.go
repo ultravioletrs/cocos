@@ -117,11 +117,11 @@ func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream 
 	return nil
 }
 
-// Progress bar example: Uploading algorithm... 25% [==>   ]
+// Progress bar example: Uploading algorithm... 25% [==>   ].
 func (p *ProgressBar) renderProgressBar() error {
 	var builder strings.Builder
 
-	// Get terminal width
+	// Get terminal width.
 	width, err := terminalWidth()
 	if err != nil {
 		return err
@@ -135,23 +135,23 @@ func (p *ProgressBar) renderProgressBar() error {
 		return err
 	}
 
-	// The progress bar starts with the description
+	// The progress bar starts with the description.
 	if _, err := builder.WriteString(p.description); err != nil {
 		return err
 	}
 
-	// Add dots to progress bar
+	// Add dots to progress bar.
 	if _, err := builder.WriteString(progressBarDots); err != nil {
 		return err
 	}
 
-	// Add uploaded percentage
+	// Add uploaded percentage.
 	strCurrentUploadPercentage := fmt.Sprintf("%4d%% ", p.currentUploadPercentage)
 	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
 		return err
 	}
 
-	// Add letf bracket and space to progress bar
+	// Add letf bracket and space to progress bar.
 	if _, err := builder.WriteString(leftBracket); err != nil {
 		return err
 	}
@@ -164,33 +164,33 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	numOfCharactersPadding := progressWidth - numOfCharactersBody
 
-	// Add body which represents the percentage
+	// Add body which represents the percentage.
 	progress := strings.Repeat(body, numOfCharactersBody-1)
 
-	// Add progress to the progress bar
+	// Add progress to the progress bar.
 	if _, err := builder.WriteString(progress); err != nil {
 		return err
 	}
 
-	// Add head to progress bar
+	// Add head to progress bar.
 	if _, err := builder.WriteString(head); err != nil {
 		return err
 	}
 
-	// Add padding to end of bar
+	// Add padding to end of bar.
 	padding := strings.Repeat(bodyPadding, numOfCharactersPadding)
 
-	// Add padding to progress bar
+	// Add padding to progress bar.
 	if _, err := builder.WriteString(padding); err != nil {
 		return err
 	}
 
-	// Add right bracket to progress bar
+	// Add right bracket to progress bar.
 	if _, err := builder.WriteString(rightBracket); err != nil {
 		return err
 	}
 
-	// Write progress bar
+	// Write progress bar.
 	if _, err := io.WriteString(os.Stdout, builder.String()); err != nil {
 		return err
 	}
