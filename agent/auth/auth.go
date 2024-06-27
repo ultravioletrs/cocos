@@ -13,6 +13,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/grpc"
@@ -175,6 +176,7 @@ func verifySignature(role UserRole, signature string, publicKey any) (bool, erro
 
 	var ok bool
 
+	fmt.Println("------")
 	switch publicKey := publicKey.(type) {
 	case *rsa.PublicKey:
 		if err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], sigByte); err != nil {
