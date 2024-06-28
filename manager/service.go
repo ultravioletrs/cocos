@@ -4,6 +4,7 @@ package manager
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/manager"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -36,6 +38,9 @@ var (
 	ErrFailedToAllocatePort = errors.New("failed to allocate free port on host")
 
 	errInvalidHashLength = errors.New("hash must be of byte length 32")
+
+	// ErrFailedToMarshalJSON indicates that agent computation returned an error while being marshaled into a JSON
+	ErrFailedToMarshalJSON = errors.New("error marshalling to JSON")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -103,6 +108,16 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
+
+	jsonData, err := json.Marshal(ac)
+	if err != nil {
+		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		return "", errors.Wrap(ErrFailedToMarshalJSON, err)
+	}
+	computationHash := sha3.Sum256(jsonData)
+
+	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash
+	ms.qemuCfg.SevConfig.HostDataValue = base64.StdEncoding.EncodeToString(computationHash[:])
 
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
 	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
