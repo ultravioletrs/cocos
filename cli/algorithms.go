@@ -16,8 +16,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "algo",
 		Short:   "Upload an algorithm binary",
-		Example: "algo <algo_file> <private_key_file_path>",
-		Args:    cobra.ExactArgs(2),
+		Example: "algo <algo_file> <requirements.txt> <private_key_file_path>",
+		Args:    cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
@@ -28,11 +28,17 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 				log.Fatalf("Error reading algorithm file: %v", err)
 			}
 
-			algoReq := agent.Algorithm{
-				Algorithm: algorithm,
+			requirements, err := os.ReadFile(args[1])
+			if err != nil {
+				log.Fatalf("Error reading requirements file: %v", err)
 			}
 
-			privKeyFile, err := os.ReadFile(args[1])
+			algoReq := agent.Algorithm{
+				Algorithm:    algorithm,
+				Requirements: requirements,
+			}
+
+			privKeyFile, err := os.ReadFile(args[2])
 			if err != nil {
 				log.Fatalf("Error reading private key file: %v", err)
 			}

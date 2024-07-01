@@ -27,6 +27,7 @@ const (
 	ReportDataSize     = 64
 	socketPath         = "unix_socket"
 	algoFilePermission = 0o700
+	pyRuntime          = "python3"
 )
 
 var (
@@ -42,8 +43,8 @@ var (
 	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
 	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
-	// errResultsNotReady indicates the computation results are not ready.
-	errResultsNotReady = errors.New("computation results are not yet ready")
+	// ErrResultsNotReady indicates the computation results are not ready.
+	ErrResultsNotReady = errors.New("computation results are not yet ready")
 	// errStateNotReady agent received a request in the wrong state.
 	errStateNotReady = errors.New("agent not expecting this operation in the current state")
 	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
@@ -60,13 +61,14 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation    // Holds the current computation request details.
-	algorithm   string         // Filepath to the algorithm received for the computation.
-	datasets    []string       // Filepath to the datasets received for the computation.
-	result      []byte         // Stores the result of the computation.
-	sm          *StateMachine  // Manages the state transitions of the agent service.
-	runError    error          // Stores any error encountered during the computation run.
-	eventSvc    events.Service // Service for publishing events related to computation.
+	computation      Computation    // Holds the current computation request details.
+	algorithm        string         // Filepath to the algorithm received for the computation.
+	datasets         []string       // Filepath to the datasets received for the computation.
+	result           []byte         // Stores the result of the computation.
+	sm               *StateMachine  // Manages the state transitions of the agent service.
+	runError         error          // Stores any error encountered during the computation run.
+	eventSvc         events.Service // Service for publishing events related to computation.
+	requirementsFile string
 }
 
 var _ Service = (*agentService)(nil)
@@ -126,6 +128,21 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 
 	as.algorithm = f.Name()
 
+	rf, err := os.CreateTemp("", "requirements")
+	if err != nil {
+		return fmt.Errorf("error creating requirements file: %v", err)
+	}
+
+	if _, err := rf.Write(algorithm.Requirements); err != nil {
+		return fmt.Errorf("error writing requirements to file: %v", err)
+	}
+
+	if err := rf.Close(); err != nil {
+		return fmt.Errorf("error closing file: %v", err)
+	}
+
+	as.requirementsFile = rf.Name()
+
 	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)
 	}
@@ -176,7 +193,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	if as.sm.GetState() != resultsReady {
-		return []byte{}, errResultsNotReady
+		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
 		return []byte{}, errAllManifestItemsReceived
@@ -232,6 +249,14 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 }
 
 func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error) {
+	var reqErr bytes.Buffer
+	rcmd := exec.Command(pyRuntime, "-m", "pip", "install", "-r", as.requirementsFile)
+	rcmd.Stderr = &reqErr
+	if err := rcmd.Run(); err != nil {
+		as.sm.logger.Debug(reqErr.String())
+		return nil, fmt.Errorf("error installing requirements: %v", err)
+	}
+
 	defer os.Remove(algoFile)
 	defer func() {
 		for _, file := range dataFiles {
@@ -254,8 +279,8 @@ func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error)
 
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
-	args := append([]string{socketPath}, dataFiles...)
-	cmd := exec.Command(algoFile, args...)
+	args := append([]string{algoFile, socketPath}, dataFiles...)
+	cmd := exec.Command(pyRuntime, args...)
 	cmd.Stderr = &outErr
 	cmd.Stdout = &outStd
 

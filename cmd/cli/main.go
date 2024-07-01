@@ -3,11 +3,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 
 	mglog "github.com/absmach/magistrala/logger"
+	glogger "github.com/google/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -32,6 +34,9 @@ func main() {
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
+
+	var buf bytes.Buffer
+	glogger.Init(svcName, false, false, &buf)
 
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {

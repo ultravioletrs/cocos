@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"google.golang.org/grpc/metadata"
@@ -56,19 +57,21 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 		return err
 	}
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
+	reqBuffer := bytes.NewBuffer(algorithm.Requirements)
 
 	buf := make([]byte, bufferSize)
+	reqBuf := make([]byte, bufferSize)
 	for {
 		n, err := algoBuffer.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
+		n2, err2 := reqBuffer.Read(reqBuf)
+		if err != nil || err2 != nil {
+			if err == io.EOF && err2 == io.EOF {
+				break
+			}
+			return errors.Wrap(err, err2)
 		}
 
-		err = stream.Send(&agent.AlgoRequest{Algorithm: buf[:n]})
-		if err != nil {
+		if err := stream.Send(&agent.AlgoRequest{Algorithm: buf[:n], Requirements: reqBuf[:n2]}); err != nil {
 			return err
 		}
 	}
@@ -128,13 +131,25 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey *rsa.PrivateKey) ([]byt
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	response, err := sdk.client.Result(ctx, request)
+	stream, err := sdk.client.Result(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
 	}
 
-	return response.File, nil
+	var result []byte
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, response.File...)
+	}
+
+	return result, nil
 }
 
 func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
