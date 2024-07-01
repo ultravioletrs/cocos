@@ -68,7 +68,7 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 			}
 
 			if len(measurement) != measurementLength {
-				log.Fatalf("Measurement must be 48 bytes in lenght")
+				log.Fatalf("Measurement must be 48 bytes in length")
 			}
 			attestationConfiguration := AttestationConfiguration{}
 
@@ -113,7 +113,7 @@ func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 			}
 
 			if len(hostData) != hostDataLength {
-				log.Fatalf("Host data must be 32 bytes in lenght")
+				log.Fatalf("Host data must be 32 bytes in length")
 			}
 
 			attestationConfiguration := AttestationConfiguration{}
