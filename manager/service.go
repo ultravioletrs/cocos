@@ -39,7 +39,7 @@ var (
 
 	errInvalidHashLength = errors.New("hash must be of byte length 32")
 
-	// ErrFailedToMarshalJSON indicates that agent computation returned an error while being marshaled into a JSON
+	// ErrFailedToMarshalJSON indicates that agent computation returned an error while being marshaled into a JSON.
 	ErrFailedToMarshalJSON = errors.New("error marshalling to JSON")
 )
 

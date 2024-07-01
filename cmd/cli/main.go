@@ -102,6 +102,7 @@ func main() {
 
 	keysCmd := cliSVC.NewKeysCmd()
 	attestationCmd := cliSVC.NewAttestationCmd()
+	backendCmd := cliSVC.NewBackendCmd()
 
 	// Agent Commands
 	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
@@ -109,7 +110,7 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
 	rootCmd.AddCommand(attestationCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
-	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	rootCmd.AddCommand(backendCmd)
 	rootCmd.AddCommand(keysCmd)
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 
@@ -125,6 +126,10 @@ func main() {
 		"rsa",
 		"User Key type",
 	)
+
+	// Backend information commands
+	backendCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	backendCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
