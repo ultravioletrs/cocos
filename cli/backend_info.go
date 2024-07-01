@@ -22,7 +22,7 @@ const (
 
 type AttestationConfiguration struct {
 	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
-	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
+	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
 }
 
 func (cli *CLI) NewBackendCmd() *cobra.Command {

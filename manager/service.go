@@ -109,14 +109,14 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
 
-	computationHash, err := getComputationHash(&ac)
+	ch, err := computationHash(ac)
 	if err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToCalculateHash, err)
 	}
 
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(computationHash[:])
+	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
 
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
 	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
@@ -171,8 +171,8 @@ func (ms *managerService) publishEvent(event, cmpID, status string, details json
 	}
 }
 
-func getComputationHash(ac *agent.Computation) ([32]byte, error) {
-	jsonData, err := json.Marshal(*ac)
+func computationHash(ac agent.Computation) ([32]byte, error) {
+	jsonData, err := json.Marshal(ac)
 	if err != nil {
 		return [32]byte{}, err
 	}
