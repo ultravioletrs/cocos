@@ -90,12 +90,17 @@ func main() {
 	attestaionCmd := cliSVC.NewAttestationCmd()
 	rootCmd.AddCommand(attestaionCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
-	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	backendCmd := cliSVC.NewBackendCmd()
+	rootCmd.AddCommand(backendCmd)
 	rootCmd.AddCommand(cliSVC.NewKeysCmd())
 
 	// Attestation commands
 	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
 	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+
+	// Backend information commands
+	backendCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	backendCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

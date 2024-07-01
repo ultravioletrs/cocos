@@ -1,5 +1,5 @@
 [package]
-name = "platform_info"
+name = "backend_info"
 version = "0.1.0"
 edition = "2021"
 

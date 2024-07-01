@@ -6,7 +6,7 @@ use sysinfo::System;
 use regex::Regex;
 use sev::firmware::host::*;
 
-const PLATFORM_INFO_JSON : &str = "platform_info.json";
+const BACKEND_INFO_JSON : &str = "backend_info.json";
 
 #[derive(Serialize)]
 struct Vmpl {
@@ -70,7 +70,7 @@ fn get_uint64_from_tcb(tcb_version : &TcbVersion) -> u64 {
 }
 
 fn main() {
-    let matches = Command::new("Platform info")
+    let matches = Command::new("Backend info")
         .about("Processes command line options and outputs a JSON file for Attestation verification")
         .arg(Arg::new("policy")
             .long("policy")
@@ -130,8 +130,8 @@ fn main() {
     };
 
     let json = serde_json::to_string_pretty(&computation).expect("Failed to serialize to JSON");
-    let mut file = File::create(PLATFORM_INFO_JSON).expect("Failed to create file");
+    let mut file = File::create(BACKEND_INFO_JSON).expect("Failed to create file");
     file.write_all(json.as_bytes()).expect("Failed to write to file");
 
-    println!("Computation JSON has been written to {}", PLATFORM_INFO_JSON);
+    println!("Computation JSON has been written to {}", BACKEND_INFO_JSON);
 }
