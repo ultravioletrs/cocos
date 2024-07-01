@@ -50,8 +50,7 @@ type SevConfig struct {
 	ID              string `env:"SEV_ID" envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS" envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
-	HostData        bool   `env:"HOST_DATA" envDefault:"false"`
-	HostDataValue   string `env:"HOST_DATA_VALUE" envDefault:""`
+	HostData        string `env:"HOST_DATA" envDefault:""`
 }
 
 type VSockConfig struct {
@@ -184,8 +183,8 @@ func constructQemuArgs(config Config) []string {
 		if config.EnableSEVSNP {
 			sevType = "sev-snp-guest"
 
-			if config.SevConfig.HostData {
-				hostData = fmt.Sprintf(",host-data=%s", config.SevConfig.HostDataValue)
+			if config.SevConfig.HostData != "" {
+				hostData = fmt.Sprintf(",host-data=%s", config.SevConfig.HostData)
 			}
 		}
 
