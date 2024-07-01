@@ -80,8 +80,7 @@ func (s *Server) Start() error {
 	}
 
 	if s.authSvc != nil {
-		unary, stream := agentgrpc.NewAuthInterceptor(s.authSvc)
-		grpcServerOptions = append(grpcServerOptions, grpc.UnaryInterceptor(unary))
+		stream := agentgrpc.NewAuthInterceptor(s.authSvc)
 		grpcServerOptions = append(grpcServerOptions, grpc.StreamInterceptor(stream))
 	}
 

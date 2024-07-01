@@ -25,9 +25,9 @@ func (s *wrappedServerStream) Context() context.Context {
 	return s.ctx
 }
 
-func NewAuthInterceptor(authSvc auth.Authenticator) (grpc.UnaryServerInterceptor, grpc.StreamServerInterceptor) {
+func NewAuthInterceptor(authSvc auth.Authenticator) grpc.StreamServerInterceptor {
 	ai := &authInterceptor{auth: authSvc}
-	return ai.AuthUnaryInterceptor(), ai.AuthStreamInterceptor()
+	return ai.AuthStreamInterceptor()
 }
 
 func (s *authInterceptor) AuthStreamInterceptor() grpc.StreamServerInterceptor {
@@ -45,23 +45,15 @@ func (s *authInterceptor) AuthStreamInterceptor() grpc.StreamServerInterceptor {
 			}
 			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
 			return handler(srv, wrapped)
+		case agent.AgentService_Result_FullMethodName:
+			ctx, err := s.auth.AuthenticateUser(stream.Context(), auth.ConsumerRole)
+			if err != nil {
+				return status.Errorf(codes.Unauthenticated, err.Error())
+			}
+			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
+			return handler(srv, wrapped)
 		default:
 			return handler(srv, stream)
-		}
-	}
-}
-
-func (s *authInterceptor) AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		switch info.FullMethod {
-		case agent.AgentService_Result_FullMethodName:
-			ctx, err := s.auth.AuthenticateUser(ctx, auth.DataProviderRole)
-			if err != nil {
-				return nil, status.Errorf(codes.Unauthenticated, err.Error())
-			}
-			return handler(ctx, req)
-		default:
-			return handler(ctx, req)
 		}
 	}
 }
