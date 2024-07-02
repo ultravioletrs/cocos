@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/google/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -21,6 +23,8 @@ const (
 	svcName            = "cli"
 	envPrefixAgentGRPC = "AGENT_GRPC_"
 	completion         = "completion"
+	filePermision      = 0o755
+	cocosDirectory     = ".cocos"
 )
 
 type config struct {
@@ -29,8 +33,21 @@ type config struct {
 
 func main() {
 	var cfg config
+	logger.Init("", false, false, os.Stderr)
+
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
+	}
+
+	homePath, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Error fetching user home directory: %v", err)
+	}
+
+	directoryCachePath := path.Join(homePath, cocosDirectory)
+
+	if err := os.MkdirAll(directoryCachePath, filePermision); err != nil {
+		log.Fatalf("Error while creating directory %s, error: %v", directoryCachePath, err)
 	}
 
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
@@ -92,6 +109,7 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
 	rootCmd.AddCommand(cliSVC.NewKeysCmd())
+	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 
 	// Attestation commands
 	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())

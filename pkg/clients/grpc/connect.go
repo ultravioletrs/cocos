@@ -9,11 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
@@ -30,6 +32,13 @@ const (
 	withoutTLS security = iota
 	withTLS
 	withmTLS
+)
+
+const (
+	cocosDirectory   = ".cocos"
+	caBundleName     = "ask_ark.pem"
+	productNameMilan = "Milan"
+	productNameGenoa = "Genoa"
 )
 
 var (
@@ -63,7 +72,7 @@ type Config struct {
 
 type AttestationConfiguration struct {
 	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
-	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
+	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
 }
 
 type Client interface {
@@ -132,7 +141,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := readManifest(cfg)
+		err := ReadManifest(cfg.Manifest, &attestationConfiguration)
 		if err != nil {
 			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
 		}
@@ -183,16 +192,16 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func readManifest(cfg Config) error {
-	if cfg.Manifest != "" {
-		manifest, err := os.Open(cfg.Manifest)
+func ReadManifest(manifestPath string, attestationConfiguration *AttestationConfiguration) error {
+	if manifestPath != "" {
+		manifest, err := os.Open(manifestPath)
 		if err != nil {
 			return errors.Wrap(errManifestOpen, err)
 		}
 		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
-		err = decoder.Decode(&attestationConfiguration)
+		err = decoder.Decode(attestationConfiguration)
 		if err != nil {
 			return errors.Wrap(errManifestDecode, err)
 		}
@@ -226,7 +235,7 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			attestationConfiguration.SNPPolicy.ReportData = expectedReportData[:]
 
 			// Attestation verification and validation
-			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOFTrust)
+			sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOfTrust)
 			if err != nil {
 				return errors.Wrap(errAttVerification, err)
 			}
@@ -241,6 +250,10 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 			attestationPB, err := abi.ReportCertsToProto(ext.Value)
 			if err != nil {
 				return errors.Wrap(errAttVerification, err)
+			}
+
+			if err := fillInAttestationLocal(attestationPB); err != nil {
+				return err
 			}
 
 			if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
@@ -274,6 +287,35 @@ func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
 
 	if _, err := cert.Verify(opts); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
+	product := attestationConfiguration.RootOfTrust.Product
+
+	chain := attestation.GetCertificateChain()
+	if chain == nil {
+		chain = &sevsnp.CertificateChain{}
+		attestation.CertificateChain = chain
+	}
+	if len(chain.GetAskCert()) == 0 || len(chain.GetArkCert()) == 0 {
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+
+		bundleFilePath := path.Join(homePath, cocosDirectory, product, caBundleName)
+		if _, err := os.Stat(bundleFilePath); err == nil {
+			amdRootCerts := trust.AMDRootCerts{}
+			if err := amdRootCerts.FromKDSCert(bundleFilePath); err != nil {
+				return err
+			}
+
+			chain.ArkCert = amdRootCerts.ProductCerts.Ark.Raw
+			chain.AskCert = amdRootCerts.ProductCerts.Ask.Raw
+		}
 	}
 
 	return nil

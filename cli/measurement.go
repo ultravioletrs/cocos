@@ -8,16 +8,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/spf13/cobra"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
-const filePermision = 0o755
-
-type AttestationConfiguration struct {
-	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
-	RootOFTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
-}
+const filePermision = 0o644
 
 func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 	return &cobra.Command{
@@ -31,7 +26,7 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 				log.Fatalf("Error could not decode base64: %v", err)
 			}
 
-			attestationConfiguration := AttestationConfiguration{}
+			attestationConfiguration := grpc.AttestationConfiguration{}
 
 			manifest, err := os.OpenFile(args[1], os.O_RDWR, filePermision)
 			if err != nil {

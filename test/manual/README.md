@@ -30,7 +30,13 @@ LINE="earlyprintk=serial console=ttyS0"
 sev-snp-measure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --kernel $KERNEL --initrd $INITRD --append "$LINE" --output-format base64
 ```
 
-```sh
+To speed up the verification process of attested TLS, download the ARK and ASK certificates using the CLI tool. The CLI tool will download the certificates under your home directory in the `.cocos` directory.
+```bash
+go run cmd/cli/main.go ca-bundle <path/to/platfrom_info.json>
+```
+
+In the following text, we can see an example of how the CLI tool is used.
+```bash
 export AGENT_GRPC_URL=localhost:7002
 
 # For attested TLS, the CLI should also be aware of the VM measurement. To 
