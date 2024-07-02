@@ -50,6 +50,7 @@ type SevConfig struct {
 	ID              string `env:"SEV_ID" envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS" envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
+	HostData        string `env:"HOST_DATA" envDefault:""`
 }
 
 type VSockConfig struct {
@@ -177,9 +178,14 @@ func constructQemuArgs(config Config) []string {
 	if config.EnableSEV || config.EnableSEVSNP {
 		sevType := "sev-guest"
 		kernelHash := ""
+		hostData := ""
 
 		if config.EnableSEVSNP {
 			sevType = "sev-snp-guest"
+
+			if config.SevConfig.HostData != "" {
+				hostData = fmt.Sprintf(",host-data=%s", config.SevConfig.HostData)
+			}
 		}
 
 		if config.KernelHash {
@@ -187,12 +193,13 @@ func constructQemuArgs(config Config) []string {
 		}
 
 		args = append(args, "-object",
-			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s",
+			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s%s",
 				sevType,
 				config.SevConfig.ID,
 				config.SevConfig.CBitPos,
 				config.SevConfig.ReducedPhysBits,
-				kernelHash))
+				kernelHash,
+				hostData))
 
 		args = append(args, "-machine",
 			fmt.Sprintf("memory-encryption=%s", config.SevConfig.ID))
