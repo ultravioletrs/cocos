@@ -100,15 +100,17 @@ func main() {
 		},
 	}
 
+	keysCmd := cliSVC.NewKeysCmd()
+	attestationCmd := cliSVC.NewAttestationCmd()
+
 	// Agent Commands
 	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
 	rootCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
-	attestationCmd := cliSVC.NewAttestationCmd()
 	rootCmd.AddCommand(attestationCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
-	rootCmd.AddCommand(cliSVC.NewKeysCmd())
+	rootCmd.AddCommand(keysCmd)
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 
 	// Attestation commands
@@ -116,7 +118,7 @@ func main() {
 	attestationCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
 
 	// Flags
-	rootCmd.PersistentFlags().StringVarP(
+	keysCmd.PersistentFlags().StringVarP(
 		&cli.KeyType,
 		"key-type",
 		"k",
