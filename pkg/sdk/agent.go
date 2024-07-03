@@ -6,10 +6,13 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"io"
 	"log/slog"
 
@@ -19,9 +22,9 @@ import (
 )
 
 type SDK interface {
-	Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error
-	Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error
-	Result(ctx context.Context, privKey *rsa.PrivateKey) ([]byte, error)
+	Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error
+	Data(ctx context.Context, dataset agent.Dataset, privKey any) error
+	Result(ctx context.Context, privKey any) ([]byte, error)
 	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
 }
 
@@ -42,7 +45,7 @@ func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) SDK {
 	}
 }
 
-func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey *rsa.PrivateKey) error {
+func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error {
 	md, err := generateMetadata(string(auth.AlgorithmProviderRole), privKey)
 	if err != nil {
 		sdk.logger.Error("Failed to generate metadata")
@@ -80,7 +83,7 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	return nil
 }
 
-func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *rsa.PrivateKey) error {
+func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey any) error {
 	md, err := generateMetadata(string(auth.DataProviderRole), privKey)
 	if err != nil {
 		sdk.logger.Error("Failed to generate metadata")
@@ -118,7 +121,7 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey *r
 	return nil
 }
 
-func (sdk *agentSDK) Result(ctx context.Context, privKey *rsa.PrivateKey) ([]byte, error) {
+func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 	request := &agent.ResultRequest{}
 
 	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
@@ -151,9 +154,20 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 	return response.File, nil
 }
 
-func signData(userID string, privKey *rsa.PrivateKey) ([]byte, error) {
-	hash := sha256.Sum256([]byte(userID))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, privKey, crypto.SHA256, hash[:])
+func signData(userID string, privKey crypto.Signer) ([]byte, error) {
+	var signature []byte
+	var err error
+
+	switch k := privKey.(type) {
+	case ed25519.PrivateKey:
+		signature, err = k.Sign(rand.Reader, []byte(userID), crypto.Hash(0))
+	case *rsa.PrivateKey, *ecdsa.PrivateKey:
+		hash := sha256.Sum256([]byte(userID))
+		signature, err = privKey.Sign(rand.Reader, hash[:], crypto.SHA256)
+	default:
+		return nil, errors.New("unsupported key type")
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +175,8 @@ func signData(userID string, privKey *rsa.PrivateKey) ([]byte, error) {
 	return signature, nil
 }
 
-func generateMetadata(userID string, privateKey *rsa.PrivateKey) (metadata.MD, error) {
-	signature, err := signData(userID, privateKey)
+func generateMetadata(userID string, privateKey crypto.PrivateKey) (metadata.MD, error) {
+	signature, err := signData(userID, privateKey.(crypto.Signer))
 	if err != nil {
 		return nil, err
 	}

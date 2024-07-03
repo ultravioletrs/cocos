@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"crypto/x509"
 	"encoding/pem"
 	"log"
 	"os"
@@ -39,10 +38,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
-			}
+			privKey := decodeKey(pemBlock)
 
 			if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
 				log.Fatalf("Error uploading algorithm with error: %v", err)

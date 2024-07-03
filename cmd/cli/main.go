@@ -100,20 +100,31 @@ func main() {
 		},
 	}
 
+	keysCmd := cliSVC.NewKeysCmd()
+	attestationCmd := cliSVC.NewAttestationCmd()
+
 	// Agent Commands
 	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
 	rootCmd.AddCommand(cliSVC.NewDatasetsCmd())
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
-	attestaionCmd := cliSVC.NewAttestationCmd()
-	rootCmd.AddCommand(attestaionCmd)
+	rootCmd.AddCommand(attestationCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
-	rootCmd.AddCommand(cliSVC.NewKeysCmd())
+	rootCmd.AddCommand(keysCmd)
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 
 	// Attestation commands
-	attestaionCmd.AddCommand(cliSVC.NewGetAttestationCmd())
-	attestaionCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+	attestationCmd.AddCommand(cliSVC.NewGetAttestationCmd())
+	attestationCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+
+	// Flags
+	keysCmd.PersistentFlags().StringVarP(
+		&cli.KeyType,
+		"key-type",
+		"k",
+		"rsa",
+		"User Key type",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error(fmt.Sprintf("Command execution failed: %s", err))

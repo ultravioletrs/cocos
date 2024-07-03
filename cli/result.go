@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"crypto/x509"
 	"encoding/pem"
 	"log"
 	"os"
@@ -29,12 +28,10 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-			if err != nil {
-				log.Fatalf("Error parsing private key: %v", err)
-			}
+			var result []byte
 
-			result, err := cli.agentSDK.Result(cmd.Context(), privKey)
+			privKey := decodeKey(pemBlock)
+			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}
