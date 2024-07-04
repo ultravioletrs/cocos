@@ -1,1 +1,2 @@
 source "$BR2_EXTERNAL_COCOS_PATH/package/agent/Config.in"
+source "$BR2_EXTERNAL_COCOS_PATH/package/wasmtime/Config.in"
