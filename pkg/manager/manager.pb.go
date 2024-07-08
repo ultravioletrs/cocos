@@ -1011,7 +1011,7 @@ func file_manager_manager_proto_rawDescGZIP() []byte {
 	return file_manager_manager_proto_rawDescData
 }
 
-var file_manager_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_manager_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_manager_manager_proto_goTypes = []any{
 	(*Terminate)(nil),             // 0: manager.Terminate
 	(*StopComputation)(nil),       // 1: manager.StopComputation
@@ -1068,7 +1068,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[1].Exporter = func(v any, i int) any {
-			switch v := v.(*RunResponse); i {
+			switch v := v.(*StopComputation); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1080,7 +1080,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[2].Exporter = func(v any, i int) any {
-			switch v := v.(*AgentEvent); i {
+			switch v := v.(*RunResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1092,7 +1092,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[3].Exporter = func(v any, i int) any {
-			switch v := v.(*AgentLog); i {
+			switch v := v.(*AgentEvent); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1104,7 +1104,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[4].Exporter = func(v any, i int) any {
-			switch v := v.(*ClientStreamMessage); i {
+			switch v := v.(*AgentLog); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1116,7 +1116,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[5].Exporter = func(v any, i int) any {
-			switch v := v.(*ServerStreamMessage); i {
+			switch v := v.(*ClientStreamMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1128,7 +1128,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[6].Exporter = func(v any, i int) any {
-			switch v := v.(*ComputationRunReq); i {
+			switch v := v.(*ServerStreamMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1140,7 +1140,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[7].Exporter = func(v any, i int) any {
-			switch v := v.(*ResultConsumer); i {
+			switch v := v.(*ComputationRunReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1152,7 +1152,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[8].Exporter = func(v any, i int) any {
-			switch v := v.(*Dataset); i {
+			switch v := v.(*ResultConsumer); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1164,7 +1164,7 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[9].Exporter = func(v any, i int) any {
-			switch v := v.(*Algorithm); i {
+			switch v := v.(*Dataset); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1176,6 +1176,18 @@ func file_manager_manager_proto_init() {
 			}
 		}
 		file_manager_manager_proto_msgTypes[10].Exporter = func(v any, i int) any {
+			switch v := v.(*Algorithm); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_manager_manager_proto_msgTypes[11].Exporter = func(v any, i int) any {
 			switch v := v.(*AgentConfig); i {
 			case 0:
 				return &v.state
@@ -1188,12 +1200,12 @@ func file_manager_manager_proto_init() {
 			}
 		}
 	}
-	file_manager_manager_proto_msgTypes[4].OneofWrappers = []any{
+	file_manager_manager_proto_msgTypes[5].OneofWrappers = []any{
 		(*ClientStreamMessage_AgentLog)(nil),
 		(*ClientStreamMessage_AgentEvent)(nil),
 		(*ClientStreamMessage_RunRes)(nil),
 	}
-	file_manager_manager_proto_msgTypes[5].OneofWrappers = []any{
+	file_manager_manager_proto_msgTypes[6].OneofWrappers = []any{
 		(*ServerStreamMessage_RunReq)(nil),
 		(*ServerStreamMessage_TerminateReq)(nil),
 		(*ServerStreamMessage_StopComputation)(nil),

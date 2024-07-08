@@ -1,6 +1,6 @@
 run:
   timeout: 3m
-  
+
 issues:
   max-issues-per-linter: 10
   max-same-issues: 10
@@ -15,10 +15,7 @@ linters-settings:
 
   gocritic:
     enabled-checks:
-      - captLocal
       - dupImport
-      - singleCaseSwitch
-      - switchTrue
       - importShadow
       - httpNoBody
       - paramTypeCombine
@@ -34,9 +31,6 @@ linters-settings:
       - style
       - experimental
       - opinionated
-  misspell:
-    ignore-words:
-      - "mosquitto"
   stylecheck:
     checks: ["-ST1000", "-ST1003", "-ST1020", "-ST1021", "-ST1022"]
   goheader:
