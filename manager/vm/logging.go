@@ -4,6 +4,7 @@ package vm
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
@@ -11,8 +12,10 @@ import (
 )
 
 var (
-	_ io.Writer = &stdout{}
-	_ io.Writer = &stderr{}
+	_                      io.Writer = &stdout{}
+	_                      io.Writer = &stderr{}
+	ErrFailedToSendMessage           = errors.New("failed to send message to channel")
+	ErrPanicRecovered                = errors.New("panic recovered: channel may be closed")
 )
 
 const bufSize = 1024
@@ -20,6 +23,23 @@ const bufSize = 1024
 type stdout struct {
 	logsChan      chan *manager.ClientStreamMessage
 	computationId string
+}
+
+// safeSend safely sends a message to the channel and returns an error on failure.
+func safeSend(ch chan *manager.ClientStreamMessage, msg *manager.ClientStreamMessage) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Recover from panic if the channel is closed
+			err = ErrPanicRecovered
+		}
+	}()
+	select {
+	case ch <- msg:
+		return nil
+	default:
+		// Channel is full or closed
+		return ErrFailedToSendMessage
+	}
 }
 
 // Write implements io.Writer.
@@ -34,10 +54,10 @@ func (s *stdout) Write(p []byte) (n int, err error) {
 			if err == io.EOF {
 				break
 			}
-			return 0, err
+			return len(p) - inBuf.Len(), err
 		}
 
-		s.logsChan <- &manager.ClientStreamMessage{
+		msg := &manager.ClientStreamMessage{
 			Message: &manager.ClientStreamMessage_AgentLog{
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
@@ -46,6 +66,10 @@ func (s *stdout) Write(p []byte) (n int, err error) {
 					Timestamp:     timestamppb.Now(),
 				},
 			},
+		}
+
+		if err := safeSend(s.logsChan, msg); err != nil {
+			return len(p) - inBuf.Len(), err
 		}
 	}
 
@@ -69,10 +93,10 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 			if err == io.EOF {
 				break
 			}
-			return 0, err
+			return len(p) - inBuf.Len(), err
 		}
 
-		s.logsChan <- &manager.ClientStreamMessage{
+		msg := &manager.ClientStreamMessage{
 			Message: &manager.ClientStreamMessage_AgentLog{
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
@@ -82,9 +106,14 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 				},
 			},
 		}
+
+		if err := safeSend(s.logsChan, msg); err != nil {
+			return len(p) - inBuf.Len(), err
+		}
 	}
 
-	s.logsChan <- &manager.ClientStreamMessage{
+	// Ensure vm-provision failure message is sent
+	eventMsg := &manager.ClientStreamMessage{
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
 				ComputationId: s.computationId,
@@ -94,6 +123,10 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 				Status:        "failed",
 			},
 		},
+	}
+
+	if err := safeSend(s.logsChan, eventMsg); err != nil {
+		return len(p), err
 	}
 
 	return len(p), nil

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/gofrs/uuid"
+	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/manager"
@@ -18,9 +19,13 @@ const (
 	rootfsFile   = "rootfs.cpio"
 )
 
+// VM represents a virtual machine.
+//
+//go:generate mockery --name VM --output=./mocks --filename vm.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type VM interface {
 	Start() error
 	Stop() error
+	SendAgentConfig(ac agent.Computation) error
 }
 
 type vm struct {
@@ -29,6 +34,9 @@ type vm struct {
 	logsChan      chan *manager.ClientStreamMessage
 	computationId string
 }
+
+//go:generate mockery --name VMFactory --output=./mocks --filename vm_factory.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
+type VMFactory func(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM
 
 func NewVM(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM {
 	return &vm{
@@ -39,7 +47,7 @@ func NewVM(config qemu.Config, logsChan chan *manager.ClientStreamMessage, compu
 }
 
 func (v *vm) Start() error {
-	// Create unique emu device identifiers
+	// Create unique qemu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
 		return err
