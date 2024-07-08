@@ -23,8 +23,10 @@ const (
 	bufferSize      = 1024 * 1024
 )
 
-var _ streamSender = (*algoClientWrapper)(nil)
-var _ streamSender = (*dataClientWrapper)(nil)
+var (
+	_ streamSender = (*algoClientWrapper)(nil)
+	_ streamSender = (*dataClientWrapper)(nil)
+)
 
 type streamSender interface {
 	Send(interface{}) error
