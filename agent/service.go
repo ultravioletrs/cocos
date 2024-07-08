@@ -37,17 +37,17 @@ var (
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
 	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
-	errUndeclaredDataset = errors.New("dataset not declared in computation manifest")
+	ErrUndeclaredDataset = errors.New("dataset not declared in computation manifest")
 	// errAllManifestItemsReceived indicates no new computation manifest items expected.
-	errAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
+	ErrAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
 	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
-	errUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
+	ErrUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
 	// errResultsNotReady indicates the computation results are not ready.
-	errResultsNotReady = errors.New("computation results are not yet ready")
+	ErrResultsNotReady = errors.New("computation results are not yet ready")
 	// errStateNotReady agent received a request in the wrong state.
-	errStateNotReady = errors.New("agent not expecting this operation in the current state")
+	ErrStateNotReady = errors.New("agent not expecting this operation in the current state")
 	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
-	errHashMismatch = errors.New("malformed data, hash does not match manifest")
+	ErrHashMismatch = errors.New("malformed data, hash does not match manifest")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -97,16 +97,16 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 
 func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	if as.sm.GetState() != receivingAlgorithm {
-		return errStateNotReady
+		return ErrStateNotReady
 	}
 	if as.algorithm != "" {
-		return errAllManifestItemsReceived
+		return ErrAllManifestItemsReceived
 	}
 
 	hash := sha3.Sum256(algorithm.Algorithm)
 
 	if hash != as.computation.Algorithm.Hash {
-		return errHashMismatch
+		return ErrHashMismatch
 	}
 
 	f, err := os.CreateTemp("", "algorithm")
@@ -137,21 +137,21 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 
 func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if as.sm.GetState() != receivingData {
-		return errStateNotReady
+		return ErrStateNotReady
 	}
 	if len(as.computation.Datasets) == 0 {
-		return errAllManifestItemsReceived
+		return ErrAllManifestItemsReceived
 	}
 
 	hash := sha3.Sum256(dataset.Dataset)
 
 	index, ok := IndexFromContext(ctx)
 	if !ok {
-		return errUndeclaredDataset
+		return ErrUndeclaredDataset
 	}
 
 	if hash != as.computation.Datasets[index].Hash {
-		return errHashMismatch
+		return ErrHashMismatch
 	}
 	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 
@@ -178,14 +178,14 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	if as.sm.GetState() != resultsReady {
-		return []byte{}, errResultsNotReady
+		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
-		return []byte{}, errAllManifestItemsReceived
+		return []byte{}, ErrAllManifestItemsReceived
 	}
 	index, ok := IndexFromContext(ctx)
 	if !ok {
-		return []byte{}, errUndeclaredConsumer
+		return []byte{}, ErrUndeclaredConsumer
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
