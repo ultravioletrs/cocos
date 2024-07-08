@@ -29,6 +29,13 @@ func (tm *tracingMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 	return tm.svc.Run(ctx, mc)
 }
 
+func (tm *tracingMiddleware) Stop(ctx context.Context, computationID string) error {
+	ctx, span := tm.tracer.Start(ctx, "stop")
+	defer span.End()
+
+	return tm.svc.Stop(ctx, computationID)
+}
+
 func (tm *tracingMiddleware) RetrieveAgentEventsLogs() {
 	tm.svc.RetrieveAgentEventsLogs()
 }

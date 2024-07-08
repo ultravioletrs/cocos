@@ -17,6 +17,10 @@ message Terminate {
   string message = 1;
 }
 
+message StopComputation {
+  string computation_id = 1;
+}
+
 message RunResponse{
   string agent_port = 1;
   string computation_id = 2;
@@ -50,6 +54,7 @@ message ServerStreamMessage {
   oneof message {
     ComputationRunReq runReq = 1;
     Terminate terminateReq = 2;
+    StopComputation stopComputation = 3;
   }
 }
 

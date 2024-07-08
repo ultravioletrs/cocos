@@ -50,6 +50,10 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 			case *pkgmanager.ServerStreamMessage_TerminateReq:
 				cancel()
 				return errors.Join(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
+			case *pkgmanager.ServerStreamMessage_StopComputation:
+				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
+					return err
+				}
 			}
 		}
 	})
