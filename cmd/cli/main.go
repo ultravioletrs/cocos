@@ -9,11 +9,10 @@ import (
 	"path"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/google/logger"
+	"github.com/caarlos0/env/v11"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
-	"github.com/ultravioletrs/cocos/internal/env"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
@@ -33,8 +32,6 @@ type config struct {
 
 func main() {
 	var cfg config
-	logger.Init("", false, false, os.Stderr)
-
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
@@ -56,7 +53,7 @@ func main() {
 	}
 
 	agentGRPCConfig := grpc.Config{}
-	if err := env.Parse(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
+	if err := env.ParseWithOptions(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}

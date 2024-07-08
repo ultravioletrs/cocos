@@ -8,14 +8,16 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/jaeger"
+	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/absmach/magistrala/pkg/uuid"
+	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/internal/env"
-	jaegerclient "github.com/ultravioletrs/cocos/internal/jaeger"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
@@ -35,9 +37,10 @@ const (
 )
 
 type config struct {
-	LogLevel   string `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL  string `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:14268/api/traces"`
-	InstanceID string `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	LogLevel   string  `env:"MANAGER_LOG_LEVEL"     envDefault:"info"`
+	JaegerURL  url.URL `env:"COCOS_JAEGER_URL"      envDefault:"http://localhost:14268/api/traces"`
+	TraceRatio float64 `env:"MG_JAEGER_TRACE_RATIO" envDefault:"1.0"`
+	InstanceID string  `env:"MANAGER_INSTANCE_ID"   envDefault:""`
 }
 
 func main() {
@@ -55,14 +58,13 @@ func main() {
 	}
 
 	if cfg.InstanceID == "" {
-		cfg.InstanceID, err = uuid.New().ID()
-		if err != nil {
+		if cfg.InstanceID, err = uuid.New().ID(); err != nil {
 			logger.Error(fmt.Sprintf("Failed to generate instance ID: %s", err))
 			return
 		}
 	}
 
-	tp, err := jaegerclient.NewProvider(ctx, svcName, cfg.JaegerURL, cfg.InstanceID)
+	tp, err := jaeger.NewProvider(ctx, svcName, cfg.JaegerURL, cfg.InstanceID, cfg.TraceRatio)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to init Jaeger: %s", err))
 	}
@@ -74,7 +76,7 @@ func main() {
 	tracer := tp.Tracer(svcName)
 
 	qemuCfg := qemu.Config{}
-	if err := env.Parse(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
+	if err := env.ParseWithOptions(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 		return
 	}
@@ -82,7 +84,7 @@ func main() {
 	logger.Info(strings.Join(args, " "))
 
 	managerGRPCConfig := grpc.Config{}
-	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
+	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}
@@ -113,8 +115,7 @@ func main() {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
 
-	err = internal.DeleteFilesInDir(qemuCfg.TmpFileLoc)
-	if err != nil {
+	if err = internal.DeleteFilesInDir(qemuCfg.TmpFileLoc); err != nil {
 		logger.Error(err.Error())
 	}
 }
@@ -123,7 +124,7 @@ func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, e
 	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
-	counter, latency := internal.MakeMetrics(svcName, "api")
+	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
 	svc = tracing.New(svc, tracer)
 
