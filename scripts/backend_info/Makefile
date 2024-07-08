@@ -1,7 +1,7 @@
 CARGO = cargo
 TARGET = target
 BUILD_DIR = $(TARGET)/release
-BIN_NAME = platform_info
+BIN_NAME = backend_info
 
 all: build
 

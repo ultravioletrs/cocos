@@ -39,21 +39,29 @@ In the following text, we can see an example of how the CLI tool is used.
 ```bash
 export AGENT_GRPC_URL=localhost:7002
 
-# For attested TLS, the CLI should also be aware of the VM measurement. To 
-# add the measurement to the .json file that contains the information about 
-# the platform, run CLI with the measurement in base64 format and the path 
-# of the platform_info.json file.:
-go run cmd/cli/main.go measurement '<measurement>' '<platform_info.json>'
-
-# The platform_info.json file can be generated using Rust by running:
-cd scripts/platform_info
+# For attested TLS, the CLI needs a file containing the necessary information 
+# about the SEV-SNP capable backend. This information will be used to verify 
+# the attestation report received from the agent.
+# The backend_info.json file can be generated using Rust by running:
+cd scripts/backend_info
 make
-sudo ./target/release/platform_info --policy 196608 # Default value of the policy should be 196608
-# The output file platform_info.json will be generated in the directory from which the executable has been called.
+sudo ./target/release/backend_info --policy 196608 # Default value of the policy should be 196608
+# The output file backend_info.json will be generated in the directory from which the executable has been called.
 cd ../..
 
-# For attested TLS, also define the path to the platform_info.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_MANIFEST=./scripts/platform_info/platform_info.json
+# The CLI should also be aware of the VM measurement. To add the measurement 
+# to the .json file that contains the information about the platform, run CLI 
+# with the measurement in base64 format and the path of the backend_info.json file.:
+go run cmd/cli/main.go backend measurement '<measurement>' '<backend_info.json>'
+
+# If the VM is booted with the QEMU host data option, the CLI should also know 
+# the host data information. To add the host data to the .json file that contains 
+# the information about the platform, run CLI with the host data in base64 format 
+# and the path of the backend_info.json file.:
+go run cmd/cli/main.go backend measurement '<host-data>' '<backend_info.json>'
+
+# For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
+export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation
