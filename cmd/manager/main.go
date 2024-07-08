@@ -78,12 +78,8 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 		return
 	}
-	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
-		return
-	}
-	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+	args := qemuCfg.ConstructQemuArgs()
+	logger.Info(fmt.Sprintf("%s", strings.Join(args, " ")))
 
 	managerGRPCConfig := grpc.Config{}
 	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
