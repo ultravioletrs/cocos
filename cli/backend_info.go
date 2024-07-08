@@ -37,6 +37,7 @@ var (
 	errUnmarshalJSON          = errors.New("failed to unmarshal json")
 	errMarshalJSON            = errors.New("failed to marshal json")
 	errWriteFile              = errors.New("failed to write to file")
+	errBackendField           = errors.New("the specified field type does not exist in the backend information")
 )
 
 type AttestationConfiguration struct {
@@ -128,6 +129,8 @@ func changeAttestationConfiguration(fileName string, base64Data string, expected
 		ac.SNPPolicy.Measurement = data
 	case hostDataField:
 		ac.SNPPolicy.HostData = data
+	default:
+		return errBackendField
 	}
 
 	fileJson, err := json.MarshalIndent(ac, "", " ")
