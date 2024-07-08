@@ -23,6 +23,45 @@ const (
 	bufferSize      = 1024 * 1024
 )
 
+type streamSender interface {
+	Send(interface{}) error
+	CloseAndRecv() (interface{}, error)
+}
+
+type algoClientWrapper struct {
+	client *agent.AgentService_AlgoClient
+}
+
+func (a *algoClientWrapper) Send(req interface{}) error {
+	algoReq, ok := req.(*agent.AlgoRequest)
+	if !ok {
+		return fmt.Errorf("expected *AlgoRequest, got %T", req)
+	}
+
+	return (*a.client).Send(algoReq)
+}
+
+func (a *algoClientWrapper) CloseAndRecv() (interface{}, error) {
+	return (*a.client).CloseAndRecv()
+}
+
+type dataClientWrapper struct {
+	client *agent.AgentService_DataClient
+}
+
+func (a *dataClientWrapper) Send(req interface{}) error {
+	dataReq, ok := req.(*agent.DataRequest)
+	if !ok {
+		return fmt.Errorf("expected *DataRequest, got %T", req)
+	}
+
+	return (*a.client).Send(dataReq)
+}
+
+func (a *dataClientWrapper) CloseAndRecv() (interface{}, error) {
+	return (*a.client).CloseAndRecv()
+}
+
 type ProgressBar struct {
 	numberOfBytes           int
 	currentUploadedBytes    int
@@ -36,52 +75,19 @@ func New() *ProgressBar {
 }
 
 func (p *ProgressBar) SendAlgorithm(description string, buffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
-	p.currentUploadedBytes = 0
-	p.currentUploadPercentage = 0
-	p.numberOfBytes = buffer.Len()
-	p.description = description
-
-	buf := make([]byte, bufferSize)
-
-	for {
-		n, err := buffer.Read(buf)
-		if err == io.EOF {
-			if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
-				return err
-			}
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		if p.currentUploadedBytes < p.numberOfBytes {
-			p.currentUploadedBytes = p.currentUploadedBytes + n
-			p.currentUploadPercentage = p.currentUploadedBytes * 100.0 / p.numberOfBytes
-		}
-
-		err = (*stream).Send(&agent.AlgoRequest{Algorithm: buf[:n]})
-		if err != nil {
-			return err
-		}
-
-		if err := p.renderProgressBar(); err != nil {
-			return err
-		}
-	}
-
-	if _, err := (*stream).CloseAndRecv(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.sendData(description, buffer, &algoClientWrapper{client: stream}, func(data []byte) interface{} {
+		return &agent.AlgoRequest{Algorithm: data}
+	})
 }
 
 func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream *agent.AgentService_DataClient) error {
-	p.currentUploadedBytes = 0
-	p.currentUploadPercentage = 0
-	p.numberOfBytes = buffer.Len()
-	p.description = description
+	return p.sendData(description, buffer, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
+		return &agent.DataRequest{Dataset: data}
+	})
+}
+
+func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream streamSender, createRequest func([]byte) interface{}) error {
+	p.reset(description, buffer.Len())
 
 	buf := make([]byte, bufferSize)
 
@@ -97,13 +103,9 @@ func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream 
 			return err
 		}
 
-		if p.currentUploadedBytes < p.numberOfBytes {
-			p.currentUploadedBytes = p.currentUploadedBytes + n
-			p.currentUploadPercentage = p.currentUploadedBytes * 100.0 / p.numberOfBytes
-		}
+		p.updateProgress(n)
 
-		err = (*stream).Send(&agent.DataRequest{Dataset: buf[:n]})
-		if err != nil {
+		if err := stream.Send(createRequest(buf[:n])); err != nil {
 			return err
 		}
 
@@ -112,11 +114,22 @@ func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream 
 		}
 	}
 
-	if _, err := (*stream).CloseAndRecv(); err != nil {
-		return err
-	}
+	_, err := stream.CloseAndRecv()
+	return err
+}
 
-	return nil
+func (p *ProgressBar) reset(description string, totalBytes int) {
+	p.currentUploadedBytes = 0
+	p.currentUploadPercentage = 0
+	p.numberOfBytes = totalBytes
+	p.description = description
+}
+
+func (p *ProgressBar) updateProgress(bytesRead int) {
+	if p.currentUploadedBytes < p.numberOfBytes {
+		p.currentUploadedBytes += bytesRead
+		p.currentUploadPercentage = p.currentUploadedBytes * 100 / p.numberOfBytes
+	}
 }
 
 // Progress bar example: Uploading algorithm... 25% [==>   ].
@@ -159,7 +172,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	}
 
 	progressWidth := width - builder.Len() - len(rightBracket+" ")
-	numOfCharactersBody := progressWidth * p.currentUploadPercentage / 100.0
+	numOfCharactersBody := progressWidth * p.currentUploadPercentage / 100
 	if numOfCharactersBody == 0 {
 		numOfCharactersBody = 1
 	}
