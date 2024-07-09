@@ -16,7 +16,7 @@ import (
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/qemu/vm"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
@@ -90,7 +90,7 @@ func main() {
 }
 
 func SendAgentConfig(cid uint32, ac agent.Computation) error {
-	conn, err := vsock.Dial(cid, vm.VsockConfigPort, nil)
+	conn, err := vsock.Dial(cid, qemu.VsockConfigPort, nil)
 	if err != nil {
 		return err
 	}

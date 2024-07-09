@@ -1,30 +1,29 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package vm
+package qemu
 
 import (
 	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 func TestNewVM(t *testing.T) {
-	config := qemu.Config{}
+	config := Config{}
 	logsChan := make(chan *manager.ClientStreamMessage)
 	computationId := "test-computation"
 
 	nvm := NewVM(config, logsChan, computationId)
 
 	assert.NotNil(t, nvm)
-	assert.IsType(t, &vm{}, nvm)
+	assert.IsType(t, &qemuVM{}, nvm)
 }
 
 func TestVM_Stop(t *testing.T) {
 	// Setup
-	v := &vm{
+	v := &qemuVM{
 		cmd: exec.Command("sleep", "1"),
 	}
 

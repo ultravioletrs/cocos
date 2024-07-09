@@ -20,7 +20,6 @@ import (
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/manager/qemu/vm"
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
@@ -121,7 +120,7 @@ func main() {
 }
 
 func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
-	svc := manager.New(qemuCfg, logger, eventsChan, vm.NewVM)
+	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

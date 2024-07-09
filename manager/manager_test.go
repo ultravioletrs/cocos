@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/manager/qemu/vm"
-	"github.com/ultravioletrs/cocos/manager/qemu/vm/mocks"
+	"github.com/ultravioletrs/cocos/manager/vm"
+	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 

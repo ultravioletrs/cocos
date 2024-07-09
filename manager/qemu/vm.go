@@ -1,15 +1,14 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package vm
+package qemu
 
 import (
 	"fmt"
 	"os/exec"
 
 	"github.com/gofrs/uuid"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
@@ -19,34 +18,22 @@ const (
 	rootfsFile   = "rootfs.cpio"
 )
 
-// VM represents a virtual machine.
-//
-//go:generate mockery --name VM --output=./mocks --filename vm.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
-type VM interface {
-	Start() error
-	Stop() error
-	SendAgentConfig(ac agent.Computation) error
-}
-
-type vm struct {
-	config        qemu.Config
+type qemuVM struct {
+	config        Config
 	cmd           *exec.Cmd
 	logsChan      chan *manager.ClientStreamMessage
 	computationId string
 }
 
-//go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
-type Provider func(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM
-
-func NewVM(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM {
-	return &vm{
-		config:        config,
+func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
+	return &qemuVM{
+		config:        config.(Config),
 		logsChan:      logsChan,
 		computationId: computationId,
 	}
 }
 
-func (v *vm) Start() error {
+func (v *qemuVM) Start() error {
 	// Create unique qemu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -90,17 +77,17 @@ func (v *vm) Start() error {
 	}
 
 	v.cmd = exec.Command(exe, args...)
-	v.cmd.Stdout = &stdout{logsChan: v.logsChan, computationId: v.computationId}
-	v.cmd.Stderr = &stderr{logsChan: v.logsChan, computationId: v.computationId}
+	v.cmd.Stdout = &vm.Stdout{LogsChan: v.logsChan, ComputationId: v.computationId}
+	v.cmd.Stderr = &vm.Stderr{LogsChan: v.logsChan, ComputationId: v.computationId}
 
 	return v.cmd.Start()
 }
 
-func (v *vm) Stop() error {
+func (v *qemuVM) Stop() error {
 	return v.cmd.Process.Kill()
 }
 
-func (v *vm) executableAndArgs() (string, []string, error) {
+func (v *qemuVM) executableAndArgs() (string, []string, error) {
 	exe, err := exec.LookPath(v.config.QemuBinPath)
 	if err != nil {
 		return "", nil, err

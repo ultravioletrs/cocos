@@ -36,9 +36,9 @@ func TestStdoutWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logsChan := make(chan *manager.ClientStreamMessage, 10)
-			s := &stdout{
-				logsChan:      logsChan,
-				computationId: "test-computation",
+			s := &Stdout{
+				LogsChan:      logsChan,
+				ComputationId: "test-computation",
 			}
 
 			n, err := s.Write([]byte(tt.input))
@@ -93,9 +93,9 @@ func TestStderrWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logsChan := make(chan *manager.ClientStreamMessage, 10)
-			s := &stderr{
-				logsChan:      logsChan,
-				computationId: "test-computation",
+			s := &Stderr{
+				LogsChan:      logsChan,
+				ComputationId: "test-computation",
 			}
 
 			n, err := s.Write([]byte(tt.input))
@@ -136,9 +136,9 @@ func TestStderrWrite(t *testing.T) {
 
 func TestStdoutWriteErrorHandling(t *testing.T) {
 	logsChan := make(chan *manager.ClientStreamMessage, 1)
-	s := &stdout{
-		logsChan:      logsChan,
-		computationId: "test-computation",
+	s := &Stdout{
+		LogsChan:      logsChan,
+		ComputationId: "test-computation",
 	}
 
 	// Test with a closed channel to simulate an error condition
@@ -154,9 +154,9 @@ func TestStdoutWriteErrorHandling(t *testing.T) {
 
 func TestStderrWriteErrorHandling(t *testing.T) {
 	logsChan := make(chan *manager.ClientStreamMessage, 1)
-	s := &stderr{
-		logsChan:      logsChan,
-		computationId: "test-computation",
+	s := &Stderr{
+		LogsChan:      logsChan,
+		ComputationId: "test-computation",
 	}
 
 	// Test with a closed channel to simulate an error condition

@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/manager/qemu/vm"
+	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/types/known/timestamppb"

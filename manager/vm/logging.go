@@ -12,17 +12,17 @@ import (
 )
 
 var (
-	_                      io.Writer = &stdout{}
-	_                      io.Writer = &stderr{}
+	_                      io.Writer = &Stdout{}
+	_                      io.Writer = &Stderr{}
 	ErrFailedToSendMessage           = errors.New("failed to send message to channel")
 	ErrPanicRecovered                = errors.New("panic recovered: channel may be closed")
 )
 
 const bufSize = 1024
 
-type stdout struct {
-	logsChan      chan *manager.ClientStreamMessage
-	computationId string
+type Stdout struct {
+	LogsChan      chan *manager.ClientStreamMessage
+	ComputationId string
 }
 
 // safeSend safely sends a message to the channel and returns an error on failure.
@@ -43,7 +43,7 @@ func safeSend(ch chan *manager.ClientStreamMessage, msg *manager.ClientStreamMes
 }
 
 // Write implements io.Writer.
-func (s *stdout) Write(p []byte) (n int, err error) {
+func (s *Stdout) Write(p []byte) (n int, err error) {
 	inBuf := bytes.NewBuffer(p)
 
 	buf := make([]byte, bufSize)
@@ -61,14 +61,14 @@ func (s *stdout) Write(p []byte) (n int, err error) {
 			Message: &manager.ClientStreamMessage_AgentLog{
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
-					ComputationId: s.computationId,
+					ComputationId: s.ComputationId,
 					Level:         "debug",
 					Timestamp:     timestamppb.Now(),
 				},
 			},
 		}
 
-		if err := safeSend(s.logsChan, msg); err != nil {
+		if err := safeSend(s.LogsChan, msg); err != nil {
 			return len(p) - inBuf.Len(), err
 		}
 	}
@@ -76,13 +76,13 @@ func (s *stdout) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type stderr struct {
-	logsChan      chan *manager.ClientStreamMessage
-	computationId string
+type Stderr struct {
+	LogsChan      chan *manager.ClientStreamMessage
+	ComputationId string
 }
 
 // Write implements io.Writer.
-func (s *stderr) Write(p []byte) (n int, err error) {
+func (s *Stderr) Write(p []byte) (n int, err error) {
 	inBuf := bytes.NewBuffer(p)
 
 	buf := make([]byte, bufSize)
@@ -100,14 +100,14 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 			Message: &manager.ClientStreamMessage_AgentLog{
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
-					ComputationId: s.computationId,
+					ComputationId: s.ComputationId,
 					Level:         "error",
 					Timestamp:     timestamppb.Now(),
 				},
 			},
 		}
 
-		if err := safeSend(s.logsChan, msg); err != nil {
+		if err := safeSend(s.LogsChan, msg); err != nil {
 			return len(p) - inBuf.Len(), err
 		}
 	}
@@ -116,7 +116,7 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 	eventMsg := &manager.ClientStreamMessage{
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
-				ComputationId: s.computationId,
+				ComputationId: s.ComputationId,
 				EventType:     "vm-provision",
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
@@ -125,7 +125,7 @@ func (s *stderr) Write(p []byte) (n int, err error) {
 		},
 	}
 
-	if err := safeSend(s.logsChan, eventMsg); err != nil {
+	if err := safeSend(s.LogsChan, eventMsg); err != nil {
 		return len(p), err
 	}
 
