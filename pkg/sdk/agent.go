@@ -13,11 +13,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"io"
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/pkg/progressbar"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -29,8 +29,9 @@ type SDK interface {
 }
 
 const (
-	size64     = 64
-	bufferSize = 1024 * 1024
+	size64                     = 64
+	algoProgressBarDescription = "Uploading algorithm"
+	dataProgressBarDescription = "Uploading data"
 )
 
 type agentSDK struct {
@@ -60,23 +61,9 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	}
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
 
-	buf := make([]byte, bufferSize)
-	for {
-		n, err := algoBuffer.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		err = stream.Send(&agent.AlgoRequest{Algorithm: buf[:n]})
-		if err != nil {
-			return err
-		}
-	}
-
-	if _, err := stream.CloseAndRecv(); err != nil {
+	progressbar := progressbar.New()
+	if err := progressbar.SendAlgorithm(algoProgressBarDescription, algoBuffer, &stream); err != nil {
+		sdk.logger.Error("Failed to send Algorithm")
 		return err
 	}
 
@@ -93,28 +80,14 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Data(ctx)
 	if err != nil {
-		sdk.logger.Error("Failed to call Algo RPC")
+		sdk.logger.Error("Failed to call Data RPC")
 		return err
 	}
 	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
-	buf := make([]byte, bufferSize)
-	for {
-		n, err := dataBuffer.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		err = stream.Send(&agent.DataRequest{Dataset: buf[:n]})
-		if err != nil {
-			return err
-		}
-	}
-
-	if _, err := stream.CloseAndRecv(); err != nil {
+	progressbar := progressbar.New()
+	if err := progressbar.SendData(dataProgressBarDescription, dataBuffer, &stream); err != nil {
+		sdk.logger.Error("Failed to send Data")
 		return err
 	}
 
