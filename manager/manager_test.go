@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/manager/vm"
-	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/ultravioletrs/cocos/manager/qemu/vm"
+	"github.com/ultravioletrs/cocos/manager/qemu/vm/mocks"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 	qemuCfg := qemu.Config{}
 	logger := slog.Default()
 	eventsChan := make(chan *manager.ClientStreamMessage)
-	vmf := new(mocks.VMFactory)
+	vmf := new(mocks.Provider)
 
 	service := New(qemuCfg, logger, eventsChan, vmf.Execute)
 
@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	vmf := new(mocks.VMFactory)
+	vmf := new(mocks.Provider)
 	vmMock := new(mocks.VM)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {

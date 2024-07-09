@@ -21,7 +21,7 @@ import (
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/vm"
+	"github.com/ultravioletrs/cocos/manager/qemu/vm"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

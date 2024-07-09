@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/manager/vm"
+	"github.com/ultravioletrs/cocos/manager/qemu/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -61,13 +61,13 @@ type managerService struct {
 	agents     map[int]string // agent map of vsock cid to computationID.
 	eventsChan chan *manager.ClientStreamMessage
 	vms        map[string]vm.VM
-	vmFactory  vm.VMFactory
+	vmFactory  vm.Provider
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.VMFactory) Service {
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
 	ms := &managerService{
 		qemuCfg:    qemuCfg,
 		logger:     logger,

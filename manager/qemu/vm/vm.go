@@ -35,8 +35,8 @@ type vm struct {
 	computationId string
 }
 
-//go:generate mockery --name VMFactory --output=./mocks --filename vm_factory.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
-type VMFactory func(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM
+//go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
+type Provider func(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM
 
 func NewVM(config qemu.Config, logsChan chan *manager.ClientStreamMessage, computationId string) VM {
 	return &vm{

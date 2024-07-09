@@ -16,7 +16,7 @@ import (
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/manager/vm"
+	"github.com/ultravioletrs/cocos/manager/qemu/vm"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
