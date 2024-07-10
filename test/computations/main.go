@@ -12,7 +12,7 @@ import (
 	"strconv"
 
 	mglog "github.com/absmach/magistrala/logger"
-	"github.com/ultravioletrs/cocos/internal/env"
+	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
@@ -122,7 +122,7 @@ func main() {
 		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.Config{Port: defaultPort}
-	if err := env.Parse(&grpcServerConfig, env.Options{}); err != nil {
+	if err := env.ParseWithOptions(&grpcServerConfig, env.Options{}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}

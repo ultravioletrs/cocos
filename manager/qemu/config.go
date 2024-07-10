@@ -8,24 +8,24 @@ import (
 )
 
 type MemoryConfig struct {
-	Size  string `env:"MEMORY_SIZE" envDefault:"2048M"`
+	Size  string `env:"MEMORY_SIZE"  envDefault:"2048M"`
 	Slots int    `env:"MEMORY_SLOTS" envDefault:"5"`
-	Max   string `env:"MAX_MEMORY" envDefault:"30G"`
+	Max   string `env:"MAX_MEMORY"   envDefault:"30G"`
 }
 
 type OVMFCodeConfig struct {
-	If       string `env:"OVMF_CODE_IF" envDefault:"pflash"`
-	Format   string `env:"OVMF_CODE_FORMAT" envDefault:"raw"`
-	Unit     int    `env:"OVMF_CODE_UNIT" envDefault:"0"`
-	File     string `env:"OVMF_CODE_FILE" envDefault:"/usr/share/OVMF/OVMF_CODE.fd"`
+	If       string `env:"OVMF_CODE_IF"       envDefault:"pflash"`
+	Format   string `env:"OVMF_CODE_FORMAT"   envDefault:"raw"`
+	Unit     int    `env:"OVMF_CODE_UNIT"     envDefault:"0"`
+	File     string `env:"OVMF_CODE_FILE"     envDefault:"/usr/share/OVMF/OVMF_CODE.fd"`
 	ReadOnly string `env:"OVMF_CODE_READONLY" envDefault:"on"`
 }
 
 type OVMFVarsConfig struct {
-	If     string `env:"OVMF_VARS_IF" envDefault:"pflash"`
+	If     string `env:"OVMF_VARS_IF"     envDefault:"pflash"`
 	Format string `env:"OVMF_VARS_FORMAT" envDefault:"raw"`
-	Unit   int    `env:"OVMF_VARS_UNIT" envDefault:"1"`
-	File   string `env:"OVMF_VARS_FILE" envDefault:"/usr/share/OVMF/OVMF_VARS.fd"`
+	Unit   int    `env:"OVMF_VARS_UNIT"   envDefault:"1"`
+	File   string `env:"OVMF_VARS_FILE"   envDefault:"/usr/share/OVMF/OVMF_VARS.fd"`
 }
 
 type NetDevConfig struct {
@@ -37,7 +37,7 @@ type NetDevConfig struct {
 type VirtioNetPciConfig struct {
 	DisableLegacy string `env:"VIRTIO_NET_PCI_DISABLE_LEGACY" envDefault:"on"`
 	IOMMUPlatform bool   `env:"VIRTIO_NET_PCI_IOMMU_PLATFORM" envDefault:"true"`
-	Addr          string `env:"VIRTIO_NET_PCI_ADDR" envDefault:"0x2"`
+	Addr          string `env:"VIRTIO_NET_PCI_ADDR"           envDefault:"0x2"`
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
@@ -47,8 +47,8 @@ type DiskImgConfig struct {
 }
 
 type SevConfig struct {
-	ID              string `env:"SEV_ID" envDefault:"sev0"`
-	CBitPos         int    `env:"SEV_CBITPOS" envDefault:"51"`
+	ID              string `env:"SEV_ID"                envDefault:"sev0"`
+	CBitPos         int    `env:"SEV_CBITPOS"           envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
 	HostData        string `env:"HOST_DATA" envDefault:""`
 }
@@ -60,20 +60,20 @@ type VSockConfig struct {
 }
 
 type Config struct {
-	QemuBinPath  string `env:"BIN_PATH" envDefault:"qemu-system-x86_64"`
-	TmpFileLoc   string `env:"TMP_FILE_LOC" envDefault:"tmp"`
-	UseSudo      bool   `env:"USE_SUDO" envDefault:"false"`
-	EnableSEV    bool   `env:"ENABLE_SEV" envDefault:"false"`
+	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
+	TmpFileLoc   string `env:"TMP_FILE_LOC"   envDefault:"tmp"`
+	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
+	EnableSEV    bool   `env:"ENABLE_SEV"     envDefault:"false"`
 	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
 	// machine, CPU, RAM
-	Machine  string `env:"MACHINE" envDefault:"q35"`
-	CPU      string `env:"CPU" envDefault:"EPYC"`
-	SMPCount int    `env:"SMP_COUNT" envDefault:"4"`
+	Machine  string `env:"MACHINE"     envDefault:"q35"`
+	CPU      string `env:"CPU"         envDefault:"EPYC"`
+	SMPCount int    `env:"SMP_COUNT"   envDefault:"4"`
 	MaxCPUs  int    `env:"SMP_MAXCPUS" envDefault:"64"`
-	MemID    string `env:"MEM_ID" envDefault:"ram1"`
+	MemID    string `env:"MEM_ID"      envDefault:"ram1"`
 	MemoryConfig
 
 	// Kernel hash
@@ -98,7 +98,7 @@ type Config struct {
 
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
-	Monitor   string `env:"MONITOR" envDefault:"pty"`
+	Monitor   string `env:"MONITOR"    envDefault:"pty"`
 }
 
 func (config Config) ConstructQemuArgs() []string {
