@@ -1,6 +1,6 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package manager
+package qemu
 
 import (
 	"encoding/json"
@@ -11,8 +11,8 @@ import (
 
 const VsockConfigPort uint32 = 9999
 
-func SendAgentConfig(cid uint32, ac agent.Computation) error {
-	conn, err := vsock.Dial(cid, VsockConfigPort, nil)
+func (v *qemuVM) SendAgentConfig(ac agent.Computation) error {
+	conn, err := vsock.Dial(uint32(v.config.GuestCID), VsockConfigPort, nil)
 	if err != nil {
 		return err
 	}

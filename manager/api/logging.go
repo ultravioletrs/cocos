@@ -41,6 +41,19 @@ func (lm *loggingMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 	return lm.svc.Run(ctx, mc)
 }
 
+func (lm *loggingMiddleware) Stop(ctx context.Context, computationID string) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Stop for computation took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(message)
+	}(time.Now())
+
+	return lm.svc.Stop(ctx, computationID)
+}
+
 func (lm *loggingMiddleware) RetrieveAgentEventsLogs() {
 	lm.svc.RetrieveAgentEventsLogs()
 }

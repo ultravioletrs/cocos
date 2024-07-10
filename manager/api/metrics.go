@@ -42,6 +42,15 @@ func (ms *metricsMiddleware) Run(ctx context.Context, mc *pkgmanager.Computation
 	return ms.svc.Run(ctx, mc)
 }
 
+func (ms *metricsMiddleware) Stop(ctx context.Context, computationID string) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "Stop").Add(1)
+		ms.latency.With("method", "Stop").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.Stop(ctx, computationID)
+}
+
 func (ms *metricsMiddleware) RetrieveAgentEventsLogs() {
 	ms.svc.RetrieveAgentEventsLogs()
 }

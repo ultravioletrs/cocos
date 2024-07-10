@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -48,6 +49,8 @@ var (
 type Service interface {
 	// Run create a computation.
 	Run(ctx context.Context, c *manager.ComputationRunReq) (string, error)
+	// Stop stops a computation.
+	Stop(ctx context.Context, computationID string) error
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
 }
@@ -57,17 +60,21 @@ type managerService struct {
 	logger     *slog.Logger
 	agents     map[int]string // agent map of vsock cid to computationID.
 	eventsChan chan *manager.ClientStreamMessage
+	vms        map[string]vm.VM
+	vmFactory  vm.Provider
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage) Service {
+func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
 	ms := &managerService{
 		qemuCfg:    qemuCfg,
 		logger:     logger,
 		agents:     make(map[int]string),
+		vms:        make(map[string]vm.VM),
 		eventsChan: eventsChan,
+		vmFactory:  vmFactory,
 	}
 	return ms
 }
@@ -118,16 +125,18 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
 	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
 
+	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsChan, c.Id)
 	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
-	if _, err = qemu.CreateVM(ctx, ms.qemuCfg); err != nil {
+	if err = cvm.Start(); err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
+	ms.vms[c.Id] = cvm
 
 	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
 
 	err = backoff.Retry(func() error {
-		return SendAgentConfig(uint32(ms.qemuCfg.VSockConfig.GuestCID), ac)
+		return cvm.SendAgentConfig(ac)
 	}, backoff.NewExponentialBackOff())
 	if err != nil {
 		return "", err
@@ -137,6 +146,18 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
 	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
+}
+
+func (ms *managerService) Stop(ctx context.Context, computationID string) error {
+	cvm, ok := ms.vms[computationID]
+	if !ok {
+		return ErrNotFound
+	}
+	if err := cvm.Stop(); err != nil {
+		return err
+	}
+	delete(ms.vms, computationID)
+	return nil
 }
 
 func getFreePort() (int, error) {

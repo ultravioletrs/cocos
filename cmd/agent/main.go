@@ -21,6 +21,7 @@ import (
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -108,7 +109,7 @@ func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Servic
 }
 
 func readConfig() (agent.Computation, error) {
-	l, err := vsock.Listen(manager.VsockConfigPort, nil)
+	l, err := vsock.Listen(qemu.VsockConfigPort, nil)
 	if err != nil {
 		return agent.Computation{}, err
 	}

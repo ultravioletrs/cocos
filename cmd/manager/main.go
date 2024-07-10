@@ -78,12 +78,8 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 		return
 	}
-	exe, args, err := qemu.ExecutableAndArgs(qemuCfg)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to parse QEMU configuration: %s", err))
-		return
-	}
-	logger.Info(fmt.Sprintf("%s %s", exe, strings.Join(args, " ")))
+	args := qemuCfg.ConstructQemuArgs()
+	logger.Info(strings.Join(args, " "))
 
 	managerGRPCConfig := grpc.Config{}
 	if err := env.Parse(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
@@ -124,7 +120,7 @@ func main() {
 }
 
 func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
-	svc := manager.New(qemuCfg, logger, eventsChan)
+	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := internal.MakeMetrics(svcName, "api")

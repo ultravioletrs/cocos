@@ -101,7 +101,7 @@ type Config struct {
 	Monitor   string `env:"MONITOR" envDefault:"pty"`
 }
 
-func constructQemuArgs(config Config) []string {
+func (config Config) ConstructQemuArgs() []string {
 	args := []string{}
 
 	// virtualization
