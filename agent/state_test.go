@@ -19,6 +19,7 @@ func TestStateMachineTransitions(t *testing.T) {
 		{idle, start, receivingManifest},
 		{receivingManifest, manifestReceived, receivingAlgorithm},
 		{receivingAlgorithm, algorithmReceived, receivingData},
+		{receivingAlgorithm, dataReceived, running},
 		{receivingData, dataReceived, running},
 		{running, runComplete, resultsReady},
 		{resultsReady, resultsConsumed, complete},

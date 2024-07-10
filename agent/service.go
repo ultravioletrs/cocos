@@ -125,6 +125,10 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 
 	as.algorithm = f.Name()
 
+	if len(as.computation.Datasets) == 0 {
+		as.sm.SendEvent(dataReceived)
+	}
+
 	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)
 	}

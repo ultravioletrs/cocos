@@ -10,7 +10,7 @@ import (
 )
 
 //go:generate stringer -type=state
-type state int
+type state uint8
 
 const (
 	idle state = iota
@@ -22,7 +22,7 @@ const (
 	complete
 )
 
-type event int
+type event uint8
 
 const (
 	start event = iota
@@ -63,6 +63,7 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 
 	sm.Transitions[receivingAlgorithm] = make(map[event]state)
 	sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
+	sm.Transitions[receivingAlgorithm][dataReceived] = running
 
 	sm.Transitions[receivingData] = make(map[event]state)
 	sm.Transitions[receivingData][dataReceived] = running

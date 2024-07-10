@@ -49,26 +49,34 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 		s.logger.Error(fmt.Sprintf("failed to read algorithm file: %s", err))
 		return
 	}
-	data, err := os.ReadFile(dataPath)
-	if err != nil {
-		s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
-		return
-	}
+
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
 		s.logger.Error(fmt.Sprintf("failed to read public key file: %s", err))
 		return
 	}
 	pubPem, _ := pem.Decode(pubKey)
+
+	var dataset []*manager.Dataset
+	if dataPath != "" {
+		data, err := os.ReadFile(dataPath)
+		if err != nil {
+			s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
+			return
+		}
+		dataHash := sha3.Sum256(data)
+
+		dataset = []*manager.Dataset{{Hash: dataHash[:], UserKey: pubPem.Bytes}}
+	}
+
 	algoHash := sha3.Sum256(algo)
-	dataHash := sha3.Sum256(data)
 	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
-				Datasets:        []*manager.Dataset{{Hash: dataHash[:], UserKey: pubPem.Bytes}},
+				Datasets:        dataset,
 				Algorithm:       &manager.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
 				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &manager.AgentConfig{
