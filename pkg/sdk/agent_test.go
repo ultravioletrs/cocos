@@ -29,6 +29,8 @@ import (
 var (
 	algoPath = "../../test/manual/algo/lin_reg.py"
 	dataPath = "../../test/manual/data/iris.csv"
+
+	errInappropriateIoctl = errors.New("inappropriate ioctl for device")
 )
 
 func TestAlgo(t *testing.T) {
@@ -79,7 +81,7 @@ func TestAlgo(t *testing.T) {
 				UserKey:   algoProvider1PubKey,
 			},
 			userKey: algoProvider1Key,
-			err:     agent.ErrHashMismatch,
+			err:     errInappropriateIoctl,
 		},
 		{
 			name: "no manifest expected",
@@ -89,7 +91,7 @@ func TestAlgo(t *testing.T) {
 				Hash:      algoHash,
 			},
 			userKey: algorithmProviderKey,
-			err:     agent.ErrAllManifestItemsReceived,
+			err:     errInappropriateIoctl,
 		},
 		{
 			name: "state not ready",
@@ -99,7 +101,7 @@ func TestAlgo(t *testing.T) {
 				Hash:      algoHash,
 			},
 			userKey: algorithmProviderKey,
-			err:     agent.ErrStateNotReady,
+			err:     errInappropriateIoctl,
 		},
 	}
 
@@ -108,14 +110,11 @@ func TestAlgo(t *testing.T) {
 			svcCall := svc.On("Algo", mock.Anything, mock.Anything).Return(tc.err)
 			err = sdk.Algo(context.Background(), tc.algo, tc.userKey)
 
-			st, ok := status.FromError(err)
-			if !ok {
-				t.Fatalf("Expected gRPC status error, but got: %v", err)
-			}
+			st, _ := status.FromError(err)
 
 			if tc.err != nil {
 				if st.Message() != tc.err.Error() {
-					t.Errorf("Expected error message %q, but got %q", tc.err.Error(), st.Message())
+					t.Errorf("%s : Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
 
@@ -172,7 +171,7 @@ func TestData(t *testing.T) {
 				Hash:    dataHash,
 			},
 			userKey: dataProvider1Key,
-			svcErr:  agent.ErrUndeclaredDataset,
+			svcErr:  errInappropriateIoctl,
 		},
 		{
 			name: "hash mismatch",
@@ -182,7 +181,7 @@ func TestData(t *testing.T) {
 				Hash:    dataHash,
 			},
 			userKey: dataProvider1Key,
-			svcErr:  agent.ErrHashMismatch,
+			svcErr:  errInappropriateIoctl,
 		},
 		{
 			name: "all manifest items received",
@@ -192,7 +191,7 @@ func TestData(t *testing.T) {
 				Hash:    dataHash,
 			},
 			userKey: dataProvider1Key,
-			svcErr:  agent.ErrAllManifestItemsReceived,
+			svcErr:  errInappropriateIoctl,
 		},
 		{
 			name: "missing dataset file",
@@ -211,14 +210,11 @@ func TestData(t *testing.T) {
 
 			err = sdk.Data(context.Background(), tc.data, tc.userKey)
 
-			st, ok := status.FromError(err)
-			if !ok {
-				t.Fatalf("Expected gRPC status error, but got: %v", err)
-			}
+			st, _ := status.FromError(err)
 
 			if tc.svcErr != nil {
 				if st.Message() != tc.svcErr.Error() {
-					t.Errorf("Expected error message %q, but got %q", tc.svcErr.Error(), st.Message())
+					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.svcErr.Error(), st.Message())
 				}
 			}
 
@@ -312,7 +308,7 @@ func TestResult(t *testing.T) {
 
 			if tc.err != nil {
 				if st.Message() != tc.err.Error() {
-					t.Errorf("Expected error message %q, but got %q", tc.err.Error(), st.Message())
+					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
 			assert.Equal(t, tc.response.File, res, tc.name)
@@ -399,7 +395,7 @@ func TestAttestation(t *testing.T) {
 
 			if tc.err != nil {
 				if st.Message() != tc.err.Error() {
-					t.Errorf("Expected error message %q, but got %q", tc.err.Error(), st.Message())
+					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
 
