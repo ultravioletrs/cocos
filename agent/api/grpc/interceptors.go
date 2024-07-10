@@ -55,7 +55,7 @@ func (s *authInterceptor) AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		switch info.FullMethod {
 		case agent.AgentService_Result_FullMethodName:
-			ctx, err := s.auth.AuthenticateUser(ctx, auth.DataProviderRole)
+			ctx, err := s.auth.AuthenticateUser(ctx, auth.ConsumerRole)
 			if err != nil {
 				return nil, status.Errorf(codes.Unauthenticated, err.Error())
 			}
