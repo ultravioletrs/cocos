@@ -103,7 +103,7 @@ func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 	}
 }
 
-func changeAttestationConfiguration(fileName string, base64Data string, expectedLength int, field fieldType) error {
+func changeAttestationConfiguration(fileName, base64Data string, expectedLength int, field fieldType) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
 		return errDecode
