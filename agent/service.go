@@ -4,19 +4,17 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"slices"
 
 	"github.com/google/go-sev-guest/client"
+	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -25,7 +23,6 @@ var _ Service = (*agentService)(nil)
 const (
 	// ReportDataSize is the size of the report data expected by the attestation service.
 	ReportDataSize     = 64
-	socketPath         = "unix_socket"
 	algoFilePermission = 0o700
 )
 
@@ -212,7 +209,8 @@ func (as *agentService) runComputation() {
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := as.run(as.algorithm, as.datasets)
+	algorithm := binary.New(as.sm.logger, as.eventSvc, as.algorithm, as.datasets...)
+	result, err := algorithm.Run()
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
@@ -228,51 +226,5 @@ func (as *agentService) publishEvent(status string, details json.RawMessage) fun
 		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
-	}
-}
-
-func (as *agentService) run(algoFile string, dataFiles []string) ([]byte, error) {
-	defer os.Remove(algoFile)
-	defer func() {
-		for _, file := range dataFiles {
-			os.Remove(file)
-		}
-	}()
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
-	}
-	defer listener.Close()
-
-	// Create channels for received data and errors
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
-
-	var result []byte
-
-	var outStd, outErr bytes.Buffer
-
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
-
-	args := append([]string{socketPath}, dataFiles...)
-	cmd := exec.Command(algoFile, args...)
-	cmd.Stderr = &outErr
-	cmd.Stdout = &outStd
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		as.sm.logger.Debug(outErr.String())
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
-	}
-
-	select {
-	case result = <-dataChannel:
-		as.sm.logger.Debug(outStd.String())
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
 	}
 }
