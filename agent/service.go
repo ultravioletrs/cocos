@@ -87,12 +87,6 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
 
-	if len(cmp.Datasets) == 0 {
-		svc.sm.StateFunctions[receivingData] = func() {
-			svc.sm.SendEvent(dataReceived)
-		}
-	}
-
 	svc.computation = cmp
 	svc.sm.SendEvent(manifestReceived)
 	return svc
@@ -130,6 +124,11 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	}
 
 	as.algorithm = f.Name()
+
+	if len(as.computation.Datasets) == 0 {
+		as.sm.SendEvent(algoReceivedNoData)
+		return nil
+	}
 
 	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)

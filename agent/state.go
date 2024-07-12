@@ -28,6 +28,7 @@ const (
 	start event = iota
 	manifestReceived
 	algorithmReceived
+	algoReceivedNoData
 	dataReceived
 	runComplete
 	resultsConsumed
@@ -63,7 +64,7 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 
 	sm.Transitions[receivingAlgorithm] = make(map[event]state)
 	sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
-	sm.Transitions[receivingAlgorithm][dataReceived] = running
+	sm.Transitions[receivingAlgorithm][algoReceivedNoData] = running
 
 	sm.Transitions[receivingData] = make(map[event]state)
 	sm.Transitions[receivingData][dataReceived] = running
