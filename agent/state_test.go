@@ -10,35 +10,45 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 )
 
+var cmp = Computation{
+	Datasets: []Dataset{
+		{
+			Dataset: []byte("test"),
+			UserKey: []byte("test"),
+		},
+	},
+}
+
 func TestStateMachineTransitions(t *testing.T) {
-	testCases := []struct {
+	cases := []struct {
 		fromState state
 		event     event
 		expected  state
+		cmp       Computation
 	}{
-		{idle, start, receivingManifest},
-		{receivingManifest, manifestReceived, receivingAlgorithm},
-		{receivingAlgorithm, algorithmReceived, receivingData},
-		{receivingAlgorithm, algoReceivedNoData, running},
-		{receivingData, dataReceived, running},
-		{running, runComplete, resultsReady},
-		{resultsReady, resultsConsumed, complete},
+		{idle, start, receivingManifest, cmp},
+		{receivingManifest, manifestReceived, receivingAlgorithm, cmp},
+		{receivingAlgorithm, algorithmReceived, receivingData, cmp},
+		{receivingAlgorithm, algorithmReceived, running, Computation{}},
+		{receivingData, dataReceived, running, cmp},
+		{running, runComplete, resultsReady, cmp},
+		{resultsReady, resultsConsumed, complete, cmp},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(fmt.Sprintf("Transition from %v to %v", testCase.fromState, testCase.expected), func(t *testing.T) {
-			sm := NewStateMachine(mglog.NewMock())
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("Transition from %v to %v", tc.fromState, tc.expected), func(t *testing.T) {
+			sm := NewStateMachine(mglog.NewMock(), tc.cmp)
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
 				sm.Start(ctx)
 			}()
 			sm.wg.Wait()
-			sm.SetState(testCase.fromState)
+			sm.SetState(tc.fromState)
 
-			sm.SendEvent(testCase.event)
+			sm.SendEvent(tc.event)
 
-			if sm.GetState() != testCase.expected {
-				t.Errorf("Expected state %v after the event, but got %v", testCase.expected, sm.GetState())
+			if sm.GetState() != tc.expected {
+				t.Errorf("Expected state %v after the event, but got %v", tc.expected, sm.GetState())
 			}
 			close(sm.EventChan)
 			cancel()
@@ -47,7 +57,7 @@ func TestStateMachineTransitions(t *testing.T) {
 }
 
 func TestStateMachineInvalidTransition(t *testing.T) {
-	sm := NewStateMachine(mglog.NewMock())
+	sm := NewStateMachine(mglog.NewMock(), cmp)
 	ctx, cancel := context.WithCancel(context.Background())
 	go sm.Start(ctx)
 

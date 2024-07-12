@@ -73,7 +73,7 @@ var _ Service = (*agentService)(nil)
 // New instantiates the agent service implementation.
 func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation) Service {
 	svc := &agentService{
-		sm:       NewStateMachine(logger),
+		sm:       NewStateMachine(logger, cmp),
 		eventSvc: eventSvc,
 	}
 
@@ -124,11 +124,6 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 	}
 
 	as.algorithm = f.Name()
-
-	if len(as.computation.Datasets) == 0 {
-		as.sm.SendEvent(algoReceivedNoData)
-		return nil
-	}
 
 	if as.algorithm != "" {
 		as.sm.SendEvent(algorithmReceived)
