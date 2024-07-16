@@ -38,7 +38,7 @@ const (
 
 type config struct {
 	LogLevel   string  `env:"MANAGER_LOG_LEVEL"     envDefault:"info"`
-	JaegerURL  url.URL `env:"COCOS_JAEGER_URL"      envDefault:"http://localhost:14268/api/traces"`
+	JaegerURL  url.URL `env:"COCOS_JAEGER_URL"      envDefault:"http://localhost:4318"`
 	TraceRatio float64 `env:"MG_JAEGER_TRACE_RATIO" envDefault:"1.0"`
 	InstanceID string  `env:"MANAGER_INSTANCE_ID"   envDefault:""`
 }
