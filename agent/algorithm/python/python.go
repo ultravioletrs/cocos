@@ -17,7 +17,7 @@ import (
 
 const (
 	socketPath = "unix_socket"
-	pyRuntime  = "python3"
+	PyRuntime  = "python3"
 )
 
 type PythonRunTimeKey struct{}
@@ -31,9 +31,9 @@ func PythonRunTimeFromContext(ctx context.Context) (string, bool) {
 	return runtime, ok
 }
 
-var _ algorithm.Algorithm = (*binary)(nil)
+var _ algorithm.Algorithm = (*python)(nil)
 
-type binary struct {
+type python struct {
 	algoFile         string
 	datasets         []string
 	logger           *slog.Logger
@@ -43,35 +43,38 @@ type binary struct {
 	requirementsFile string
 }
 
-func New(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string, datasets ...string) algorithm.Algorithm {
-	b := &binary{
+func New(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
+	p := &python{
 		algoFile:         algoFile,
-		datasets:         datasets,
 		logger:           logger,
 		stderr:           &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:           &algorithm.Stdout{Logger: logger},
 		requirementsFile: requirementsFile,
 	}
 	if runtime != "" {
-		b.runtime = runtime
+		p.runtime = runtime
 	} else {
-		b.runtime = pyRuntime
+		p.runtime = PyRuntime
 	}
-	return b
+	return p
 }
 
-func (b *binary) Run() ([]byte, error) {
-	if b.requirementsFile != "" {
-		rcmd := exec.Command(b.runtime, "-m", "pip", "install", "-r", b.requirementsFile)
-		rcmd.Stderr = b.stderr
-		rcmd.Stdout = b.stdout
+func (p *python) AddDataset(dataset string) {
+	p.datasets = append(p.datasets, dataset)
+}
+
+func (p *python) Run() ([]byte, error) {
+	if p.requirementsFile != "" {
+		rcmd := exec.Command(p.runtime, "-m", "pip", "install", "-r", p.requirementsFile)
+		rcmd.Stderr = p.stderr
+		rcmd.Stdout = p.stdout
 		if err := rcmd.Run(); err != nil {
 			return nil, fmt.Errorf("error installing requirements: %v", err)
 		}
 	}
-	defer os.Remove(b.algoFile)
+	defer os.Remove(p.algoFile)
 	defer func() {
-		for _, file := range b.datasets {
+		for _, file := range p.datasets {
 			os.Remove(file)
 		}
 	}()
@@ -89,10 +92,10 @@ func (b *binary) Run() ([]byte, error) {
 
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
-	args := append([]string{b.algoFile, socketPath}, b.datasets...)
-	cmd := exec.Command(b.runtime, args...)
-	cmd.Stderr = b.stderr
-	cmd.Stdout = b.stdout
+	args := append([]string{p.algoFile, socketPath}, p.datasets...)
+	cmd := exec.Command(p.runtime, args...)
+	cmd.Stderr = p.stderr
+	cmd.Stdout = p.stdout
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting algorithm: %v", err)

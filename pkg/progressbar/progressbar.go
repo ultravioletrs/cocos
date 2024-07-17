@@ -79,10 +79,32 @@ func New() *ProgressBar {
 	return &ProgressBar{}
 }
 
-func (p *ProgressBar) SendAlgorithm(description string, buffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
-	return p.sendData(description, buffer, &algoClientWrapper{client: stream}, func(data []byte) interface{} {
+func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
+	totalSize := algobuffer.Len() + reqBuffer.Len()
+	p.reset(description, totalSize)
+
+	wrapper := &algoClientWrapper{client: stream}
+
+	// Send reqBuffer first
+	if err := p.sendBuffer(reqBuffer, wrapper, func(data []byte) interface{} {
+		return &agent.AlgoRequest{Requirements: data}
+	}); err != nil {
+		return err
+	}
+
+	// Then send algobuffer
+	if err := p.sendBuffer(algobuffer, wrapper, func(data []byte) interface{} {
 		return &agent.AlgoRequest{Algorithm: data}
-	})
+	}); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
+		return err
+	}
+
+	_, err := wrapper.CloseAndRecv()
+	return err
 }
 
 func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream *agent.AgentService_DataClient) error {
@@ -121,6 +143,32 @@ func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream 
 
 	_, err := stream.CloseAndRecv()
 	return err
+}
+
+func (p *ProgressBar) sendBuffer(buffer *bytes.Buffer, stream streamSender, createRequest func([]byte) interface{}) error {
+	buf := make([]byte, bufferSize)
+
+	for {
+		n, err := buffer.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		p.updateProgress(n)
+
+		if err := stream.Send(createRequest(buf[:n])); err != nil {
+			return err
+		}
+
+		if err := p.renderProgressBar(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *ProgressBar) reset(description string, totalBytes int) {

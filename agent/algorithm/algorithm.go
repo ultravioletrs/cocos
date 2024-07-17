@@ -26,4 +26,7 @@ func AlgorithmTypeFromContext(ctx context.Context) (string, bool) {
 type Algorithm interface {
 	// Run executes the algorithm and returns the result.
 	Run() ([]byte, error)
+
+	// Add dataset to algorithm.
+	AddDataset(dataset string)
 }
