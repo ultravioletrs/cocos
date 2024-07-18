@@ -12,7 +12,6 @@ import (
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 )
 
 const socketPath = "unix_socket"
@@ -38,17 +37,13 @@ func New(logger *slog.Logger, eventsSvc events.Service, algoFile string, dataset
 }
 
 func (b *binary) Run() ([]byte, error) {
+	b.logger.Debug("testing stderr")
 	defer os.Remove(b.algoFile)
 	defer func() {
 		for _, file := range b.datasets {
 			os.Remove(file)
 		}
 	}()
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
-	}
-	defer listener.Close()
 
 	// Create channels for received data and errors
 	dataChannel := make(chan []byte)
@@ -72,7 +67,7 @@ func (b *binary) Run() ([]byte, error) {
 	select {
 	case result = <-dataChannel:
 		return result, nil
-	case err = <-errorChannel:
+	case err := <-errorChannel:
 		return nil, fmt.Errorf("error receiving data: %v", err)
 	}
 }
