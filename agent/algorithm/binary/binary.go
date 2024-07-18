@@ -51,8 +51,7 @@ func (b *binary) Run() ([]byte, error) {
 
 	var result []byte
 
-	args := append([]string{socketPath}, b.datasets...)
-	cmd := exec.Command(b.algoFile, args...)
+	cmd := exec.Command(b.algoFile, b.datasets...)
 	cmd.Stderr = b.stderr
 	cmd.Stdout = &Stdout{DataChan: dataChannel, ErrorChan: errorChannel}
 
