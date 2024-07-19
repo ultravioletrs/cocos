@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
@@ -20,11 +21,12 @@ type grpcServer struct {
 	data        grpc.Handler
 	result      grpc.Handler
 	attestation grpc.Handler
+	logger      *slog.Logger
 	agent.UnimplementedAgentServiceServer
 }
 
 // NewServer returns new AgentServiceServer instance.
-func NewServer(svc agent.Service) agent.AgentServiceServer {
+func NewServer(svc agent.Service, logger *slog.Logger) agent.AgentServiceServer {
 	return &grpcServer{
 		algo: grpc.NewServer(
 			algoEndpoint(svc),
@@ -46,6 +48,7 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			decodeAttestationRequest,
 			encodeAttestationResponse,
 		),
+		logger: logger,
 	}
 }
 
@@ -113,6 +116,7 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 		algoFile = append(algoFile, algoChunk.Algorithm...)
 		reqFile = append(reqFile, algoChunk.Requirements...)
 	}
+	s.logger.Info("algo req" + string(reqFile))
 	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile})
 	if err != nil {
 		return err
