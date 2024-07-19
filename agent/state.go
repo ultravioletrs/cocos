@@ -1,5 +1,3 @@
-// Copyright (c) Ultraviolet
-// SPDX-License-Identifier: Apache-2.0
 package agent
 
 import (
@@ -88,16 +86,19 @@ func (sm *StateMachine) Start(ctx context.Context) {
 	for {
 		select {
 		case event := <-sm.EventChan:
-			nextState, valid := sm.Transitions[sm.GetState()][event]
+			sm.mu.Lock()
+			nextState, valid := sm.Transitions[sm.State][event]
 			if valid {
-				sm.mu.Lock()
 				sm.State = nextState
-				sm.mu.Unlock()
-				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.GetState(), nextState))
+				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.State, nextState))
 			} else {
-				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.GetState()))
+				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.State))
 			}
-			stateFunc, exists := sm.StateFunctions[sm.GetState()]
+			sm.mu.Unlock()
+
+			sm.mu.Lock()
+			stateFunc, exists := sm.StateFunctions[sm.State]
+			sm.mu.Unlock()
 			if exists {
 				go stateFunc()
 			}
@@ -114,13 +115,12 @@ func (sm *StateMachine) SendEvent(event event) {
 
 func (sm *StateMachine) GetState() state {
 	sm.mu.Lock()
-	state := sm.State
-	sm.mu.Unlock()
-	return state
+	defer sm.mu.Unlock()
+	return sm.State
 }
 
 func (sm *StateMachine) SetState(state state) {
 	sm.mu.Lock()
+	defer sm.mu.Unlock()
 	sm.State = state
-	sm.mu.Unlock()
 }
