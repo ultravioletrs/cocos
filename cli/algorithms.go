@@ -12,6 +12,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -58,7 +59,9 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			privKey := decodeKey(pemBlock)
 
-			if err := cli.agentSDK.Algo(addAlgoMetadata(cmd.Context()), algoReq, privKey); err != nil {
+			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
+
+			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
 				log.Fatalf("Error uploading algorithm with error: %v", err)
 			}
 

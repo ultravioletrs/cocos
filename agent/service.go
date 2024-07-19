@@ -124,10 +124,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error closing file: %v", err)
 	}
 
-	algoType, found := algorithm.AlgorithmTypeFromContext(ctx)
-	if !found {
+	algoType := algorithm.AlgorithmTypeFromContext(ctx)
+	if algoType == "" {
 		algoType = string(algorithm.AlgoTypeBin)
 	}
+	as.sm.logger.Debug("algo type" + algoType)
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
@@ -144,7 +145,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		if err := fr.Close(); err != nil {
 			return fmt.Errorf("error closing file: %v", err)
 		}
-		runtime, _ := python.PythonRunTimeFromContext(ctx)
+		runtime := python.PythonRunTimeFromContext(ctx)
 		as.algorithm = python.New(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
 	}
 

@@ -13,22 +13,21 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/pkg/socket"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
-	socketPath = "unix_socket"
-	PyRuntime  = "python3"
+	socketPath   = "unix_socket"
+	PyRuntime    = "python3"
+	pyRuntimeKey = "python_runtime"
 )
 
-type PythonRunTimeKey struct{}
-
 func PythonRunTimeToContext(ctx context.Context, runtime string) context.Context {
-	return context.WithValue(ctx, PythonRunTimeKey{}, runtime)
+	return metadata.AppendToOutgoingContext(ctx, pyRuntimeKey, runtime)
 }
 
-func PythonRunTimeFromContext(ctx context.Context) (string, bool) {
-	runtime, ok := ctx.Value(PythonRunTimeKey{}).(string)
-	return runtime, ok
+func PythonRunTimeFromContext(ctx context.Context) string {
+	return metadata.ValueFromIncomingContext(ctx, pyRuntimeKey)[0]
 }
 
 var _ algorithm.Algorithm = (*python)(nil)
