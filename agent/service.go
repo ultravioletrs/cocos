@@ -139,6 +139,8 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			return fmt.Errorf("error creating requirments file: %v", err)
 		}
 
+		as.sm.logger.Debug("req on service" + string(algo.Requirements))
+
 		if _, err := fr.Write(algo.Requirements); err != nil {
 			return fmt.Errorf("error writing requirements to file: %v", err)
 		}
