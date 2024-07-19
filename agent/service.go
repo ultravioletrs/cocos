@@ -128,7 +128,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if algoType == "" {
 		algoType = string(algorithm.AlgoTypeBin)
 	}
+	as.sm.mu.Lock()
 	as.sm.logger.Debug("algo type" + algoType)
+	as.sm.mu.Unlock()
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
@@ -139,7 +141,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			return fmt.Errorf("error creating requirments file: %v", err)
 		}
 
+		as.sm.mu.Lock()
 		as.sm.logger.Debug("req on service" + string(algo.Requirements))
+		as.sm.mu.Unlock()
 
 		if _, err := fr.Write(algo.Requirements); err != nil {
 			return fmt.Errorf("error writing requirements to file: %v", err)
