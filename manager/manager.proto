@@ -26,6 +26,10 @@ message RunResponse{
   string computation_id = 2;
 }
 
+message BackendInfo{
+  bytes info = 1;
+}
+
 message AgentEvent {
   string event_type = 1;
 	google.protobuf.Timestamp timestamp = 2;
@@ -47,6 +51,7 @@ message ClientStreamMessage {
     AgentLog agent_log = 1;
     AgentEvent agent_event = 2;
     RunResponse run_res = 3;
+    BackendInfo backendInfo = 4;
   }
 }
 
@@ -55,6 +60,7 @@ message ServerStreamMessage {
     ComputationRunReq runReq = 1;
     Terminate terminateReq = 2;
     StopComputation stopComputation = 3;
+    BackendInfoReq backendInfoReq = 4;
   }
 }
 
@@ -66,6 +72,9 @@ message ComputationRunReq {
   Algorithm algorithm = 5;
   repeated ResultConsumer result_consumers = 6;
   AgentConfig agent_config = 7;
+}
+
+message BackendInfoReq {
 }
 
 message ResultConsumer {

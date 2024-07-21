@@ -54,6 +54,15 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
 					return err
 				}
+			case *pkgmanager.ServerStreamMessage_BackendInfoReq:
+				res, err := client.svc.FetchBackendInfo()
+				if err != nil {
+					return err
+				}
+				info := &pkgmanager.ClientStreamMessage_BackendInfo{BackendInfo: &pkgmanager.BackendInfo{Info: res}}
+				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: info}); err != nil {
+					return err
+				}
 			}
 		}
 	})

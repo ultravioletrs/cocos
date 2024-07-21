@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -44,6 +46,39 @@ var (
 	ErrFailedToCalculateHash = errors.New("error while calculating the hash of the computation")
 )
 
+type Vmpl struct {
+	Value uint32 `json:"value"`
+}
+
+type SnpPolicy struct {
+	Policy                    uint64 `json:"policy"`
+	FamilyID                  []byte `json:"family_id"`
+	ImageID                   []byte `json:"image_id"`
+	Vmpl                      Vmpl   `json:"vmpl"`
+	MinimumTCB                uint64 `json:"minimum_tcb"`
+	MinimumLaunchTCB          uint64 `json:"minimum_launch_tcb"`
+	RequireAuthorKey          bool   `json:"require_author_key"`
+	Measurement               []byte `json:"measurement"`
+	HostData                  []byte `json:"host_data"`
+	ReportIDMA                []byte `json:"report_id_ma"`
+	ChipID                    []byte `json:"chip_id"`
+	MinimumBuild              uint32 `json:"minimum_build"`
+	MinimumVersion            string `json:"minimum_version"`
+	PermitProvisionalFirmware bool   `json:"permit_provisional_firmware"`
+	RequireIDBlock            bool   `json:"require_id_block"`
+}
+
+type RootOfTrust struct {
+	Product         string `json:"product"`
+	CheckCRL        bool   `json:"check_crl"`
+	DisallowNetwork bool   `json:"disallow_network"`
+}
+
+type Computation struct {
+	SnpPolicy   SnpPolicy   `json:"snp_policy"`
+	RootOfTrust RootOfTrust `json:"root_of_trust"`
+}
+
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
@@ -53,6 +88,8 @@ type Service interface {
 	Stop(ctx context.Context, computationID string) error
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
+	// FetchBackendInfo measures and fetches the backend information.
+	FetchBackendInfo() ([]byte, error)
 }
 
 type managerService struct {
@@ -158,6 +195,22 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 	}
 	delete(ms.vms, computationID)
 	return nil
+}
+
+func (ms *managerService) FetchBackendInfo() ([]byte, error) {
+	cmd := exec.Command("sudo", "../../scripts/backend_info/backend_info", "--policy", "1966081")
+
+	_, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.ReadFile("backend_info.json")
+	if err != nil {
+		return nil, err
+	}
+
+	return f, err
 }
 
 func getFreePort() (int, error) {
