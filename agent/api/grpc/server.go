@@ -56,7 +56,8 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	req := grpcReq.(*agent.AlgoRequest)
 
 	return algoReq{
-		Algorithm: req.Algorithm,
+		Algorithm:    req.Algorithm,
+		Requirements: req.Requirements,
 	}, nil
 }
 
