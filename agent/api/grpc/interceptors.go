@@ -45,6 +45,13 @@ func (s *authInterceptor) AuthStreamInterceptor() grpc.StreamServerInterceptor {
 			}
 			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
 			return handler(srv, wrapped)
+		case agent.AgentService_Result_FullMethodName:
+			ctx, err := s.auth.AuthenticateUser(stream.Context(), auth.ConsumerRole)
+			if err != nil {
+				return status.Errorf(codes.Unauthenticated, err.Error())
+			}
+			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
+			return handler(srv, wrapped)
 		default:
 			return handler(srv, stream)
 		}
