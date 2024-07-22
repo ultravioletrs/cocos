@@ -15,7 +15,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_SERVER_KEY       | Path to server key in pem format                         |                                   |
 | MANAGER_GRPC_SERVER_CA_CERTS  | Path to gRPC server CA certificate                       |                                   |
 | MANAGER_GRPC_CLIENT_CA_CERTS  | Path to gRPC client CA certificate                       |                                   |
-| COCOS_JAEGER_URL              | Jaeger server URL                                        | http://localhost:14268/api/traces |
+| COCOS_JAEGER_URL              | Jaeger server URL                                        | http://localhost:4318 |
 | MANAGER_INSTANCE_ID           | Manager service instance ID                              |                                   |
 
 ## Setup
