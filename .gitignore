@@ -8,3 +8,7 @@ cmd/manager/tmp
 .cov
 
 *.pem
+
+dist/
+result.bin
+*.spec

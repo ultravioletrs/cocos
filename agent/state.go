@@ -10,7 +10,7 @@ import (
 )
 
 //go:generate stringer -type=state
-type state int
+type state uint8
 
 const (
 	idle state = iota
@@ -22,7 +22,7 @@ const (
 	complete
 )
 
-type event int
+type event uint8
 
 const (
 	start event = iota
@@ -45,7 +45,7 @@ type StateMachine struct {
 }
 
 // NewStateMachine creates a new StateMachine.
-func NewStateMachine(logger *slog.Logger) *StateMachine {
+func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 	sm := &StateMachine{
 		State:          idle,
 		EventChan:      make(chan event),
@@ -62,7 +62,12 @@ func NewStateMachine(logger *slog.Logger) *StateMachine {
 	sm.Transitions[receivingManifest][manifestReceived] = receivingAlgorithm
 
 	sm.Transitions[receivingAlgorithm] = make(map[event]state)
-	sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
+	switch len(cmp.Datasets) {
+	case 0:
+		sm.Transitions[receivingAlgorithm][algorithmReceived] = running
+	default:
+		sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
+	}
 
 	sm.Transitions[receivingData] = make(map[event]state)
 	sm.Transitions[receivingData][dataReceived] = running

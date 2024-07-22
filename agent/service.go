@@ -73,7 +73,7 @@ var _ Service = (*agentService)(nil)
 // New instantiates the agent service implementation.
 func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation) Service {
 	svc := &agentService{
-		sm:       NewStateMachine(logger),
+		sm:       NewStateMachine(logger, cmp),
 		eventSvc: eventSvc,
 	}
 
