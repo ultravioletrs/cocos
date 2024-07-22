@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
@@ -63,27 +64,39 @@ func (p *python) AddDataset(dataset string) {
 }
 
 func (p *python) Run() ([]byte, error) {
+	venvPath := "venv"
+	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
+	createVenvCmd.Stderr = p.stderr
+	createVenvCmd.Stdout = p.stdout
+	if err := createVenvCmd.Run(); err != nil {
+		return nil, fmt.Errorf("error creating virtual environment: %v", err)
+	}
+
+	pythonPath := filepath.Join(venvPath, "bin", "python")
+
 	if p.requirementsFile != "" {
-		rcmd := exec.Command(p.runtime, "-m", "pip", "install", "-r", p.requirementsFile)
+		rcmd := exec.Command(pythonPath, "-m", "pip", "install", "-r", p.requirementsFile)
 		rcmd.Stderr = p.stderr
 		rcmd.Stdout = p.stdout
 		if err := rcmd.Run(); err != nil {
 			return nil, fmt.Errorf("error installing requirements: %v", err)
 		}
 	}
+
 	defer os.Remove(p.algoFile)
 	defer func() {
 		for _, file := range p.datasets {
 			os.Remove(file)
 		}
 	}()
+	defer os.RemoveAll(venvPath)
+
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
 	}
 	defer listener.Close()
 
-	// Create channels for received data and errors
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
 
@@ -92,7 +105,7 @@ func (p *python) Run() ([]byte, error) {
 	go socket.AcceptConnection(listener, dataChannel, errorChannel)
 
 	args := append([]string{p.algoFile, socketPath}, p.datasets...)
-	cmd := exec.Command(p.runtime, args...)
+	cmd := exec.Command(pythonPath, args...)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
 

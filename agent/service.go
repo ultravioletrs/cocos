@@ -136,7 +136,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	case string(algorithm.AlgoTypeBin):
 		as.algorithm = binary.New(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypePython):
-		fr, err := os.CreateTemp("", "requrement.txt")
+		fr, err := os.CreateTemp("", "requirements.txt")
 		if err != nil {
 			return fmt.Errorf("error creating requirments file: %v", err)
 		}
