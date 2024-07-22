@@ -24,17 +24,28 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 5 {
-		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>", os.Args[0])
+	if len(os.Args) < 6 {
+		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool> <user-docker>", os.Args[0])
 	}
 	dataPath := os.Args[1]
 	algoPath := os.Args[2]
 	pubKeyFile := os.Args[3]
 	attestedTLSParam, err := strconv.ParseBool(os.Args[4])
 	if err != nil {
-		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
+		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool> <user-docker>, <attested-tls-bool> and <user-docker> must be a bool value", os.Args[0])
 	}
+	useDockerParam, err := strconv.ParseBool(os.Args[5])
+	if err != nil {
+		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool> <user-docker>, <attested-tls-bool> and <user-docker> must be a bool value", os.Args[0])
+	}
+
 	attestedTLS := attestedTLSParam
+	useDocker := agent.Docker
+	switch useDockerParam {
+	case false:
+		useDocker = agent.Binary
+	default:
+	}
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
@@ -63,6 +74,7 @@ func main() {
 			LogLevel:    "debug",
 			Port:        "7002",
 			AttestedTls: attestedTLS,
+			RunType:     useDocker,
 		},
 	}
 	if err := SendAgentConfig(3, ac); err != nil {

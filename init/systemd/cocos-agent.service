@@ -1,6 +1,7 @@
 [Unit]
 Description=Cocos AI agent
 After=network.target
+Before=docker.service
 
 [Service]
 StandardOutput=file:/var/log/cocos/agent.stdout

@@ -30,6 +30,13 @@ const (
 	algoFilePermission = 0o700
 )
 
+type RuntimeType int
+
+const (
+	Binary RuntimeType = iota
+	Docker
+)
+
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
