@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"io"
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent"
@@ -108,13 +109,25 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	response, err := sdk.client.Result(ctx, request)
+	stream, err := sdk.client.Result(ctx, request)
 	if err != nil {
 		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
 	}
 
-	return response.File, nil
+	var result []byte
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, response.File...)
+	}
+
+	return result, nil
 }
 
 func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
