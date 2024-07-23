@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-AGENT_VERSION = 3c23835c0049804f40ddb479505753938c95d6b0
-AGENT_SITE = $(call github,sammyoina,cocos-ai,$(AGENT_VERSION))
+AGENT_VERSION = main
+AGENT_SITE = $(call github,ultravioletrs,cocos,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS 	
 	$(MAKE) -C $(@D) agent
