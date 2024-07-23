@@ -76,7 +76,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc, logger))
+		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
 	}
 
 	authSvc, err := auth.New(cfg)
