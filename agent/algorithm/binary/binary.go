@@ -26,14 +26,17 @@ type binary struct {
 	stdout   io.Writer
 }
 
-func New(logger *slog.Logger, eventsSvc events.Service, algoFile string, datasets ...string) algorithm.Algorithm {
+func New(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
 	return &binary{
 		algoFile: algoFile,
-		datasets: datasets,
 		logger:   logger,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
 	}
+}
+
+func (b *binary) AddDataset(dataset string) {
+	b.datasets = append(b.datasets, dataset)
 }
 
 func (b *binary) Run() ([]byte, error) {

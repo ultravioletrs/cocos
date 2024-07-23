@@ -3,16 +3,26 @@
 package cli
 
 import (
+	"context"
 	"encoding/pem"
 	"log"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/python"
+	"google.golang.org/grpc/metadata"
+)
+
+var (
+	pythonRuntime    string
+	algoType         string
+	requirementsFile string
 )
 
 func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "algo",
 		Short:   "Upload an algorithm binary",
 		Example: "algo <algo_file> <private_key_file_path>",
@@ -27,8 +37,17 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 				log.Fatalf("Error reading algorithm file: %v", err)
 			}
 
+			var req []byte
+			if requirementsFile != "" {
+				req, err = os.ReadFile(requirementsFile)
+				if err != nil {
+					log.Fatalf("Error reading requirments file: %v", err)
+				}
+			}
+
 			algoReq := agent.Algorithm{
-				Algorithm: algorithm,
+				Algorithm:    algorithm,
+				Requirements: req,
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])
@@ -40,11 +59,25 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			privKey := decodeKey(pemBlock)
 
-			if err := cli.agentSDK.Algo(cmd.Context(), algoReq, privKey); err != nil {
+			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
+
+			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
 				log.Fatalf("Error uploading algorithm with error: %v", err)
 			}
 
 			log.Println("Successfully uploaded algorithm")
 		},
 	}
+
+	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
+	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
+	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
+
+	return cmd
+}
+
+func addAlgoMetadata(ctx context.Context) context.Context {
+	ctx = algorithm.AlgorithmTypeToContext(ctx, algoType)
+	ctx = python.PythonRunTimeToContext(ctx, pythonRuntime)
+	return ctx
 }

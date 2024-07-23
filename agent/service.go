@@ -13,7 +13,9 @@ import (
 	"slices"
 
 	"github.com/google/go-sev-guest/client"
+	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
+	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"golang.org/x/crypto/sha3"
 )
@@ -59,13 +61,12 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation    // Holds the current computation request details.
-	algorithm   string         // Filepath to the algorithm received for the computation.
-	datasets    []string       // Filepath to the datasets received for the computation.
-	result      []byte         // Stores the result of the computation.
-	sm          *StateMachine  // Manages the state transitions of the agent service.
-	runError    error          // Stores any error encountered during the computation run.
-	eventSvc    events.Service // Service for publishing events related to computation.
+	computation Computation         // Holds the current computation request details.
+	algorithm   algorithm.Algorithm // Filepath to the algorithm received for the computation.
+	result      []byte              // Stores the result of the computation.
+	sm          *StateMachine       // Manages the state transitions of the agent service.
+	runError    error               // Stores any error encountered during the computation run.
+	eventSvc    events.Service      // Service for publishing events related to computation.
 }
 
 var _ Service = (*agentService)(nil)
@@ -92,15 +93,15 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	return svc
 }
 
-func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
+func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != receivingAlgorithm {
 		return ErrStateNotReady
 	}
-	if as.algorithm != "" {
+	if as.algorithm != nil {
 		return ErrAllManifestItemsReceived
 	}
 
-	hash := sha3.Sum256(algorithm.Algorithm)
+	hash := sha3.Sum256(algo.Algorithm)
 
 	if hash != as.computation.Algorithm.Hash {
 		return ErrHashMismatch
@@ -111,7 +112,7 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
 
-	if _, err := f.Write(algorithm.Algorithm); err != nil {
+	if _, err := f.Write(algo.Algorithm); err != nil {
 		return fmt.Errorf("error writing algorithm to file: %v", err)
 	}
 
@@ -123,9 +124,31 @@ func (as *agentService) Algo(ctx context.Context, algorithm Algorithm) error {
 		return fmt.Errorf("error closing file: %v", err)
 	}
 
-	as.algorithm = f.Name()
+	algoType := algorithm.AlgorithmTypeFromContext(ctx)
+	if algoType == "" {
+		algoType = string(algorithm.AlgoTypeBin)
+	}
 
-	if as.algorithm != "" {
+	switch algoType {
+	case string(algorithm.AlgoTypeBin):
+		as.algorithm = binary.New(as.sm.logger, as.eventSvc, f.Name())
+	case string(algorithm.AlgoTypePython):
+		fr, err := os.CreateTemp("", "requirements.txt")
+		if err != nil {
+			return fmt.Errorf("error creating requirments file: %v", err)
+		}
+
+		if _, err := fr.Write(algo.Requirements); err != nil {
+			return fmt.Errorf("error writing requirements to file: %v", err)
+		}
+		if err := fr.Close(); err != nil {
+			return fmt.Errorf("error closing file: %v", err)
+		}
+		runtime := python.PythonRunTimeFromContext(ctx)
+		as.algorithm = python.New(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
+	}
+
+	if as.algorithm != nil {
 		as.sm.SendEvent(algorithmReceived)
 	}
 
@@ -164,7 +187,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		return fmt.Errorf("error closing file: %v", err)
 	}
 
-	as.datasets = append(as.datasets, f.Name())
+	as.algorithm.AddDataset(f.Name())
 
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
@@ -211,8 +234,7 @@ func (as *agentService) runComputation() {
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
 	as.publishEvent("in-progress", json.RawMessage{})()
-	algorithm := binary.New(as.sm.logger, as.eventSvc, as.algorithm, as.datasets...)
-	result, err := algorithm.Run()
+	result, err := as.algorithm.Run()
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))

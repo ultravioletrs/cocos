@@ -52,9 +52,10 @@ type Dataset struct {
 type Datasets []Dataset
 
 type Algorithm struct {
-	Algorithm []byte   `json:"-"`
-	Hash      [32]byte `json:"hash,omitempty"`
-	UserKey   []byte   `json:"user_key,omitempty"`
+	Algorithm    []byte   `json:"-"`
+	Hash         [32]byte `json:"hash,omitempty"`
+	UserKey      []byte   `json:"user_key,omitempty"`
+	Requirements []byte   `json:"-"`
 }
 
 type ManifestIndexKey struct{}

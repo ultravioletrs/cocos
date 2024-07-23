@@ -33,7 +33,7 @@ const (
 
 var (
 	algoPath    = "./test/manual/algo/lin_reg.py"
-	dataPath    = "./test/manual/data/iris.csv"
+	dataPaths   []string
 	attestedTLS = false
 	pubKeyFile  string
 )
@@ -57,16 +57,15 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 	}
 	pubPem, _ := pem.Decode(pubKey)
 
-	var dataset []*manager.Dataset
-	if dataPath != "" {
+	var datasets []*manager.Dataset
+	for _, dataPath := range dataPaths {
 		data, err := os.ReadFile(dataPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
 			return
 		}
 		dataHash := sha3.Sum256(data)
-
-		dataset = []*manager.Dataset{{Hash: dataHash[:], UserKey: pubPem.Bytes}}
+		datasets = append(datasets, &manager.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
 	}
 
 	algoHash := sha3.Sum256(algo)
@@ -76,7 +75,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
-				Datasets:        dataset,
+				Datasets:        datasets,
 				Algorithm:       &manager.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
 				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &manager.AgentConfig{
@@ -91,16 +90,19 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 
 func main() {
 	if len(os.Args) < 5 {
-		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>", os.Args[0])
+		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>", os.Args[0])
 	}
-	dataPath = os.Args[1]
-	algoPath = os.Args[2]
-	pubKeyFile = os.Args[3]
-	attestedTLSParam, err := strconv.ParseBool(os.Args[4])
+	algoPath = os.Args[1]
+	pubKeyFile = os.Args[2]
+	attestedTLSParam, err := strconv.ParseBool(os.Args[3])
 	if err != nil {
 		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
 	attestedTLS = attestedTLSParam
+
+	for i := 4; i < len(os.Args); i++ {
+		dataPaths = append(dataPaths, os.Args[i])
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)

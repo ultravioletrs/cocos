@@ -40,19 +40,47 @@ func (h *handler) Enabled(_ context.Context, l slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (h *handler) Handle(_ context.Context, r slog.Record) error {
-	agentLog := manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentLog{AgentLog: &manager.AgentLog{
-		Timestamp: timestamppb.New(r.Time),
-		Message:   r.Message,
-		Level:     r.Level.String(),
-	}}}
+	message := r.Message
+	timestamp := timestamppb.New(r.Time)
+	level := r.Level.String()
 
-	b, err := proto.Marshal(&agentLog)
-	if err != nil {
-		return err
+	// Calculate the number of chunks
+	chunkSize := 500
+	numChunks := (len(message) + chunkSize - 1) / chunkSize
+
+	for i := 0; i < numChunks; i++ {
+		start := i * chunkSize
+		end := start + chunkSize
+		if end > len(message) {
+			end = len(message)
+		}
+
+		// Create a chunk of the message
+		chunk := message[start:end]
+
+		// Create the agent log with the chunk
+		agentLog := manager.ClientStreamMessage{
+			Message: &manager.ClientStreamMessage_AgentLog{
+				AgentLog: &manager.AgentLog{
+					Timestamp: timestamp,
+					Message:   chunk,
+					Level:     level,
+				},
+			},
+		}
+
+		// Marshal the chunk to protobuf
+		b, err := proto.Marshal(&agentLog)
+		if err != nil {
+			return err
+		}
+
+		// Write the chunk to the writer
+		if _, err := h.w.Write(b); err != nil {
+			return err
+		}
 	}
-	if _, err := h.w.Write(b); err != nil {
-		return err
-	}
+
 	return nil
 }
 
