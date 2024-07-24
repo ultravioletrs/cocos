@@ -62,10 +62,10 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 			return len(p) - inBuf.Len(), err
 		}
 
-		s.Logger.Error(string(buf[:n]))
+		s.Logger.Warn(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent("algorithm-run", "failed", nil); err != nil {
+	if err := s.EventSvc.SendEvent("algorithm-run", "warning", nil); err != nil {
 		return len(p), err
 	}
 
