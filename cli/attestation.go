@@ -148,7 +148,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "get",
 		Short:   "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.",
-		Example: "report <report_data>",
+		Example: "get <report_data>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Println("Getting attestation")
