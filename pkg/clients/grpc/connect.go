@@ -35,10 +35,11 @@ const (
 )
 
 const (
-	cocosDirectory   = ".cocos"
-	caBundleName     = "ask_ark.pem"
-	productNameMilan = "Milan"
-	productNameGenoa = "Genoa"
+	cocosDirectory        = ".cocos"
+	caBundleName          = "ask_ark.pem"
+	productNameMilan      = "Milan"
+	productNameGenoa      = "Genoa"
+	attestationReportSize = 0x4A0
 )
 
 var (
@@ -185,7 +186,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
 
-	conn, err := grpc.Dial(cfg.URL, opts...)
+	conn, err := grpc.NewClient(cfg.URL, opts...)
 	if err != nil {
 		return nil, secure, errors.Wrap(errGrpcConnect, err)
 	}
@@ -247,7 +248,8 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 				Getter:        &trust.SimpleHTTPSGetter{},
 			}
 
-			attestationPB, err := abi.ReportCertsToProto(ext.Value)
+			attestation_bytes := ext.Value[:attestationReportSize]
+			attestationPB, err := abi.ReportCertsToProto(attestation_bytes)
 			if err != nil {
 				return errors.Wrap(errAttVerification, err)
 			}
@@ -293,7 +295,7 @@ func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
 }
 
 func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
-	product := attestationConfiguration.RootOfTrust.Product
+	product := attestationConfiguration.RootOfTrust.ProductLine
 
 	chain := attestation.GetCertificateChain()
 	if chain == nil {
