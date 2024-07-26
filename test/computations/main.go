@@ -59,6 +59,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 
 	var datasets []*manager.Dataset
 	for _, dataPath := range dataPaths {
+		if dataPath == "" {
+			continue
+		}
 		data, err := os.ReadFile(dataPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
