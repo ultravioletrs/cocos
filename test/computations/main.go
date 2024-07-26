@@ -59,8 +59,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 
 	var datasets []*manager.Dataset
 	for _, dataPath := range dataPaths {
-		if dataPath == "" {
-			continue
+		if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
+			return
 		}
 		data, err := os.ReadFile(dataPath)
 		if err != nil {
@@ -92,14 +93,14 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 }
 
 func main() {
-	if len(os.Args) < 5 {
+	if len(os.Args) < 4 {
 		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>", os.Args[0])
 	}
 	algoPath = os.Args[1]
 	pubKeyFile = os.Args[2]
 	attestedTLSParam, err := strconv.ParseBool(os.Args[3])
 	if err != nil {
-		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
+		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
 	attestedTLS = attestedTLSParam
 
