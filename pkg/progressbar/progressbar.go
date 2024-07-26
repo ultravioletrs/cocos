@@ -24,8 +24,9 @@ const (
 )
 
 var (
-	_ streamSender = (*algoClientWrapper)(nil)
-	_ streamSender = (*dataClientWrapper)(nil)
+	_            streamSender = (*algoClientWrapper)(nil)
+	_            streamSender = (*dataClientWrapper)(nil)
+	warnOnlyOnce              = false
 )
 
 type streamSender interface {
@@ -192,7 +193,11 @@ func (p *ProgressBar) renderProgressBar() error {
 	// Get terminal width.
 	width, err := terminalWidth()
 	if err != nil {
-		return err
+		if !warnOnlyOnce {
+			fmt.Println("Progress bar could not be rendered")
+			warnOnlyOnce = true
+		}
+		return nil
 	}
 
 	if p.maxWidth < width {
