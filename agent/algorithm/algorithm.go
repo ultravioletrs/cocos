@@ -13,6 +13,7 @@ type AlgorithType string
 const (
 	AlgoTypeBin    AlgorithType = "bin"
 	AlgoTypePython AlgorithType = "python"
+	AlgoTypeWasm   AlgorithType = "wasm"
 	AlgoTypeKey                 = "algo_type"
 )
 

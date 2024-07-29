@@ -16,6 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
+	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"golang.org/x/crypto/sha3"
 )
@@ -131,7 +132,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.New(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), string(algo.ResultsFile))
 	case string(algorithm.AlgoTypePython):
 		fr, err := os.CreateTemp("", "requirements.txt")
 		if err != nil {
@@ -145,7 +146,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			return fmt.Errorf("error closing file: %v", err)
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.New(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
+	case string(algorithm.AlgoTypeWasm):
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), string(algo.ResultsFile))
 	}
 
 	if as.algorithm != nil {
