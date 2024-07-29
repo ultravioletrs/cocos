@@ -73,7 +73,6 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 	}
 
 	algoHash := sha3.Sum256(algo)
-	dataHash := sha3.Sum256(data)
 	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{
