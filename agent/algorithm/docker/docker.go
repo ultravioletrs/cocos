@@ -65,6 +65,7 @@ func New(logger *slog.Logger, eventsSvc events.Service, runCommand, algoFile str
 
 	return d
 }
+
 func (d *docker) Run() ([]byte, error) {
 	ctx := context.Background()
 
@@ -130,7 +131,6 @@ func (d *docker) Run() ([]byte, error) {
 			},
 		},
 	}, nil, nil, containerName)
-
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not create a Docker container: %v", err)
 	}
