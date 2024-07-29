@@ -59,7 +59,10 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 				if err != nil {
 					return err
 				}
-				info := &pkgmanager.ClientStreamMessage_BackendInfo{BackendInfo: &pkgmanager.BackendInfo{Info: res}}
+				info := &pkgmanager.ClientStreamMessage_BackendInfo{BackendInfo: &pkgmanager.BackendInfo{
+					Info: res,
+					Id:   mes.BackendInfoReq.Id,
+				}}
 				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: info}); err != nil {
 					return err
 				}

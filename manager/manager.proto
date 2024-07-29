@@ -28,6 +28,7 @@ message RunResponse{
 
 message BackendInfo{
   bytes info = 1;
+  string id = 2;
 }
 
 message AgentEvent {
@@ -75,6 +76,7 @@ message ComputationRunReq {
 }
 
 message BackendInfoReq {
+  string id = 1;
 }
 
 message ResultConsumer {
