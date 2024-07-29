@@ -13,15 +13,14 @@ import (
 var _ fmt.Stringer = (*Datasets)(nil)
 
 type AgentConfig struct {
-	LogLevel     string      `json:"log_level"`
-	Host         string      `json:"host"`
-	Port         string      `json:"port"`
-	CertFile     string      `json:"cert_file"`
-	KeyFile      string      `json:"server_key"`
-	ServerCAFile string      `json:"server_ca_file"`
-	ClientCAFile string      `json:"client_ca_file"`
-	AttestedTls  bool        `json:"attested_tls"`
-	RunType      RuntimeType `json:"runtime_type,omitempty"`
+	LogLevel     string `json:"log_level"`
+	Host         string `json:"host"`
+	Port         string `json:"port"`
+	CertFile     string `json:"cert_file"`
+	KeyFile      string `json:"server_key"`
+	ServerCAFile string `json:"server_ca_file"`
+	ClientCAFile string `json:"client_ca_file"`
+	AttestedTls  bool   `json:"attested_tls"`
 }
 
 type Computation struct {

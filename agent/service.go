@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
+	"github.com/ultravioletrs/cocos/agent/algorithm/docker"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
@@ -28,13 +29,6 @@ const (
 	// ReportDataSize is the size of the report data expected by the attestation service.
 	ReportDataSize     = 64
 	algoFilePermission = 0o700
-)
-
-type RuntimeType int
-
-const (
-	Binary RuntimeType = iota
-	Docker
 )
 
 var (
@@ -167,6 +161,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name())
 	case string(algorithm.AlgoTypeWasm):
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+	case string(algorithm.AlgoTypeDocker):
+		dockerRunCommand := docker.DockerRunCommandFromContext(ctx)
+		as.algorithm = docker.New(as.sm.logger, as.eventSvc, dockerRunCommand, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
