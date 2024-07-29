@@ -58,7 +58,7 @@ go run cmd/cli/main.go backend measurement '<measurement>' '<backend_info.json>'
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
 # and the path of the backend_info.json file.:
-go run cmd/cli/main.go backend measurement '<host-data>' '<backend_info.json>'
+go run cmd/cli/main.go backend hosdata '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
@@ -74,6 +74,10 @@ go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<repor
 # Run the CLI program with algorithm input
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin <private_key_file_path>
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
+
+# In order to run the Docker image, run the CLI program with the algorithm docker option
+go run ./cmd/cli/main.go algo -a docker -d "python3,/cocos/lin_reg.py" <path_to_docker_image.tar> <private_key_file_path>
+# 2023/09/21 10:43:53 Uploading algorithm binary: <path_to_docker_image.tar>
 
 # Run the CLI program with dataset input
 go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
