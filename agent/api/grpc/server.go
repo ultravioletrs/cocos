@@ -105,7 +105,7 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 
 // Algo implements agent.AgentServiceServer.
 func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
-	var algoFile, reqFile []byte
+	var algoFile, reqFile, resultsFile []byte
 	for {
 		algoChunk, err := stream.Recv()
 		if err == io.EOF {
@@ -116,8 +116,9 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 		}
 		algoFile = append(algoFile, algoChunk.Algorithm...)
 		reqFile = append(reqFile, algoChunk.Requirements...)
+		resultsFile = append(resultsFile, algoChunk.ResultsFile...)
 	}
-	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile})
+	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile, ResultsFile: resultsFile})
 	if err != nil {
 		return err
 	}

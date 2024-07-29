@@ -43,7 +43,7 @@ type python struct {
 	requirementsFile string
 }
 
-func New(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
 	p := &python{
 		algoFile:         algoFile,
 		logger:           logger,
@@ -83,13 +83,19 @@ func (p *python) Run() ([]byte, error) {
 		}
 	}
 
-	defer os.Remove(p.algoFile)
 	defer func() {
 		for _, file := range p.datasets {
-			os.Remove(file)
+			if err := os.Remove(file); err != nil {
+				p.logger.Error("error removing dataset file", slog.Any("error", err))
+			}
+		}
+		if err := os.Remove(p.algoFile); err != nil {
+			p.logger.Error("error removing algorithm file", slog.Any("error", err))
+		}
+		if err := os.RemoveAll(venvPath); err != nil {
+			p.logger.Error("error removing virtual environment", slog.Any("error", err))
 		}
 	}()
-	defer os.RemoveAll(venvPath)
 
 	listener, err := socket.StartUnixSocketServer(socketPath)
 	if err != nil {

@@ -11,27 +11,26 @@ import (
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 )
-
-const socketPath = "unix_socket"
 
 var _ algorithm.Algorithm = (*binary)(nil)
 
 type binary struct {
-	algoFile string
-	datasets []string
-	logger   *slog.Logger
-	stderr   io.Writer
-	stdout   io.Writer
+	algoFile    string
+	resultsFile string
+	datasets    []string
+	logger      *slog.Logger
+	stderr      io.Writer
+	stdout      io.Writer
 }
 
-func New(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, resultsFile string) algorithm.Algorithm {
 	return &binary{
-		algoFile: algoFile,
-		logger:   logger,
-		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
-		stdout:   &algorithm.Stdout{Logger: logger},
+		algoFile:    algoFile,
+		resultsFile: resultsFile,
+		logger:      logger,
+		stderr:      &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:      &algorithm.Stdout{Logger: logger},
 	}
 }
 
@@ -40,28 +39,21 @@ func (b *binary) AddDataset(dataset string) {
 }
 
 func (b *binary) Run() ([]byte, error) {
-	defer os.Remove(b.algoFile)
 	defer func() {
 		for _, file := range b.datasets {
-			os.Remove(file)
+			if err := os.Remove(file); err != nil {
+				b.logger.Error("error removing dataset file", slog.Any("error", err))
+			}
+		}
+		if err := os.Remove(b.algoFile); err != nil {
+			b.logger.Error("error removing algorithm file", slog.Any("error", err))
+		}
+		if err := os.Remove(b.resultsFile); err != nil {
+			b.logger.Error("error removing results file", slog.Any("error", err))
 		}
 	}()
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
-	}
-	defer listener.Close()
 
-	// Create channels for received data and errors
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
-
-	var result []byte
-
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
-
-	args := append([]string{socketPath}, b.datasets...)
-	cmd := exec.Command(b.algoFile, args...)
+	cmd := exec.Command(b.algoFile, b.datasets...)
 	cmd.Stderr = b.stderr
 	cmd.Stdout = b.stdout
 
@@ -73,10 +65,10 @@ func (b *binary) Run() ([]byte, error) {
 		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	select {
-	case result = <-dataChannel:
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
+	results, err := os.ReadFile(b.resultsFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading results file: %v", err)
 	}
+
+	return results, nil
 }

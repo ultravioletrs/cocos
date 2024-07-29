@@ -56,6 +56,7 @@ type Algorithm struct {
 	Hash         [32]byte `json:"hash,omitempty"`
 	UserKey      []byte   `json:"user_key,omitempty"`
 	Requirements []byte   `json:"-"`
+	ResultsFile  []byte   `json:"-"`
 }
 
 type ManifestIndexKey struct{}
