@@ -22,21 +22,21 @@ const (
 var _ algorithm.Algorithm = (*wasm)(nil)
 
 type wasm struct {
-	algoFile    string
-	resultsFile string
-	datasets    []string
-	logger      *slog.Logger
-	stderr      io.Writer
-	stdout      io.Writer
+	algoFile        string
+	resultsFilePath string
+	datasets        []string
+	logger          *slog.Logger
+	stderr          io.Writer
+	stdout          io.Writer
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, resultsFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, resultsFilePath string) algorithm.Algorithm {
 	return &wasm{
-		algoFile:    algoFile,
-		resultsFile: resultsFile,
-		logger:      logger,
-		stderr:      &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
-		stdout:      &algorithm.Stdout{Logger: logger},
+		algoFile:        algoFile,
+		resultsFilePath: resultsFilePath,
+		logger:          logger,
+		stderr:          &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:          &algorithm.Stdout{Logger: logger},
 	}
 }
 
@@ -58,7 +58,7 @@ func (w *wasm) Run() ([]byte, error) {
 		if err := os.Remove(w.algoFile); err != nil {
 			w.logger.Error("error removing algorithm file", slog.Any("error", err))
 		}
-		if err := os.Remove(w.resultsFile); err != nil {
+		if err := os.Remove(w.resultsFilePath); err != nil {
 			w.logger.Error("error removing results file", slog.Any("error", err))
 		}
 		if err := os.Remove(outputDir); err != nil {
@@ -79,7 +79,7 @@ func (w *wasm) Run() ([]byte, error) {
 		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	results, err := os.ReadFile(outputDir + w.resultsFile)
+	results, err := os.ReadFile(outputDir + w.resultsFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading results file: %v", err)
 	}

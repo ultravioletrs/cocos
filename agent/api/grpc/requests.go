@@ -7,9 +7,9 @@ import (
 )
 
 type algoReq struct {
-	Algorithm    []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
-	Requirements []byte
-	ResultsFile  []byte
+	Algorithm       []byte `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	Requirements    []byte
+	ResultsFilePath []byte
 }
 
 func (req algoReq) validate() error {

@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const resultFilePath = "result.bin"
+var resultFilePath = "result.bin"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "result",
 		Short:   "Retrieve computation result file",
 		Example: "result <private_key_file_path>",
@@ -43,4 +43,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			log.Println("Computation result retrieved and saved successfully!")
 		},
 	}
+	cmd.Flags().StringVarP(&resultFilePath, "results", "r", resultFilePath, "Path to save the computation result file")
+
+	return cmd
 }

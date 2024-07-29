@@ -19,7 +19,7 @@ var (
 	pythonRuntime    string
 	algoType         string
 	requirementsFile string
-	resultsFile      string
+	resultsFilePath  string
 )
 
 func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
@@ -45,15 +45,15 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 					log.Fatalf("Error reading requirments file: %v", err)
 				}
 			}
-			var resFile []byte
-			if resultsFile != "" {
-				resFile = []byte(resultsFile)
+			var resFilePath []byte
+			if resultsFilePath != "" {
+				resFilePath = []byte(resultsFilePath)
 			}
 
 			algoReq := agent.Algorithm{
-				Algorithm:    algorithm,
-				Requirements: req,
-				ResultsFile:  resFile,
+				Algorithm:       algorithm,
+				Requirements:    req,
+				ResultsFilePath: resFilePath,
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])
@@ -78,7 +78,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
-	cmd.Flags().StringVarP(&resultsFile, "results", "o", "", "Results file")
+	cmd.Flags().StringVarP(&resultsFilePath, "results", "o", "", "Results file")
 
 	return cmd
 }
