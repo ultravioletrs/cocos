@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/docker"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"google.golang.org/grpc/metadata"
 )
@@ -19,6 +20,7 @@ var (
 	pythonRuntime    string
 	algoType         string
 	requirementsFile string
+	dockerCommand    string
 )
 
 func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
@@ -72,6 +74,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
+	cmd.Flags().StringVarP(&dockerCommand, "dockerc", "d", docker.DockerRunCommand, "arguments for the docker start command separated by a ,")
 
 	return cmd
 }
@@ -79,5 +82,6 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 func addAlgoMetadata(ctx context.Context) context.Context {
 	ctx = algorithm.AlgorithmTypeToContext(ctx, algoType)
 	ctx = python.PythonRunTimeToContext(ctx, pythonRuntime)
+	ctx = docker.DockerRunCommandToContext(ctx, dockerCommand)
 	return ctx
 }

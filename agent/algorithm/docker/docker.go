@@ -18,29 +18,54 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/events"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
-	dataTMPDirectory    = "data"
 	containerName       = "agent_container"
-	agentResultOutput   = "/run/result"
-	algoName            = "/cocos/algorithm.py"
-	containerOutputFile = "/cocos/model.pth"
+	containerOutputFile = "/cocos/result"
 	containerWorkingDir = "/cocos"
+	DockerRunCommand    = "python3,/cocos/algorithm.py"
+	dockerRunCommandKey = "docker_run_command"
 )
 
-var _ algorithm.Algorithm = (*Docker)(nil)
+var _ algorithm.Algorithm = (*docker)(nil)
 
-type Docker struct {
-	logger *slog.Logger
+type docker struct {
+	algoFile   string
+	datasets   []string
+	logger     *slog.Logger
+	stderr     io.Writer
+	stdout     io.Writer
+	runCommand string
 }
 
-func New(logger *slog.Logger) algorithm.Algorithm {
-	return &Docker{
-		logger: logger,
+func DockerRunCommandToContext(ctx context.Context, runCommand string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, dockerRunCommandKey, runCommand)
+}
+
+func DockerRunCommandFromContext(ctx context.Context) string {
+	return metadata.ValueFromIncomingContext(ctx, dockerRunCommandKey)[0]
+}
+
+func New(logger *slog.Logger, eventsSvc events.Service, runCommand, algoFile string) algorithm.Algorithm {
+	d := &docker{
+		algoFile: algoFile,
+		logger:   logger,
+		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:   &algorithm.Stdout{Logger: logger},
 	}
+
+	if runCommand == "" {
+		d.runCommand = DockerRunCommand
+	} else {
+		d.runCommand = runCommand
+	}
+
+	return d
 }
-func (d *Docker) Run(algoFile string, dataFiles []string) ([]byte, error) {
+func (d *docker) Run() ([]byte, error) {
 	ctx := context.Background()
 
 	// Create a new Docker client.
@@ -50,23 +75,23 @@ func (d *Docker) Run(algoFile string, dataFiles []string) ([]byte, error) {
 	}
 
 	// Open the Docker image tar file.
-	imageFile, err := os.Open(algoFile)
+	imageFile, err := os.Open(d.algoFile)
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn not open Docker image: %v", err)
+		return []byte{}, fmt.Errorf("could not open Docker image: %v", err)
 	}
 	defer imageFile.Close()
 
 	// Load the Docker image from the tar file.
 	resp, err := cli.ImageLoad(ctx, imageFile, true)
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn not load Docker image from file: %v", err)
+		return []byte{}, fmt.Errorf("could not load Docker image from file: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// List the loaded images to get the image ID.
 	images, err := cli.ImageList(ctx, image.ListOptions{})
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn not get the Docker image list: %v", err)
+		return []byte{}, fmt.Errorf("could not get the Docker image list: %v", err)
 	}
 
 	var imageID string = ""
@@ -80,48 +105,53 @@ func (d *Docker) Run(algoFile string, dataFiles []string) ([]byte, error) {
 	}
 
 	if imageID == "" {
-		return []byte{}, fmt.Errorf("couldn not find image ID")
+		return []byte{}, fmt.Errorf("could not find image ID")
 	}
 
-	dataFileNames := make([]string, len(dataFiles))
+	dataFileNames := make([]string, len(d.datasets))
 
-	for i, dataPath := range dataFiles {
-		dataFileNames[i] = path.Join(containerWorkingDir, dataTMPDirectory, filepath.Base(dataPath))
+	for i, dataPath := range d.datasets {
+		dataFileNames[i] = path.Join(containerWorkingDir, algorithm.DatasetDirectory, filepath.Base(dataPath))
 	}
+
+	dockerCommand := strings.Split(d.runCommand, ",")
+	dockerCommand = append(dockerCommand, strings.Join(dataFileNames, " "))
 
 	// Create and start the container.
 	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: dockerImageName,
-		Cmd:   []string{"python3", algoName, strings.Join(dataFileNames, " ")},
+		Cmd:   dockerCommand,
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
-				Source: path.Join(os.TempDir(), dataTMPDirectory),
-				Target: path.Join(containerWorkingDir, dataTMPDirectory),
+				Source: algorithm.DatasetDirectory,
+				Target: path.Join(containerWorkingDir, algorithm.DatasetDirectory),
 			},
 		},
 	}, nil, nil, containerName)
 
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn not create a Docker container: %v", err)
+		return []byte{}, fmt.Errorf("could not create a Docker container: %v", err)
 	}
 
 	if err := cli.ContainerStart(ctx, respContainer.ID, container.StartOptions{}); err != nil {
-		return []byte{}, fmt.Errorf("couldn not start a Docker container: %v", err)
+		return []byte{}, fmt.Errorf("could not start a Docker container: %v", err)
 	}
 
 	statusCh, errCh := cli.ContainerWait(ctx, respContainer.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return []byte{}, fmt.Errorf("couldn not wait for a Docker container: %v", err)
+			return []byte{}, fmt.Errorf("could not wait for a Docker container: %v", err)
 		}
 	case <-statusCh:
 	}
 
+	agentResultOutput := path.Join(algorithm.AlgorithmResultOutputDir, algorithm.AlgorithmResultOutputFile)
+
 	if err := copyFromContainer(cli, containerName, containerOutputFile, agentResultOutput); err != nil {
-		return []byte{}, fmt.Errorf("couldn not copy from the Docker container: %v", err)
+		return []byte{}, fmt.Errorf("could not copy from the Docker container: %v", err)
 	}
 
 	resultBytes, err := os.ReadFile(agentResultOutput)
@@ -129,18 +159,35 @@ func (d *Docker) Run(algoFile string, dataFiles []string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("could not read bytes from the result file: %v", err)
 	}
 
-	out, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStdout: true})
+	stdout, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStdout: true})
 	if err != nil {
-		return []byte{}, fmt.Errorf("could not read stdOut from the container: %v", err)
+		return []byte{}, fmt.Errorf("could not read stdout from the container: %v", err)
 	}
-	defer out.Close()
+	defer stdout.Close()
 
-	content, err := io.ReadAll(out)
+	err = writeToOut(stdout, d.stdout)
 	if err != nil {
-		return []byte{}, fmt.Errorf("could not convert stdOut from the container: %v", err)
+		d.logger.Warn(fmt.Sprintf("could not write to stdout: %v", err))
 	}
 
-	d.logger.Debug(string(content))
+	stderr, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStderr: true})
+	if err != nil {
+		d.logger.Warn(fmt.Sprintf("could not read stderr from the container: %v", err))
+	}
+	defer stderr.Close()
+
+	err = writeToOut(stderr, d.stderr)
+	if err != nil {
+		d.logger.Warn(fmt.Sprintf("could not write to stderr: %v", err))
+	}
+
+	if err = cli.ContainerRemove(ctx, respContainer.ID, container.RemoveOptions{Force: true}); err != nil {
+		return []byte{}, fmt.Errorf("could not remove container: %v", err)
+	}
+
+	if _, err := cli.ImageRemove(ctx, imageID, image.RemoveOptions{Force: true}); err != nil {
+		return []byte{}, fmt.Errorf("could not remove image: %v", err)
+	}
 
 	return resultBytes, nil
 }
@@ -182,6 +229,23 @@ func copyFromContainer(cli *client.Client, containerID, containerFilePath, hostF
 				return fmt.Errorf("failed to copy data to host file: %v", err)
 			}
 		}
+	}
+
+	return nil
+}
+
+func (d *docker) AddDataset(dataset string) {
+	d.datasets = append(d.datasets, dataset)
+}
+
+func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
+	content, err := io.ReadAll(readCloser)
+	if err != nil {
+		return fmt.Errorf("could not convert content from the container: %v", err)
+	}
+
+	if _, err := ioWriter.Write(content); err != nil {
+		return fmt.Errorf("could not write to output: %v", err)
 	}
 
 	return nil

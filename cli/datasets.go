@@ -15,8 +15,8 @@ import (
 func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "data",
-		Short:   "Upload a dataset CSV file",
-		Example: "data <dataset.csv> <private_key_file_path>",
+		Short:   "Upload a dataset file",
+		Example: "data <dataset> <private_key_file_path>",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			datasetFile := args[0]
