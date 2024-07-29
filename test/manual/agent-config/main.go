@@ -34,7 +34,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
-
 	attestedTLS := attestedTLSParam
 
 	pubKey, err := os.ReadFile(pubKeyFile)
