@@ -1,5 +1,0 @@
-config BR2_PACKAGE_WASMTIME
-    bool "wasmtime"
-    help
-      Wasmtime is a standalone runtime for WebAssembly.
-      https://github.com/bytecodealliance/wasmtime
