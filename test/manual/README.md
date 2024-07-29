@@ -77,6 +77,10 @@ export AGENT_GRPC_ATTESTED_TLS=true
 ./build/cocos-cli algo test/manual/algo/lin_reg.py <private_key_file_path> -a python -r test/manual/algo/requirements.py
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
+# In order to run the Docker image, run the CLI program with the algorithm docker option
+go run ./cmd/cli/main.go algo -a docker -d "python3,/cocos/lin_reg.py" <path_to_docker_image.tar> <private_key_file_path>
+# 2023/09/21 10:43:53 Uploading algorithm binary: <path_to_docker_image.tar>
+
 # Run the CLI program with dataset input
 ./build/cocos-cli data test/manual/data/iris.csv <private_key_file_path>
 # 2023/09/21 10:45:25 Uploading dataset CSV: test/manual/data/iris.csv
