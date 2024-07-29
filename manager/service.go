@@ -10,8 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
-
-	//"os/exec"
+	"os/exec"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -199,12 +198,12 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 }
 
 func (ms *managerService) FetchBackendInfo() ([]byte, error) {
-	// cmd := exec.Command("sudo", "../../scripts/backend_info/backend_info", "--policy", "1966081")
+	cmd := exec.Command("sudo", "../../scripts/backend_info/backend_info", "--policy", "1966081")
 
-	// _, err := cmd.Output()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	_, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
 
 	f, err := os.ReadFile("./../../scripts/backend_info/backend_info.json")
 	if err != nil {
