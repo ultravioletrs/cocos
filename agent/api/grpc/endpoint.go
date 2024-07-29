@@ -17,7 +17,7 @@ func algoEndpoint(svc agent.Service) endpoint.Endpoint {
 			return algoRes{}, err
 		}
 
-		algo := agent.Algorithm{Algorithm: req.Algorithm, Requirements: req.Requirements}
+		algo := agent.Algorithm{Algorithm: req.Algorithm, Requirements: req.Requirements, ResultsFile: req.ResultsFile}
 
 		err := svc.Algo(ctx, algo)
 		if err != nil {

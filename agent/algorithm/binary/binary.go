@@ -67,7 +67,7 @@ func (b *binary) Run() ([]byte, error) {
 
 	results, err := os.ReadFile(b.resultsFile)
 	if err != nil {
-		return nil, fmt.Errorf("error reading results file: %v", err)
+		return nil, fmt.Errorf("error reading results file %v", err)
 	}
 
 	return results, nil

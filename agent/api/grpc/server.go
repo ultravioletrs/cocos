@@ -58,6 +58,7 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	return algoReq{
 		Algorithm:    req.Algorithm,
 		Requirements: req.Requirements,
+		ResultsFile:  req.ResultsFile,
 	}, nil
 }
 
