@@ -68,7 +68,8 @@ export AGENT_GRPC_ATTESTED_TLS=true
 go run cmd/cli/main.go attestation get '<report_data>'
 
 # Validate Attestation
-go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>'
+# Product name must be Milan or Genoa
+go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>' --product <product_name>
 
 # Run the CLI program with algorithm input
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin <private_key_file_path>

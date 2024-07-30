@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
@@ -40,6 +41,8 @@ const (
 	size48                  = 48
 	size64                  = 64
 	attestationFilePath     = "attestation.bin"
+	sevProductNameMilan     = "Milan"
+	sevProductNameGenoa     = "Genoa"
 	exampleJSONConfig       = `
 	{
 		"rootOfTrust":{
@@ -366,7 +369,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		"Hex-encoded SHA-384 hash values of trusted identity keys in AMD public key format",
 	)
 	cmd.Flags().StringVar(
-		&cfg.RootOfTrust.Product,
+		&cfg.RootOfTrust.ProductLine,
 		"product",
 		"",
 		"The AMD product name for the chip that generated the attestation report.",
@@ -394,6 +397,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		log.Fatalf("Failed to mark flag as required: %s", err)
 	}
 
+	if err := cmd.MarkFlagRequired("product"); err != nil {
+		log.Fatalf("Failed to mark flag as required: %s", err)
+	}
+
 	return cmd
 }
 
@@ -402,13 +409,36 @@ func verifyAndValidateAttestation(attestation []byte) error {
 	if err != nil {
 		return err
 	}
-	sopts.Product = cfg.Policy.Product
+
+	if cfg.Policy.Product == nil {
+		productName := sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
+		switch cfg.RootOfTrust.ProductLine {
+		case sevProductNameMilan:
+			productName = sevsnp.SevProduct_SEV_PRODUCT_MILAN
+		case sevProductNameGenoa:
+			productName = sevsnp.SevProduct_SEV_PRODUCT_GENOA
+		default:
+		}
+
+		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
+			return fmt.Errorf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa)
+		}
+
+		sopts.Product = &sevsnp.SevProduct{
+			Name: productName,
+		}
+	} else {
+		sopts.Product = cfg.Policy.Product
+	}
+
 	sopts.Getter = &trust.RetryHTTPSGetter{
 		Timeout:       timeout,
 		MaxRetryDelay: maxRetryDelay,
 		Getter:        &trust.SimpleHTTPSGetter{},
 	}
-	attestationPB, err := abi.ReportCertsToProto(attestation)
+
+	// Only take the attestation report and ignore everything else.
+	attestationPB, err := abi.ReportCertsToProto(attestation[:abi.ReportSize])
 	if err != nil {
 		return err
 	}
