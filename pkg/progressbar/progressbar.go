@@ -80,7 +80,7 @@ func New() *ProgressBar {
 	return &ProgressBar{}
 }
 
-func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer, resultFilePathBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
+func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
 	totalSize := algobuffer.Len() + reqBuffer.Len()
 	p.reset(description, totalSize)
 
@@ -96,13 +96,6 @@ func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer, r
 	// Then send algobuffer
 	if err := p.sendBuffer(algobuffer, wrapper, func(data []byte) interface{} {
 		return &agent.AlgoRequest{Algorithm: data}
-	}); err != nil {
-		return err
-	}
-
-	// Finally send resultFilePathBuffer
-	if err := p.sendBuffer(resultFilePathBuffer, wrapper, func(data []byte) interface{} {
-		return &agent.AlgoRequest{ResultsFilePath: data}
 	}); err != nil {
 		return err
 	}

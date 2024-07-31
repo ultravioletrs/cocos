@@ -132,7 +132,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), string(algo.ResultsFilePath))
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypePython):
 		fr, err := os.CreateTemp("", "requirements.txt")
 		if err != nil {
@@ -148,7 +148,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		runtime := python.PythonRunTimeFromContext(ctx)
 		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), string(algo.ResultsFilePath))
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}
 
 	if as.algorithm != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var resultFilePath = "result.bin"
+var resultsFilePath = "result.zip"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -36,14 +36,14 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}
 
-			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
+			if err := os.WriteFile(resultsFilePath, result, 0o644); err != nil {
+				log.Fatalf("Error saving computation result to %v", err)
 			}
 
 			log.Println("Computation result retrieved and saved successfully!")
 		},
 	}
-	cmd.Flags().StringVarP(&resultFilePath, "results", "r", resultFilePath, "Path to save the computation result file")
+	cmd.Flags().StringVarP(&resultsFilePath, "results", "r", resultsFilePath, "Path to save the computation result file")
 
 	return cmd
 }

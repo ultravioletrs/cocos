@@ -22,21 +22,19 @@ const (
 var _ algorithm.Algorithm = (*wasm)(nil)
 
 type wasm struct {
-	algoFile        string
-	resultsFilePath string
-	datasets        []string
-	logger          *slog.Logger
-	stderr          io.Writer
-	stdout          io.Writer
+	algoFile string
+	datasets []string
+	logger   *slog.Logger
+	stderr   io.Writer
+	stdout   io.Writer
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, resultsFilePath string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
 	return &wasm{
-		algoFile:        algoFile,
-		resultsFilePath: resultsFilePath,
-		logger:          logger,
-		stderr:          &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
-		stdout:          &algorithm.Stdout{Logger: logger},
+		algoFile: algoFile,
+		logger:   logger,
+		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:   &algorithm.Stdout{Logger: logger},
 	}
 }
 
@@ -45,8 +43,8 @@ func (w *wasm) AddDataset(dataset string) {
 }
 
 func (w *wasm) Run() ([]byte, error) {
-	if err := os.Mkdir("output", 0o755); err != nil {
-		return nil, fmt.Errorf("error creating output directory: %s", err.Error())
+	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+		return nil, fmt.Errorf("error creating results directory: %s", err.Error())
 	}
 
 	defer func() {
@@ -58,8 +56,8 @@ func (w *wasm) Run() ([]byte, error) {
 		if err := os.Remove(w.algoFile); err != nil {
 			w.logger.Error("error removing algorithm file", slog.Any("error", err))
 		}
-		if err := os.Remove(outputDir); err != nil {
-			w.logger.Error("error removing output directory", slog.Any("error", err))
+		if err := os.Remove(algorithm.ResultsDir); err != nil {
+			w.logger.Error("error removing results directory", slog.Any("error", err))
 		}
 	}()
 
@@ -76,9 +74,9 @@ func (w *wasm) Run() ([]byte, error) {
 		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	results, err := os.ReadFile(outputDir + w.resultsFilePath)
+	results, err := algorithm.ZipDirectory()
 	if err != nil {
-		return nil, fmt.Errorf("error reading results file: %v", err)
+		return nil, fmt.Errorf("error zipping results: %v", err)
 	}
 
 	return results, nil

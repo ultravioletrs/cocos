@@ -56,9 +56,8 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	req := grpcReq.(*agent.AlgoRequest)
 
 	return algoReq{
-		Algorithm:       req.Algorithm,
-		Requirements:    req.Requirements,
-		ResultsFilePath: req.ResultsFilePath,
+		Algorithm:    req.Algorithm,
+		Requirements: req.Requirements,
 	}, nil
 }
 
@@ -106,7 +105,7 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 
 // Algo implements agent.AgentServiceServer.
 func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
-	var algoFile, reqFile, resultsFilePath []byte
+	var algoFile, reqFile []byte
 	for {
 		algoChunk, err := stream.Recv()
 		if err == io.EOF {
@@ -117,9 +116,8 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 		}
 		algoFile = append(algoFile, algoChunk.Algorithm...)
 		reqFile = append(reqFile, algoChunk.Requirements...)
-		resultsFilePath = append(resultsFilePath, algoChunk.ResultsFilePath...)
 	}
-	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile, ResultsFilePath: resultsFilePath})
+	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile})
 	if err != nil {
 		return err
 	}

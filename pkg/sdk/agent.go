@@ -65,10 +65,9 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	}
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
 	reqBuffer := bytes.NewBuffer(algorithm.Requirements)
-	resultFilePathBuffer := bytes.NewBuffer(algorithm.ResultsFilePath)
 
 	pb := progressbar.New()
-	if err := pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, resultFilePathBuffer, &stream); err != nil {
+	if err := pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream); err != nil {
 		sdk.logger.Error("Failed to send Algorithm")
 		return err
 	}
