@@ -13,12 +13,10 @@ import (
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 	"google.golang.org/grpc/metadata"
 )
 
 const (
-	socketPath   = "unix_socket"
 	PyRuntime    = "python3"
 	pyRuntimeKey = "python_runtime"
 )
@@ -95,22 +93,12 @@ func (p *python) Run() ([]byte, error) {
 		if err := os.RemoveAll(venvPath); err != nil {
 			p.logger.Error("error removing virtual environment", slog.Any("error", err))
 		}
+		if err := os.Remove(algorithm.ResultsDir); err != nil {
+			p.logger.Error("error removing results directory and its contents", slog.Any("error", err))
+		}
 	}()
 
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
-	}
-	defer listener.Close()
-
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
-
-	var result []byte
-
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
-
-	args := append([]string{p.algoFile, socketPath}, p.datasets...)
+	args := append([]string{p.algoFile}, p.datasets...)
 	cmd := exec.Command(pythonPath, args...)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
@@ -123,10 +111,10 @@ func (p *python) Run() ([]byte, error) {
 		return nil, fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	select {
-	case result = <-dataChannel:
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
+	results, err := algorithm.ZipDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("error zipping results: %v", err)
 	}
+
+	return results, nil
 }
