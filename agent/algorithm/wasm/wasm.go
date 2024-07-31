@@ -36,10 +36,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 	}
 }
 
-func (w *wasm) AddDataset(dataset string) {
-	w.datasets = append(w.datasets, dataset)
-}
-
 func (w *wasm) Run() ([]byte, error) {
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("error creating results directory: %s", err.Error())

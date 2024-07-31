@@ -190,8 +190,6 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		return fmt.Errorf("error closing file: %v", err)
 	}
 
-	as.algorithm.AddDataset(f.Name())
-
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
 	}

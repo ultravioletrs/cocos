@@ -32,10 +32,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 	}
 }
 
-func (b *binary) AddDataset(dataset string) {
-	b.datasets = append(b.datasets, dataset)
-}
-
 func (b *binary) Run() ([]byte, error) {
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("error creating results directory: %s", err.Error())

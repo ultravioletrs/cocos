@@ -57,10 +57,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requir
 	return p
 }
 
-func (p *python) AddDataset(dataset string) {
-	p.datasets = append(p.datasets, dataset)
-}
-
 func (p *python) Run() ([]byte, error) {
 	venvPath := "venv"
 	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
