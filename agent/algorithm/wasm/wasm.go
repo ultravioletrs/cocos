@@ -13,11 +13,9 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 )
 
-const (
-	wasmRuntime  = "wasmedge"
-	outputDir    = "output"
-	mapDirOption = "--dir .:" + outputDir
-)
+const wasmRuntime = "wasmedge"
+
+var mapDirOption = []string{"--dir", ".:" + algorithm.ResultsDir}
 
 var _ algorithm.Algorithm = (*wasm)(nil)
 
@@ -61,7 +59,8 @@ func (w *wasm) Run() ([]byte, error) {
 		}
 	}()
 
-	args := append([]string{mapDirOption, w.algoFile}, w.datasets...)
+	args := append(mapDirOption, w.algoFile)
+	args = append(args, w.datasets...)
 	cmd := exec.Command(wasmRuntime, args...)
 	cmd.Stderr = w.stderr
 	cmd.Stdout = w.stdout
