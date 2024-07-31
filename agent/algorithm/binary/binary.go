@@ -51,7 +51,7 @@ func (b *binary) Run() ([]byte, error) {
 			b.logger.Error("error removing algorithm file", slog.Any("error", err))
 		}
 		if err := os.Remove(algorithm.ResultsDir); err != nil {
-			b.logger.Error("error removing results directory", slog.Any("error", err))
+			b.logger.Error("error removing results directory and its contents", slog.Any("error", err))
 		}
 	}()
 

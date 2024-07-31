@@ -55,7 +55,7 @@ func (w *wasm) Run() ([]byte, error) {
 			w.logger.Error("error removing algorithm file", slog.Any("error", err))
 		}
 		if err := os.Remove(algorithm.ResultsDir); err != nil {
-			w.logger.Error("error removing results directory", slog.Any("error", err))
+			w.logger.Error("error removing results directory and its contents", slog.Any("error", err))
 		}
 	}()
 

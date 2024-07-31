@@ -5,6 +5,7 @@ package algorithm
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ func ZipDirectory() ([]byte, error) {
 
 	err := filepath.Walk(ResultsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error walking the path %q: %v", path, err)
 		}
 
 		if info.IsDir() {
@@ -28,21 +29,24 @@ func ZipDirectory() ([]byte, error) {
 
 		relPath, err := filepath.Rel(ResultsDir, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting relative path for %q: %v", path, err)
 		}
 
 		file, err := os.Open(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("error opening file %q: %v", path, err)
 		}
 		defer file.Close()
 
 		zipFile, err := zipWriter.Create(relPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error creating zip file for %q: %v", path, err)
 		}
 
-		_, err = io.Copy(zipFile, file)
+		if _, err = io.Copy(zipFile, file); err != nil {
+			return fmt.Errorf("error copying file %q to zip: %v", path, err)
+		}
+
 		return err
 	})
 	if err != nil {
