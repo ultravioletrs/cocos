@@ -244,7 +244,6 @@ func (as *agentService) runComputation() {
 		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
-	as.publishEvent(fmt.Sprintf("algorithm execution completed with result: %s", string(result)), json.RawMessage{})()
 	as.publishEvent("complete", json.RawMessage{})()
 	as.result = result
 }

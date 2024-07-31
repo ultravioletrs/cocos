@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var resultsFilePath = "result.zip"
+const resultFilePath = "result.zip"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:     "result",
 		Short:   "Retrieve computation result file",
 		Example: "result <private_key_file_path>",
@@ -36,14 +36,11 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				log.Fatalf("Error retrieving computation result: %v", err)
 			}
 
-			if err := os.WriteFile(resultsFilePath, result, 0o644); err != nil {
-				log.Fatalf("Error saving computation result to %v", err)
+			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
+				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
 			}
 
 			log.Println("Computation result retrieved and saved successfully!")
 		},
 	}
-	cmd.Flags().StringVarP(&resultsFilePath, "results", "r", resultsFilePath, "Path to save the computation result file")
-
-	return cmd
 }
