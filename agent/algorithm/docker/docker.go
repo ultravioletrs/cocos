@@ -115,7 +115,7 @@ func (d *docker) Run() ([]byte, error) {
 		dataFileNames[i] = path.Join(containerWorkingDir, algorithm.DatasetDirectory, filepath.Base(dataPath))
 	}
 
-	dockerCommand := strings.Split(d.runCommand, ",")
+	dockerCommand := strings.Fields(d.runCommand)
 	dockerCommand = append(dockerCommand, strings.Join(dataFileNames, " "))
 
 	// Create and start the container.
