@@ -32,9 +32,9 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 	}
 }
 
-func (b *binary) Run() ([]byte, error) {
+func (b *binary) Run() error {
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
-		return nil, fmt.Errorf("error creating results directory: %s", err.Error())
+		return fmt.Errorf("error creating results directory: %s", err.Error())
 	}
 
 	defer func() {
@@ -56,17 +56,12 @@ func (b *binary) Run() ([]byte, error) {
 	cmd.Stdout = b.stdout
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
+		return fmt.Errorf("error starting algorithm: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
+		return fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	results, err := algorithm.ZipDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("error zipping results: %v", err)
-	}
-
-	return results, nil
+	return nil
 }

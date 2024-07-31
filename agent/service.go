@@ -234,16 +234,26 @@ func (as *agentService) runComputation() {
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
+
 	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := as.algorithm.Run()
-	if err != nil {
+	if err := as.algorithm.Run(); err != nil {
 		as.runError = err
-		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
+		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
 		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
+
+	results, err := algorithm.ZipDirectory()
+	if err != nil {
+		as.runError = err
+		as.sm.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
+		as.publishEvent("failed", json.RawMessage{})()
+		return
+	}
+
 	as.publishEvent("complete", json.RawMessage{})()
-	as.result = result
+
+	as.result = results
 }
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {

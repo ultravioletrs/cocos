@@ -57,13 +57,13 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requir
 	return p
 }
 
-func (p *python) Run() ([]byte, error) {
+func (p *python) Run() error {
 	venvPath := "venv"
 	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
 	createVenvCmd.Stderr = p.stderr
 	createVenvCmd.Stdout = p.stdout
 	if err := createVenvCmd.Run(); err != nil {
-		return nil, fmt.Errorf("error creating virtual environment: %v", err)
+		return fmt.Errorf("error creating virtual environment: %v", err)
 	}
 
 	pythonPath := filepath.Join(venvPath, "bin", "python")
@@ -73,7 +73,7 @@ func (p *python) Run() ([]byte, error) {
 		rcmd.Stderr = p.stderr
 		rcmd.Stdout = p.stdout
 		if err := rcmd.Run(); err != nil {
-			return nil, fmt.Errorf("error installing requirements: %v", err)
+			return fmt.Errorf("error installing requirements: %v", err)
 		}
 	}
 
@@ -100,17 +100,12 @@ func (p *python) Run() ([]byte, error) {
 	cmd.Stdout = p.stdout
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
+		return fmt.Errorf("error starting algorithm: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
+		return fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	results, err := algorithm.ZipDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("error zipping results: %v", err)
-	}
-
-	return results, nil
+	return nil
 }
