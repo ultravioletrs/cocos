@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -53,28 +55,32 @@ type Service interface {
 	Stop(ctx context.Context, computationID string) error
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
+	// FetchBackendInfo measures and fetches the backend information.
+	FetchBackendInfo() ([]byte, error)
 }
 
 type managerService struct {
-	qemuCfg    qemu.Config
-	logger     *slog.Logger
-	agents     map[int]string // agent map of vsock cid to computationID.
-	eventsChan chan *manager.ClientStreamMessage
-	vms        map[string]vm.VM
-	vmFactory  vm.Provider
+	qemuCfg                      qemu.Config
+	backendMeasurementBinaryPath string
+	logger                       *slog.Logger
+	agents                       map[int]string // agent map of vsock cid to computationID.
+	eventsChan                   chan *manager.ClientStreamMessage
+	vms                          map[string]vm.VM
+	vmFactory                    vm.Provider
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
+func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
 	ms := &managerService{
-		qemuCfg:    qemuCfg,
-		logger:     logger,
-		agents:     make(map[int]string),
-		vms:        make(map[string]vm.VM),
-		eventsChan: eventsChan,
-		vmFactory:  vmFactory,
+		qemuCfg:                      cfg,
+		logger:                       logger,
+		agents:                       make(map[int]string),
+		vms:                          make(map[string]vm.VM),
+		eventsChan:                   eventsChan,
+		vmFactory:                    vmFactory,
+		backendMeasurementBinaryPath: backendMeasurementBinPath,
 	}
 	return ms
 }
@@ -158,6 +164,22 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 	}
 	delete(ms.vms, computationID)
 	return nil
+}
+
+func (ms *managerService) FetchBackendInfo() ([]byte, error) {
+	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
+
+	_, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.ReadFile("./backend_info.json")
+	if err != nil {
+		return nil, err
+	}
+
+	return f, nil
 }
 
 func getFreePort() (int, error) {

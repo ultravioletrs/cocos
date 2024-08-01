@@ -37,10 +37,11 @@ const (
 )
 
 type config struct {
-	LogLevel   string  `env:"MANAGER_LOG_LEVEL"     envDefault:"info"`
-	JaegerURL  url.URL `env:"COCOS_JAEGER_URL"      envDefault:"http://localhost:4318"`
-	TraceRatio float64 `env:"MG_JAEGER_TRACE_RATIO" envDefault:"1.0"`
-	InstanceID string  `env:"MANAGER_INSTANCE_ID"   envDefault:""`
+	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
+	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
+	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build"`
 }
 
 func main() {
@@ -103,7 +104,7 @@ func main() {
 	}
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
-	svc := newService(logger, tracer, qemuCfg, eventsChan)
+	svc := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
@@ -120,8 +121,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
-	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage, backendMeasurementPath string) manager.Service {
+	svc := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
