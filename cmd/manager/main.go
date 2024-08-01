@@ -93,10 +93,9 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	cfg.QemuConfig = qemuCfg
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
-	svc := newService(logger, tracer, cfg, eventsChan)
+	svc := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
@@ -113,8 +112,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg manager.SvcConfig, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
-	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage, backendMeasurementPath string) manager.Service {
+	svc := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")

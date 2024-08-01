@@ -76,21 +76,20 @@ type SvcConfig struct {
 	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
 	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
 	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build/backend_info"`
-	QemuConfig               qemu.Config
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg SvcConfig, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
+func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
 	ms := &managerService{
-		qemuCfg:                      cfg.QemuConfig,
+		qemuCfg:                      cfg,
 		logger:                       logger,
 		agents:                       make(map[int]string),
 		vms:                          make(map[string]vm.VM),
 		eventsChan:                   eventsChan,
 		vmFactory:                    vmFactory,
-		backendMeasurementBinaryPath: cfg.BackendMeasurementBinary,
+		backendMeasurementBinaryPath: backendMeasurementBinPath,
 	}
 	return ms
 }

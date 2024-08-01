@@ -17,12 +17,12 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	cfg := SvcConfig{}
+	cfg := qemu.Config{}
 	logger := slog.Default()
 	eventsChan := make(chan *manager.ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
-	service := New(cfg, logger, eventsChan, vmf.Execute)
+	service := New(cfg, "", logger, eventsChan, vmf.Execute)
 
 	assert.NotNil(t, service)
 	assert.IsType(t, &managerService{}, service)
