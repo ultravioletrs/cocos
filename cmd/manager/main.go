@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 
@@ -35,11 +36,19 @@ const (
 	envPrefixQemu = "MANAGER_QEMU_"
 )
 
+type config struct {
+	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
+	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
+	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build/backend_info"`
+}
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
-	var cfg manager.SvcConfig
+	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}

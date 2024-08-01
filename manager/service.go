@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -68,14 +67,6 @@ type managerService struct {
 	eventsChan                   chan *manager.ClientStreamMessage
 	vms                          map[string]vm.VM
 	vmFactory                    vm.Provider
-}
-
-type SvcConfig struct {
-	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
-	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
-	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
-	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build/backend_info"`
 }
 
 var _ Service = (*managerService)(nil)
