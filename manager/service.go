@@ -46,39 +46,6 @@ var (
 	ErrFailedToCalculateHash = errors.New("error while calculating the hash of the computation")
 )
 
-type Vmpl struct {
-	Value uint32 `json:"value"`
-}
-
-type SnpPolicy struct {
-	Policy                    uint64 `json:"policy"`
-	FamilyID                  []byte `json:"family_id"`
-	ImageID                   []byte `json:"image_id"`
-	Vmpl                      Vmpl   `json:"vmpl"`
-	MinimumTCB                uint64 `json:"minimum_tcb"`
-	MinimumLaunchTCB          uint64 `json:"minimum_launch_tcb"`
-	RequireAuthorKey          bool   `json:"require_author_key"`
-	Measurement               []byte `json:"measurement"`
-	HostData                  []byte `json:"host_data"`
-	ReportIDMA                []byte `json:"report_id_ma"`
-	ChipID                    []byte `json:"chip_id"`
-	MinimumBuild              uint32 `json:"minimum_build"`
-	MinimumVersion            string `json:"minimum_version"`
-	PermitProvisionalFirmware bool   `json:"permit_provisional_firmware"`
-	RequireIDBlock            bool   `json:"require_id_block"`
-}
-
-type RootOfTrust struct {
-	Product         string `json:"product"`
-	CheckCRL        bool   `json:"check_crl"`
-	DisallowNetwork bool   `json:"disallow_network"`
-}
-
-type Computation struct {
-	SnpPolicy   SnpPolicy   `json:"snp_policy"`
-	RootOfTrust RootOfTrust `json:"root_of_trust"`
-}
-
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
