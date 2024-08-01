@@ -174,7 +174,7 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 		return nil, err
 	}
 
-	f, err := os.ReadFile(fmt.Sprintf("%s/backend_info.json", ms.backendMeasurementBinaryPath))
+	f, err := os.ReadFile("./backend_info.json")
 	if err != nil {
 		return nil, err
 	}
