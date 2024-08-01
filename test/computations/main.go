@@ -74,6 +74,14 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 
 	algoHash := sha3.Sum256(algo)
 	reqChan <- &manager.ServerStreamMessage{
+		Message: &manager.ServerStreamMessage_BackendInfoReq{
+			BackendInfoReq: &manager.BackendInfoReq{
+				Id: "1",
+			},
+		},
+	}
+
+	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{
 				Id:              "1",
@@ -126,6 +134,8 @@ func main() {
 				fmt.Println("received agent event")
 			case *manager.ClientStreamMessage_AgentLog:
 				fmt.Println("received agent log")
+			case *manager.ClientStreamMessage_BackendInfo:
+				fmt.Println("received backend info measurement request")
 			}
 			fmt.Println(incoming.Message)
 		}
