@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net/url"
 	"os"
 	"strings"
 
@@ -36,18 +35,11 @@ const (
 	envPrefixQemu = "MANAGER_QEMU_"
 )
 
-type config struct {
-	LogLevel   string  `env:"MANAGER_LOG_LEVEL"     envDefault:"info"`
-	JaegerURL  url.URL `env:"COCOS_JAEGER_URL"      envDefault:"http://localhost:4318"`
-	TraceRatio float64 `env:"MG_JAEGER_TRACE_RATIO" envDefault:"1.0"`
-	InstanceID string  `env:"MANAGER_INSTANCE_ID"   envDefault:""`
-}
-
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
-	var cfg config
+	var cfg manager.SvcConfig
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
@@ -101,9 +93,10 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
+	cfg.QemuConfig = qemuCfg
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
-	svc := newService(logger, tracer, qemuCfg, eventsChan)
+	svc := newService(logger, tracer, cfg, eventsChan)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
@@ -120,7 +113,7 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg manager.SvcConfig, eventsChan chan *pkgmanager.ClientStreamMessage) manager.Service {
 	svc := manager.New(qemuCfg, logger, eventsChan, qemu.NewVM)
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)

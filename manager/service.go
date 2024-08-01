@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -60,25 +61,36 @@ type Service interface {
 }
 
 type managerService struct {
-	qemuCfg    qemu.Config
-	logger     *slog.Logger
-	agents     map[int]string // agent map of vsock cid to computationID.
-	eventsChan chan *manager.ClientStreamMessage
-	vms        map[string]vm.VM
-	vmFactory  vm.Provider
+	qemuCfg                      qemu.Config
+	backendMeasurementBinaryPath string
+	logger                       *slog.Logger
+	agents                       map[int]string // agent map of vsock cid to computationID.
+	eventsChan                   chan *manager.ClientStreamMessage
+	vms                          map[string]vm.VM
+	vmFactory                    vm.Provider
+}
+
+type SvcConfig struct {
+	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
+	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
+	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build/backend_info"`
+	QemuConfig               qemu.Config
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(qemuCfg qemu.Config, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
+func New(cfg SvcConfig, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
 	ms := &managerService{
-		qemuCfg:    qemuCfg,
-		logger:     logger,
-		agents:     make(map[int]string),
-		vms:        make(map[string]vm.VM),
-		eventsChan: eventsChan,
-		vmFactory:  vmFactory,
+		qemuCfg:                      cfg.QemuConfig,
+		logger:                       logger,
+		agents:                       make(map[int]string),
+		vms:                          make(map[string]vm.VM),
+		eventsChan:                   eventsChan,
+		vmFactory:                    vmFactory,
+		backendMeasurementBinaryPath: cfg.BackendMeasurementBinary,
 	}
 	return ms
 }
@@ -165,7 +177,7 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 }
 
 func (ms *managerService) FetchBackendInfo() ([]byte, error) {
-	cmd := exec.Command("sudo", "../../scripts/backend_info/backend_info", "--policy", "1966081")
+	cmd := exec.Command(ms.backendMeasurementBinaryPath, "--policy", "1966081")
 
 	_, err := cmd.Output()
 	if err != nil {
