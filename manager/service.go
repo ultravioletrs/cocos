@@ -171,15 +171,15 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 
 	_, err := cmd.Output()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	f, err := os.ReadFile("./backend_info.json")
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
-	return f, err
+	return f, nil
 }
 
 func getFreePort() (int, error) {
