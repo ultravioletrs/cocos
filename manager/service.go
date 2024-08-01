@@ -171,12 +171,12 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 
 	_, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	f, err := os.ReadFile("./backend_info.json")
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	return f, err
