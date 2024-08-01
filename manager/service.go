@@ -167,7 +167,7 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 }
 
 func (ms *managerService) FetchBackendInfo() ([]byte, error) {
-	cmd := exec.Command(ms.backendMeasurementBinaryPath, "--policy", "1966081")
+	cmd := exec.Command(fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
 
 	_, err := cmd.Output()
 	if err != nil {
