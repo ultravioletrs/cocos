@@ -15,6 +15,9 @@ const (
 	AlgoTypePython AlgorithType = "python"
 	AlgoTypeWasm   AlgorithType = "wasm"
 	AlgoTypeKey                 = "algo_type"
+
+	ResultsDir  = "results"
+	DatasetsDir = "datasets"
 )
 
 func AlgorithmTypeToContext(ctx context.Context, algoType string) context.Context {

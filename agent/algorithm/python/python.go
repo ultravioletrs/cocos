@@ -78,19 +78,8 @@ func (p *python) Run() error {
 	}
 
 	defer func() {
-		for _, file := range p.datasets {
-			if err := os.Remove(file); err != nil {
-				p.logger.Error("error removing dataset file", slog.Any("error", err))
-			}
-		}
-		if err := os.Remove(p.algoFile); err != nil {
-			p.logger.Error("error removing algorithm file", slog.Any("error", err))
-		}
 		if err := os.RemoveAll(venvPath); err != nil {
 			p.logger.Error("error removing virtual environment", slog.Any("error", err))
-		}
-		if err := os.Remove(algorithm.ResultsDir); err != nil {
-			p.logger.Error("error removing results directory and its contents", slog.Any("error", err))
 		}
 	}()
 

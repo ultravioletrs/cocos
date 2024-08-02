@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"os/exec"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -37,24 +36,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 }
 
 func (w *wasm) Run() error {
-	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
-		return fmt.Errorf("error creating results directory: %s", err.Error())
-	}
-
-	defer func() {
-		for _, file := range w.datasets {
-			if err := os.Remove(file); err != nil {
-				w.logger.Error("error removing dataset file", slog.Any("error", err))
-			}
-		}
-		if err := os.Remove(w.algoFile); err != nil {
-			w.logger.Error("error removing algorithm file", slog.Any("error", err))
-		}
-		if err := os.Remove(algorithm.ResultsDir); err != nil {
-			w.logger.Error("error removing results directory and its contents", slog.Any("error", err))
-		}
-	}()
-
 	args := append(mapDirOption, w.algoFile)
 	args = append(args, w.datasets...)
 	cmd := exec.Command(wasmRuntime, args...)

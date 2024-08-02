@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 )
 
-const ResultsDir = "results"
-
 // ZipDirectory zips a directory and returns the zipped bytes.
 func ZipDirectory() ([]byte, error) {
 	buf := new(bytes.Buffer)

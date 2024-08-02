@@ -151,6 +151,10 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}
 
+	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+		return fmt.Errorf("error creating datasets directory: %v", err)
+	}
+
 	if as.algorithm != nil {
 		as.sm.SendEvent(algorithmReceived)
 	}
@@ -178,7 +182,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	}
 	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 
-	f, err := os.CreateTemp("", fmt.Sprintf("dataset-%d", index))
+	f, err := os.Create(fmt.Sprintf("%s/dataset-%d", algorithm.DatasetsDir, index))
 	if err != nil {
 		return fmt.Errorf("error creating dataset file: %v", err)
 	}
@@ -234,6 +238,21 @@ func (as *agentService) runComputation() {
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
+
+	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
+		as.sm.logger.Warn(as.runError.Error())
+		as.publishEvent("failed", json.RawMessage{})()
+		return
+	}
+	defer func() {
+		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
+			as.sm.logger.Warn(fmt.Sprintf("error removing results directory and its contents: %s", err.Error()))
+		}
+		if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
+			as.sm.logger.Warn(fmt.Sprintf("error removing datasets directory and its contents: %s", err.Error()))
+		}
+	}()
 
 	as.publishEvent("in-progress", json.RawMessage{})()
 	if err := as.algorithm.Run(); err != nil {

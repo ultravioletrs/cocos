@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"os/exec"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -33,24 +32,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 }
 
 func (b *binary) Run() error {
-	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
-		return fmt.Errorf("error creating results directory: %s", err.Error())
-	}
-
-	defer func() {
-		for _, file := range b.datasets {
-			if err := os.Remove(file); err != nil {
-				b.logger.Error("error removing dataset file", slog.Any("error", err))
-			}
-		}
-		if err := os.Remove(b.algoFile); err != nil {
-			b.logger.Error("error removing algorithm file", slog.Any("error", err))
-		}
-		if err := os.Remove(algorithm.ResultsDir); err != nil {
-			b.logger.Error("error removing results directory and its contents", slog.Any("error", err))
-		}
-	}()
-
 	cmd := exec.Command(b.algoFile, b.datasets...)
 	cmd.Stderr = b.stderr
 	cmd.Stdout = b.stdout
