@@ -32,11 +32,11 @@ class Computation:
         csv_file_path = data_path + os.sep + files[0]
         return pd.read_csv(csv_file_path)
 
-    def compute(self, data_path=""):
+    def compute(self):
         """
         Trains a logistic regression model.
         """
-        iris = self._read_csv(data_path)
+        iris = self._read_csv(RESULTS_DIR)
 
         # Droping the Species since we only need the measurements
         X = iris.drop(["Species"], axis=1)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     computation = Computation()
     print(sys.argv)
     if len(sys.argv) == 2:
-        computation.compute(sys.argv[1])
+        computation.compute()
         computation.save_result()
     elif len(sys.argv) == 4 and sys.argv[1] == "predict":
         computation.read_results_from_file(sys.argv[2])

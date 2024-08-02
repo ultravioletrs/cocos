@@ -28,14 +28,8 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 	}
 }
 
-func (b *binary) Run(withDataset bool) error {
-	var cmd *exec.Cmd
-	switch withDataset {
-	case true:
-		cmd = exec.Command(b.algoFile, algorithm.DatasetsDir)
-	case false:
-		cmd = exec.Command(b.algoFile)
-	}
+func (b *binary) Run() error {
+	cmd := exec.Command(b.algoFile)
 	cmd.Stderr = b.stderr
 	cmd.Stdout = b.stdout
 

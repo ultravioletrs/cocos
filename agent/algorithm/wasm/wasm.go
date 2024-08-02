@@ -32,12 +32,8 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 	}
 }
 
-func (w *wasm) Run(withDataset bool) error {
+func (w *wasm) Run() error {
 	args := append(mapDirOption, w.algoFile)
-	if withDataset {
-		args = append(args, algorithm.DatasetsDir)
-	}
-
 	cmd := exec.Command(wasmRuntime, args...)
 	cmd.Stderr = w.stderr
 	cmd.Stdout = w.stdout

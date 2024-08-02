@@ -63,7 +63,6 @@ type Service interface {
 
 type agentService struct {
 	computation Computation         // Holds the current computation request details.
-	withDataset bool                // Indicates if the algorithm requires a dataset.
 	algorithm   algorithm.Algorithm // Filepath to the algorithm received for the computation.
 	result      []byte              // Stores the result of the computation.
 	sm          *StateMachine       // Manages the state transitions of the agent service.
@@ -91,9 +90,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[running] = svc.runComputation
 
 	svc.computation = cmp
-	if len(cmp.Datasets) > 0 {
-		svc.withDataset = true
-	}
+
 	svc.sm.SendEvent(manifestReceived)
 	return svc
 }
@@ -264,7 +261,7 @@ func (as *agentService) runComputation() {
 	}()
 
 	as.publishEvent("in-progress", json.RawMessage{})()
-	if err := as.algorithm.Run(as.withDataset); err != nil {
+	if err := as.algorithm.Run(); err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
 		as.publishEvent("failed", json.RawMessage{})()

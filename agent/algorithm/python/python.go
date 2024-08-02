@@ -54,7 +54,7 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requir
 	return p
 }
 
-func (p *python) Run(withDataset bool) error {
+func (p *python) Run() error {
 	venvPath := "venv"
 	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
 	createVenvCmd.Stderr = p.stderr
@@ -74,14 +74,7 @@ func (p *python) Run(withDataset bool) error {
 		}
 	}
 
-	var args []string
-	switch withDataset {
-	case true:
-		args = []string{p.algoFile, algorithm.DatasetsDir}
-	case false:
-		args = []string{p.algoFile}
-	}
-	cmd := exec.Command(pythonPath, args...)
+	cmd := exec.Command(pythonPath, p.algoFile)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
 
