@@ -66,7 +66,9 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 					}
 					return nil
 				}
-				runReqBuffer.Write(mes.RunReqChunks.Data)
+				if _, err := runReqBuffer.Write(mes.RunReqChunks.Data); err != nil {
+					return err
+				}
 
 			case *pkgmanager.ServerStreamMessage_TerminateReq:
 				cancel()
