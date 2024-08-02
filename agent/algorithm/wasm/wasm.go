@@ -20,8 +20,6 @@ var _ algorithm.Algorithm = (*wasm)(nil)
 
 type wasm struct {
 	algoFile string
-	datasets []string
-	logger   *slog.Logger
 	stderr   io.Writer
 	stdout   io.Writer
 }
@@ -29,15 +27,17 @@ type wasm struct {
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
 	return &wasm{
 		algoFile: algoFile,
-		logger:   logger,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
 	}
 }
 
-func (w *wasm) Run() error {
+func (w *wasm) Run(withDataset bool) error {
 	args := append(mapDirOption, w.algoFile)
-	args = append(args, w.datasets...)
+	if withDataset {
+		args = append(args, algorithm.DatasetsDir)
+	}
+
 	cmd := exec.Command(wasmRuntime, args...)
 	cmd.Stderr = w.stderr
 	cmd.Stdout = w.stdout

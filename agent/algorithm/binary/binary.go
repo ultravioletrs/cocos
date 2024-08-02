@@ -16,8 +16,6 @@ var _ algorithm.Algorithm = (*binary)(nil)
 
 type binary struct {
 	algoFile string
-	datasets []string
-	logger   *slog.Logger
 	stderr   io.Writer
 	stdout   io.Writer
 }
@@ -25,14 +23,19 @@ type binary struct {
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
 	return &binary{
 		algoFile: algoFile,
-		logger:   logger,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
 	}
 }
 
-func (b *binary) Run() error {
-	cmd := exec.Command(b.algoFile, b.datasets...)
+func (b *binary) Run(withDataset bool) error {
+	var cmd *exec.Cmd
+	switch withDataset {
+	case true:
+		cmd = exec.Command(b.algoFile, algorithm.DatasetsDir)
+	case false:
+		cmd = exec.Command(b.algoFile)
+	}
 	cmd.Stderr = b.stderr
 	cmd.Stdout = b.stdout
 

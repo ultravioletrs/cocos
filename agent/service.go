@@ -63,6 +63,7 @@ type Service interface {
 
 type agentService struct {
 	computation Computation         // Holds the current computation request details.
+	withDataset bool                // Indicates if the algorithm requires a dataset.
 	algorithm   algorithm.Algorithm // Filepath to the algorithm received for the computation.
 	result      []byte              // Stores the result of the computation.
 	sm          *StateMachine       // Manages the state transitions of the agent service.
@@ -90,6 +91,9 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[running] = svc.runComputation
 
 	svc.computation = cmp
+	if len(cmp.Datasets) > 0 {
+		svc.withDataset = true
+	}
 	svc.sm.SendEvent(manifestReceived)
 	return svc
 }
@@ -134,19 +138,23 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	case string(algorithm.AlgoTypeBin):
 		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypePython):
-		fr, err := os.CreateTemp("", "requirements.txt")
-		if err != nil {
-			return fmt.Errorf("error creating requirments file: %v", err)
-		}
+		var requirementsFile string
+		if len(algo.Requirements) > 0 {
+			fr, err := os.CreateTemp("", "requirements.txt")
+			if err != nil {
+				return fmt.Errorf("error creating requirments file: %v", err)
+			}
 
-		if _, err := fr.Write(algo.Requirements); err != nil {
-			return fmt.Errorf("error writing requirements to file: %v", err)
-		}
-		if err := fr.Close(); err != nil {
-			return fmt.Errorf("error closing file: %v", err)
+			if _, err := fr.Write(algo.Requirements); err != nil {
+				return fmt.Errorf("error writing requirements to file: %v", err)
+			}
+			if err := fr.Close(); err != nil {
+				return fmt.Errorf("error closing file: %v", err)
+			}
+			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name())
 	case string(algorithm.AlgoTypeWasm):
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}
@@ -245,6 +253,7 @@ func (as *agentService) runComputation() {
 		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
+
 	defer func() {
 		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
 			as.sm.logger.Warn(fmt.Sprintf("error removing results directory and its contents: %s", err.Error()))
@@ -255,7 +264,7 @@ func (as *agentService) runComputation() {
 	}()
 
 	as.publishEvent("in-progress", json.RawMessage{})()
-	if err := as.algorithm.Run(); err != nil {
+	if err := as.algorithm.Run(as.withDataset); err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
 		as.publishEvent("failed", json.RawMessage{})()

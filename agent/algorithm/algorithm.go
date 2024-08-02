@@ -31,5 +31,5 @@ func AlgorithmTypeFromContext(ctx context.Context) string {
 // Algorithm is an interface that specifies the API for an algorithm.
 type Algorithm interface {
 	// Run executes the algorithm and returns the result.
-	Run() error
+	Run(withDataset bool) error
 }

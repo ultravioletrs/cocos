@@ -33,8 +33,6 @@ var _ algorithm.Algorithm = (*python)(nil)
 
 type python struct {
 	algoFile         string
-	datasets         []string
-	logger           *slog.Logger
 	stderr           io.Writer
 	stdout           io.Writer
 	runtime          string
@@ -44,7 +42,6 @@ type python struct {
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
 	p := &python{
 		algoFile:         algoFile,
-		logger:           logger,
 		stderr:           &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:           &algorithm.Stdout{Logger: logger},
 		requirementsFile: requirementsFile,
@@ -57,7 +54,7 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requir
 	return p
 }
 
-func (p *python) Run() error {
+func (p *python) Run(withDataset bool) error {
 	venvPath := "venv"
 	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
 	createVenvCmd.Stderr = p.stderr
@@ -77,13 +74,13 @@ func (p *python) Run() error {
 		}
 	}
 
-	defer func() {
-		if err := os.RemoveAll(venvPath); err != nil {
-			p.logger.Error("error removing virtual environment", slog.Any("error", err))
-		}
-	}()
-
-	args := append([]string{p.algoFile}, p.datasets...)
+	var args []string
+	switch withDataset {
+	case true:
+		args = []string{p.algoFile, algorithm.DatasetsDir}
+	case false:
+		args = []string{p.algoFile}
+	}
 	cmd := exec.Command(pythonPath, args...)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
@@ -94,6 +91,10 @@ func (p *python) Run() error {
 
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("algorithm execution error: %v", err)
+	}
+
+	if err := os.RemoveAll(venvPath); err != nil {
+		return fmt.Errorf("error removing virtual environment: %v", err)
 	}
 
 	return nil
