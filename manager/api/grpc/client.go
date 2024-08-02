@@ -5,8 +5,8 @@ package grpc
 import (
 	"bytes"
 	"context"
-	"errors"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/manager"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
@@ -49,7 +49,7 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 				if len(mes.RunReqChunks.Data) == 0 {
 					var runReq pkgmanager.ComputationRunReq
 					if err = proto.Unmarshal(runReqBuffer.Bytes(), &runReq); err != nil {
-						return errCorruptedManifest
+						return errors.Wrap(err, errCorruptedManifest)
 					}
 					port, err := client.svc.Run(ctx, &runReq)
 					if err != nil {
@@ -70,7 +70,7 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 
 			case *pkgmanager.ServerStreamMessage_TerminateReq:
 				cancel()
-				return errors.Join(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
+				return errors.Wrap(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
 			case *pkgmanager.ServerStreamMessage_StopComputation:
 				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
 					return err
