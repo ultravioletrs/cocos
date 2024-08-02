@@ -226,7 +226,7 @@ func copyFromContainer(cli *client.Client, containerID, containerFilePath, hostF
 }
 
 func (d *docker) AddDataset(dataset string) {
-	// TODO: delete this
+	d.logger.Debug("dataset method called")
 }
 
 func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
