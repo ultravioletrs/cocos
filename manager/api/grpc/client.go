@@ -37,7 +37,7 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		var data bytes.Buffer
+		var runReqBuffer bytes.Buffer
 		for {
 			req, err := client.stream.Recv()
 			if err != nil {
@@ -48,7 +48,7 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 			case *pkgmanager.ServerStreamMessage_RunReqChunks:
 				if len(mes.RunReqChunks.Data) == 0 {
 					var runReq pkgmanager.ComputationRunReq
-					if err = proto.Unmarshal(data.Bytes(), &runReq); err != nil {
+					if err = proto.Unmarshal(runReqBuffer.Bytes(), &runReq); err != nil {
 						return errCorruptedManifest
 					}
 					port, err := client.svc.Run(ctx, &runReq)
@@ -66,7 +66,7 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 					}
 					return nil
 				}
-				data.Write(mes.RunReqChunks.Data)
+				runReqBuffer.Write(mes.RunReqChunks.Data)
 
 			case *pkgmanager.ServerStreamMessage_TerminateReq:
 				cancel()
