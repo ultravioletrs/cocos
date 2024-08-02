@@ -24,7 +24,7 @@ import (
 
 const (
 	containerName       = "agent_container"
-	containerOutputFile = "/result/result.bin"
+	containerOutputFile = "/results/result.bin"
 	DockerRunCommand    = "python3 /cocos/algorithm.py"
 	dockerRunCommandKey = "docker_run_command"
 )

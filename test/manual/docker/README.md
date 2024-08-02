@@ -7,7 +7,7 @@ cocos  Dockerfile
 ```
 The docker image that the Agent will run inside the SVM must have the following directories:
 * `/datasets` directory where the Agent will mount the datasets.
-* `/result` directory is from which the Agent will fetch the results. The result must be named `result.bin`. 
+* `/results` directory is from which the Agent will fetch the results. The result must be named `result.bin`. 
 
 As you can see, the directory structure that the docker image must follow is the same as if the algorithm were run inside the VM using any other method of execution.
 
@@ -22,7 +22,7 @@ FROM python:3.9-slim
 
 # set the working directory in the container
 WORKDIR /cocos
-RUN mkdir /result
+RUN mkdir /results
 RUN mkdir /datasets 
 
 COPY ./cocos/test/manual/algo/requirements.txt /cocos/requirements.txt
