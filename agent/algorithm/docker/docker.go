@@ -24,9 +24,8 @@ import (
 
 const (
 	containerName       = "agent_container"
-	containerOutputFile = "/cocos/result"
-	containerWorkingDir = "/cocos"
-	DockerRunCommand    = "python3,/cocos/algorithm.py"
+	containerOutputFile = "/result/result.bin"
+	DockerRunCommand    = "python3 /cocos/algorithm.py"
 	dockerRunCommandKey = "docker_run_command"
 )
 
@@ -34,7 +33,6 @@ var _ algorithm.Algorithm = (*docker)(nil)
 
 type docker struct {
 	algoFile   string
-	datasets   []string
 	logger     *slog.Logger
 	stderr     io.Writer
 	stdout     io.Writer
@@ -109,14 +107,7 @@ func (d *docker) Run() ([]byte, error) {
 		return []byte{}, fmt.Errorf("could not find image ID")
 	}
 
-	dataFileNames := make([]string, len(d.datasets))
-
-	for i, dataPath := range d.datasets {
-		dataFileNames[i] = path.Join(containerWorkingDir, algorithm.DatasetDirectory, filepath.Base(dataPath))
-	}
-
 	dockerCommand := strings.Fields(d.runCommand)
-	dockerCommand = append(dockerCommand, strings.Join(dataFileNames, " "))
 
 	// Create and start the container.
 	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
@@ -127,7 +118,7 @@ func (d *docker) Run() ([]byte, error) {
 			{
 				Type:   mount.TypeBind,
 				Source: algorithm.DatasetDirectory,
-				Target: path.Join(containerWorkingDir, algorithm.DatasetDirectory),
+				Target: algorithm.DatasetDirectory,
 			},
 		},
 	}, nil, nil, containerName)
@@ -235,7 +226,7 @@ func copyFromContainer(cli *client.Client, containerID, containerFilePath, hostF
 }
 
 func (d *docker) AddDataset(dataset string) {
-	d.datasets = append(d.datasets, dataset)
+	// TODO: delete this
 }
 
 func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
