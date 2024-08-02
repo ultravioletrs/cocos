@@ -1,9 +1,14 @@
-import sys, io
-import joblib
-import socket
+import os
+import sys
+import zipfile
+
+RESULTS_DIR = "results"
+RESULTS_FILE = "result.txt"
+
 
 class Computation:
     result = 0
+
     def __init__(self):
         """
         Initializes a new instance of the Computation class.
@@ -16,45 +21,35 @@ class Computation:
         """
         self.result = a + b
 
-    def send_result(self, socket_path):
+    def save_result(self):
         """
-        Sends the result to a socket.
+        Sends the result to a file.
         """
-        buffer = io.BytesIO()
-        
         try:
-            joblib.dump(self.result, buffer)
-        except Exception as e:
-            print("Failed to dump the result to the buffer: ", e)
-            return
+            os.makedirs(RESULTS_DIR)
+        except FileExistsError:
+            pass
 
-        data = buffer.getvalue()
+        with open(RESULTS_DIR + os.sep + RESULTS_FILE, "w") as f:
+            f.write(str(self.result))
 
-        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            try:
-                client.connect(socket_path)
-            except Exception as e:
-                print("Failed to connect to the socket: ", e)
-                return
-            try:
-                client.send(data)
-            except Exception as e:
-                print("Failed to send data to the socket: ", e)
-                return
-        finally:
-            client.close()
-    
     def read_results_from_file(self, results_file):
         """
         Reads the results from a file.
         """
-        try:
-            results = joblib.load(results_file)
-            print("Results: ", results)
-        except Exception as e:
-            print("Failed to load results from file: ", e)
-            return
+        if results_file.endswith(".zip"):
+            try:
+                os.makedirs(RESULTS_DIR)
+            except FileExistsError:
+                pass
+            with zipfile.ZipFile(results_file, "r") as zip_ref:
+                zip_ref.extractall(RESULTS_DIR)
+            with open(RESULTS_FILE, "r") as f:
+                print(f.read())
+        else:
+            with open(results_file, "r") as f:
+                print(f.read())
+
 
 if __name__ == "__main__":
     a = 5
@@ -62,15 +57,10 @@ if __name__ == "__main__":
     computation = Computation()
 
     if len(sys.argv) == 1:
-        print("Please provide a socket path or a file path")
-        exit(1)
-    
-    if sys.argv[1] == "test" and len(sys.argv) == 3:
-        computation.read_results_from_file(sys.argv[2])
-    elif len(sys.argv) == 2:
         computation.compute(a, b)
-        computation.send_result(sys.argv[1])
+        computation.save_result()
+    elif len(sys.argv) == 3 and sys.argv[1] == "test":
+        computation.read_results_from_file(sys.argv[2])
     else:
         print("Invalid arguments")
         exit(1)
-
