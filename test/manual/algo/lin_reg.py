@@ -7,7 +7,7 @@ from sklearn.linear_model import LogisticRegression
 import zipfile
 from sklearn import metrics
 
-
+DATA_DIR = "datasets"
 RESULTS_DIR = "results"
 RESULTS_FILE = "model.bin"
 
@@ -36,7 +36,7 @@ class Computation:
         """
         Trains a logistic regression model.
         """
-        iris = self._read_csv(RESULTS_DIR)
+        iris = self._read_csv(DATA_DIR)
 
         # Droping the Species since we only need the measurements
         X = iris.drop(["Species"], axis=1)
@@ -105,8 +105,7 @@ class Computation:
 
 if __name__ == "__main__":
     computation = Computation()
-    print(sys.argv)
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 1:
         computation.compute()
         computation.save_result()
     elif len(sys.argv) == 4 and sys.argv[1] == "predict":
