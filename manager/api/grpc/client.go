@@ -3,15 +3,20 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
-	"errors"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/manager"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 )
 
-var errTerminationFromServer = errors.New("server requested client termination")
+var (
+	errTerminationFromServer = errors.New("server requested client termination")
+	errCorruptedManifest     = errors.New("received manifest may be corrupted")
+)
 
 type ManagerClient struct {
 	stream    pkgmanager.ManagerService_ProcessClient
@@ -32,24 +37,41 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
+		var runReqBuffer bytes.Buffer
 		for {
 			req, err := client.stream.Recv()
 			if err != nil {
 				return err
 			}
+
 			switch mes := req.Message.(type) {
-			case *pkgmanager.ServerStreamMessage_RunReq:
-				port, err := client.svc.Run(ctx, mes.RunReq)
-				if err != nil {
+			case *pkgmanager.ServerStreamMessage_RunReqChunks:
+				if len(mes.RunReqChunks.Data) == 0 {
+					var runReq pkgmanager.ComputationRunReq
+					if err = proto.Unmarshal(runReqBuffer.Bytes(), &runReq); err != nil {
+						return errors.Wrap(err, errCorruptedManifest)
+					}
+					port, err := client.svc.Run(ctx, &runReq)
+					if err != nil {
+						return err
+					}
+					runRes := &pkgmanager.ClientStreamMessage_RunRes{
+						RunRes: &pkgmanager.RunResponse{
+							AgentPort:     port,
+							ComputationId: runReq.Id,
+						},
+					}
+					if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
+						return err
+					}
+				}
+				if _, err := runReqBuffer.Write(mes.RunReqChunks.Data); err != nil {
 					return err
 				}
-				runRes := &pkgmanager.ClientStreamMessage_RunRes{RunRes: &pkgmanager.RunResponse{AgentPort: port, ComputationId: mes.RunReq.Id}}
-				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
-					return err
-				}
+
 			case *pkgmanager.ServerStreamMessage_TerminateReq:
 				cancel()
-				return errors.Join(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
+				return errors.Wrap(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
 			case *pkgmanager.ServerStreamMessage_StopComputation:
 				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
 					return err

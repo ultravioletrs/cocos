@@ -58,11 +58,16 @@ message ClientStreamMessage {
 
 message ServerStreamMessage {
   oneof message {
-    ComputationRunReq runReq = 1;
-    Terminate terminateReq = 2;
-    StopComputation stopComputation = 3;
-    BackendInfoReq backendInfoReq = 4;
+    RunReqChunks runReqChunks = 1;
+    ComputationRunReq runReq = 2;
+    Terminate terminateReq = 3;
+    StopComputation stopComputation = 4;
+    BackendInfoReq backendInfoReq = 5;
   }
+}
+
+message RunReqChunks {
+  bytes data = 1;
 }
 
 message ComputationRunReq {
