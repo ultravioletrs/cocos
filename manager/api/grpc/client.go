@@ -64,7 +64,6 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 					if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: runRes}); err != nil {
 						return err
 					}
-					return nil
 				}
 				if _, err := runReqBuffer.Write(mes.RunReqChunks.Data); err != nil {
 					return err

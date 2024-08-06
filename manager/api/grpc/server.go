@@ -91,37 +91,10 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 						}
 					}
 
-				case *manager.ServerStreamMessage_TerminateReq:
-					terminate := &manager.ServerStreamMessage{
-						Message: &manager.ServerStreamMessage_TerminateReq{
-							TerminateReq: msg.TerminateReq,
-						},
-					}
-					if err := stream.Send(terminate); err != nil {
-						return err
-					}
-
-				case *manager.ServerStreamMessage_StopComputation:
-					stopComp := &manager.ServerStreamMessage{
-						Message: &manager.ServerStreamMessage_StopComputation{
-							StopComputation: msg.StopComputation,
-						},
-					}
-					if err := stream.Send(stopComp); err != nil {
-						return err
-					}
-
-				case *manager.ServerStreamMessage_BackendInfoReq:
-					backendInfo := &manager.ServerStreamMessage{
-						Message: &manager.ServerStreamMessage_BackendInfoReq{
-							BackendInfoReq: msg.BackendInfoReq,
-						},
-					}
-					if err := stream.Send(backendInfo); err != nil {
-						return err
-					}
 				default:
-					return ErrUnexpectedMsg
+					if err := stream.Send(req); err != nil {
+						return err
+					}
 				}
 			}
 		}
