@@ -101,6 +101,25 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 						return err
 					}
 
+				case *manager.ServerStreamMessage_StopComputation:
+					stopComp := &manager.ServerStreamMessage{
+						Message: &manager.ServerStreamMessage_StopComputation{
+							StopComputation: msg.StopComputation,
+						},
+					}
+					if err := stream.Send(stopComp); err != nil {
+						return err
+					}
+
+				case *manager.ServerStreamMessage_BackendInfoReq:
+					backendInfo := &manager.ServerStreamMessage{
+						Message: &manager.ServerStreamMessage_BackendInfoReq{
+							BackendInfoReq: msg.BackendInfoReq,
+						},
+					}
+					if err := stream.Send(backendInfo); err != nil {
+						return err
+					}
 				default:
 					return ErrUnexpectedMsg
 				}
