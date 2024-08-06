@@ -1,6 +1,6 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package binary
+package wasm
 
 import (
 	"fmt"
@@ -12,26 +12,31 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 )
 
-var _ algorithm.Algorithm = (*binary)(nil)
+const wasmRuntime = "wasmedge"
 
-type binary struct {
+var mapDirOption = []string{"--dir", ".:" + algorithm.ResultsDir}
+
+var _ algorithm.Algorithm = (*wasm)(nil)
+
+type wasm struct {
 	algoFile string
 	stderr   io.Writer
 	stdout   io.Writer
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
-	return &binary{
+	return &wasm{
 		algoFile: algoFile,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
 	}
 }
 
-func (b *binary) Run() error {
-	cmd := exec.Command(b.algoFile)
-	cmd.Stderr = b.stderr
-	cmd.Stdout = b.stdout
+func (w *wasm) Run() error {
+	args := append(mapDirOption, w.algoFile)
+	cmd := exec.Command(wasmRuntime, args...)
+	cmd.Stderr = w.stderr
+	cmd.Stdout = w.stdout
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("error starting algorithm: %v", err)

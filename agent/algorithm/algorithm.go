@@ -13,7 +13,11 @@ type AlgorithType string
 const (
 	AlgoTypeBin    AlgorithType = "bin"
 	AlgoTypePython AlgorithType = "python"
+	AlgoTypeWasm   AlgorithType = "wasm"
 	AlgoTypeKey                 = "algo_type"
+
+	ResultsDir  = "results"
+	DatasetsDir = "datasets"
 )
 
 func AlgorithmTypeToContext(ctx context.Context, algoType string) context.Context {
@@ -27,8 +31,5 @@ func AlgorithmTypeFromContext(ctx context.Context) string {
 // Algorithm is an interface that specifies the API for an algorithm.
 type Algorithm interface {
 	// Run executes the algorithm and returns the result.
-	Run() ([]byte, error)
-
-	// Add dataset to algorithm.
-	AddDataset(dataset string)
+	Run() error
 }

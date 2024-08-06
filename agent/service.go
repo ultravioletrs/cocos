@@ -16,6 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
+	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"golang.org/x/crypto/sha3"
 )
@@ -89,6 +90,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[running] = svc.runComputation
 
 	svc.computation = cmp
+
 	svc.sm.SendEvent(manifestReceived)
 	return svc
 }
@@ -131,21 +133,31 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.New(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypePython):
-		fr, err := os.CreateTemp("", "requirements.txt")
-		if err != nil {
-			return fmt.Errorf("error creating requirments file: %v", err)
-		}
+		var requirementsFile string
+		if len(algo.Requirements) > 0 {
+			fr, err := os.CreateTemp("", "requirements.txt")
+			if err != nil {
+				return fmt.Errorf("error creating requirments file: %v", err)
+			}
 
-		if _, err := fr.Write(algo.Requirements); err != nil {
-			return fmt.Errorf("error writing requirements to file: %v", err)
-		}
-		if err := fr.Close(); err != nil {
-			return fmt.Errorf("error closing file: %v", err)
+			if _, err := fr.Write(algo.Requirements); err != nil {
+				return fmt.Errorf("error writing requirements to file: %v", err)
+			}
+			if err := fr.Close(); err != nil {
+				return fmt.Errorf("error closing file: %v", err)
+			}
+			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.New(as.sm.logger, as.eventSvc, runtime, fr.Name(), f.Name())
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name())
+	case string(algorithm.AlgoTypeWasm):
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+	}
+
+	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+		return fmt.Errorf("error creating datasets directory: %v", err)
 	}
 
 	if as.algorithm != nil {
@@ -175,7 +187,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	}
 	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 
-	f, err := os.CreateTemp("", fmt.Sprintf("dataset-%d", index))
+	f, err := os.Create(fmt.Sprintf("%s/dataset-%d", algorithm.DatasetsDir, index))
 	if err != nil {
 		return fmt.Errorf("error creating dataset file: %v", err)
 	}
@@ -186,8 +198,6 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("error closing file: %v", err)
 	}
-
-	as.algorithm.AddDataset(f.Name())
 
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
@@ -233,16 +243,42 @@ func (as *agentService) runComputation() {
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer as.sm.SendEvent(runComplete)
-	as.publishEvent("in-progress", json.RawMessage{})()
-	result, err := as.algorithm.Run()
-	if err != nil {
-		as.runError = err
-		as.sm.logger.Warn(fmt.Sprintf("computation failed with error: %s", err.Error()))
+
+	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
+		as.sm.logger.Warn(as.runError.Error())
 		as.publishEvent("failed", json.RawMessage{})()
 		return
 	}
+
+	defer func() {
+		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
+			as.sm.logger.Warn(fmt.Sprintf("error removing results directory and its contents: %s", err.Error()))
+		}
+		if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
+			as.sm.logger.Warn(fmt.Sprintf("error removing datasets directory and its contents: %s", err.Error()))
+		}
+	}()
+
+	as.publishEvent("in-progress", json.RawMessage{})()
+	if err := as.algorithm.Run(); err != nil {
+		as.runError = err
+		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
+		as.publishEvent("failed", json.RawMessage{})()
+		return
+	}
+
+	results, err := algorithm.ZipDirectory()
+	if err != nil {
+		as.runError = err
+		as.sm.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
+		as.publishEvent("failed", json.RawMessage{})()
+		return
+	}
+
 	as.publishEvent("complete", json.RawMessage{})()
-	as.result = result
+
+	as.result = results
 }
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {

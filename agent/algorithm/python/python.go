@@ -13,12 +13,10 @@ import (
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/socket"
 	"google.golang.org/grpc/metadata"
 )
 
 const (
-	socketPath   = "unix_socket"
 	PyRuntime    = "python3"
 	pyRuntimeKey = "python_runtime"
 )
@@ -35,18 +33,15 @@ var _ algorithm.Algorithm = (*python)(nil)
 
 type python struct {
 	algoFile         string
-	datasets         []string
-	logger           *slog.Logger
 	stderr           io.Writer
 	stdout           io.Writer
 	runtime          string
 	requirementsFile string
 }
 
-func New(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
 	p := &python{
 		algoFile:         algoFile,
-		logger:           logger,
 		stderr:           &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:           &algorithm.Stdout{Logger: logger},
 		requirementsFile: requirementsFile,
@@ -59,17 +54,13 @@ func New(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFil
 	return p
 }
 
-func (p *python) AddDataset(dataset string) {
-	p.datasets = append(p.datasets, dataset)
-}
-
-func (p *python) Run() ([]byte, error) {
+func (p *python) Run() error {
 	venvPath := "venv"
 	createVenvCmd := exec.Command(p.runtime, "-m", "venv", venvPath)
 	createVenvCmd.Stderr = p.stderr
 	createVenvCmd.Stdout = p.stdout
 	if err := createVenvCmd.Run(); err != nil {
-		return nil, fmt.Errorf("error creating virtual environment: %v", err)
+		return fmt.Errorf("error creating virtual environment: %v", err)
 	}
 
 	pythonPath := filepath.Join(venvPath, "bin", "python")
@@ -79,48 +70,25 @@ func (p *python) Run() ([]byte, error) {
 		rcmd.Stderr = p.stderr
 		rcmd.Stdout = p.stdout
 		if err := rcmd.Run(); err != nil {
-			return nil, fmt.Errorf("error installing requirements: %v", err)
+			return fmt.Errorf("error installing requirements: %v", err)
 		}
 	}
 
-	defer os.Remove(p.algoFile)
-	defer func() {
-		for _, file := range p.datasets {
-			os.Remove(file)
-		}
-	}()
-	defer os.RemoveAll(venvPath)
-
-	listener, err := socket.StartUnixSocketServer(socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating stdout pipe: %v", err)
-	}
-	defer listener.Close()
-
-	dataChannel := make(chan []byte)
-	errorChannel := make(chan error)
-
-	var result []byte
-
-	go socket.AcceptConnection(listener, dataChannel, errorChannel)
-
-	args := append([]string{p.algoFile, socketPath}, p.datasets...)
-	cmd := exec.Command(pythonPath, args...)
+	cmd := exec.Command(pythonPath, p.algoFile)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting algorithm: %v", err)
+		return fmt.Errorf("error starting algorithm: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("algorithm execution error: %v", err)
+		return fmt.Errorf("algorithm execution error: %v", err)
 	}
 
-	select {
-	case result = <-dataChannel:
-		return result, nil
-	case err = <-errorChannel:
-		return nil, fmt.Errorf("error receiving data: %v", err)
+	if err := os.RemoveAll(venvPath); err != nil {
+		return fmt.Errorf("error removing virtual environment: %v", err)
 	}
+
+	return nil
 }

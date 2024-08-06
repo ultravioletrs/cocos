@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const resultFilePath = "result.bin"
+const resultFilePath = "result.zip"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
