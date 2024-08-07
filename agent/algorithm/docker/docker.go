@@ -24,16 +24,22 @@ const (
 	containerName       = "agent_container"
 	DockerRunCommand    = "python3 /cocos/algorithm.py"
 	dockerRunCommandKey = "docker_run_command"
+	DatasetsMountPath   = "/cocos/datasets"
+	datasetsMountKey    = "docker_datasets_mount"
+	ResultsMountPath    = "/cocos/results"
+	resultsMountKey     = "docker_results_mount"
 )
 
 var _ algorithm.Algorithm = (*docker)(nil)
 
 type docker struct {
-	algoFile   string
-	logger     *slog.Logger
-	stderr     io.Writer
-	stdout     io.Writer
-	runCommand string
+	algoFile          string
+	logger            *slog.Logger
+	stderr            io.Writer
+	stdout            io.Writer
+	runCommand        string
+	datasetsMountPath string
+	resultsMountPath  string
 }
 
 func DockerRunCommandToContext(ctx context.Context, runCommand string) context.Context {
@@ -44,7 +50,23 @@ func DockerRunCommandFromContext(ctx context.Context) string {
 	return metadata.ValueFromIncomingContext(ctx, dockerRunCommandKey)[0]
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runCommand, algoFile string) algorithm.Algorithm {
+func DockerDatasetsMountToContext(ctx context.Context, datasetMountPath string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, datasetsMountKey, datasetMountPath)
+}
+
+func DockerDatasetsMountFromContext(ctx context.Context) string {
+	return metadata.ValueFromIncomingContext(ctx, datasetsMountKey)[0]
+}
+
+func DockerResultsMountToContext(ctx context.Context, resultsMountPath string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, resultsMountKey, resultsMountPath)
+}
+
+func DockerResultsMountFromContext(ctx context.Context) string {
+	return metadata.ValueFromIncomingContext(ctx, resultsMountKey)[0]
+}
+
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runCommand, datasetsMountPath, resultsMountPath, algoFile string) algorithm.Algorithm {
 	d := &docker{
 		algoFile: algoFile,
 		logger:   logger,
@@ -56,6 +78,18 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runCommand, alg
 		d.runCommand = DockerRunCommand
 	} else {
 		d.runCommand = runCommand
+	}
+
+	if datasetsMountPath == "" {
+		d.datasetsMountPath = DatasetsMountPath
+	} else {
+		d.datasetsMountPath = datasetsMountPath
+	}
+
+	if resultsMountPath == "" {
+		d.resultsMountPath = ResultsMountPath
+	} else {
+		d.resultsMountPath = resultsMountPath
 	}
 
 	return d
@@ -115,12 +149,12 @@ func (d *docker) Run() error {
 			{
 				Type:   mount.TypeBind,
 				Source: path.Join("/", algorithm.DatasetsDir),
-				Target: path.Join("/", algorithm.DatasetsDir),
+				Target: d.datasetsMountPath,
 			},
 			{
 				Type:   mount.TypeBind,
 				Source: path.Join("/", algorithm.ResultsDir),
-				Target: path.Join("/", algorithm.ResultsDir),
+				Target: d.resultsMountPath,
 			},
 		},
 	}, nil, nil, containerName)
@@ -163,13 +197,15 @@ func (d *docker) Run() error {
 		d.logger.Warn(fmt.Sprintf("could not write to stderr: %v", err))
 	}
 
-	if err = cli.ContainerRemove(ctx, respContainer.ID, container.RemoveOptions{Force: true}); err != nil {
-		return fmt.Errorf("could not remove container: %v", err)
-	}
+	defer func() {
+		if err = cli.ContainerRemove(ctx, respContainer.ID, container.RemoveOptions{Force: true}); err != nil {
+			d.logger.Warn(fmt.Sprintf("error could not remove container: %v", err))
+		}
 
-	if _, err := cli.ImageRemove(ctx, imageID, image.RemoveOptions{Force: true}); err != nil {
-		return fmt.Errorf("could not remove image: %v", err)
-	}
+		if _, err := cli.ImageRemove(ctx, imageID, image.RemoveOptions{Force: true}); err != nil {
+			d.logger.Warn(fmt.Sprintf("error could not remove image: %v", err))
+		}
+	}()
 
 	return nil
 }
