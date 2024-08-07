@@ -163,7 +163,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypeDocker):
 		dockerRunCommand := docker.DockerRunCommandFromContext(ctx)
-		as.algorithm = docker.New(as.sm.logger, as.eventSvc, dockerRunCommand, f.Name())
+		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, dockerRunCommand, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
