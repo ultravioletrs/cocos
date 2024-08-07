@@ -78,7 +78,7 @@ export AGENT_GRPC_ATTESTED_TLS=true
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
 # In order to run the Docker image, run the CLI program with the algorithm docker option
-go run ./cmd/cli/main.go algo -a docker -d "python3 /cocos/lin_reg.py" <path_to_docker_image.tar> <private_key_file_path>
+go run ./cmd/cli/main.go algo -a docker -d "python3 /cocos/lin_reg.py" --datasets <apsolut_path_to_datasets_dir_in_image> --results <apsolut_path_to_results_dir_in_image> <path_to_docker_image.tar> <private_key_file_path>
 # 2023/09/21 10:43:53 Uploading algorithm binary: <path_to_docker_image.tar>
 
 # Run the CLI program with dataset input
