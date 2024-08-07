@@ -7,8 +7,8 @@ from sklearn.linear_model import LogisticRegression
 import zipfile
 from sklearn import metrics
 
-DATA_DIR = "datasets"
-RESULTS_DIR = "results"
+DATA_DIR = "/datasets"
+RESULTS_DIR = "/results"
 RESULTS_FILE = "model.bin"
 
 
