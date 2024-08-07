@@ -60,6 +60,7 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runCommand, alg
 
 	return d
 }
+
 func (d *docker) Run() error {
 	ctx := context.Background()
 
