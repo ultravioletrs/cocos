@@ -21,7 +21,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			datasetFile := args[0]
 
-			log.Println("Uploading dataset CSV:", datasetFile)
+			log.Println("Uploading dataset:", datasetFile)
 
 			dataset, err := os.ReadFile(datasetFile)
 			if err != nil {

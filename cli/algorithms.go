@@ -74,7 +74,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
-	cmd.Flags().StringVarP(&dockerCommand, "dockerc", "d", docker.DockerRunCommand, "arguments for the docker start command separated by a ,")
+	cmd.Flags().StringVarP(&dockerCommand, "dockerc", "d", docker.DockerRunCommand, "The docker start command")
 
 	return cmd
 }
