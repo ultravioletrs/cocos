@@ -91,6 +91,7 @@ message ResultConsumer {
 message Dataset {
   bytes hash = 1; // should be sha3.Sum256, 32 byte length.
   bytes userKey = 2;
+  string filename = 3;
 }
 
 message Algorithm {
