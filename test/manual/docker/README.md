@@ -7,7 +7,7 @@ cocos  Dockerfile
 ```
 The docker image that the Agent will run inside the SVM must have the following directories:
 * `/datasets` directory where the Agent will mount the datasets.
-* `/results` directory is from which the Agent will fetch the results. The result must be named `result.bin`. 
+* `/results` directory is from which the Agent will fetch the results.
 
 As you can see, the directory structure that the docker image must follow is the same as if the algorithm were run inside the VM using any other method of execution.
 
