@@ -5,11 +5,10 @@ Throughout the test, we assume that our current working directory is the directo
 ls
 cocos  Dockerfile
 ```
-The docker image that the Agent will run inside the SVM must have the following directories:
-* `/datasets` directory where the Agent will mount the datasets.
-* `/results` directory from which the Agent will fetch the results.
-
-As you can see, the directory structure that the docker image must follow is the same as if the algorithm were run inside the VM using any other method of execution.
+The docker image that the Agent will run inside the SVM must have directories where the Agent will mount the datasets and results directories. The docker image author can provide this directory to the Agent using the CLI options `datasets` and `results`. For example:
+```bash
+go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path>-a docker -c "python3 /cocos/lin_reg.py" --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
+```
 
 ## Logistic Regression example
 
@@ -22,8 +21,8 @@ FROM python:3.9-slim
 
 # set the working directory in the container
 WORKDIR /cocos
-RUN mkdir /results
-RUN mkdir /datasets 
+RUN mkdir /cocos/results
+RUN mkdir /cocos/datasets 
 
 COPY ./cocos/test/manual/algo/requirements.txt /cocos/requirements.txt
 COPY ./cocos/test/manual/algo/lin_reg.py /cocos/lin_reg.py
@@ -38,8 +37,8 @@ docker build -t linreg .
 docker save linreg > linreg.tar
 ```
 
-After the VM starts (you can find more about the VM booting process in the manual testing README file), use the CLI to send the docker image to the Agent. To run the Docker inside the VM, specify what kind of algorithm you want the Agent to run and the Docker run command.
+After the VM starts (you can find more about the VM booting process in the manual testing README file), use the CLI to send the docker image to the Agent. To run the Docker inside the VM, specify what kind of algorithm you want the Agent to run (docker), the Docker run command, and the absolut path to the datasets and results directories.
 
 ```bash
-go run ./cocos/cmd/cli/main.go algo -a docker -d "python3 /cocos/lin_reg.py" ./linreg.tar <private_key_file_path>
+go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path>-a docker -c "python3 /cocos/lin_reg.py" --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
 ```
