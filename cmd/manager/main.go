@@ -37,11 +37,11 @@ const (
 )
 
 type config struct {
-	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
-	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
-	TraceRatio               float64 `env:"MG_JAEGER_TRACE_RATIO"      envDefault:"1.0"`
-	InstanceID               string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
-	BackendMeasurementBinary string  `env:"BACKEND_MEASUREMENT_BINARY" envDefault:"../../build"`
+	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
+	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
+	TraceRatio               float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
+	InstanceID               string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
+	BackendMeasurementBinary string  `env:"MANAGER_BACKEND_MEASUREMENT_BINARY" envDefault:"../../build"`
 }
 
 func main() {
@@ -104,7 +104,11 @@ func main() {
 	}
 
 	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
-	svc := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
+	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
 
 	mc := managerapi.NewClient(pc, svc, eventsChan)
 
@@ -121,13 +125,16 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage, backendMeasurementPath string) manager.Service {
-	svc := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage, backendMeasurementPath string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
+	if err != nil {
+		return nil, err
+	}
 	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
 	svc = tracing.New(svc, tracer)
 
-	return svc
+	return svc, nil
 }
