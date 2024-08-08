@@ -22,7 +22,8 @@ func TestNew(t *testing.T) {
 	eventsChan := make(chan *manager.ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
-	service := New(cfg, "", logger, eventsChan, vmf.Execute)
+	service, err := New(cfg, "", logger, eventsChan, vmf.Execute)
+	assert.NoError(t, err)
 
 	assert.NotNil(t, service)
 	assert.IsType(t, &managerService{}, service)
@@ -181,7 +182,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestGetFreePort(t *testing.T) {
-	port, err := getFreePort()
+	port, err := getFreePort(6000, 6100)
 
 	assert.NoError(t, err)
 	assert.Greater(t, port, 0)

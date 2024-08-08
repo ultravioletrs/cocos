@@ -11,7 +11,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
@@ -67,12 +69,18 @@ type managerService struct {
 	eventsChan                   chan *manager.ClientStreamMessage
 	vms                          map[string]vm.VM
 	vmFactory                    vm.Provider
+	portRangeMin                 int
+	portRangeMax                 int
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) Service {
+func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) (Service, error) {
+	start, end, err := decodeRange(cfg.HostFwdRange)
+	if err != nil {
+		return nil, err
+	}
 	ms := &managerService{
 		qemuCfg:                      cfg,
 		logger:                       logger,
@@ -81,8 +89,10 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 		eventsChan:                   eventsChan,
 		vmFactory:                    vmFactory,
 		backendMeasurementBinaryPath: backendMeasurementBinPath,
+		portRangeMin:                 start,
+		portRangeMax:                 end,
 	}
-	return ms
+	return ms, nil
 }
 
 func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq) (string, error) {
@@ -115,7 +125,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{UserKey: rc.UserKey})
 	}
 
-	agentPort, err := getFreePort()
+	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)
 	if err != nil {
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
@@ -182,21 +192,41 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 	return f, nil
 }
 
-func getFreePort() (int, error) {
-	listener, err := net.Listen("tcp", "")
-	if err != nil {
+func getFreePort(minPort, maxPort int) (int, error) {
+	var wg sync.WaitGroup
+	portCh := make(chan int, maxPort-minPort+1)
+	errCh := make(chan error, 1)
+
+	for port := minPort; port <= maxPort; port++ {
+		wg.Add(1)
+		go func(p int) {
+			defer wg.Done()
+			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
+			if err == nil {
+				defer listener.Close()
+				_, portStr, err := net.SplitHostPort(listener.Addr().String())
+				if err == nil {
+					freePort, err := strconv.Atoi(portStr)
+					if err == nil {
+						portCh <- freePort
+						return
+					}
+				}
+			}
+		}(port)
+	}
+
+	go func() {
+		wg.Wait()
+		close(portCh)
+	}()
+
+	select {
+	case port := <-portCh:
+		return port, nil
+	case err := <-errCh:
 		return 0, err
 	}
-	defer listener.Close()
-	_, portStr, err := net.SplitHostPort(listener.Addr().String())
-	if err != nil {
-		return 0, err
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return 0, err
-	}
-	return port, nil
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
@@ -221,4 +251,28 @@ func computationHash(ac agent.Computation) ([32]byte, error) {
 	}
 
 	return sha3.Sum256(jsonData), nil
+}
+
+func decodeRange(input string) (int, int, error) {
+	re := regexp.MustCompile(`(\d+)-(\d+)`)
+	matches := re.FindStringSubmatch(input)
+	if len(matches) != 3 {
+		return 0, 0, fmt.Errorf("invalid input format: %s", input)
+	}
+
+	start, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, 0, err
+	}
+
+	end, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if start > end {
+		return 0, 0, fmt.Errorf("invalid range: %d-%d", start, end)
+	}
+
+	return start, end, nil
 }

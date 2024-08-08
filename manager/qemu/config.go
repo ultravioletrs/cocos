@@ -99,6 +99,9 @@ type Config struct {
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
 	Monitor   string `env:"MONITOR"    envDefault:"pty"`
+
+	// ports
+	HostFwdRange string `env:"HOST_FWD_RANGE" envDefault:"6000-6100"`
 }
 
 func (config Config) ConstructQemuArgs() []string {
