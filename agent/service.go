@@ -194,7 +194,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 
-	f, err := os.Create(fmt.Sprintf("%s/dataset-%d", algorithm.DatasetsDir, index))
+	f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
 	if err != nil {
 		return fmt.Errorf("error creating dataset file: %v", err)
 	}
