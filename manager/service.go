@@ -254,6 +254,7 @@ func computationHash(ac agent.Computation) ([32]byte, error) {
 }
 
 func decodeRange(input string) (int, int, error) {
+
 	re := regexp.MustCompile(`(\d+)-(\d+)`)
 	matches := re.FindStringSubmatch(input)
 	if len(matches) != 3 {

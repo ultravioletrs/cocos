@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
@@ -17,13 +18,15 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	cfg := qemu.Config{}
+	cfg := qemu.Config{
+		HostFwdRange: "6000-6100",
+	}
 	logger := slog.Default()
 	eventsChan := make(chan *manager.ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
 	service, err := New(cfg, "", logger, eventsChan, vmf.Execute)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.NotNil(t, service)
 	assert.IsType(t, &managerService{}, service)
