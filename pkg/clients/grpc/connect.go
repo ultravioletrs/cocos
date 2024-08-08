@@ -32,6 +32,8 @@ const (
 	withoutTLS security = iota
 	withTLS
 	withmTLS
+	withaTLS
+	withmaTLS
 )
 
 const (
@@ -122,6 +124,10 @@ func (c *client) Secure() string {
 		return "with TLS"
 	case withmTLS:
 		return "with mTLS"
+	case withmaTLS:
+		return "with maTLS"
+	case withaTLS:
+		return "with mTLS"
 	case withoutTLS:
 		fallthrough
 	default:
@@ -141,7 +147,45 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	secure := withoutTLS
 	tc := insecure.NewCredentials()
 
-	if cfg.AttestedTLS {
+	switch {
+	case cfg.AttestedTLS && cfg.ServerCAFile != "":
+		err := ReadManifest(cfg.Manifest, &attestationConfiguration)
+		if err != nil {
+			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
+		}
+
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify:    true,
+			VerifyPeerCertificate: verifyAttestationReportTLS,
+		}
+
+		// Loading root ca certificates file
+		rootCA, err := os.ReadFile(cfg.ServerCAFile)
+		if err != nil {
+			return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
+		}
+		if len(rootCA) > 0 {
+			capool := x509.NewCertPool()
+			if !capool.AppendCertsFromPEM(rootCA) {
+				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
+			}
+			tlsConfig.RootCAs = capool
+			secure = withaTLS
+		}
+
+		// Loading mTLS certificates file
+		if cfg.ClientCert != "" || cfg.ClientKey != "" {
+			certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+			if err != nil {
+				return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{certificate}
+			secure = withmaTLS
+		}
+
+		tc = credentials.NewTLS(tlsConfig)
+
+	case cfg.AttestedTLS:
 		err := ReadManifest(cfg.Manifest, &attestationConfiguration)
 		if err != nil {
 			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
@@ -152,36 +196,35 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 			VerifyPeerCertificate: verifyAttestationReportTLS,
 		}
 		tc = credentials.NewTLS(tlsConfig)
-	} else {
-		if cfg.ServerCAFile != "" {
-			tlsConfig := &tls.Config{}
 
-			// Loading root ca certificates file
-			rootCA, err := os.ReadFile(cfg.ServerCAFile)
-			if err != nil {
-				return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
-			}
-			if len(rootCA) > 0 {
-				capool := x509.NewCertPool()
-				if !capool.AppendCertsFromPEM(rootCA) {
-					return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
-				}
-				tlsConfig.RootCAs = capool
-				secure = withTLS
-			}
+	case cfg.ServerCAFile != "":
+		tlsConfig := &tls.Config{}
 
-			// Loading mTLS certificates file
-			if cfg.ClientCert != "" || cfg.ClientKey != "" {
-				certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
-				if err != nil {
-					return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
-				}
-				tlsConfig.Certificates = []tls.Certificate{certificate}
-				secure = withmTLS
-			}
-
-			tc = credentials.NewTLS(tlsConfig)
+		// Loading root ca certificates file
+		rootCA, err := os.ReadFile(cfg.ServerCAFile)
+		if err != nil {
+			return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
 		}
+		if len(rootCA) > 0 {
+			capool := x509.NewCertPool()
+			if !capool.AppendCertsFromPEM(rootCA) {
+				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
+			}
+			tlsConfig.RootCAs = capool
+			secure = withTLS
+		}
+
+		// Loading mTLS certificates file
+		if cfg.ClientCert != "" && cfg.ClientKey != "" {
+			certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+			if err != nil {
+				return nil, secure, fmt.Errorf("failed to load client certificate and key %w", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{certificate}
+			secure = withmTLS
+		}
+		tc = credentials.NewTLS(tlsConfig)
+	default:
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
