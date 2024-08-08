@@ -76,7 +76,6 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
-	cmd.Flags().StringVarP(&dockerCommand, "dockercmd", "c", docker.DockerRunCommand, "The docker start command")
 	cmd.Flags().StringVarP(&dockerDatasetMount, "datasets", "", docker.DatasetsMountPath, "The absolut path to the directory inside the docker image where the datasets will be mounted")
 	cmd.Flags().StringVarP(&dockerResultsMount, "results", "", docker.ResultsMountPath, "The absolut path to the directory inside the docker image where the results directory will be mounted")
 
@@ -86,7 +85,6 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 func addAlgoMetadata(ctx context.Context) context.Context {
 	ctx = algorithm.AlgorithmTypeToContext(ctx, algoType)
 	ctx = python.PythonRunTimeToContext(ctx, pythonRuntime)
-	ctx = docker.DockerRunCommandToContext(ctx, dockerCommand)
 	ctx = docker.DockerDatasetsMountToContext(ctx, dockerDatasetMount)
 	ctx = docker.DockerResultsMountToContext(ctx, dockerResultsMount)
 	return ctx

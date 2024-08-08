@@ -7,14 +7,14 @@ cocos  Dockerfile
 ```
 The docker image that the Agent will run inside the SVM must have directories where the Agent will mount the datasets and results directories. The docker image author can provide this directory to the Agent using the CLI options `datasets` and `results`. For example:
 ```bash
-go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path>-a docker -c "python3 /cocos/lin_reg.py" --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
+go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path> -a docker --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
 ```
 
 ## Logistic Regression example
 
 Here we will use the docker with the `lin_reg.py` algorithm.
 
-The first step is to create a docker file containing the algorithm. Use your favorite editor to create a file named `Dockerfile`.
+The first step is to create a docker file. Use your favorite editor to create a file named `Dockerfile`.
 
 ```bash
 FROM python:3.9-slim
@@ -29,6 +29,9 @@ COPY ./cocos/test/manual/algo/lin_reg.py /cocos/lin_reg.py
 
 # install dependencies
 RUN pip install -r requirements.txt
+
+# command to be run when the docker container is started
+CMD ["python3", "/cocos/lin_reg.py"]
 ```
 
 Next, run the build command and then save the docker image as a `tar` file.
@@ -37,8 +40,8 @@ docker build -t linreg .
 docker save linreg > linreg.tar
 ```
 
-After the VM starts (you can find more about the VM booting process in the manual testing README file), use the CLI to send the docker image to the Agent. To run the Docker inside the VM, specify what kind of algorithm you want the Agent to run (docker), the Docker run command, and the absolut path to the datasets and results directories.
+After the VM starts (you can find more about the VM booting process in the manual testing README file), use the CLI to send the docker image to the Agent. To run the Docker inside the VM, specify what kind of algorithm you want the Agent to run (docker) and the absolut path to the datasets and results directories.
 
 ```bash
-go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path>-a docker -c "python3 /cocos/lin_reg.py" --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
+go run ./cocos/cmd/cli/main.go algo ./linreg.tar <private_key_file_path> -a docker --results "/cocos/results" --datasets "/cocos/datasets" ./linreg.tar
 ```

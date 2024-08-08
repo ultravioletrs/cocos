@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -22,7 +21,6 @@ import (
 
 const (
 	containerName       = "agent_container"
-	DockerRunCommand    = "python3 /cocos/algorithm.py"
 	dockerRunCommandKey = "docker_run_command"
 	DatasetsMountPath   = "/cocos/datasets"
 	datasetsMountKey    = "docker_datasets_mount"
@@ -37,17 +35,8 @@ type docker struct {
 	logger            *slog.Logger
 	stderr            io.Writer
 	stdout            io.Writer
-	runCommand        string
 	datasetsMountPath string
 	resultsMountPath  string
-}
-
-func DockerRunCommandToContext(ctx context.Context, runCommand string) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, dockerRunCommandKey, runCommand)
-}
-
-func DockerRunCommandFromContext(ctx context.Context) string {
-	return metadata.ValueFromIncomingContext(ctx, dockerRunCommandKey)[0]
 }
 
 func DockerDatasetsMountToContext(ctx context.Context, datasetMountPath string) context.Context {
@@ -66,18 +55,12 @@ func DockerResultsMountFromContext(ctx context.Context) string {
 	return metadata.ValueFromIncomingContext(ctx, resultsMountKey)[0]
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runCommand, datasetsMountPath, resultsMountPath, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, datasetsMountPath, resultsMountPath, algoFile string) algorithm.Algorithm {
 	d := &docker{
 		algoFile: algoFile,
 		logger:   logger,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
-	}
-
-	if runCommand == "" {
-		d.runCommand = DockerRunCommand
-	} else {
-		d.runCommand = runCommand
 	}
 
 	if datasetsMountPath == "" {
@@ -138,12 +121,9 @@ func (d *docker) Run() error {
 		return fmt.Errorf("could not find image ID")
 	}
 
-	dockerCommand := strings.Fields(d.runCommand)
-
 	// Create and start the container.
 	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: dockerImageName,
-		Cmd:   dockerCommand,
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
