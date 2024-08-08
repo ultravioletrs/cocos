@@ -69,7 +69,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 			return
 		}
 		dataHash := sha3.Sum256(data)
-		datasets = append(datasets, &manager.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+		datasets = append(datasets, &manager.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes, Filename: "iris1.csv"})
 	}
 
 	algoHash := sha3.Sum256(algo)

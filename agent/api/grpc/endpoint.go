@@ -36,7 +36,7 @@ func dataEndpoint(svc agent.Service) endpoint.Endpoint {
 			return dataRes{}, err
 		}
 
-		dataset := agent.Dataset{Dataset: req.Dataset}
+		dataset := agent.Dataset{Dataset: req.Dataset, Filename: req.Filename}
 
 		err := svc.Data(ctx, dataset)
 		if err != nil {

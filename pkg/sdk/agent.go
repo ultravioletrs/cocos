@@ -91,7 +91,7 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
 	pb := progressbar.New()
-	if err := pb.SendData(dataProgressBarDescription, dataBuffer, &stream); err != nil {
+	if err := pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream); err != nil {
 		sdk.logger.Error("Failed to send Data")
 		return err
 	}

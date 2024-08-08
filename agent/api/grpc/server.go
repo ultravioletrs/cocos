@@ -69,7 +69,8 @@ func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	req := grpcReq.(*agent.DataRequest)
 
 	return dataReq{
-		Dataset: req.Dataset,
+		Dataset:  req.Dataset,
+		Filename: req.Filename,
 	}, nil
 }
 
@@ -128,6 +129,7 @@ func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
 // Data implements agent.AgentServiceServer.
 func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
 	var dataFile []byte
+	var filename string
 	for {
 		dataChunk, err := stream.Recv()
 		if err == io.EOF {
@@ -137,8 +139,9 @@ func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
 			return status.Error(codes.Internal, err.Error())
 		}
 		dataFile = append(dataFile, dataChunk.Dataset...)
+		filename = dataChunk.Filename
 	}
-	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile})
+	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile, Filename: filename})
 	if err != nil {
 		return err
 	}
