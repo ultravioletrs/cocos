@@ -108,7 +108,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 			return "", errInvalidHashLength
 		}
-		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey})
+		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey, Filename: data.Filename})
 	}
 
 	for _, rc := range c.ResultConsumers {

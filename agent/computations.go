@@ -44,9 +44,10 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset []byte   `json:"-"`
-	Hash    [32]byte `json:"hash,omitempty"`
-	UserKey []byte   `json:"user_key,omitempty"`
+	Dataset  []byte   `json:"-"`
+	Hash     [32]byte `json:"hash,omitempty"`
+	UserKey  []byte   `json:"user_key,omitempty"`
+	Filename string   `json:"filename,omitempty"`
 }
 
 type Datasets []Dataset
