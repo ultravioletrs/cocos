@@ -20,7 +20,6 @@ var (
 	pythonRuntime      string
 	algoType           string
 	requirementsFile   string
-	dockerCommand      string
 	dockerDatasetMount string
 	dockerResultsMount string
 )
