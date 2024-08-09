@@ -229,7 +229,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 {
+	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == resultsReady {
 		as.sm.SendEvent(resultsConsumed)
 	}
 
