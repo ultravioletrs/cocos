@@ -22,7 +22,7 @@ const _state_name = "idlereceivingManifestreceivingAlgorithmreceivingDatarunning
 var _state_index = [...]uint8{0, 4, 21, 39, 52, 59, 71, 79}
 
 func (i state) String() string {
-	if i < 0 || i >= state(len(_state_index)-1) {
+	if i >= state(len(_state_index)-1) {
 		return "state(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _state_name[_state_index[i]:_state_index[i+1]]

@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"log"
 	"os"
+	"path"
 
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
@@ -29,7 +30,8 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			}
 
 			dataReq := agent.Dataset{
-				Dataset: dataset,
+				Dataset:  dataset,
+				Filename: path.Base(datasetFile),
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])

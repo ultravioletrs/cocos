@@ -108,9 +108,9 @@ func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *b
 	return err
 }
 
-func (p *ProgressBar) SendData(description string, buffer *bytes.Buffer, stream *agent.AgentService_DataClient) error {
+func (p *ProgressBar) SendData(description, filename string, buffer *bytes.Buffer, stream *agent.AgentService_DataClient) error {
 	return p.sendData(description, buffer, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
-		return &agent.DataRequest{Dataset: data}
+		return &agent.DataRequest{Dataset: data, Filename: filename}
 	})
 }
 

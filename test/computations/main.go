@@ -74,15 +74,6 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 
 	algoHash := sha3.Sum256(algo)
 
-	// Uncomment this to run tests on the manager service on a SEV enabled backend.
-	reqChan <- &manager.ServerStreamMessage{
-		Message: &manager.ServerStreamMessage_BackendInfoReq{
-			BackendInfoReq: &manager.BackendInfoReq{
-				Id: "1",
-			},
-		},
-	}
-
 	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{

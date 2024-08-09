@@ -36,18 +36,20 @@ var (
 	// ErrUnauthorizedAccess indicates missing or invalid credentials provided
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
-	// errUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
+	// ErrUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
 	ErrUndeclaredDataset = errors.New("dataset not declared in computation manifest")
-	// errAllManifestItemsReceived indicates no new computation manifest items expected.
+	// ErrAllManifestItemsReceived indicates no new computation manifest items expected.
 	ErrAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
-	// errUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
+	// ErrUndeclaredConsumer indicates the consumer requesting results in not declared in computation manifest.
 	ErrUndeclaredConsumer = errors.New("result consumer is undeclared in computation manifest")
-	// errResultsNotReady indicates the computation results are not ready.
+	// ErrResultsNotReady indicates the computation results are not ready.
 	ErrResultsNotReady = errors.New("computation results are not yet ready")
-	// errStateNotReady agent received a request in the wrong state.
+	// ErrStateNotReady agent received a request in the wrong state.
 	ErrStateNotReady = errors.New("agent not expecting this operation in the current state")
-	// errHashMismatch provided algorithm/dataset does not match hash in manifest.
+	// ErrHashMismatch provided algorithm/dataset does not match hash in manifest.
 	ErrHashMismatch = errors.New("malformed data, hash does not match manifest")
+	// ErrFileNameMismatch provided dataset filename does not match filename in manifest.
+	ErrFileNameMismatch = errors.New("malformed data, filename does not match manifest")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -185,9 +187,14 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if hash != as.computation.Datasets[index].Hash {
 		return ErrHashMismatch
 	}
+
+	if as.computation.Datasets[index].Filename != "" && as.computation.Datasets[index].Filename != dataset.Filename {
+		return ErrFileNameMismatch
+	}
+
 	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
 
-	f, err := os.Create(fmt.Sprintf("%s/dataset-%d", algorithm.DatasetsDir, index))
+	f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
 	if err != nil {
 		return fmt.Errorf("error creating dataset file: %v", err)
 	}

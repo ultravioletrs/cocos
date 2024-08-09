@@ -23,6 +23,7 @@ message AlgoResponse {}
 
 message DataRequest {
   bytes dataset = 1;
+  string filename = 2;
 }
 
 message DataResponse {}
