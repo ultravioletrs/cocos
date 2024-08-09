@@ -30,7 +30,7 @@ var (
 	algoPath = "../../test/manual/algo/lin_reg.py"
 	dataPath = "../../test/manual/data/iris.csv"
 
-	errInappropriateIoctl = errors.New("inappropriate ioctl for device")
+	errInappropriateIoctl = errors.New("failed to get terminal width: inappropriate ioctl for device")
 )
 
 func TestAlgo(t *testing.T) {

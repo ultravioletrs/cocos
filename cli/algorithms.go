@@ -11,14 +11,17 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/docker"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"google.golang.org/grpc/metadata"
 )
 
 var (
-	pythonRuntime    string
-	algoType         string
-	requirementsFile string
+	pythonRuntime      string
+	algoType           string
+	requirementsFile   string
+	dockerDatasetMount string
+	dockerResultsMount string
 )
 
 func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
@@ -72,6 +75,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
+	cmd.Flags().StringVarP(&dockerDatasetMount, "datasets", "", docker.DatasetsMountPath, "The absolut path to the directory inside the docker image where the datasets will be mounted")
+	cmd.Flags().StringVarP(&dockerResultsMount, "results", "", docker.ResultsMountPath, "The absolut path to the directory inside the docker image where the results directory will be mounted")
 
 	return cmd
 }
@@ -79,5 +84,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 func addAlgoMetadata(ctx context.Context) context.Context {
 	ctx = algorithm.AlgorithmTypeToContext(ctx, algoType)
 	ctx = python.PythonRunTimeToContext(ctx, pythonRuntime)
+	ctx = docker.DockerDatasetsMountToContext(ctx, dockerDatasetMount)
+	ctx = docker.DockerResultsMountToContext(ctx, dockerResultsMount)
 	return ctx
 }

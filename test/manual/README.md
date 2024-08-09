@@ -32,7 +32,7 @@ sev-snp-measure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --ker
 
 To speed up the verification process of attested TLS, download the ARK and ASK certificates using the CLI tool. The CLI tool will download the certificates under your home directory in the `.cocos` directory.
 ```bash
-go run cmd/cli/main.go ca-bundle <path/to/platfrom_info.json>
+go run cmd/cli/main.go ca-bundle <path/to/backend_info.json>
 ```
 
 In the following text, we can see an example of how the CLI tool is used.
@@ -58,7 +58,7 @@ go run cmd/cli/main.go backend measurement '<measurement>' '<backend_info.json>'
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
 # and the path of the backend_info.json file.:
-go run cmd/cli/main.go backend measurement '<host-data>' '<backend_info.json>'
+go run cmd/cli/main.go backend hosdata '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
@@ -75,10 +75,14 @@ go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<repor
 go run cmd/cli/main.go algo test/manual/algo/lin_reg.bin <private_key_file_path>
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
+# In order to run the Docker image, run the CLI program with the algorithm docker option
+go run ./cmd/cli/main.go algo -a docker --datasets <apsolut_path_to_datasets_dir_in_image> --results <apsolut_path_to_results_dir_in_image> <path_to_docker_image.tar> <private_key_file_path>
+# 2023/09/21 10:43:53 Uploading algorithm binary: <path_to_docker_image.tar>
+
 # Run the CLI program with dataset input
 go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
 go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
-# 2023/09/21 10:45:25 Uploading dataset CSV: test/manual/data/iris.csv
+# 2023/09/21 10:45:25 Uploading dataset: test/manual/data/iris.csv
 
 # Run the CLI program to fetch computation result
 go run cmd/cli/main.go result <private_key_file_path>

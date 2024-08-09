@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
+	"github.com/ultravioletrs/cocos/agent/algorithm/docker"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
@@ -156,6 +157,10 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name())
 	case string(algorithm.AlgoTypeWasm):
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+	case string(algorithm.AlgoTypeDocker):
+		datasetsMountPath := docker.DockerDatasetsMountFromContext(ctx)
+		resultsMountPath := docker.DockerResultsMountFromContext(ctx)
+		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, datasetsMountPath, resultsMountPath, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {

@@ -205,28 +205,28 @@ func (p *ProgressBar) renderProgressBar() error {
 	}
 
 	if err := p.clearProgressBar(); err != nil {
-		return err
+		return fmt.Errorf("failed to clear progress bar: %v", err)
 	}
 
 	// The progress bar starts with the description.
 	if _, err := builder.WriteString(p.description); err != nil {
-		return err
+		return fmt.Errorf("failed to add description: %v", err)
 	}
 
 	// Add dots to progress bar.
 	if _, err := builder.WriteString(progressBarDots); err != nil {
-		return err
+		return fmt.Errorf("failed to add dots: %v", err)
 	}
 
 	// Add uploaded percentage.
 	strCurrentUploadPercentage := fmt.Sprintf("%4d%% ", p.currentUploadPercentage)
 	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
-		return err
+		return fmt.Errorf("failed to add upload percentage bracket: %v", err)
 	}
 
 	// Add letf bracket and space to progress bar.
 	if _, err := builder.WriteString(leftBracket); err != nil {
-		return err
+		return fmt.Errorf("failed to add left bracket: %v", err)
 	}
 
 	progressWidth := width - builder.Len() - len(rightBracket+" ")
@@ -242,12 +242,12 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	// Add progress to the progress bar.
 	if _, err := builder.WriteString(progress); err != nil {
-		return err
+		return fmt.Errorf("failed to add progress strings to padding: %v", err)
 	}
 
 	// Add head to progress bar.
 	if _, err := builder.WriteString(head); err != nil {
-		return err
+		return fmt.Errorf("failed to add head to padding: %v", err)
 	}
 
 	// Add padding to end of bar.
@@ -255,17 +255,17 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	// Add padding to progress bar.
 	if _, err := builder.WriteString(padding); err != nil {
-		return err
+		return fmt.Errorf("failed to add padding: %v", err)
 	}
 
 	// Add right bracket to progress bar.
 	if _, err := builder.WriteString(rightBracket); err != nil {
-		return err
+		return fmt.Errorf("failed to add right bracket: %v", err)
 	}
 
 	// Write progress bar.
 	if _, err := io.WriteString(os.Stdout, builder.String()); err != nil {
-		return err
+		return fmt.Errorf("failed to write string: %v", err)
 	}
 
 	return nil
