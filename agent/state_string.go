@@ -15,11 +15,12 @@ func _() {
 	_ = x[running-4]
 	_ = x[resultsReady-5]
 	_ = x[complete-6]
+	_ = x[failed-7]
 }
 
-const _state_name = "idlereceivingManifestreceivingAlgorithmreceivingDatarunningresultsReadycomplete"
+const _state_name = "idlereceivingManifestreceivingAlgorithmreceivingDatarunningresultsReadycompletefailed"
 
-var _state_index = [...]uint8{0, 4, 21, 39, 52, 59, 71, 79}
+var _state_index = [...]uint8{0, 4, 21, 39, 52, 59, 71, 79, 85}
 
 func (i state) String() string {
 	if i >= state(len(_state_index)-1) {
