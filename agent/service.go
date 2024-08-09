@@ -51,7 +51,7 @@ var (
 	// ErrFileNameMismatch provided dataset filename does not match filename in manifest.
 	ErrFileNameMismatch = errors.New("malformed data, filename does not match manifest")
 	// ErrAllResultsConsumed indicates all results have been consumed.
-	ErrAllResultsConsumed = errors.New("all results have been consumed bu declared consumers")
+	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
