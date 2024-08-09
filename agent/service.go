@@ -217,7 +217,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != resultsReady || as.sm.GetState() != failed {
+	if as.sm.GetState() != resultsReady && as.sm.GetState() != failed {
 		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
