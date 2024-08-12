@@ -18,6 +18,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
+	"github.com/ultravioletrs/cocos/internal"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -288,7 +289,7 @@ func (as *agentService) runComputation() {
 		return
 	}
 
-	results, err := algorithm.ZipDirectory()
+	results, err := internal.ZipDirectoryToMemory(algorithm.ResultsDir)
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))

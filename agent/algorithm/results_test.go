@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/internal"
 )
 
 func TestZipDirectory(t *testing.T) {
@@ -73,7 +74,7 @@ func TestZipDirectory(t *testing.T) {
 				}
 			}
 
-			if _, err := algorithm.ZipDirectory(); err != nil {
+			if _, err := internal.ZipDirectoryToMemory(algorithm.ResultsDir); err != nil {
 				t.Errorf("ZipDirectory() error = %v", err)
 			}
 		})

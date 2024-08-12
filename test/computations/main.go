@@ -63,6 +63,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
 			return
 		}
+		fmt.Println(dataPath)
 		data, err := os.ReadFile(dataPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
