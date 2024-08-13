@@ -48,7 +48,6 @@ func ZipDirectoryToMemory(sourceDir string) ([]byte, error) {
 		_, err = io.Copy(zipWriterEntry, fileToZip)
 		return err
 	})
-
 	if err != nil {
 		zipWriter.Close()
 		return nil, err
@@ -72,7 +71,9 @@ func UnzipFromMemory(zipData []byte, targetDir string) error {
 		filePath := filepath.Join(targetDir, file.Name)
 
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
+			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+				return err
+			}
 			continue
 		}
 

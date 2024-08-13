@@ -41,7 +41,6 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				if err != nil {
 					log.Fatalf("Error zipping dataset directory: %v", err)
 				}
-
 			} else {
 				dataset, err = os.ReadFile(datasetPath)
 				if err != nil {
