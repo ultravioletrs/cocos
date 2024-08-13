@@ -3,31 +3,25 @@
 package cli
 
 import (
-	"encoding/hex"
 	"log"
-	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/sha3"
+	"github.com/ultravioletrs/cocos/internal"
 )
 
 func (cli *CLI) NewFileHashCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "file-hash",
+		Use:     "checksum",
 		Short:   "Compute the sha3-256 hash of a file",
-		Example: "file-hash <file>",
+		Example: "checksum <file>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			fileName := args[0]
+			path := args[0]
 
-			file, err := os.ReadFile(fileName)
+			hash, err := internal.ChecksumHex(path)
 			if err != nil {
-				log.Fatalf("Error reading dataset file: %v", err)
+				log.Fatalf("Error computing hash: %v", err)
 			}
-
-			hashBytes := sha3.Sum256(file)
-
-			hash := hex.EncodeToString(hashBytes[:])
 
 			log.Println("Hash of file:", hash)
 		},

@@ -192,16 +192,22 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
 
-			f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
-			if err != nil {
-				return fmt.Errorf("error creating dataset file: %v", err)
-			}
+			if DecompressFromContext(ctx) {
+				if err := internal.UnzipFromMemory(dataset.Dataset, algorithm.DatasetsDir); err != nil {
+					return fmt.Errorf("error decompressing dataset: %v", err)
+				}
+			} else {
+				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
+				if err != nil {
+					return fmt.Errorf("error creating dataset file: %v", err)
+				}
 
-			if _, err := f.Write(dataset.Dataset); err != nil {
-				return fmt.Errorf("error writing dataset to file: %v", err)
-			}
-			if err := f.Close(); err != nil {
-				return fmt.Errorf("error closing file: %v", err)
+				if _, err := f.Write(dataset.Dataset); err != nil {
+					return fmt.Errorf("error writing dataset to file: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					return fmt.Errorf("error closing file: %v", err)
+				}
 			}
 
 			matched = true
@@ -213,7 +219,6 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		return ErrUndeclaredDataset
 	}
 
-	// Check if all datasets have been received
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
 	}

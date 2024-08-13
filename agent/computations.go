@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"google.golang.org/grpc/metadata"
 )
 
 var _ fmt.Stringer = (*Datasets)(nil)
@@ -68,4 +70,19 @@ func IndexToContext(ctx context.Context, index int) context.Context {
 func IndexFromContext(ctx context.Context) (int, bool) {
 	index, ok := ctx.Value(ManifestIndexKey{}).(int)
 	return index, ok
+}
+
+const DecompressKey = "decompress"
+
+func DecompressFromContext(ctx context.Context) bool {
+	vals := metadata.ValueFromIncomingContext(ctx, DecompressKey)
+	if len(vals) == 0 {
+		return false
+	}
+
+	return vals[0] == "true"
+}
+
+func DecompressToContext(ctx context.Context, decompress bool) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, DecompressKey, fmt.Sprintf("%t", decompress))
 }
