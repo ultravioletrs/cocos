@@ -64,7 +64,9 @@ func main() {
 			AttestedTls: attestedTLS,
 		},
 	}
-	fmt.Println(SendAgentConfig(3, ac))
+	if err := SendAgentConfig(3, ac); err != nil {
+		log.Fatal(err)
+	}
 
 	for {
 		conn, err := l.Accept()
