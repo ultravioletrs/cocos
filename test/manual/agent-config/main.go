@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 
@@ -74,18 +75,7 @@ func main() {
 			log.Println(err)
 			continue
 		}
-		b := make([]byte, 1024)
-		n, err := conn.Read(b)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		conn.Close()
-		var mes pkgmanager.ClientStreamMessage
-		if err := proto.Unmarshal(b[:n], &mes); err != nil {
-			log.Println(err)
-		}
-		fmt.Println(mes.String())
+		go handleConnections(conn)
 	}
 }
 
@@ -108,4 +98,22 @@ func SendAgentConfig(cid uint32, ac agent.Computation) error {
 		return err
 	}
 	return nil
+}
+
+func handleConnections(conn net.Conn) {
+	defer conn.Close()
+	for {
+		b := make([]byte, 1024)
+		n, err := conn.Read(b)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		var message pkgmanager.ClientStreamMessage
+		if err := proto.Unmarshal(b[:n], &message); err != nil {
+			log.Println(err)
+			return
+		}
+		fmt.Println(message.String())
+	}
 }
