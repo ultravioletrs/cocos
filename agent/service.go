@@ -138,9 +138,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		algoType = string(algorithm.AlgoTypeBin)
 	}
 
+	args := algorithm.AlgorithmArgsFromContext(ctx)
+
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypePython):
 		var requirementsFile string
 		if len(algo.Requirements) > 0 {
@@ -158,9 +160,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name())
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypeDocker):
 		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}

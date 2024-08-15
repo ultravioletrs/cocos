@@ -67,9 +67,9 @@ To upload an algorithm, use the following command:
 
 ##### Flags
 - -a, --algorithm string        Algorithm type to run (default "bin")
-- --python-runtime string   Python runtime to use (default "python3")
+-     --args stringArray        Arguments to pass to the algorithm
+-     --python-runtime string   Python runtime to use (default "python3")
 - -r, --requirements string     Python requirements file
-
 
 #### Upload Dataset
 

@@ -54,6 +54,7 @@ class Computation:
 if __name__ == "__main__":
     a = 5
     b = 10
+
     computation = Computation()
 
     if len(sys.argv) == 1:
@@ -61,6 +62,15 @@ if __name__ == "__main__":
         computation.save_result()
     elif len(sys.argv) == 3 and sys.argv[1] == "test":
         computation.read_results_from_file(sys.argv[2])
+    elif len(sys.argv) == 3:
+        try:
+            a = int(sys.argv[1])
+            b = int(sys.argv[2])
+            computation.compute(a, b)
+            computation.save_result()
+        except ValueError:
+            print("Please provide two valid integers.")
+            exit(1)
     else:
         print("Invalid arguments")
         exit(1)

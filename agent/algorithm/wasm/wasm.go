@@ -22,18 +22,21 @@ type wasm struct {
 	algoFile string
 	stderr   io.Writer
 	stdout   io.Writer
+	args     []string
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string) algorithm.Algorithm {
 	return &wasm{
 		algoFile: algoFile,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
+		args:     args,
 	}
 }
 
 func (w *wasm) Run() error {
 	args := append(mapDirOption, w.algoFile)
+	args = append(args, w.args...)
 	cmd := exec.Command(wasmRuntime, args...)
 	cmd.Stderr = w.stderr
 	cmd.Stdout = w.stdout
