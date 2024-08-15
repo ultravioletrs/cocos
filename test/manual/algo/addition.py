@@ -1,6 +1,6 @@
 import os
-import sys
 import zipfile
+import argparse
 
 RESULTS_DIR = "results"
 RESULTS_FILE = "result.txt"
@@ -52,25 +52,21 @@ class Computation:
 
 
 if __name__ == "__main__":
-    a = 5
-    b = 10
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    parser.add_argument('--a', type=int, help="First number", default=5)
+    parser.add_argument('--b', type=int, help="Second number", default=10)
+    parser.add_argument('--test', type=str, help="Test with a results file", required=False)
+
+    args = parser.parse_args()
 
     computation = Computation()
 
-    if len(sys.argv) == 1:
-        computation.compute(a, b)
-        computation.save_result()
-    elif len(sys.argv) == 3 and sys.argv[1] == "test":
-        computation.read_results_from_file(sys.argv[2])
-    elif len(sys.argv) == 3:
-        try:
-            a = int(sys.argv[1])
-            b = int(sys.argv[2])
-            computation.compute(a, b)
+    try:
+        if args.test:
+            computation.read_results_from_file(args.test)
+        else:
+            computation.compute(args.a, args.b)
             computation.save_result()
-        except ValueError:
-            print("Please provide two valid integers.")
-            exit(1)
-    else:
-        print("Invalid arguments")
+    except Exception as e:
+        print(f"An error occurred: {e}")
         exit(1)
