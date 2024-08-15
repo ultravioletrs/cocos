@@ -53,7 +53,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requir
 	} else {
 		p.runtime = PyRuntime
 	}
-	logger.Info("ARGS", fmt.Sprintf("%v", args))
 	return p
 }
 
@@ -79,7 +78,6 @@ func (p *python) Run() error {
 
 	args := append([]string{p.algoFile}, p.args...)
 	cmd := exec.Command(pythonPath, args...)
-	p.stdout.Write([]byte(fmt.Sprintf("Running command: %v\n", cmd.String())))
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
 
