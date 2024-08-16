@@ -28,7 +28,7 @@ sev-snp-measure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --ker
 
 To speed up the verification process of attested TLS, download the ARK and ASK certificates using the CLI tool. The CLI tool will download the certificates under your home directory in the `.cocos` directory.
 ```bash
-go run cmd/cli/main.go ca-bundle <path/to/platfrom_info.json>
+./build/cocos-cli ca-bundle <path/to/platfrom_info.json>
 ```
 
 In the following text, we can see an example of how the CLI tool is used.
@@ -48,35 +48,35 @@ cd ../..
 # The CLI should also be aware of the VM measurement. To add the measurement 
 # to the .json file that contains the information about the platform, run CLI 
 # with the measurement in base64 format and the path of the backend_info.json file.:
-go run cmd/cli/main.go backend measurement '<measurement>' '<backend_info.json>'
+./build/cocos-cli backend measurement '<measurement>' '<backend_info.json>'
 
 # If the VM is booted with the QEMU host data option, the CLI should also know 
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
 # and the path of the backend_info.json file.:
-go run cmd/cli/main.go backend measurement '<host-data>' '<backend_info.json>'
+./build/cocos-cli backend measurement '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation
-go run cmd/cli/main.go attestation get '<report_data>'
+./build/cocos-cli attestation get '<report_data>'
 
 # Validate Attestation
 # Product name must be Milan or Genoa
-go run cmd/cli/main.go attestation validate '<attesation>' --report_data '<report_data>' --product <product_name>
+./build/cocos-cli attestation validate '<attesation>' --report_data '<report_data>' --product <product_name>
 
 # Run the CLI program with algorithm input
-go run cmd/cli/main.go algo test/manual/algo/lin_reg.py <private_key_file_path> -a python -r test/manual/algo/requirements.py
+./build/cocos-cli algo test/manual/algo/lin_reg.py <private_key_file_path> -a python -r test/manual/algo/requirements.py
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
 # Run the CLI program with dataset input
-go run cmd/cli/main.go data test/manual/data/iris.csv <private_key_file_path>
+./build/cocos-cli data test/manual/data/iris.csv <private_key_file_path>
 # 2023/09/21 10:45:25 Uploading dataset CSV: test/manual/data/iris.csv
 
 # Run the CLI program to fetch computation result
-go run cmd/cli/main.go result <private_key_file_path>
+./build/cocos-cli result <private_key_file_path>
 # 2023/09/21 10:45:39 Retrieving computation result file
 # 2023/09/21 10:45:40 Computation result retrieved and saved successfully!
 ```

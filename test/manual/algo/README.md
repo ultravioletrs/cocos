@@ -85,7 +85,7 @@ python3 test/manual/algo/lin_reg.py predict results.zip  test/manual/data
 For addition example, you can use the following command:
 
 ```bash
-go run ./test/computations/main.go ./test/manual/algo/addition.py public.pem false
+./build/cocos-cli ./test/manual/algo/addition.py public.pem false
 ```
 
 ```bash
