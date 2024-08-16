@@ -17,7 +17,6 @@ import (
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/caarlos0/env/v11"
-	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
@@ -118,10 +117,6 @@ func main() {
 
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
-	}
-
-	if err = internal.DeleteFilesInDir(qemuCfg.TmpFileLoc); err != nil {
-		logger.Error(err.Error())
 	}
 }
 

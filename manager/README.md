@@ -47,7 +47,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_VSOCK_GUEST_CID               | The guest-side CID (Context ID) for the virtual socket device.                                                  | 3                            |
 | MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                            | 0                            |
 | MANAGER_QEMU_BIN_PATH                      | The file path for the QEMU binary.                                                                              | qemu-system-x86_64           |
-| MANAGER_QEMU_TMP_FILE_LOC                  | The directory for temporary files.                                                                              | tmp                          |
 | MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                | false                        |
 | MANAGER_QEMU_ENABLE_SEV                    | Whether to enable Secure Encrypted Virtualization (SEV).                                                        | false                        |
 | MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                               | true                         |
@@ -85,7 +84,7 @@ sudo apt update
 sudo apt install qemu-kvm
 ```
 
-Create `img` directory in `cmd/manager`. Create `tmp` directory in `cmd/manager`.
+Create `img` directory in `cmd/manager`.
 
 #### Add Vsock
 The necessary kernel modules must be loaded on the hypervisor. To check if `vhost_vsock` is loaded run:

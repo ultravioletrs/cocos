@@ -7,7 +7,6 @@ import (
 	"os/exec"
 
 	"github.com/gofrs/uuid"
-	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
@@ -42,34 +41,6 @@ func (v *qemuVM) Start() error {
 	qemuCfg := v.config
 	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
 	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
-
-	if !v.config.KernelHash {
-		// Copy firmware vars file
-		srcFile := qemuCfg.OVMFVarsConfig.File
-		dstFile := fmt.Sprintf("%s/%s-%s.fd", v.config.TmpFileLoc, firmwareVars, id)
-		err = internal.CopyFile(srcFile, dstFile)
-		if err != nil {
-			return err
-		}
-		qemuCfg.OVMFVarsConfig.File = dstFile
-	}
-
-	// Copy img files
-	srcFile := qemuCfg.DiskImgConfig.KernelFile
-	dstFile := fmt.Sprintf("%s/%s-%s", v.config.TmpFileLoc, KernelFile, id)
-	err = internal.CopyFile(srcFile, dstFile)
-	if err != nil {
-		return err
-	}
-	qemuCfg.DiskImgConfig.KernelFile = dstFile
-
-	srcFile = qemuCfg.DiskImgConfig.RootFsFile
-	dstFile = fmt.Sprintf("%s/%s-%s.gz", v.config.TmpFileLoc, rootfsFile, id)
-	err = internal.CopyFile(srcFile, dstFile)
-	if err != nil {
-		return err
-	}
-	qemuCfg.DiskImgConfig.RootFsFile = dstFile
 
 	exe, args, err := v.executableAndArgs()
 	if err != nil {

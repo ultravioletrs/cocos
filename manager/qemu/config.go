@@ -61,7 +61,6 @@ type VSockConfig struct {
 
 type Config struct {
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
-	TmpFileLoc   string `env:"TMP_FILE_LOC"   envDefault:"tmp"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
 	EnableSEV    bool   `env:"ENABLE_SEV"     envDefault:"false"`
 	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
