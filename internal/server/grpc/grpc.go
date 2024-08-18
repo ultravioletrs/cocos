@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ultravioletrs/cocos/agent"
+	"github.com/google/go-sev-guest/client"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
@@ -48,7 +48,7 @@ type Server struct {
 	server.BaseServer
 	server          *grpc.Server
 	registerService serviceRegister
-	agent           agent.Service
+	quoteProvider   client.QuoteProvider
 	authSvc         auth.Authenticator
 }
 
@@ -56,7 +56,7 @@ type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, agentSvc agent.Service, authSvc auth.Authenticator) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, qp client.QuoteProvider, authSvc auth.Authenticator) server.Server {
 	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 	return &Server{
 		BaseServer: server.BaseServer{
@@ -68,7 +68,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 			Logger:  logger,
 		},
 		registerService: registerService,
-		agent:           agentSvc,
+		quoteProvider:   qp,
 		authSvc:         authSvc,
 	}
 }
@@ -93,7 +93,7 @@ func (s *Server) Start() error {
 
 	switch {
 	case s.Config.AttestedTLS:
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.agent)
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.quoteProvider)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
 		}
@@ -228,7 +228,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-func generateCertificatesForATLS(svc agent.Service) ([]byte, []byte, error) {
+func generateCertificatesForATLS(qp client.QuoteProvider) ([]byte, []byte, error) {
 	curve := elliptic.P256()
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
@@ -241,7 +241,7 @@ func generateCertificatesForATLS(svc agent.Service) ([]byte, []byte, error) {
 	}
 
 	// The Attestation Report will be added as an X.509 certificate extension
-	attestationReport, err := svc.Attestation(context.Background(), sha3.Sum512(publicKeyBytes))
+	attestationReport, err := qp.GetRawQuote(sha3.Sum512(publicKeyBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch the attestation report: %w", err)
 	}
