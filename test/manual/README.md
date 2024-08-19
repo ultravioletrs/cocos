@@ -3,6 +3,12 @@
 ## CLI
 
 Throughout the tests, we assume that our current working directory is the root of the `cocos` repository, both on the host machine and in the VM.
+First, we will build cli by running in the root directory of `cocos`:
+```bash
+make cli
+```
+
+The cli will be compiled to the build directory `./build/cocos-cli`.
 
 ### Algorithm requirements
 
