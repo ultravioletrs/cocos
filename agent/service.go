@@ -116,7 +116,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return ErrHashMismatch
 	}
 
-	f, err := os.CreateTemp("", "algorithm")
+	f, err := os.Create("algorithm")
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
@@ -162,9 +162,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	case string(algorithm.AlgoTypeWasm):
 		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	case string(algorithm.AlgoTypeDocker):
-		datasetsMountPath := docker.DockerDatasetsMountFromContext(ctx)
-		resultsMountPath := docker.DockerResultsMountFromContext(ctx)
-		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, datasetsMountPath, resultsMountPath, f.Name())
+		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {

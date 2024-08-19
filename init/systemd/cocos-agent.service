@@ -4,6 +4,7 @@ After=network.target
 Before=docker.service
 
 [Service]
+WorkingDirectory=/cocos
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 

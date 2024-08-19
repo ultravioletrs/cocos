@@ -16,63 +16,29 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
-	containerName       = "agent_container"
-	dockerRunCommandKey = "docker_run_command"
-	DatasetsMountPath   = "/cocos/datasets"
-	datasetsMountKey    = "docker_datasets_mount"
-	ResultsMountPath    = "/cocos/results"
-	resultsMountKey     = "docker_results_mount"
+	containerName     = "agent_container"
+	datasetsMountPath = "/cocos/datasets"
+	resultsMountPath  = "/cocos/results"
 )
 
 var _ algorithm.Algorithm = (*docker)(nil)
 
 type docker struct {
-	algoFile          string
-	logger            *slog.Logger
-	stderr            io.Writer
-	stdout            io.Writer
-	datasetsMountPath string
-	resultsMountPath  string
+	algoFile string
+	logger   *slog.Logger
+	stderr   io.Writer
+	stdout   io.Writer
 }
 
-func DockerDatasetsMountToContext(ctx context.Context, datasetMountPath string) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, datasetsMountKey, datasetMountPath)
-}
-
-func DockerDatasetsMountFromContext(ctx context.Context) string {
-	return metadata.ValueFromIncomingContext(ctx, datasetsMountKey)[0]
-}
-
-func DockerResultsMountToContext(ctx context.Context, resultsMountPath string) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, resultsMountKey, resultsMountPath)
-}
-
-func DockerResultsMountFromContext(ctx context.Context) string {
-	return metadata.ValueFromIncomingContext(ctx, resultsMountKey)[0]
-}
-
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, datasetsMountPath, resultsMountPath, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
 	d := &docker{
 		algoFile: algoFile,
 		logger:   logger,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
-	}
-
-	if datasetsMountPath == "" {
-		d.datasetsMountPath = DatasetsMountPath
-	} else {
-		d.datasetsMountPath = datasetsMountPath
-	}
-
-	if resultsMountPath == "" {
-		d.resultsMountPath = ResultsMountPath
-	} else {
-		d.resultsMountPath = resultsMountPath
 	}
 
 	return d
@@ -128,13 +94,13 @@ func (d *docker) Run() error {
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
-				Source: path.Join("/", algorithm.DatasetsDir),
-				Target: d.datasetsMountPath,
+				Source: path.Join(algorithm.AlgoWorkingDir, algorithm.DatasetsDir),
+				Target: datasetsMountPath,
 			},
 			{
 				Type:   mount.TypeBind,
-				Source: path.Join("/", algorithm.ResultsDir),
-				Target: d.resultsMountPath,
+				Source: path.Join(algorithm.AlgoWorkingDir, algorithm.ResultsDir),
+				Target: resultsMountPath,
 			},
 		},
 	}, nil, nil, containerName)

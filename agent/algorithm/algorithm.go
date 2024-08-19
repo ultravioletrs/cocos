@@ -17,8 +17,9 @@ const (
 	AlgoTypeDocker AlgorithType = "docker"
 	AlgoTypeKey                 = "algo_type"
 
-	ResultsDir  = "results"
-	DatasetsDir = "datasets"
+	ResultsDir     = "results"
+	DatasetsDir    = "datasets"
+	AlgoWorkingDir = "/cocos"
 )
 
 func AlgorithmTypeToContext(ctx context.Context, algoType string) context.Context {
