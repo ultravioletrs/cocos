@@ -199,7 +199,6 @@ func getFreePort(minPort, maxPort int) (int, error) {
 
 	var wg sync.WaitGroup
 	portCh := make(chan int, maxPort-minPort+1)
-	errCh := make(chan error, 1)
 
 	for port := minPort; port <= maxPort; port++ {
 		wg.Add(1)
@@ -220,8 +219,8 @@ func getFreePort(minPort, maxPort int) (int, error) {
 	select {
 	case port := <-portCh:
 		return port, nil
-	case err := <-errCh:
-		return 0, err
+	default:
+		return 0, fmt.Errorf("failed to find free port in range %d-%d", minPort, maxPort)
 	}
 }
 
