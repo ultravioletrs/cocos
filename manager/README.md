@@ -60,7 +60,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_KERNEL_HASH                   | Whether to enable kernel hash verification.                                                                     | false                        |
 | MANAGER_QEMU_NO_GRAPHIC                    | Whether to disable the graphical display.                                                                       | true                         |
 | MANAGER_QEMU_MONITOR                       | The type of monitor to use.                                                                                     | pty                          |
-| MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                             | 6000-6100                    |
+| MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                             | 6100-6200                    |
 
 ## Setup
 
