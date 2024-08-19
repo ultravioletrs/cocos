@@ -193,6 +193,10 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 }
 
 func getFreePort(minPort, maxPort int) (int, error) {
+	if checkPortisFree(minPort) {
+		return minPort, nil
+	}
+
 	var wg sync.WaitGroup
 	portCh := make(chan int, maxPort-minPort+1)
 	errCh := make(chan error, 1)
@@ -201,17 +205,9 @@ func getFreePort(minPort, maxPort int) (int, error) {
 		wg.Add(1)
 		go func(p int) {
 			defer wg.Done()
-			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
-			if err == nil {
-				defer listener.Close()
-				_, portStr, err := net.SplitHostPort(listener.Addr().String())
-				if err == nil {
-					freePort, err := strconv.Atoi(portStr)
-					if err == nil {
-						portCh <- freePort
-						return
-					}
-				}
+
+			if checkPortisFree(p) {
+				portCh <- p
 			}
 		}(port)
 	}
@@ -227,6 +223,16 @@ func getFreePort(minPort, maxPort int) (int, error) {
 	case err := <-errCh:
 		return 0, err
 	}
+}
+
+func checkPortisFree(port int) bool {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	defer listener.Close()
+
+	return true
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
