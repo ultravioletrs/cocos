@@ -7,16 +7,12 @@
 package quoteprovider
 
 import (
-	_ "embed"
-
 	"github.com/google/go-sev-guest/client"
 	pb "github.com/google/go-sev-guest/proto/sevsnp"
+	cocosai "github.com/ultravioletrs/cocos"
 )
 
 var _ client.QuoteProvider = (*embeddedQuoteProvider)(nil)
-
-//go:embed attestation.bin
-var embeddedAttestation []byte
 
 type embeddedQuoteProvider struct {
 }
@@ -27,7 +23,7 @@ func GetQuoteProvider() (client.QuoteProvider, error) {
 
 // GetQuote returns the SEV quote for the given report data.
 func (e *embeddedQuoteProvider) GetRawQuote(reportData [64]byte) ([]byte, error) {
-	return embeddedAttestation, nil
+	return cocosai.EmbeddedAttestation, nil
 }
 
 // IsSupported returns true if the SEV platform is supported.

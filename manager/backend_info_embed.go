@@ -6,13 +6,8 @@
 
 package manager
 
-import (
-	_ "embed"
-)
-
-//go:embed scripts/backend_info/backend_info.json
-var backendInfo []byte
+import backendinfo "github.com/ultravioletrs/cocos/scripts/backend_info"
 
 func (ms *managerService) FetchBackendInfo() ([]byte, error) {
-	return backendInfo, nil
+	return backendinfo.BackendInfo, nil
 }
