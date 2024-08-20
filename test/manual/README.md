@@ -91,7 +91,7 @@ go run ./cmd/cli/main.go algo -a docker <path_to_docker_image.tar> <private_key_
 # 2023/09/21 10:45:40 Computation result retrieved and saved successfully!
 ```
 
-Now there is a `result.bin` file in the current working directory. The file holds the trained logistic regression model. To test the model, run
+Now there is a `result.zip` file in the current working directory. The file holds the trained logistic regression model. To test the model, run
 
 ```sh
 python ./test/manual/algo/lin_reg.py predict results.zip ./test/manual/data
