@@ -20,6 +20,7 @@ const (
 	running
 	resultsReady
 	complete
+	failed
 )
 
 type event uint8
@@ -31,6 +32,7 @@ const (
 	dataReceived
 	runComplete
 	resultsConsumed
+	runFailed
 )
 
 // StateMachine represents the state machine.
@@ -74,6 +76,7 @@ func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 
 	sm.Transitions[running] = make(map[event]state)
 	sm.Transitions[running][runComplete] = resultsReady
+	sm.Transitions[running][runFailed] = failed
 
 	sm.Transitions[resultsReady] = make(map[event]state)
 	sm.Transitions[resultsReady][resultsConsumed] = complete

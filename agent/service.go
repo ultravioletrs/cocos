@@ -50,6 +50,8 @@ var (
 	ErrHashMismatch = errors.New("malformed data, hash does not match manifest")
 	// ErrFileNameMismatch provided dataset filename does not match filename in manifest.
 	ErrFileNameMismatch = errors.New("malformed data, filename does not match manifest")
+	// ErrAllResultsConsumed indicates all results have been consumed.
+	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -64,7 +66,7 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation         // Holds the current computation request details.
+	computation Computation         // Holds the current computation manifest.
 	algorithm   algorithm.Algorithm // Filepath to the algorithm received for the computation.
 	result      []byte              // Stores the result of the computation.
 	sm          *StateMachine       // Manages the state transitions of the agent service.
@@ -90,6 +92,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
+	svc.sm.StateFunctions[failed] = svc.publishEvent("failed", json.RawMessage{})
 
 	svc.computation = cmp
 
@@ -218,11 +221,11 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != resultsReady {
+	if as.sm.GetState() != resultsReady && as.sm.GetState() != failed {
 		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
-		return []byte{}, ErrAllManifestItemsReceived
+		return []byte{}, ErrAllResultsConsumed
 	}
 	index, ok := IndexFromContext(ctx)
 	if !ok {
@@ -230,10 +233,10 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 {
+	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == resultsReady {
 		as.sm.SendEvent(resultsConsumed)
 	}
-	// Return the result file or an error
+
 	return as.result, as.runError
 }
 
@@ -253,7 +256,13 @@ func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataS
 func (as *agentService) runComputation() {
 	as.publishEvent("starting", json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
-	defer as.sm.SendEvent(runComplete)
+	defer func() {
+		if as.runError != nil {
+			as.sm.SendEvent(runFailed)
+		} else {
+			as.sm.SendEvent(runComplete)
+		}
+	}()
 
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
 		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
