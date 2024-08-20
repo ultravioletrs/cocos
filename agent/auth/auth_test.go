@@ -124,7 +124,7 @@ func TestAuthenticateUser(t *testing.T) {
 
 			if err == nil {
 				switch id, ok := agent.IndexFromContext(ctx); {
-				case tc.role == ConsumerRole, tc.role == DataProviderRole:
+				case tc.role == ConsumerRole:
 					assert.True(t, ok, "expected index in context")
 					assert.Equal(t, 0, id, "expected index 0 in context")
 				default:

@@ -146,9 +146,9 @@ func (s *service) AuthenticateUser(ctx context.Context, role UserRole) (context.
 			}
 		}
 	case DataProviderRole:
-		for i, dp := range s.datasetProviders {
+		for _, dp := range s.datasetProviders {
 			if err := verifySignature(role, signature, dp); err == nil {
-				return agent.IndexToContext(ctx, i), nil
+				return ctx, nil
 			}
 		}
 	case AlgorithmProviderRole:

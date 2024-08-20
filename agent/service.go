@@ -179,33 +179,37 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 
 	hash := sha3.Sum256(dataset.Dataset)
 
-	index, ok := IndexFromContext(ctx)
-	if !ok {
+	matched := false
+	for i, d := range as.computation.Datasets {
+		if hash == d.Hash {
+			if d.Filename != "" && d.Filename != dataset.Filename {
+				return ErrFileNameMismatch
+			}
+
+			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
+
+			f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
+			if err != nil {
+				return fmt.Errorf("error creating dataset file: %v", err)
+			}
+
+			if _, err := f.Write(dataset.Dataset); err != nil {
+				return fmt.Errorf("error writing dataset to file: %v", err)
+			}
+			if err := f.Close(); err != nil {
+				return fmt.Errorf("error closing file: %v", err)
+			}
+
+			matched = true
+			break
+		}
+	}
+
+	if !matched {
 		return ErrUndeclaredDataset
 	}
 
-	if hash != as.computation.Datasets[index].Hash {
-		return ErrHashMismatch
-	}
-
-	if as.computation.Datasets[index].Filename != "" && as.computation.Datasets[index].Filename != dataset.Filename {
-		return ErrFileNameMismatch
-	}
-
-	as.computation.Datasets = slices.Delete(as.computation.Datasets, index, index+1)
-
-	f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
-	if err != nil {
-		return fmt.Errorf("error creating dataset file: %v", err)
-	}
-
-	if _, err := f.Write(dataset.Dataset); err != nil {
-		return fmt.Errorf("error writing dataset to file: %v", err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("error closing file: %v", err)
-	}
-
+	// Check if all datasets have been received
 	if len(as.computation.Datasets) == 0 {
 		as.sm.SendEvent(dataReceived)
 	}
