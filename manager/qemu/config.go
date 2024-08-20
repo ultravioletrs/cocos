@@ -101,7 +101,7 @@ type Config struct {
 	Monitor   string `env:"MONITOR"    envDefault:"pty"`
 
 	// ports
-	HostFwdRange string `env:"HOST_FWD_RANGE" envDefault:"6000-6100"`
+	HostFwdRange string `env:"HOST_FWD_RANGE" envDefault:"6100-6200"`
 }
 
 func (config Config) ConstructQemuArgs() []string {
