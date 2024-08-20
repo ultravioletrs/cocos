@@ -30,7 +30,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
-			log.Println("Uploading algorithm binary:", algorithmFile)
+			log.Println("Uploading algorithm file:", algorithmFile)
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {

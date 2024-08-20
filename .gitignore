@@ -10,5 +10,5 @@ cmd/manager/tmp
 *.pem
 
 dist/
-result.zip
+results.zip
 *.spec

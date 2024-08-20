@@ -33,7 +33,7 @@ python3 test/manual/algo/lin_reg.py
 The linear regression example is a more complex algorithm that requires external dependencies.It returns a linear regression model trained on the iris dataset found [here](../data/) for demonstration purposes.
 
 ```bash
-python3 test/manual/algo/lin_reg.py predict result.zip  test/manual/data
+python3 test/manual/algo/lin_reg.py predict results.zip  test/manual/data
 ```
 
 This will make inference on the results of the linear regression model.
@@ -71,7 +71,7 @@ Next we need to upload the dataset
 After some time when the results are ready, you can run the following command to get the results:
 
 ```bash
-./build/cocos-cli results ./private.pem
+./build/cocos-cli result ./private.pem
 ```
 
 This will return the results of the algorithm.
@@ -79,13 +79,13 @@ This will return the results of the algorithm.
 To make inference on the results, you can use the following command:
 
 ```bash
-python3 test/manual/algo/lin_reg.py predict result.zip  test/manual/data
+python3 test/manual/algo/lin_reg.py predict results.zip  test/manual/data
 ```
 
 For addition example, you can use the following command:
 
 ```bash
-go run ./test/computations/main.go ./test/manual/algo/addition.py public.pem false
+./build/cocos-cli ./test/manual/algo/addition.py public.pem false
 ```
 
 ```bash
@@ -93,7 +93,7 @@ go run ./test/computations/main.go ./test/manual/algo/addition.py public.pem fal
 ```
 
 ```bash
-./build/cocos-cli results ./private.pem
+./build/cocos-cli result ./private.pem
 ```
 
 ## Wasm Example
