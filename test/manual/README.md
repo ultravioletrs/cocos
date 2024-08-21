@@ -60,7 +60,7 @@ cd ../..
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
 # and the path of the backend_info.json file.:
-./build/cocos-cli backend measurement '<host-data>' '<backend_info.json>'
+./build/cocos-cli backend hostdata '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
@@ -77,6 +77,10 @@ export AGENT_GRPC_ATTESTED_TLS=true
 ./build/cocos-cli algo test/manual/algo/lin_reg.py <private_key_file_path> -a python -r test/manual/algo/requirements.py
 # 2023/09/21 10:43:53 Uploading algorithm binary: test/manual/algo/lin_reg.bin
 
+# In order to run the Docker image, run the CLI program with the algorithm docker option
+go run ./cmd/cli/main.go algo -a docker <path_to_docker_image.tar> <private_key_file_path>
+# 2023/09/21 10:43:53 Uploading algorithm binary: <path_to_docker_image.tar>
+
 # Run the CLI program with dataset input
 ./build/cocos-cli data test/manual/data/iris.csv <private_key_file_path>
 # 2023/09/21 10:45:25 Uploading dataset CSV: test/manual/data/iris.csv
@@ -87,7 +91,7 @@ export AGENT_GRPC_ATTESTED_TLS=true
 # 2023/09/21 10:45:40 Computation result retrieved and saved successfully!
 ```
 
-Now there is a `result.bin` file in the current working directory. The file holds the trained logistic regression model. To test the model, run
+Now there is a `result.zip` file in the current working directory. The file holds the trained logistic regression model. To test the model, run
 
 ```sh
 python ./test/manual/algo/lin_reg.py predict results.zip ./test/manual/data

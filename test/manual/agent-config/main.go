@@ -32,7 +32,7 @@ func main() {
 	pubKeyFile := os.Args[3]
 	attestedTLSParam, err := strconv.ParseBool(os.Args[4])
 	if err != nil {
-		log.Fatalf("usage: %s <data-path> <algo-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
+		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
 	attestedTLS := attestedTLSParam
 
