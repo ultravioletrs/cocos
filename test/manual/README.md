@@ -60,7 +60,7 @@ cd ../..
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
 # and the path of the backend_info.json file.:
-./build/cocos-cli backend measurement '<host-data>' '<backend_info.json>'
+./build/cocos-cli backend hostdata '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
 export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
