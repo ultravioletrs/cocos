@@ -4,9 +4,9 @@ package agent_test
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/errors"
@@ -14,8 +14,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -23,10 +26,12 @@ var (
 	dataPath = "../test/manual/data/iris.csv"
 )
 
+const datasetFile = "iris.csv"
+
 func TestAlgo(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, json.RawMessage{}).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	algo, err := os.ReadFile(algoPath)
@@ -35,9 +40,10 @@ func TestAlgo(t *testing.T) {
 	algoHash := sha3.Sum256(algo)
 
 	testCases := []struct {
-		name string
-		err  error
-		algo agent.Algorithm
+		name     string
+		err      error
+		algo     agent.Algorithm
+		algoType string
 	}{
 		{
 			name: "Test Algo successfully",
@@ -45,40 +51,32 @@ func TestAlgo(t *testing.T) {
 				Algorithm: algo,
 				Hash:      algoHash,
 			},
-			err: nil,
+			algoType: "python",
+			err:      nil,
 		},
 		{
-			name: "Test State not ready",
-			algo: agent.Algorithm{
-				Algorithm: algo,
-				Hash:      algoHash,
-			},
-			err: agent.ErrStateNotReady,
-		},
-		{
-			name: "Test algo hash mismatch",
-			algo: agent.Algorithm{
-				Algorithm: algo,
-				Hash:      sha3.Sum256([]byte{}),
-			},
-			err: agent.ErrHashMismatch,
-		},
-		{
-			name: "Test missing algorithm",
-			algo: agent.Algorithm{
-				Hash: algoHash,
-			},
-			err: agent.ErrAllManifestItemsReceived,
+			name:     "Test algo hash mismatch",
+			algo:     agent.Algorithm{},
+			algoType: "python",
+			err:      agent.ErrHashMismatch,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx := metadata.NewIncomingContext(context.Background(),
+				metadata.Pairs(algorithm.AlgoTypeKey, tc.algoType, python.PyRuntimeKey, python.PyRuntime),
+			)
+
+			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
 
+			time.Sleep(300 * time.Millisecond)
+
 			err = svc.Algo(ctx, tc.algo)
+			_ = os.RemoveAll("datasets")
+
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
@@ -87,7 +85,7 @@ func TestAlgo(t *testing.T) {
 func TestData(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, json.RawMessage{}).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	algo, err := os.ReadFile(algoPath)
@@ -95,7 +93,7 @@ func TestData(t *testing.T) {
 
 	algoHash := sha3.Sum256(algo)
 
-	algorithm := agent.Algorithm{
+	alg := agent.Algorithm{
 		Hash:      algoHash,
 		Algorithm: algo,
 	}
@@ -113,45 +111,70 @@ func TestData(t *testing.T) {
 		{
 			name: "Test data successfully",
 			data: agent.Dataset{
-				Hash:    dataHash,
-				Dataset: data,
+				Hash:     dataHash,
+				Dataset:  data,
+				Filename: datasetFile,
 			},
 		},
 		{
 			name: "Test State not ready",
 			data: agent.Dataset{
-				Dataset: data,
-				Hash:    algoHash,
+				Dataset:  data,
+				Hash:     dataHash,
+				Filename: datasetFile,
 			},
 			err: agent.ErrStateNotReady,
 		},
 		{
-			name: "Test data hash mismatch",
+			name: "Test File name does not match manifest",
 			data: agent.Dataset{
-				Dataset: data,
-				Hash:    sha3.Sum256([]byte{}),
+				Dataset:  data,
+				Hash:     dataHash,
+				Filename: "invalid",
 			},
-			err: agent.ErrHashMismatch,
+			err: agent.ErrFileNameMismatch,
 		},
 		{
-			name: "Test missing data",
+			name: "Test dataset not declared in manifest",
 			data: agent.Dataset{
-				Hash: algoHash,
+				Dataset:  data,
+				Hash:     dataHash,
+				Filename: "invalid",
 			},
-			err: agent.ErrAllManifestItemsReceived,
+			err: agent.ErrUndeclaredDataset,
+		},
+		{
+			name: "Test data hash mismatch",
+			data: agent.Dataset{
+				Filename: datasetFile,
+			},
+			err: agent.ErrHashMismatch,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.WithValue(context.Background(), "testName", "test"))
+			ctx := metadata.NewIncomingContext(context.Background(),
+				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
+			)
+
+			if tc.err != agent.ErrUndeclaredDataset {
+				ctx = agent.IndexToContext(ctx, 0)
+			}
+
+			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
+
 			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
+			time.Sleep(300 * time.Millisecond)
 
 			if tc.err != agent.ErrStateNotReady {
-				_ = svc.Algo(ctx, algorithm)
+				_ = svc.Algo(ctx, alg)
+				time.Sleep(300 * time.Millisecond)
 			}
-			_ = svc.Data(ctx, tc.data)
+			err = svc.Data(ctx, tc.data)
+			_ = os.RemoveAll("datasets")
+			_ = os.RemoveAll("results")
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
@@ -159,14 +182,16 @@ func TestData(t *testing.T) {
 
 func TestResult(t *testing.T) {
 	events := new(mocks.Service)
-	ctx := context.Background()
+
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	defer evCall.Unset()
 
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
 
 	algoHash := sha3.Sum256(algo)
 
-	algorithm := agent.Algorithm{
+	alg := agent.Algorithm{
 		Hash:      algoHash,
 		Algorithm: algo,
 	}
@@ -177,47 +202,42 @@ func TestResult(t *testing.T) {
 	dataHash := sha3.Sum256(data)
 
 	dataset := agent.Dataset{
-		Hash:    dataHash,
-		Dataset: data,
-	}
-
-	response := &agent.ResultResponse{
-		File: []byte{
-			0x01, 0x02, 0x03, 0x04,
-			0x05, 0x06, 0x07, 0x08,
-		},
+		Hash:     dataHash,
+		Dataset:  data,
+		Filename: datasetFile,
 	}
 
 	cases := []struct {
-		name     string
-		userKey  any
-		response *agent.ResultResponse
-		svcRes   []byte
-		err      error
+		name string
+		err  error
 	}{
 		{
-			name:     "Test result successfully",
-			response: response,
-			svcRes:   response.File,
-			err:      nil,
-		},
-		{
-			name:     "Test State not ready",
-			response: response,
-			svcRes:   response.File,
-			err:      nil,
+			name: "Test results not ready",
+			err:  agent.ErrResultsNotReady,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			evCall := events.On("SendEvent", mock.Anything, mock.Anything, json.RawMessage{}).Return(nil)
-			defer evCall.Unset()
+			ctx := metadata.NewIncomingContext(context.Background(),
+				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
+			)
+
+			ctx = agent.IndexToContext(ctx, 0)
+
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
 
 			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
-			if tc.err != agent.ErrStateNotReady {
-				_ = svc.Algo(ctx, algorithm)
-				_ = svc.Data(ctx, dataset)
-			}
+			time.Sleep(300 * time.Millisecond)
+
+			_ = svc.Algo(ctx, alg)
+			time.Sleep(300 * time.Millisecond)
+			_ = svc.Data(ctx, dataset)
+			time.Sleep(300 * time.Millisecond)
+
+			_, err = svc.Result(ctx)
+			_ = os.RemoveAll("datasets")
+			_ = os.RemoveAll("results")
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
@@ -232,15 +252,15 @@ func testComputation(t *testing.T) agent.Computation {
 	data, err := os.ReadFile(dataPath)
 	require.NoError(t, err)
 
-	dataHash := sha3.Sum256(algo)
+	dataHash := sha3.Sum256(data)
 
 	return agent.Computation{
 		ID:              "1",
 		Name:            "sample computation",
 		Description:     "sample description",
-		Datasets:        []agent.Dataset{{Hash: dataHash, UserKey: []byte{}, Dataset: data}},
-		Algorithm:       agent.Algorithm{Hash: algoHash, UserKey: []byte{}, Algorithm: algo},
-		ResultConsumers: []agent.ResultConsumer{{UserKey: []byte{}}},
+		Datasets:        []agent.Dataset{{Hash: dataHash, UserKey: []byte("key"), Dataset: data, Filename: datasetFile}},
+		Algorithm:       agent.Algorithm{Hash: algoHash, UserKey: []byte("key"), Algorithm: algo},
+		ResultConsumers: []agent.ResultConsumer{{UserKey: []byte("key")}},
 		AgentConfig: agent.AgentConfig{
 			Port:        "7002",
 			LogLevel:    "debug",
