@@ -82,7 +82,10 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 		return err
 	}
 
-	ctx = metadata.NewOutgoingContext(ctx, md)
+	for k, v := range md {
+		ctx = metadata.AppendToOutgoingContext(ctx, k, v[0])
+	}
+
 	stream, err := sdk.client.Data(ctx)
 	if err != nil {
 		sdk.logger.Error("Failed to call Data RPC")

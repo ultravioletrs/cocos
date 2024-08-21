@@ -16,14 +16,14 @@ make cli
 Retrieves attestation information from the SEV guest and saves it to a file.
 To retrieve attestation from agent, use the following command:
 ```bash
-./build/cocos-cli agent attestation get '<report_data>'
+./build/cocos-cli attestation get '<report_data>'
 ```
 
 #### Validate attestation
 Validates the retrieved attestation information against a specified policy and checks its authenticity.
 To validate and verify attestation from agent, use the following command:
 ```bash
-./build/cocos-cli agent attestation validate '<attestation>' --report_data '<report_data>'
+./build/cocos-cli attestation validate '<attestation>' --report_data '<report_data>'
 ```
 ##### Flags
 - --config: Path to a JSON file containing the validation configuration. This can be used to override individual flags.
@@ -62,21 +62,41 @@ To validate and verify attestation from agent, use the following command:
 To upload an algorithm, use the following command:
 
 ```bash
-./build/cocos-cli agent algo /path/to/algorithm <private_key_file_path>
+./build/cocos-cli algo /path/to/algorithm <private_key_file_path>
 ```
+
+##### Flags
+- -a, --algorithm string        Algorithm type to run (default "bin")
+- --python-runtime string   Python runtime to use (default "python3")
+- -r, --requirements string     Python requirements file
+
 
 #### Upload Dataset
 
 To upload a dataset, use the following command:
 
 ```bash
-./build/cocos-cli agent data /path/to/dataset.csv <private_key_file_path>
+./build/cocos-cli data /path/to/dataset.csv <private_key_file_path>
 ```
+
+Users can also upload directories which will be compressed on transit. Once received by agent they will be stored as compressed files or decompressed if the user passed the decompression argument.
+
+##### Flags
+- -d, --decompress   Decompress the dataset on agent
+
+
 
 #### Retrieve result
 
 To retrieve the computation result, use the following command:
 
 ```bash
-./build/cocos-cli agent result <private_key_file_path>
+./build/cocos-cli result <private_key_file_path>
+```
+
+#### Checksum
+When defining the manifest dataset and algorithm checksums are required. This can be done as below:
+
+```bash
+./build/cocos-cli checksum <path_to_dataset_or_algorithm>
 ```

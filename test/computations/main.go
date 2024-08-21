@@ -13,11 +13,11 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
+	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/pkg/manager"
-	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -44,11 +44,6 @@ type svc struct {
 
 func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, auth credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
-	algo, err := os.ReadFile(algoPath)
-	if err != nil {
-		s.logger.Error(fmt.Sprintf("failed to read algorithm file: %s", err))
-		return
-	}
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
@@ -63,16 +58,20 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
 			return
 		}
-		data, err := os.ReadFile(dataPath)
+		dataHash, err := internal.Checksum(dataPath)
 		if err != nil {
-			s.logger.Error(fmt.Sprintf("failed to read data file: %s", err))
+			s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
 			return
 		}
-		dataHash := sha3.Sum256(data)
+
 		datasets = append(datasets, &manager.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
 	}
 
-	algoHash := sha3.Sum256(algo)
+	algoHash, err := internal.Checksum(algoPath)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
+		return
+	}
 
 	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{

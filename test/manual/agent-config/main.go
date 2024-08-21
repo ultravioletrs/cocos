@@ -10,15 +10,16 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
-	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,21 +36,19 @@ func main() {
 	}
 	attestedTLS := attestedTLSParam
 
-	algo, err := os.ReadFile(algoPath)
-	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to read algorithm file: %s", err))
-	}
-	data, err := os.ReadFile(dataPath)
-	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to read data file: %s", err))
-	}
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
 		log.Fatalf(fmt.Sprintf("failed to read public key file: %s", err))
 	}
 	pubPem, _ := pem.Decode(pubKey)
-	algoHash := sha3.Sum256(algo)
-	dataHash := sha3.Sum256(data)
+	algoHash, err := internal.Checksum(algoPath)
+	if err != nil {
+		log.Fatalf(fmt.Sprintf("failed to calculate checksum: %s", err))
+	}
+	dataHash, err := internal.Checksum(dataPath)
+	if err != nil {
+		log.Fatalf(fmt.Sprintf("failed to calculate checksum: %s", err))
+	}
 
 	l, err := vsock.Listen(manager.ManagerVsockPort, nil)
 	if err != nil {
@@ -57,8 +56,8 @@ func main() {
 	}
 	ac := agent.Computation{
 		ID:              "123",
-		Datasets:        agent.Datasets{agent.Dataset{Hash: dataHash, UserKey: pubPem.Bytes}},
-		Algorithm:       agent.Algorithm{Hash: algoHash, UserKey: pubPem.Bytes},
+		Datasets:        agent.Datasets{agent.Dataset{Hash: [32]byte(dataHash), UserKey: pubPem.Bytes}},
+		Algorithm:       agent.Algorithm{Hash: [32]byte(algoHash), UserKey: pubPem.Bytes},
 		ResultConsumers: []agent.ResultConsumer{{UserKey: pubPem.Bytes}},
 		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
@@ -66,7 +65,9 @@ func main() {
 			AttestedTls: attestedTLS,
 		},
 	}
-	fmt.Println(SendAgentConfig(3, ac))
+	if err := SendAgentConfig(3, ac); err != nil {
+		log.Fatal(err)
+	}
 
 	for {
 		conn, err := l.Accept()
@@ -74,18 +75,7 @@ func main() {
 			log.Println(err)
 			continue
 		}
-		b := make([]byte, 1024)
-		n, err := conn.Read(b)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		conn.Close()
-		var mes pkgmanager.ClientStreamMessage
-		if err := proto.Unmarshal(b[:n], &mes); err != nil {
-			log.Println(err)
-		}
-		fmt.Println(mes.String())
+		go handleConnections(conn)
 	}
 }
 
@@ -108,4 +98,22 @@ func SendAgentConfig(cid uint32, ac agent.Computation) error {
 		return err
 	}
 	return nil
+}
+
+func handleConnections(conn net.Conn) {
+	defer conn.Close()
+	for {
+		b := make([]byte, 1024)
+		n, err := conn.Read(b)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		var message pkgmanager.ClientStreamMessage
+		if err := proto.Unmarshal(b[:n], &message); err != nil {
+			log.Println(err)
+			return
+		}
+		fmt.Println(message.String())
+	}
 }
