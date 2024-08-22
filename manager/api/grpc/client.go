@@ -77,22 +77,8 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 					ComputationId: mes.StopComputation.ComputationId,
 				}}
 				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
-					if errors.Contains(err, manager.ErrNotFound) {
-						msg.StopComputationRes.Message = err.Error()
-						msg.StopComputationRes.Stopped = false
-						if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: msg}); err != nil {
-							return err
-						}
-						return nil
-					}
 					msg.StopComputationRes.Message = err.Error()
-					msg.StopComputationRes.Stopped = false
-					if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: msg}); err != nil {
-						return err
-					}
-					return err
 				}
-				msg.StopComputationRes.Stopped = true
 				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: msg}); err != nil {
 					return err
 				}

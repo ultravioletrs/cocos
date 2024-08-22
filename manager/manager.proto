@@ -23,8 +23,7 @@ message StopComputation {
 
 message StopComputationResponse {
   string computation_id = 1;
-  bool stopped = 2;
-  string message = 3;
+  string message = 2;
 }
 
 message RunResponse{
