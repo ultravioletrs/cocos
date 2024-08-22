@@ -115,7 +115,6 @@ func TestRun(t *testing.T) {
 
 			vmf.AssertExpectations(t)
 
-			// Clear the events channel
 			for len(eventsChan) > 0 {
 				<-eventsChan
 			}
@@ -189,7 +188,6 @@ func TestStop(t *testing.T) {
 				assert.Len(t, ms.vms, 0)
 			}
 
-			// Clear the events channel
 			for len(eventsChan) > 0 {
 				<-eventsChan
 			}

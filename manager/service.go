@@ -171,6 +171,7 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 		return ErrNotFound
 	}
 	if err := cvm.Stop(); err != nil {
+		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
 		return err
 	}
 	delete(ms.vms, computationID)
