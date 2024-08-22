@@ -73,7 +73,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
-	cmd.Flags().StringSliceVar(&algoArgs, "args", []string{}, "Arguments to pass to the algorithm")
+	cmd.Flags().StringArrayVar(&algoArgs, "args", []string{}, "Arguments to pass to the algorithm")
 
 	return cmd
 }

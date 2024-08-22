@@ -89,7 +89,7 @@ For addition example, you can use the following command:
 ```
 
 ```bash
-./build/cocos-cli algo ./test/manual/algo/addition.py ./private.pem -a python --args="--a,100,--b,20"
+./build/cocos-cli algo ./test/manual/algo/addition.py ./private.pem -a python --args="--a" --args="100" --args="--b" --args="20"
 ```
 
 ```bash
