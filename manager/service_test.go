@@ -115,7 +115,6 @@ func TestRun(t *testing.T) {
 
 			vmf.AssertExpectations(t)
 
-			// Clear the events channel
 			for len(eventsChan) > 0 {
 				<-eventsChan
 			}
@@ -124,6 +123,10 @@ func TestRun(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	vmf := new(mocks.Provider)
+	vmMock := new(mocks.VM)
+	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
+
 	tests := []struct {
 		name           string
 		computationID  string
@@ -156,8 +159,12 @@ func TestStop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger := slog.Default()
+			eventsChan := make(chan *manager.ClientStreamMessage, 10)
 			ms := &managerService{
-				vms: make(map[string]vm.VM),
+				logger:     logger,
+				vms:        make(map[string]vm.VM),
+				eventsChan: eventsChan,
 			}
 			vmMock := new(mocks.VM)
 
@@ -179,6 +186,10 @@ func TestStop(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, ms.vms, 0)
+			}
+
+			for len(eventsChan) > 0 {
+				<-eventsChan
 			}
 		})
 	}

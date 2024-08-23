@@ -167,12 +167,15 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 func (ms *managerService) Stop(ctx context.Context, computationID string) error {
 	cvm, ok := ms.vms[computationID]
 	if !ok {
+		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
 		return ErrNotFound
 	}
 	if err := cvm.Stop(); err != nil {
+		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
 		return err
 	}
 	delete(ms.vms, computationID)
+	defer ms.publishEvent("stop-computation", computationID, "complete", json.RawMessage{})
 	return nil
 }
 

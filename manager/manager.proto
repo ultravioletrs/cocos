@@ -21,6 +21,11 @@ message StopComputation {
   string computation_id = 1;
 }
 
+message StopComputationResponse {
+  string computation_id = 1;
+  string message = 2;
+}
+
 message RunResponse{
   string agent_port = 1;
   string computation_id = 2;
@@ -53,6 +58,7 @@ message ClientStreamMessage {
     AgentEvent agent_event = 2;
     RunResponse run_res = 3;
     BackendInfo backendInfo = 4;
+    StopComputationResponse stopComputationRes = 5;
   }
 }
 

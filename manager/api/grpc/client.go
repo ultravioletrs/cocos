@@ -73,7 +73,13 @@ func (client ManagerClient) Process(ctx context.Context, cancel context.CancelFu
 				cancel()
 				return errors.Wrap(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
 			case *pkgmanager.ServerStreamMessage_StopComputation:
+				msg := &pkgmanager.ClientStreamMessage_StopComputationRes{StopComputationRes: &pkgmanager.StopComputationResponse{
+					ComputationId: mes.StopComputation.ComputationId,
+				}}
 				if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
+					msg.StopComputationRes.Message = err.Error()
+				}
+				if err := client.stream.Send(&pkgmanager.ClientStreamMessage{Message: msg}); err != nil {
 					return err
 				}
 			case *pkgmanager.ServerStreamMessage_BackendInfoReq:
