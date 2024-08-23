@@ -1,5 +1,7 @@
 #!/bin/sh
 
+MOUNT_POINT="/cocos"
+
 # IFACES are all network interfaces excluding lo (LOOPBACK) and sit interfaces 
 IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')
 
@@ -15,3 +17,9 @@ for IFACE in $IFACES; do
         dhclient $IFACE
     fi
 done
+
+if [ ! -d "$MOUNT_POINT" ]; then
+    mkdir -p $MOUNT_POINT
+fi
+
+mount -t ramfs ramfs $MOUNT_POINT

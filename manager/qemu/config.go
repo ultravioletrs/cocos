@@ -173,7 +173,7 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-append", strconv.Quote("earlyprintk=serial console=ttyS0"))
+	args = append(args, "-append", strconv.Quote("quiet console=null rootfstype=ramfs"))
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// SEV
