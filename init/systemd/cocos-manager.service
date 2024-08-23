@@ -1,0 +1,12 @@
+[Unit]
+Description=Cocos Manager
+After=network.target
+
+[Service]
+ExecStart=cocos-manager
+Restart=on-failure
+RestartSec=5s
+EnvironmentFile=/etc/cocos/cocos-manager.env
+
+[Install]
+WantedBy=multi-user.target
