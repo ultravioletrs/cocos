@@ -19,6 +19,7 @@ var (
 	pythonRuntime    string
 	algoType         string
 	requirementsFile string
+	algoArgs         []string
 )
 
 func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
@@ -72,12 +73,14 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&algoType, "algorithm", "a", string(algorithm.AlgoTypeBin), "Algorithm type to run")
 	cmd.Flags().StringVar(&pythonRuntime, "python-runtime", python.PyRuntime, "Python runtime to use")
 	cmd.Flags().StringVarP(&requirementsFile, "requirements", "r", "", "Python requirements file")
+	cmd.Flags().StringArrayVar(&algoArgs, "args", []string{}, "Arguments to pass to the algorithm")
 
 	return cmd
 }
 
 func addAlgoMetadata(ctx context.Context) context.Context {
 	ctx = algorithm.AlgorithmTypeToContext(ctx, algoType)
+	ctx = algorithm.AlgorithmArgsToContext(ctx, algoArgs)
 	ctx = python.PythonRunTimeToContext(ctx, pythonRuntime)
 	return ctx
 }

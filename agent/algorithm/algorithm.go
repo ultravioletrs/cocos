@@ -16,6 +16,7 @@ const (
 	AlgoTypeWasm   AlgorithType = "wasm"
 	AlgoTypeDocker AlgorithType = "docker"
 	AlgoTypeKey                 = "algo_type"
+	AlgoArgsKey                 = "algo_args"
 
 	ResultsDir     = "results"
 	DatasetsDir    = "datasets"
@@ -28,6 +29,17 @@ func AlgorithmTypeToContext(ctx context.Context, algoType string) context.Contex
 
 func AlgorithmTypeFromContext(ctx context.Context) string {
 	return metadata.ValueFromIncomingContext(ctx, AlgoTypeKey)[0]
+}
+
+func AlgorithmArgsToContext(ctx context.Context, algoArgs []string) context.Context {
+	for _, arg := range algoArgs {
+		ctx = metadata.AppendToOutgoingContext(ctx, AlgoArgsKey, arg)
+	}
+	return ctx
+}
+
+func AlgorithmArgsFromContext(ctx context.Context) []string {
+	return metadata.ValueFromIncomingContext(ctx, AlgoArgsKey)
 }
 
 // Algorithm is an interface that specifies the API for an algorithm.

@@ -37,14 +37,16 @@ type python struct {
 	stdout           io.Writer
 	runtime          string
 	requirementsFile string
+	args             []string
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string, args []string) algorithm.Algorithm {
 	p := &python{
 		algoFile:         algoFile,
 		stderr:           &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:           &algorithm.Stdout{Logger: logger},
 		requirementsFile: requirementsFile,
+		args:             args,
 	}
 	if runtime != "" {
 		p.runtime = runtime
@@ -74,7 +76,8 @@ func (p *python) Run() error {
 		}
 	}
 
-	cmd := exec.Command(pythonPath, p.algoFile)
+	args := append([]string{p.algoFile}, p.args...)
+	cmd := exec.Command(pythonPath, args...)
 	cmd.Stderr = p.stderr
 	cmd.Stdout = p.stdout
 

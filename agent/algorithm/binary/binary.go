@@ -18,18 +18,20 @@ type binary struct {
 	algoFile string
 	stderr   io.Writer
 	stdout   io.Writer
+	args     []string
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string) algorithm.Algorithm {
 	return &binary{
 		algoFile: algoFile,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
+		args:     args,
 	}
 }
 
 func (b *binary) Run() error {
-	cmd := exec.Command(b.algoFile)
+	cmd := exec.Command(b.algoFile, b.args...)
 	cmd.Stderr = b.stderr
 	cmd.Stdout = b.stdout
 
