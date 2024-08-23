@@ -8,7 +8,7 @@ AGENT_VERSION = main
 AGENT_SITE = $(call github,ultravioletrs,cocos,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS 	
-	$(MAKE) -C $(@D) agent
+	$(MAKE) -C $(@D) agent EMBED_ENABLED=$(AGENT_EMBED_ENABLED)
 endef
 
 define AGENT_INSTALL_TARGET_CMDS

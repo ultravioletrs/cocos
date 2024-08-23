@@ -11,12 +11,14 @@ import (
 	"log/slog"
 
 	"github.com/absmach/magistrala/pkg/prometheus"
+	"github.com/google/go-sev-guest/client"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/agent/events"
+	"github.com/ultravioletrs/cocos/agent/quoteprovider"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
@@ -62,7 +64,13 @@ func main() {
 	}
 	defer eventSvc.Close()
 
-	svc := newService(ctx, logger, eventSvc, cfg)
+	qp, err := quoteprovider.GetQuoteProvider()
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
+		return
+	}
+
+	svc := newService(ctx, logger, eventSvc, cfg, qp)
 
 	grpcServerConfig := server.Config{
 		Port:         cfg.AgentConfig.Port,
@@ -85,7 +93,7 @@ func main() {
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, svc, authSvc)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, qp, authSvc)
 
 	g.Go(func() error {
 		return gs.Start()
@@ -100,8 +108,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp agent.Computation) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, cmp)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp agent.Computation, qp client.QuoteProvider) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, cmp, qp)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")

@@ -68,21 +68,23 @@ type Service interface {
 }
 
 type agentService struct {
-	computation Computation         // Holds the current computation manifest.
-	algorithm   algorithm.Algorithm // Filepath to the algorithm received for the computation.
-	result      []byte              // Stores the result of the computation.
-	sm          *StateMachine       // Manages the state transitions of the agent service.
-	runError    error               // Stores any error encountered during the computation run.
-	eventSvc    events.Service      // Service for publishing events related to computation.
+	computation   Computation          // Holds the current computation request details.
+	algorithm     algorithm.Algorithm  // Filepath to the algorithm received for the computation.
+	result        []byte               // Stores the result of the computation.
+	sm            *StateMachine        // Manages the state transitions of the agent service.
+	runError      error                // Stores any error encountered during the computation run.
+	eventSvc      events.Service       // Service for publishing events related to computation.
+	quoteProvider client.QuoteProvider // Provider for generating attestation quotes.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation, quoteProvider client.QuoteProvider) Service {
 	svc := &agentService{
-		sm:       NewStateMachine(logger, cmp),
-		eventSvc: eventSvc,
+		sm:            NewStateMachine(logger, cmp),
+		eventSvc:      eventSvc,
+		quoteProvider: quoteProvider,
 	}
 
 	go svc.sm.Start(ctx)
@@ -252,11 +254,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error) {
-	provider, err := client.GetQuoteProvider()
-	if err != nil {
-		return []byte{}, err
-	}
-	rawQuote, err := provider.GetRawQuote(reportData)
+	rawQuote, err := as.quoteProvider.GetRawQuote(reportData)
 	if err != nil {
 		return []byte{}, err
 	}
