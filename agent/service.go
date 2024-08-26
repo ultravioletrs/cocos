@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 
 	"github.com/google/go-sev-guest/client"
@@ -118,7 +119,12 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return ErrHashMismatch
 	}
 
-	f, err := os.Create("algorithm")
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current directory: %v", err)
+	}
+
+	f, err := os.Create(filepath.Join(currentDir, "algorithm"))
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
