@@ -124,7 +124,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error getting current directory: %v", err)
 	}
 
-	f, err := os.Create("algorithm")
+	f, err := os.Create(filepath.Join(currentDir, "algorithm"))
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
@@ -148,11 +148,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	args := algorithm.AlgorithmArgsFromContext(ctx)
 
-	filePath := filepath.Join(currentDir, f.Name())
-
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, filePath, args)
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypePython):
 		var requirementsFile string
 		if len(algo.Requirements) > 0 {
@@ -167,14 +165,14 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			if err := fr.Close(); err != nil {
 				return fmt.Errorf("error closing file: %v", err)
 			}
-			requirementsFile = filepath.Join(currentDir, fr.Name())
+			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, filePath, args)
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, filePath, args)
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypeDocker):
-		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, filePath)
+		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
