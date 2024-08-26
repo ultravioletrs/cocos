@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/google/go-sev-guest/client"
@@ -32,6 +33,7 @@ import (
 const (
 	svcName        = "agent"
 	defSvcGRPCPort = "7002"
+	retryInterval  = 5 * time.Second
 )
 
 func main() {
@@ -43,7 +45,7 @@ func main() {
 		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
 	}
 
-	conn, err := vsock.Dial(vsock.Host, manager.ManagerVsockPort, nil)
+	conn, err := dialVsock()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,6 +96,22 @@ func main() {
 	}
 
 	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, qp, authSvc)
+
+	g.Go(func() error {
+		for {
+			if _, err := io.Copy(io.Discard, conn); err != nil {
+				log.Printf("vsock connection lost: %v, reconnecting...", err)
+				conn.Close()
+				conn, err = dialVsock()
+				if err != nil {
+					log.Fatal("failed to reconnect: ", err)
+				}
+				handler = agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
+				logger = slog.New(handler)
+			}
+			time.Sleep(retryInterval)
+		}
+	})
 
 	g.Go(func() error {
 		return gs.Start()
@@ -157,4 +175,21 @@ func readConfig() (agent.Computation, error) {
 		ac.AgentConfig.Port = defSvcGRPCPort
 	}
 	return ac, nil
+}
+
+func dialVsock() (*vsock.Conn, error) {
+	var conn *vsock.Conn
+	var err error
+
+	for {
+		conn, err = vsock.Dial(vsock.Host, manager.ManagerVsockPort, nil)
+		if err == nil {
+			log.Println("vsock connection established")
+			break
+		}
+		log.Printf("vsock connection failed, retrying in %s... Error: %v", retryInterval, err)
+		time.Sleep(retryInterval)
+	}
+
+	return conn, nil
 }
