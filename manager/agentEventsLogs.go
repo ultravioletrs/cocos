@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
@@ -16,8 +15,6 @@ const (
 	ManagerVsockPort     = 9997
 	messageSize      int = 1024
 )
-
-var errFailedToParseCID = errors.New("failed to parse cid from remote address")
 
 // RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 func (ms *managerService) RetrieveAgentEventsLogs() {
