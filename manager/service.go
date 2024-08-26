@@ -63,7 +63,6 @@ type managerService struct {
 	qemuCfg                      qemu.Config
 	backendMeasurementBinaryPath string
 	logger                       *slog.Logger
-	agents                       map[int]string // agent map of vsock cid to computationID.
 	eventsChan                   chan *manager.ClientStreamMessage
 	vms                          map[string]vm.VM
 	vmFactory                    vm.Provider
@@ -82,7 +81,6 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 	ms := &managerService{
 		qemuCfg:                      cfg,
 		logger:                       logger,
-		agents:                       make(map[int]string),
 		vms:                          make(map[string]vm.VM),
 		eventsChan:                   eventsChan,
 		vmFactory:                    vmFactory,
@@ -146,8 +144,6 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", err
 	}
 	ms.vms[c.Id] = cvm
-
-	ms.agents[ms.qemuCfg.VSockConfig.GuestCID] = c.Id
 
 	err = backoff.Retry(func() error {
 		return cvm.SendAgentConfig(ac)

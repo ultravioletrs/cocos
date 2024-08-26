@@ -92,7 +92,6 @@ func TestRun(t *testing.T) {
 			ms := &managerService{
 				qemuCfg:    qemuCfg,
 				logger:     logger,
-				agents:     make(map[int]string),
 				vms:        make(map[string]vm.VM),
 				eventsChan: eventsChan,
 				vmFactory:  vmf.Execute,
@@ -110,7 +109,6 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotEmpty(t, port)
 				assert.Len(t, ms.vms, 1)
-				assert.Len(t, ms.agents, 1)
 			}
 
 			vmf.AssertExpectations(t)
