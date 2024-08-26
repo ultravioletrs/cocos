@@ -23,7 +23,7 @@ type binary struct {
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string) algorithm.Algorithm {
 	return &binary{
-		algoFile: algoFile,
+		algoFile: "./" + algoFile,
 		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
 		stdout:   &algorithm.Stdout{Logger: logger},
 		args:     args,
