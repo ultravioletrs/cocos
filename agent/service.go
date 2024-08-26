@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 
 	"github.com/google/go-sev-guest/client"
@@ -118,6 +119,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return ErrHashMismatch
 	}
 
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current directory: %v", err)
+	}
+
 	f, err := os.Create("algorithm")
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
@@ -142,9 +148,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	args := algorithm.AlgorithmArgsFromContext(ctx)
 
+	filePath := filepath.Join(currentDir, f.Name())
+
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, filePath, args)
 	case string(algorithm.AlgoTypePython):
 		var requirementsFile string
 		if len(algo.Requirements) > 0 {
@@ -159,14 +167,14 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			if err := fr.Close(); err != nil {
 				return fmt.Errorf("error closing file: %v", err)
 			}
-			requirementsFile = fr.Name()
+			requirementsFile = filepath.Join(currentDir, fr.Name())
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
+		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, filePath, args)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, filePath, args)
 	case string(algorithm.AlgoTypeDocker):
-		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, filePath)
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
