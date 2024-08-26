@@ -155,7 +155,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 		}
 
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify:    true,
+			InsecureSkipVerify:    false,
 			VerifyPeerCertificate: verifyAttestationReportTLS,
 		}
 
@@ -170,16 +170,6 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
 			}
 			tlsConfig.RootCAs = capool
-			secure = withaTLS
-		}
-
-		// Loading mTLS certificates file
-		if cfg.ClientCert != "" || cfg.ClientKey != "" {
-			certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
-			if err != nil {
-				return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
-			}
-			tlsConfig.Certificates = []tls.Certificate{certificate}
 			secure = withmaTLS
 		}
 

@@ -92,7 +92,7 @@ func (s *Server) Start() error {
 	creds := grpc.Creds(insecure.NewCredentials())
 
 	switch {
-	case s.Config.AttestedTLS && s.Config.CertFile != "" && s.Config.KeyFile != "":
+	case s.Config.AttestedTLS && (s.Config.ClientCAFile != "" || s.Config.ServerCAFile != ""):
 		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.agent)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
@@ -103,7 +103,38 @@ func (s *Server) Start() error {
 			return fmt.Errorf("falied due to invalid key pair: %w", err)
 		}
 
-		tlsConfig, err := s.setupTLSConfig()
+		tlsConfig := &tls.Config{
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			Certificates: []tls.Certificate{certificate},
+		}
+
+		rootCA, err := loadCertFile(s.Config.ServerCAFile)
+		if err != nil {
+			return fmt.Errorf("failed to load root ca file: %w", err)
+		}
+		if len(rootCA) > 0 {
+			if tlsConfig.RootCAs == nil {
+				tlsConfig.RootCAs = x509.NewCertPool()
+			}
+			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
+				return fmt.Errorf("failed to append root ca to tls.Config")
+			}
+		}
+
+		// Loading Client CA File
+		clientCA, err := loadCertFile(s.Config.ClientCAFile)
+		if err != nil {
+			return fmt.Errorf("failed to load client ca file: %w", err)
+		}
+		if len(clientCA) > 0 {
+			if tlsConfig.ClientCAs == nil {
+				tlsConfig.ClientCAs = x509.NewCertPool()
+			}
+			if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
+				return fmt.Errorf("failed to append client ca to tls.Config")
+			}
+		}
+
 		if err != nil {
 			return err
 		}
