@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/pkg/prometheus"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-sev-guest/client"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
@@ -181,14 +182,17 @@ func dialVsock() (*vsock.Conn, error) {
 	var conn *vsock.Conn
 	var err error
 
-	for {
+	err = backoff.Retry(func() error {
 		conn, err = vsock.Dial(vsock.Host, manager.ManagerVsockPort, nil)
 		if err == nil {
 			log.Println("vsock connection established")
-			break
+			return nil
 		}
 		log.Printf("vsock connection failed, retrying in %s... Error: %v", retryInterval, err)
-		time.Sleep(retryInterval)
+		return err
+	}, backoff.NewExponentialBackOff())
+	if err != nil {
+		return nil, err
 	}
 
 	return conn, nil
