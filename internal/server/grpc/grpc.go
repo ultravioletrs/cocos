@@ -93,7 +93,7 @@ func (s *Server) Start() error {
 
 	switch {
 	case s.Config.AttestedTLS && (s.Config.ClientCAFile != "" || s.Config.ServerCAFile != ""):
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.agent)
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.quoteProvider)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
 		}
