@@ -54,7 +54,7 @@ func main() {
 		log.Println(err)
 		return
 	}
-	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level})
+	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
 	logger := slog.New(handler)
 
 	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)

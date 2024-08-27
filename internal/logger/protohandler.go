@@ -15,17 +15,19 @@ import (
 var _ slog.Handler = (*handler)(nil)
 
 type handler struct {
-	opts slog.HandlerOptions
-	w    io.Writer
+	opts  slog.HandlerOptions
+	w     io.Writer
+	cmpID string
 }
 
-func NewProtoHandler(w io.Writer, opts *slog.HandlerOptions) slog.Handler {
+func NewProtoHandler(w io.Writer, opts *slog.HandlerOptions, cmpID string) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
 	return &handler{
-		opts: *opts,
-		w:    w,
+		opts:  *opts,
+		w:     w,
+		cmpID: cmpID,
 	}
 }
 
@@ -62,9 +64,10 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		agentLog := manager.ClientStreamMessage{
 			Message: &manager.ClientStreamMessage_AgentLog{
 				AgentLog: &manager.AgentLog{
-					Timestamp: timestamp,
-					Message:   chunk,
-					Level:     level,
+					Timestamp:     timestamp,
+					Message:       chunk,
+					Level:         level,
+					ComputationId: h.cmpID,
 				},
 			},
 		}
