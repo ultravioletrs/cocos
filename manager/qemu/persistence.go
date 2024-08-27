@@ -27,7 +27,7 @@ type Persistence interface {
 }
 
 func NewFilePersistence(dir string) (Persistence, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	return &FilePersistence{dir: dir}, nil
@@ -42,7 +42,7 @@ func (fp *FilePersistence) SaveVM(state VMState) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(fp.dir, state.ID+".json"), data, 0644)
+	return os.WriteFile(filepath.Join(fp.dir, state.ID+".json"), data, 0o644)
 }
 
 func (fp *FilePersistence) LoadVMs() ([]VMState, error) {
