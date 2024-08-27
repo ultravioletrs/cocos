@@ -129,6 +129,7 @@ func TestRun(t *testing.T) {
 func TestStop(t *testing.T) {
 	vmf := new(mocks.Provider)
 	vmMock := new(mocks.VM)
+	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 
 	tests := []struct {
@@ -166,9 +167,10 @@ func TestStop(t *testing.T) {
 			logger := slog.Default()
 			eventsChan := make(chan *manager.ClientStreamMessage, 10)
 			ms := &managerService{
-				logger:     logger,
-				vms:        make(map[string]vm.VM),
-				eventsChan: eventsChan,
+				logger:      logger,
+				vms:         make(map[string]vm.VM),
+				eventsChan:  eventsChan,
+				persistence: persistence,
 			}
 			vmMock := new(mocks.VM)
 
@@ -177,6 +179,8 @@ func TestStop(t *testing.T) {
 			} else {
 				vmMock.On("Stop").Return(assert.AnError).Once()
 			}
+
+			persistence.On("DeleteVM", tt.computationID).Return(nil)
 
 			if tt.initialVMCount > 0 {
 				ms.vms[tt.computationID] = vmMock
