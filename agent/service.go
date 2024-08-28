@@ -124,7 +124,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error getting current directory: %v", err)
 	}
 
-	f, err := os.Create(filepath.Join(currentDir, "algorithm"))
+	f, err := os.Create(filepath.Join(currentDir, "algo"))
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
@@ -317,8 +317,9 @@ func (as *agentService) runComputation() {
 }
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
+	st := as.sm.GetState().String()
 	return func() {
-		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
+		if err := as.eventSvc.SendEvent(st, status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

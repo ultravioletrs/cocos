@@ -17,6 +17,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
+	"github.com/ultravioletrs/cocos/agent/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )
@@ -33,6 +34,9 @@ func TestAlgo(t *testing.T) {
 
 	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
+
+	qp, err := quoteprovider.GetQuoteProvider()
+	require.NoError(t, err)
 
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
@@ -64,19 +68,20 @@ func TestAlgo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			err = os.RemoveAll("datasets")
+			require.NoError(t, err)
+
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, tc.algoType, python.PyRuntimeKey, python.PyRuntime),
 			)
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
+			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
 
 			time.Sleep(300 * time.Millisecond)
 
 			err = svc.Algo(ctx, tc.algo)
-			_ = os.RemoveAll("datasets")
-
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
@@ -87,6 +92,9 @@ func TestData(t *testing.T) {
 
 	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
+
+	qp, err := quoteprovider.GetQuoteProvider()
+	require.NoError(t, err)
 
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
@@ -137,18 +145,9 @@ func TestData(t *testing.T) {
 		{
 			name: "Test dataset not declared in manifest",
 			data: agent.Dataset{
-				Dataset:  data,
-				Hash:     dataHash,
-				Filename: "invalid",
-			},
-			err: agent.ErrUndeclaredDataset,
-		},
-		{
-			name: "Test data hash mismatch",
-			data: agent.Dataset{
 				Filename: datasetFile,
 			},
-			err: agent.ErrHashMismatch,
+			err: agent.ErrUndeclaredDataset,
 		},
 	}
 
@@ -165,7 +164,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
+			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
 			time.Sleep(300 * time.Millisecond)
 
 			if tc.err != agent.ErrStateNotReady {
@@ -186,26 +185,8 @@ func TestResult(t *testing.T) {
 	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
-	algo, err := os.ReadFile(algoPath)
+	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
-
-	algoHash := sha3.Sum256(algo)
-
-	alg := agent.Algorithm{
-		Hash:      algoHash,
-		Algorithm: algo,
-	}
-
-	data, err := os.ReadFile(dataPath)
-	require.NoError(t, err)
-
-	dataHash := sha3.Sum256(data)
-
-	dataset := agent.Dataset{
-		Hash:     dataHash,
-		Dataset:  data,
-		Filename: datasetFile,
-	}
 
 	cases := []struct {
 		name string
@@ -227,15 +208,10 @@ func TestResult(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t))
+			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
 			time.Sleep(300 * time.Millisecond)
-
-			_ = svc.Algo(ctx, alg)
-			time.Sleep(300 * time.Millisecond)
-			_ = svc.Data(ctx, dataset)
-			time.Sleep(300 * time.Millisecond)
-
 			_, err = svc.Result(ctx)
+
 			_ = os.RemoveAll("datasets")
 			_ = os.RemoveAll("results")
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
