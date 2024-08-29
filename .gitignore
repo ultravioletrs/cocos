@@ -10,3 +10,4 @@ cmd/manager/img
 dist/
 results.zip
 *.spec
+*.tar
