@@ -55,6 +55,8 @@ var (
 	ErrFileNameMismatch = errors.New("malformed data, filename does not match manifest")
 	// ErrAllResultsConsumed indicates all results have been consumed.
 	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
+	// ErrAttestationFailed attestation failed.
+	ErrAttestationFailed = errors.New("failed to get raw quote")
 )
 
 // Service specifies an API that must be fullfiled by the domain service

@@ -4,7 +4,8 @@ package agent_test
 
 import (
 	"context"
-	"fmt"
+	"crypto/rand"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -18,16 +19,16 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
+	amocks "github.com/ultravioletrs/cocos/agent/mocks"
 	"github.com/ultravioletrs/cocos/agent/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )
 
 var (
-	algoPath       = "../test/manual/algo/lin_reg.py"
-	reqPath        = "../test/manual/algo/requirements.txt"
-	dataPath       = "../test/manual/data/iris.csv"
-	zippedDataPath = "../test/manual/data/iris.zip"
+	algoPath = "../test/manual/algo/lin_reg.py"
+	reqPath  = "../test/manual/algo/requirements.txt"
+	dataPath = "../test/manual/data/iris.csv"
 )
 
 const datasetFile = "iris.csv"
@@ -154,16 +155,10 @@ func TestData(t *testing.T) {
 
 	dataHash := sha3.Sum256(data)
 
-	zippedData, err := os.ReadFile(zippedDataPath)
-	require.NoError(t, err)
-
-	zippedHash := sha3.Sum256(zippedData)
-
 	cases := []struct {
-		name   string
-		data   agent.Dataset
-		zipped bool
-		err    error
+		name string
+		data agent.Dataset
+		err  error
 	}{
 		{
 			name: "Test data successfully",
@@ -172,16 +167,6 @@ func TestData(t *testing.T) {
 				Dataset:  data,
 				Filename: datasetFile,
 			},
-			zipped: false,
-		},
-		{
-			name: "Test zipped data successfully",
-			data: agent.Dataset{
-				Hash:     zippedHash,
-				Dataset:  zippedData,
-				Filename: "iris.zip",
-			},
-			zipped: true,
 		},
 		{
 			name: "Test State not ready",
@@ -190,8 +175,7 @@ func TestData(t *testing.T) {
 				Hash:     dataHash,
 				Filename: datasetFile,
 			},
-			zipped: false,
-			err:    agent.ErrStateNotReady,
+			err: agent.ErrStateNotReady,
 		},
 		{
 			name: "Test File name does not match manifest",
@@ -200,16 +184,14 @@ func TestData(t *testing.T) {
 				Hash:     dataHash,
 				Filename: "invalid",
 			},
-			zipped: false,
-			err:    agent.ErrFileNameMismatch,
+			err: agent.ErrFileNameMismatch,
 		},
 		{
 			name: "Test dataset not declared in manifest",
 			data: agent.Dataset{
 				Filename: datasetFile,
 			},
-			zipped: false,
-			err:    agent.ErrUndeclaredDataset,
+			err: agent.ErrUndeclaredDataset,
 		},
 	}
 
@@ -220,7 +202,6 @@ func TestData(t *testing.T) {
 					algorithm.AlgoTypeKey, "python",
 					python.PyRuntimeKey, python.PyRuntime,
 					agent.DecompressKey,
-					fmt.Sprintf("%t", tc.zipped),
 				),
 			)
 
@@ -232,11 +213,6 @@ func TestData(t *testing.T) {
 			defer cancel()
 
 			comp := testComputation(t)
-
-			if tc.zipped {
-				comp.Datasets[0].Filename = "iris.zip"
-				comp.Datasets[0].Hash = zippedHash
-			}
 
 			svc := agent.New(ctx, mglog.NewMock(), events, comp, qp)
 			time.Sleep(300 * time.Millisecond)
@@ -283,14 +259,72 @@ func TestResult(t *testing.T) {
 			defer cancel()
 
 			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+
 			time.Sleep(300 * time.Millisecond)
-			_, err = svc.Result(ctx)
+			_, err := svc.Result(ctx)
 
 			_ = os.RemoveAll("datasets")
 			_ = os.RemoveAll("results")
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
+}
+
+func TestAttestation(t *testing.T) {
+	events := new(mocks.Service)
+	qp := new(amocks.QuoteProvider)
+
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	defer evCall.Unset()
+
+	cases := []struct {
+		name       string
+		reportData [agent.ReportDataSize]byte
+		rawQuote   []uint8
+		err        error
+	}{
+		{
+			name:       "Test attestation successful",
+			reportData: generateReportData(),
+			rawQuote:   make([]uint8, 0),
+			err:        nil,
+		},
+		{
+			name:       "Test attestation failed",
+			reportData: generateReportData(),
+			rawQuote:   nil,
+			err:        agent.ErrAttestationFailed,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := metadata.NewIncomingContext(context.Background(),
+				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
+			)
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			getQuote := qp.On("GetRawQuote", mock.Anything).Return(tc.rawQuote, tc.err)
+			if tc.err != agent.ErrAttestationFailed {
+				getQuote = qp.On("GetRawQuote", mock.Anything).Return(tc.reportData, nil)
+			}
+			defer getQuote.Unset()
+
+			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			time.Sleep(300 * time.Millisecond)
+			_, err := svc.Attestation(ctx, tc.reportData)
+			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+		})
+	}
+}
+
+func generateReportData() [agent.ReportDataSize]byte {
+	bytes := make([]byte, agent.ReportDataSize)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		log.Fatalf("Failed to generate random bytes: %v", err)
+	}
+	return [64]byte(bytes)
 }
 
 func testComputation(t *testing.T) agent.Computation {
