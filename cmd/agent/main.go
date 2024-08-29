@@ -62,10 +62,11 @@ func main() {
 		exitCode = 1
 		return
 	}
-	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
+	safeConn := &agentlogger.SafeConn{Conn: conn}
+	handler := agentlogger.NewProtoHandler(safeConn, &slog.HandlerOptions{Level: level}, cfg.ID)
 	logger := slog.New(handler)
 
-	eventSvc, err := events.New(svcName, cfg.ID, conn)
+	eventSvc, err := events.New(svcName, cfg.ID, safeConn)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		exitCode = 1

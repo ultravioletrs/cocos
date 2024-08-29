@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package events
 
 import (
@@ -5,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mdlayher/vsock"
+	"github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,7 +18,7 @@ const retryInterval = 5 * time.Second
 type service struct {
 	service        string
 	computationID  string
-	conn           *vsock.Conn
+	conn           *logger.SafeConn
 	cachedMessages [][]byte
 	mutex          sync.Mutex
 	stopRetry      chan struct{}
@@ -31,12 +33,13 @@ type AgentEvent struct {
 	Status        string          `json:"status,omitempty"`
 }
 
+//go:generate mockery --name Service --output=./mocks --filename events.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
-	Close() error
+	Close()
 }
 
-func New(svc, computationID string, conn *vsock.Conn) (Service, error) {
+func New(svc, computationID string, conn *logger.SafeConn) (Service, error) {
 	s := &service{
 		service:        svc,
 		computationID:  computationID,
@@ -67,11 +70,12 @@ func (s *service) SendEvent(event, status string, details json.RawMessage) error
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if _, err := s.conn.Write(protoBody); err != nil {
-		// If sending fails, cache the message
+	s.conn.Mu.Lock()
+	if _, err := s.conn.Conn.Write(protoBody); err != nil {
 		s.cachedMessages = append(s.cachedMessages, protoBody)
 		return err
 	}
+	s.conn.Mu.Unlock()
 
 	return nil
 }
@@ -95,15 +99,16 @@ func (s *service) retrySendCachedMessages() {
 	defer s.mutex.Unlock()
 
 	for i := 0; i < len(s.cachedMessages); {
-		if _, err := s.conn.Write(s.cachedMessages[i]); err != nil {
+		s.conn.Mu.Lock()
+		if _, err := s.conn.Conn.Write(s.cachedMessages[i]); err != nil {
 			i++
 		} else {
 			s.cachedMessages = append(s.cachedMessages[:i], s.cachedMessages[i+1:]...)
 		}
+		s.conn.Mu.Unlock()
 	}
 }
 
-func (s *service) Close() error {
+func (s *service) Close() {
 	close(s.stopRetry)
-	return s.conn.Close()
 }
