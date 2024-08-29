@@ -57,9 +57,13 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
+	var exitCode int
+	defer mglog.ExitWithError(&exitCode)
+
 	if cfg.InstanceID == "" {
 		if cfg.InstanceID, err = uuid.New().ID(); err != nil {
 			logger.Error(fmt.Sprintf("Failed to generate instance ID: %s", err))
+			exitCode = 1
 			return
 		}
 	}
@@ -78,6 +82,7 @@ func main() {
 	qemuCfg := qemu.Config{}
 	if err := env.ParseWithOptions(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
+		exitCode = 1
 		return
 	}
 	args := qemuCfg.ConstructQemuArgs()
@@ -86,12 +91,14 @@ func main() {
 	managerGRPCConfig := grpc.Config{}
 	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		exitCode = 1
 		return
 	}
 
 	managerGRPCClient, managerClient, err := managergrpc.NewManagerClient(managerGRPCConfig)
 	if err != nil {
 		logger.Error(err.Error())
+		exitCode = 1
 		return
 	}
 	defer managerGRPCClient.Close()
@@ -99,6 +106,7 @@ func main() {
 	pc, err := managerClient.Process(ctx)
 	if err != nil {
 		logger.Error(err.Error())
+		exitCode = 1
 		return
 	}
 
@@ -106,6 +114,7 @@ func main() {
 	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
 	if err != nil {
 		logger.Error(err.Error())
+		exitCode = 1
 		return
 	}
 
