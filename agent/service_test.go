@@ -4,6 +4,7 @@ package agent_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -23,8 +24,10 @@ import (
 )
 
 var (
-	algoPath = "../test/manual/algo/lin_reg.py"
-	dataPath = "../test/manual/data/iris.csv"
+	algoPath       = "../test/manual/algo/lin_reg.py"
+	reqPath        = "../test/manual/algo/requirements.txt"
+	dataPath       = "../test/manual/data/iris.csv"
+	zippedDataPath = "../test/manual/data/iris.zip"
 )
 
 const datasetFile = "iris.csv"
@@ -43,6 +46,9 @@ func TestAlgo(t *testing.T) {
 
 	algoHash := sha3.Sum256(algo)
 
+	reqFile, err := os.ReadFile(reqPath)
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name     string
 		err      error
@@ -56,6 +62,43 @@ func TestAlgo(t *testing.T) {
 				Hash:      algoHash,
 			},
 			algoType: "python",
+			err:      nil,
+		},
+		{
+			name: "Test Algo successfully with requirements file",
+			algo: agent.Algorithm{
+				Algorithm:    algo,
+				Hash:         algoHash,
+				Requirements: reqFile,
+			},
+			algoType: "python",
+			err:      nil,
+		},
+		{
+			name: "Test Algo type binary successfully",
+			algo: agent.Algorithm{
+				Algorithm: algo,
+				Hash:      algoHash,
+			},
+			algoType: "bin",
+			err:      nil,
+		},
+		{
+			name: "Test Algo type wasm successfully",
+			algo: agent.Algorithm{
+				Algorithm: algo,
+				Hash:      algoHash,
+			},
+			algoType: "wasm",
+			err:      nil,
+		},
+		{
+			name: "Test Algo type docker successfully",
+			algo: agent.Algorithm{
+				Algorithm: algo,
+				Hash:      algoHash,
+			},
+			algoType: "docker",
 			err:      nil,
 		},
 		{
@@ -111,10 +154,16 @@ func TestData(t *testing.T) {
 
 	dataHash := sha3.Sum256(data)
 
+	zippedData, err := os.ReadFile(zippedDataPath)
+	require.NoError(t, err)
+
+	zippedHash := sha3.Sum256(zippedData)
+
 	cases := []struct {
-		name string
-		data agent.Dataset
-		err  error
+		name   string
+		data   agent.Dataset
+		zipped bool
+		err    error
 	}{
 		{
 			name: "Test data successfully",
@@ -123,6 +172,16 @@ func TestData(t *testing.T) {
 				Dataset:  data,
 				Filename: datasetFile,
 			},
+			zipped: false,
+		},
+		{
+			name: "Test zipped data successfully",
+			data: agent.Dataset{
+				Hash:     zippedHash,
+				Dataset:  zippedData,
+				Filename: "iris.zip",
+			},
+			zipped: true,
 		},
 		{
 			name: "Test State not ready",
@@ -131,7 +190,8 @@ func TestData(t *testing.T) {
 				Hash:     dataHash,
 				Filename: datasetFile,
 			},
-			err: agent.ErrStateNotReady,
+			zipped: false,
+			err:    agent.ErrStateNotReady,
 		},
 		{
 			name: "Test File name does not match manifest",
@@ -140,21 +200,28 @@ func TestData(t *testing.T) {
 				Hash:     dataHash,
 				Filename: "invalid",
 			},
-			err: agent.ErrFileNameMismatch,
+			zipped: false,
+			err:    agent.ErrFileNameMismatch,
 		},
 		{
 			name: "Test dataset not declared in manifest",
 			data: agent.Dataset{
 				Filename: datasetFile,
 			},
-			err: agent.ErrUndeclaredDataset,
+			zipped: false,
+			err:    agent.ErrUndeclaredDataset,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
-				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
+				metadata.Pairs(
+					algorithm.AlgoTypeKey, "python",
+					python.PyRuntimeKey, python.PyRuntime,
+					agent.DecompressKey,
+					fmt.Sprintf("%t", tc.zipped),
+				),
 			)
 
 			if tc.err != agent.ErrUndeclaredDataset {
@@ -164,7 +231,14 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			comp := testComputation(t)
+
+			if tc.zipped {
+				comp.Datasets[0].Filename = "iris.zip"
+				comp.Datasets[0].Hash = zippedHash
+			}
+
+			svc := agent.New(ctx, mglog.NewMock(), events, comp, qp)
 			time.Sleep(300 * time.Millisecond)
 
 			if tc.err != agent.ErrStateNotReady {
