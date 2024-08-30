@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"time"
 
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-sev-guest/client"
@@ -52,9 +53,13 @@ func main() {
 	}
 	defer conn.Close()
 
+	var exitCode int
+	defer mglog.ExitWithError(&exitCode)
+
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(cfg.AgentConfig.LogLevel)); err != nil {
 		log.Println(err)
+		exitCode = 1
 		return
 	}
 	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
@@ -63,6 +68,7 @@ func main() {
 	eventSvc, err := events.New(svcName, cfg.ID, manager.ManagerVsockPort)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
+		exitCode = 1
 		return
 	}
 	defer eventSvc.Close()
@@ -70,6 +76,7 @@ func main() {
 	qp, err := quoteprovider.GetQuoteProvider()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
+		exitCode = 1
 		return
 	}
 
@@ -93,6 +100,7 @@ func main() {
 	authSvc, err := auth.New(cfg)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
+		exitCode = 1
 		return
 	}
 
