@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+const jsonExt = ".json"
+
 type VMState struct {
 	ID     string
 	Config Config
@@ -45,7 +47,7 @@ func (fp *FilePersistence) SaveVM(state VMState) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(fp.dir, state.ID+".json"), data, 0o644)
+	return os.WriteFile(filepath.Join(fp.dir, state.ID+jsonExt), data, 0o644)
 }
 
 func (fp *FilePersistence) LoadVMs() ([]VMState, error) {
@@ -59,7 +61,7 @@ func (fp *FilePersistence) LoadVMs() ([]VMState, error) {
 
 	var states []VMState
 	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".json" {
+		if filepath.Ext(file.Name()) != jsonExt {
 			continue
 		}
 
@@ -83,5 +85,5 @@ func (fp *FilePersistence) DeleteVM(id string) error {
 	fp.lock.Lock()
 	defer fp.lock.Unlock()
 
-	return os.Remove(filepath.Join(fp.dir, id+".json"))
+	return os.Remove(filepath.Join(fp.dir, id+jsonExt))
 }
