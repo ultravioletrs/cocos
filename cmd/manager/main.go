@@ -109,7 +109,7 @@ func main() {
 		return
 	}
 
-	mc := managerapi.NewClient(pc, svc, eventsChan)
+	mc := managerapi.NewClient(pc, svc, eventsChan, logger)
 
 	g.Go(func() error {
 		return mc.Process(ctx, cancel)
