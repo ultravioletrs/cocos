@@ -4,11 +4,11 @@ package logger
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -18,27 +18,22 @@ const retryInterval = 5 * time.Second
 
 var _ slog.Handler = (*handler)(nil)
 
-type SafeConn struct {
-	Mu   sync.Mutex
-	Conn *vsock.Conn
-}
-
 type handler struct {
 	opts           slog.HandlerOptions
-	w              *SafeConn
+	w              io.Writer
 	cmpID          string
 	cachedMessages [][]byte
 	mutex          sync.Mutex
 	stopRetry      chan struct{}
 }
 
-func NewProtoHandler(conn *SafeConn, opts *slog.HandlerOptions, cmpID string) slog.Handler {
+func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, cmpID string) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
 	h := &handler{
 		opts:           *opts,
-		w:              &SafeConn{},
+		w:              conn,
 		cmpID:          cmpID,
 		cachedMessages: make([][]byte, 0),
 		stopRetry:      make(chan struct{}),
@@ -91,9 +86,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		}
 
 		h.mutex.Lock()
-		h.w.Mu.Lock()
-		_, err = h.w.Conn.Write(b)
-		h.w.Mu.Unlock()
+		_, err = h.w.Write(b)
 		if err != nil {
 			h.cachedMessages = append(h.cachedMessages, b)
 		}
@@ -122,9 +115,7 @@ func (h *handler) retrySendCachedMessages() {
 	defer h.mutex.Unlock()
 
 	for i := 0; i < len(h.cachedMessages); {
-		h.w.Mu.Lock()
-		_, err := h.w.Conn.Write(h.cachedMessages[i])
-		h.w.Mu.Unlock()
+		_, err := h.w.Write(h.cachedMessages[i])
 		if err != nil {
 			i++
 		} else {
