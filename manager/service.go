@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
@@ -23,7 +25,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const hashLength = 32
+const (
+	hashLength     = 32
+	persistenceDir = "/tmp/cocos"
+)
 
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
@@ -68,6 +73,7 @@ type managerService struct {
 	vmFactory                    vm.Provider
 	portRangeMin                 int
 	portRangeMax                 int
+	persistence                  qemu.Persistence
 }
 
 var _ Service = (*managerService)(nil)
@@ -78,6 +84,12 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 	if err != nil {
 		return nil, err
 	}
+
+	persistence, err := qemu.NewFilePersistence(persistenceDir)
+	if err != nil {
+		return nil, err
+	}
+
 	ms := &managerService{
 		qemuCfg:                      cfg,
 		logger:                       logger,
@@ -87,7 +99,13 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 		backendMeasurementBinaryPath: backendMeasurementBinPath,
 		portRangeMin:                 start,
 		portRangeMax:                 end,
+		persistence:                  persistence,
 	}
+
+	if err := ms.restoreVMs(); err != nil {
+		return nil, err
+	}
+
 	return ms, nil
 }
 
@@ -127,6 +145,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
+	ms.qemuCfg.VSockConfig.GuestCID = qemu.BaseGuestCID + len(ms.vms)
 
 	ch, err := computationHash(ac)
 	if err != nil {
@@ -145,13 +164,24 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	}
 	ms.vms[c.Id] = cvm
 
+	pid := cvm.GetProcess()
+
+	state := qemu.VMState{
+		ID:     c.Id,
+		Config: ms.qemuCfg,
+		PID:    pid,
+	}
+	if err := ms.persistence.SaveVM(state); err != nil {
+		ms.logger.Error("Failed to persist VM state", "error", err)
+	}
+
 	err = backoff.Retry(func() error {
 		return cvm.SendAgentConfig(ac)
 	}, backoff.NewExponentialBackOff())
 	if err != nil {
 		return "", err
 	}
-	ms.qemuCfg.VSockConfig.GuestCID++
+
 	ms.qemuCfg.VSockConfig.Vnc++
 
 	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
@@ -169,6 +199,11 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 		return err
 	}
 	delete(ms.vms, computationID)
+
+	if err := ms.persistence.DeleteVM(computationID); err != nil {
+		ms.logger.Error("Failed to delete persisted VM state", "error", err)
+	}
+
 	defer ms.publishEvent("stop-computation", computationID, "complete", json.RawMessage{})
 	return nil
 }
@@ -263,4 +298,54 @@ func decodeRange(input string) (int, int, error) {
 	}
 
 	return start, end, nil
+}
+
+func (ms *managerService) restoreVMs() error {
+	states, err := ms.persistence.LoadVMs()
+	if err != nil {
+		return err
+	}
+
+	for _, state := range states {
+		exists, err := processExists(state.PID)
+		if err != nil {
+			ms.logger.Warn("Failed to check process existence", "computation", state.ID, "pid", state.PID, "error", err)
+			continue
+		}
+
+		if !exists {
+			if err := ms.persistence.DeleteVM(state.ID); err != nil {
+				ms.logger.Error("Failed to delete persisted VM state", "computation", state.ID, "error", err)
+			}
+			ms.logger.Info("Deleted persisted state for non-existent process", "computation", state.ID, "pid", state.PID)
+			continue
+		}
+
+		cvm := ms.vmFactory(state.Config, ms.eventsChan, state.ID)
+
+		if err = cvm.SetProcess(state.PID); err != nil {
+			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)
+			continue
+		}
+
+		ms.vms[state.ID] = cvm
+		ms.logger.Info("Successfully restored VM state", "id", state.ID, "computationId", state.ID, "pid", state.PID)
+	}
+
+	return nil
+}
+
+func processExists(pid int) (bool, error) {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false, err
+	}
+
+	if err = process.Signal(syscall.Signal(0)); err == nil {
+		return true, nil
+	}
+	if err == syscall.ESRCH {
+		return false, nil
+	}
+	return false, err
 }

@@ -10,7 +10,9 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/jaeger"
@@ -119,6 +121,21 @@ func main() {
 	}
 
 	mc := managerapi.NewClient(pc, svc, eventsChan, logger)
+
+	g.Go(func() error {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(ch)
+
+		select {
+		case <-ch:
+			logger.Info("Received signal, shutting down...")
+			cancel()
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
 
 	g.Go(func() error {
 		return mc.Process(ctx, cancel)

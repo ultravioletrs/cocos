@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+const BaseGuestCID = 3
+
 type MemoryConfig struct {
 	Size  string `env:"MEMORY_SIZE"  envDefault:"2048M"`
 	Slots int    `env:"MEMORY_SLOTS" envDefault:"5"`

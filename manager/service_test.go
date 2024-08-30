@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 	"github.com/ultravioletrs/cocos/pkg/manager"
@@ -35,6 +36,7 @@ func TestNew(t *testing.T) {
 func TestRun(t *testing.T) {
 	vmf := new(mocks.Provider)
 	vmMock := new(mocks.VM)
+	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {
 		name          string
@@ -79,6 +81,9 @@ func TestRun(t *testing.T) {
 			}
 
 			vmMock.On("SendAgentConfig", mock.Anything).Return(nil)
+			vmMock.On("GetProcess").Return(1234)
+
+			persistence.On("SaveVM", mock.Anything).Return(nil)
 
 			qemuCfg := qemu.Config{
 				VSockConfig: qemu.VSockConfig{
@@ -90,11 +95,12 @@ func TestRun(t *testing.T) {
 			eventsChan := make(chan *manager.ClientStreamMessage, 10)
 
 			ms := &managerService{
-				qemuCfg:    qemuCfg,
-				logger:     logger,
-				vms:        make(map[string]vm.VM),
-				eventsChan: eventsChan,
-				vmFactory:  vmf.Execute,
+				qemuCfg:     qemuCfg,
+				logger:      logger,
+				vms:         make(map[string]vm.VM),
+				eventsChan:  eventsChan,
+				vmFactory:   vmf.Execute,
+				persistence: persistence,
 			}
 
 			ctx := context.Background()
@@ -123,6 +129,7 @@ func TestRun(t *testing.T) {
 func TestStop(t *testing.T) {
 	vmf := new(mocks.Provider)
 	vmMock := new(mocks.VM)
+	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 
 	tests := []struct {
@@ -160,9 +167,10 @@ func TestStop(t *testing.T) {
 			logger := slog.Default()
 			eventsChan := make(chan *manager.ClientStreamMessage, 10)
 			ms := &managerService{
-				logger:     logger,
-				vms:        make(map[string]vm.VM),
-				eventsChan: eventsChan,
+				logger:      logger,
+				vms:         make(map[string]vm.VM),
+				eventsChan:  eventsChan,
+				persistence: persistence,
 			}
 			vmMock := new(mocks.VM)
 
@@ -171,6 +179,8 @@ func TestStop(t *testing.T) {
 			} else {
 				vmMock.On("Stop").Return(assert.AnError).Once()
 			}
+
+			persistence.On("DeleteVM", tt.computationID).Return(nil)
 
 			if tt.initialVMCount > 0 {
 				ms.vms[tt.computationID] = vmMock

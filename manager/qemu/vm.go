@@ -4,6 +4,7 @@ package qemu
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/gofrs/uuid"
@@ -38,9 +39,9 @@ func (v *qemuVM) Start() error {
 	if err != nil {
 		return err
 	}
-	qemuCfg := v.config
-	qemuCfg.NetDevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.NetDevConfig.ID, id)
-	qemuCfg.SevConfig.ID = fmt.Sprintf("%s-%s", qemuCfg.SevConfig.ID, id)
+
+	v.config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.config.NetDevConfig.ID, id)
+	v.config.SevConfig.ID = fmt.Sprintf("%s-%s", v.config.SevConfig.ID, id)
 
 	exe, args, err := v.executableAndArgs()
 	if err != nil {
@@ -56,6 +57,26 @@ func (v *qemuVM) Start() error {
 
 func (v *qemuVM) Stop() error {
 	return v.cmd.Process.Kill()
+}
+
+func (v *qemuVM) SetProcess(pid int) error {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+
+	exe, args, err := v.executableAndArgs()
+	if err != nil {
+		return err
+	}
+
+	v.cmd = exec.Command(exe, args...)
+	v.cmd.Process = process
+	return nil
+}
+
+func (v *qemuVM) GetProcess() int {
+	return v.cmd.Process.Pid
 }
 
 func (v *qemuVM) executableAndArgs() (string, []string, error) {

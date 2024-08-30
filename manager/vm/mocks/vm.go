@@ -15,6 +15,24 @@ type VM struct {
 	mock.Mock
 }
 
+// GetProcess provides a mock function with given fields:
+func (_m *VM) GetProcess() int {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProcess")
+	}
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
 // SendAgentConfig provides a mock function with given fields: ac
 func (_m *VM) SendAgentConfig(ac agent.Computation) error {
 	ret := _m.Called(ac)
@@ -26,6 +44,24 @@ func (_m *VM) SendAgentConfig(ac agent.Computation) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(agent.Computation) error); ok {
 		r0 = rf(ac)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetProcess provides a mock function with given fields: pid
+func (_m *VM) SetProcess(pid int) error {
+	ret := _m.Called(pid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetProcess")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int) error); ok {
+		r0 = rf(pid)
 	} else {
 		r0 = ret.Error(0)
 	}
