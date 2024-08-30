@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
@@ -305,19 +307,45 @@ func (ms *managerService) restoreVMs() error {
 	}
 
 	for _, state := range states {
+		exists, err := processExists(state.PID)
+		if err != nil {
+			ms.logger.Warn("Failed to check process existence", "computation", state.ID, "pid", state.PID, "error", err)
+			continue
+		}
+
+		if !exists {
+			if err := ms.persistence.DeleteVM(state.ID); err != nil {
+				ms.logger.Error("Failed to delete persisted VM state", "computation", state.ID, "error", err)
+			}
+			ms.logger.Info("Deleted persisted state for non-existent process", "computation", state.ID, "pid", state.PID)
+			continue
+		}
+
 		cvm := ms.vmFactory(state.Config, ms.eventsChan, state.ID)
 
-		err := cvm.SetProcess(state.PID)
-		if err != nil {
-			ms.logger.Warn("Failed to reattach to process, VM may not be running", "computation", state.ID, "pid", state.PID, "error", err)
-		} else {
-			ms.logger.Info("Successfully reattached to VM process", "computation", state.ID, "pid", state.PID)
+		if err = cvm.SetProcess(state.PID); err != nil {
+			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)
+			continue
 		}
 
 		ms.vms[state.ID] = cvm
-
-		ms.logger.Info("Restored VM state", "id", state.ID, "computationId", state.ID)
+		ms.logger.Info("Successfully restored VM state", "id", state.ID, "computationId", state.ID, "pid", state.PID)
 	}
 
 	return nil
+}
+
+func processExists(pid int) (bool, error) {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false, err
+	}
+
+	if err = process.Signal(syscall.Signal(0)); err == nil {
+		return true, nil
+	}
+	if err == syscall.ESRCH {
+		return false, nil
+	}
+	return false, err
 }
