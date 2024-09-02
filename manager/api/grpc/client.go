@@ -156,10 +156,5 @@ func (client ManagerClient) handleOutgoingMessages(ctx context.Context) error {
 }
 
 func (client ManagerClient) sendMessage(mes *pkgmanager.ClientStreamMessage) {
-	select {
-	case client.responses <- mes:
-		return
-	default:
-		client.logger.Warn("failed to send message to client")
-	}
+	client.responses <- mes
 }

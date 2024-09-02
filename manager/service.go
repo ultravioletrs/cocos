@@ -65,6 +65,7 @@ type Service interface {
 }
 
 type managerService struct {
+	mu                           sync.Mutex
 	qemuCfg                      qemu.Config
 	backendMeasurementBinaryPath string
 	logger                       *slog.Logger
@@ -162,7 +163,9 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
 		return "", err
 	}
+	ms.mu.Lock()
 	ms.vms[c.Id] = cvm
+	ms.mu.Unlock()
 
 	pid := cvm.GetProcess()
 
@@ -189,6 +192,8 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 }
 
 func (ms *managerService) Stop(ctx context.Context, computationID string) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	cvm, ok := ms.vms[computationID]
 	if !ok {
 		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
@@ -307,13 +312,7 @@ func (ms *managerService) restoreVMs() error {
 	}
 
 	for _, state := range states {
-		exists, err := processExists(state.PID)
-		if err != nil {
-			ms.logger.Warn("Failed to check process existence", "computation", state.ID, "pid", state.PID, "error", err)
-			continue
-		}
-
-		if !exists {
+		if !ms.processExists(state.PID) {
 			if err := ms.persistence.DeleteVM(state.ID); err != nil {
 				ms.logger.Error("Failed to delete persisted VM state", "computation", state.ID, "error", err)
 			}
@@ -335,17 +334,18 @@ func (ms *managerService) restoreVMs() error {
 	return nil
 }
 
-func processExists(pid int) (bool, error) {
+func (ms *managerService) processExists(pid int) bool {
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return false, err
+		ms.logger.Warn("Failed to find process", "pid", pid, "error", err)
+		return false
 	}
 
 	if err = process.Signal(syscall.Signal(0)); err == nil {
-		return true, nil
+		return true
 	}
 	if err == syscall.ESRCH {
-		return false, nil
+		return false
 	}
-	return false, err
+	return false
 }
