@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
@@ -77,26 +76,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 	reqChan <- &manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{
-				Id:              "66",
-				Name:            "sample computation",
-				Description:     "sample descrption",
-				Datasets:        datasets,
-				Algorithm:       &manager.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
-				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes}},
-				AgentConfig: &manager.AgentConfig{
-					Port:        "7002",
-					LogLevel:    "debug",
-					AttestedTls: attestedTLS,
-				},
-			},
-		},
-	}
-
-	time.Sleep(1 * time.Minute)
-	reqChan <- &manager.ServerStreamMessage{
-		Message: &manager.ServerStreamMessage_RunReq{
-			RunReq: &manager.ComputationRunReq{
-				Id:              "77",
+				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
 				Datasets:        datasets,
