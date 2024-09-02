@@ -41,9 +41,7 @@ func NewServer(incoming chan *manager.ClientStreamMessage, svc Service) manager.
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
 	runReqChan := make(chan *manager.ServerStreamMessage)
-	defer func() {
-		close(runReqChan)
-	}()
+	defer close(runReqChan)
 	client, ok := peer.FromContext(stream.Context())
 	if ok {
 		go s.svc.Run(client.Addr.String(), runReqChan, client.AuthInfo)
