@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/manager"
@@ -17,22 +18,23 @@ import (
 var (
 	errTerminationFromServer = errors.New("server requested client termination")
 	errCorruptedManifest     = errors.New("received manifest may be corrupted")
+	sendTimeout              = 5 * time.Second
 )
 
 type ManagerClient struct {
-	stream    pkgmanager.ManagerService_ProcessClient
-	svc       manager.Service
-	responses chan *pkgmanager.ClientStreamMessage
-	logger    *slog.Logger
+	stream       pkgmanager.ManagerService_ProcessClient
+	svc          manager.Service
+	messageQueue chan *pkgmanager.ClientStreamMessage
+	logger       *slog.Logger
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream pkgmanager.ManagerService_ProcessClient, svc manager.Service, responses chan *pkgmanager.ClientStreamMessage, logger *slog.Logger) ManagerClient {
+func NewClient(stream pkgmanager.ManagerService_ProcessClient, svc manager.Service, messageQueue chan *pkgmanager.ClientStreamMessage, logger *slog.Logger) ManagerClient {
 	return ManagerClient{
-		stream:    stream,
-		svc:       svc,
-		responses: responses,
-		logger:    logger,
+		stream:       stream,
+		svc:          svc,
+		messageQueue: messageQueue,
+		logger:       logger,
 	}
 }
 
@@ -147,7 +149,7 @@ func (client ManagerClient) handleOutgoingMessages(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case mes := <-client.responses:
+		case mes := <-client.messageQueue:
 			if err := client.stream.Send(mes); err != nil {
 				return err
 			}
@@ -156,10 +158,12 @@ func (client ManagerClient) handleOutgoingMessages(ctx context.Context) error {
 }
 
 func (client ManagerClient) sendMessage(mes *pkgmanager.ClientStreamMessage) {
+	ctx, cancel := context.WithTimeout(context.Background(), sendTimeout)
+	defer cancel()
+
 	select {
-	case client.responses <- mes:
-		return
-	default:
-		client.logger.Warn("failed to send message to client")
+	case client.messageQueue <- mes:
+	case <-ctx.Done():
+		client.logger.Warn("Failed to send message: timeout exceeded")
 	}
 }

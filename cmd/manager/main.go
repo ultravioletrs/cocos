@@ -32,9 +32,10 @@ import (
 )
 
 const (
-	svcName       = "manager"
-	envPrefixGRPC = "MANAGER_GRPC_"
-	envPrefixQemu = "MANAGER_QEMU_"
+	svcName          = "manager"
+	envPrefixGRPC    = "MANAGER_GRPC_"
+	envPrefixQemu    = "MANAGER_QEMU_"
+	clientBufferSize = 100
 )
 
 type config struct {
@@ -112,7 +113,7 @@ func main() {
 		return
 	}
 
-	eventsChan := make(chan *pkgmanager.ClientStreamMessage)
+	eventsChan := make(chan *pkgmanager.ClientStreamMessage, clientBufferSize)
 	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
 	if err != nil {
 		logger.Error(err.Error())
