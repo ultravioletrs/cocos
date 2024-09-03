@@ -18,6 +18,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/go-sev-guest/client"
@@ -207,35 +208,39 @@ func (s *Server) Stop() error {
 }
 
 func loadCertFile(certFile string) ([]byte, error) {
-	if certFile != "" {
-		return os.ReadFile(certFile)
+	if len(certFile) < 1000 && !strings.Contains(certFile, "\n") {
+		data, err := os.ReadFile(certFile)
+		if err == nil {
+			return data, nil
+		}
 	}
-	return []byte{}, nil
+	return []byte(certFile), nil
 }
 
-func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
+func loadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
 	var cert, key []byte
 	var err error
-	if _, err = os.Stat(certfile); err == nil {
-		cert, err = os.ReadFile(certfile)
-		if err != nil {
-			return tls.Certificate{}, err
+
+	readFileOrData := func(input string) ([]byte, error) {
+		if len(input) < 1000 && !strings.Contains(input, "\n") {
+			data, err := os.ReadFile(input)
+			if err == nil {
+				return data, nil
+			}
 		}
-	} else if os.IsNotExist(err) {
-		cert = []byte(certfile)
-	} else {
-		return tls.Certificate{}, err
+		return []byte(input), nil
 	}
-	if _, err := os.Stat(keyfile); err == nil {
-		key, err = os.ReadFile(keyfile)
-		if err != nil {
-			return tls.Certificate{}, err
-		}
-	} else if os.IsNotExist(err) {
-		key = []byte(keyfile)
-	} else {
-		return tls.Certificate{}, err
+
+	cert, err = readFileOrData(certFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to read cert: %v", err)
 	}
+
+	key, err = readFileOrData(keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to read key: %v", err)
+	}
+
 	return tls.X509KeyPair(cert, key)
 }
 
