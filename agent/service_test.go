@@ -200,9 +200,7 @@ func TestData(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(
 					algorithm.AlgoTypeKey, "python",
-					python.PyRuntimeKey, python.PyRuntime,
-					agent.DecompressKey,
-				),
+					python.PyRuntimeKey, python.PyRuntime),
 			)
 
 			if tc.err != agent.ErrUndeclaredDataset {
