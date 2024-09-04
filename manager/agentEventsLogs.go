@@ -3,6 +3,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -54,6 +55,14 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 		case *manager.ClientStreamMessage_AgentEvent:
 			cmpID = mes.AgentEvent.ComputationId
 			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
+			if mes.AgentEvent.EventType == "complete" {
+				ms.logger.Info(fmt.Sprintf("Computation ID: %s, Completed, vm shutting down", cmpID))
+				go func() {
+					if err := ms.Stop(context.Background(), cmpID); err != nil {
+						ms.logger.Warn(fmt.Sprintf("Failed to stop computation: %s", cmpID))
+					}
+				}()
+			}
 		case *manager.ClientStreamMessage_AgentLog:
 			cmpID = mes.AgentLog.ComputationId
 			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
