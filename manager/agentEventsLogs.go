@@ -63,19 +63,9 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 			ms.logger.Warn(err.Error())
 			continue
 		}
-		cmpID := ""
-		switch mes := message.Message.(type) {
-		case *manager.ClientStreamMessage_AgentEvent:
-			cmpID = mes.AgentEvent.ComputationId
-			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
-		case *manager.ClientStreamMessage_AgentLog:
-			cmpID = mes.AgentLog.ComputationId
-			ms.eventsChan <- &manager.ClientStreamMessage{Message: mes}
-		default:
-			ms.logger.Warn("Unexpected agent log or event type")
-		}
+		ms.eventsChan <- &message
 
-		ms.logger.Info(fmt.Sprintf("Agent Log/Event, Computation ID: %s, Message: %s", cmpID, message.String()))
+		ms.logger.WithGroup("agent-events-logs").Info(message.String())
 	}
 }
 
