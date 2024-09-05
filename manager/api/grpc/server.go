@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 
@@ -28,7 +29,7 @@ type grpcServer struct {
 }
 
 type Service interface {
-	Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage, authInfo credentials.AuthInfo)
+	Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo)
 }
 
 // NewServer returns new AuthServiceServer instance.
@@ -40,12 +41,11 @@ func NewServer(incoming chan *manager.ClientStreamMessage, svc Service) manager.
 }
 
 func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error {
-	runReqChan := make(chan *manager.ServerStreamMessage)
-	defer close(runReqChan)
 	client, ok := peer.FromContext(stream.Context())
-	if ok {
-		go s.svc.Run(client.Addr.String(), runReqChan, client.AuthInfo)
+	if !ok {
+		return errors.New("failed to get peer info")
 	}
+
 	eg, ctx := errgroup.WithContext(stream.Context())
 
 	eg.Go(func() error {
@@ -60,45 +60,53 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 	})
 
 	eg.Go(func() error {
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case req := <-runReqChan:
-				switch msg := req.Message.(type) {
-				case *manager.ServerStreamMessage_RunReq:
-					data, err := proto.Marshal(msg.RunReq)
-					if err != nil {
-						return err
-					}
-					dataBuffer := bytes.NewBuffer(data)
-					buf := make([]byte, bufferSize)
-					for {
-						n, err := dataBuffer.Read(buf)
-						chunk := &manager.ServerStreamMessage{
-							Message: &manager.ServerStreamMessage_RunReqChunks{
-								RunReqChunks: &manager.RunReqChunks{
-									Data: buf[:n],
-								},
-							},
-						}
-
-						if err := stream.Send(chunk); err != nil {
-							return err
-						}
-
-						if err == io.EOF {
-							break
-						}
-					}
-
-				default:
-					if err := stream.Send(req); err != nil {
-						return err
-					}
-				}
+		sendMessage := func(msg *manager.ServerStreamMessage) error {
+			switch m := msg.Message.(type) {
+			case *manager.ServerStreamMessage_RunReq:
+				return s.sendRunReqInChunks(stream, m.RunReq)
+			default:
+				return stream.Send(msg)
 			}
 		}
+
+		s.svc.Run(ctx, client.Addr.String(), sendMessage, client.AuthInfo)
+		return nil
 	})
+
 	return eg.Wait()
+}
+
+func (s *grpcServer) sendRunReqInChunks(stream manager.ManagerService_ProcessServer, runReq *manager.ComputationRunReq) error {
+	data, err := proto.Marshal(runReq)
+	if err != nil {
+		return err
+	}
+
+	dataBuffer := bytes.NewBuffer(data)
+	buf := make([]byte, bufferSize)
+
+	for {
+		n, err := dataBuffer.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		chunk := &manager.ServerStreamMessage{
+			Message: &manager.ServerStreamMessage_RunReqChunks{
+				RunReqChunks: &manager.RunReqChunks{
+					Data: buf[:n],
+				},
+			},
+		}
+
+		if err := stream.Send(chunk); err != nil {
+			return err
+		}
+
+		if err == io.EOF {
+			break
+		}
+	}
+
+	return nil
 }

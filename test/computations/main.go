@@ -42,8 +42,8 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, auth credentials.AuthInfo) {
-	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAdress))
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo) {
+	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAddress))
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 		return
 	}
 
-	reqChan <- &manager.ServerStreamMessage{
+	if err := sendMessage(&manager.ServerStreamMessage{
 		Message: &manager.ServerStreamMessage_RunReq{
 			RunReq: &manager.ComputationRunReq{
 				Id:              "1",
@@ -89,6 +89,9 @@ func (s *svc) Run(ipAdress string, reqChan chan *manager.ServerStreamMessage, au
 				},
 			},
 		},
+	}); err != nil {
+		s.logger.Error(fmt.Sprintf("failed to send run request: %s", err))
+		return
 	}
 }
 
