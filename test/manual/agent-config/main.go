@@ -38,16 +38,16 @@ func main() {
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to read public key file: %s", err))
+		log.Fatalf("failed to read public key file: %s", err)
 	}
 	pubPem, _ := pem.Decode(pubKey)
 	algoHash, err := internal.Checksum(algoPath)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to calculate checksum: %s", err))
+		log.Fatalf("failed to calculate checksum: %s", err)
 	}
 	dataHash, err := internal.Checksum(dataPath)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to calculate checksum: %s", err))
+		log.Fatalf("failed to calculate checksum: %s", err)
 	}
 
 	l, err := vsock.Listen(manager.ManagerVsockPort, nil)

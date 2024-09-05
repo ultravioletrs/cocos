@@ -50,7 +50,12 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 		n, err := conn.Read(b)
 		if err != nil {
 			ms.logger.Warn(err.Error())
-			go ms.reportBrokenConnection(conn.RemoteAddr().String())
+			cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
+			if err != nil {
+				ms.logger.Warn(err.Error())
+				continue
+			}
+			go ms.reportBrokenConnection(cmpID)
 			return
 		}
 		var message manager.ClientStreamMessage
@@ -89,6 +94,8 @@ func (ms *managerService) computationIDFromAddress(address string) (string, erro
 }
 
 func (ms *managerService) findComputationID(cid int) (string, error) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	for cmpID, vm := range ms.vms {
 		if vm.GetCID() == cid {
 			return cmpID, nil
