@@ -3,6 +3,7 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -112,16 +113,7 @@ func (d *docker) Run() error {
 		return fmt.Errorf("could not start a Docker container: %v", err)
 	}
 
-	statusCh, errCh := cli.ContainerWait(ctx, respContainer.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return fmt.Errorf("could not wait for a Docker container: %v", err)
-		}
-	case <-statusCh:
-	}
-
-	stdout, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStdout: true})
+	stdout, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStdout: true, Follow: true})
 	if err != nil {
 		return fmt.Errorf("could not read stdout from the container: %v", err)
 	}
@@ -132,15 +124,31 @@ func (d *docker) Run() error {
 		d.logger.Warn(fmt.Sprintf("could not write to stdout: %v", err))
 	}
 
-	stderr, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStderr: true})
+	go func() {
+		if err := writeToOut(stdout, d.stdout); err != nil {
+			d.logger.Warn(fmt.Sprintf("could not write to stdout: %v", err))
+		}
+	}()
+
+	stderr, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStderr: true, Follow: true})
 	if err != nil {
 		d.logger.Warn(fmt.Sprintf("could not read stderr from the container: %v", err))
 	}
 	defer stderr.Close()
 
-	err = writeToOut(stderr, d.stderr)
-	if err != nil {
-		d.logger.Warn(fmt.Sprintf("could not write to stderr: %v", err))
+	go func() {
+		if err := writeToOut(stderr, d.stderr); err != nil {
+			d.logger.Warn(fmt.Sprintf("could not write to stderr: %v", err))
+		}
+	}()
+
+	statusCh, errCh := cli.ContainerWait(ctx, respContainer.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("could not wait for a Docker container: %v", err)
+		}
+	case <-statusCh:
 	}
 
 	defer func() {
@@ -157,13 +165,13 @@ func (d *docker) Run() error {
 }
 
 func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
-	content, err := io.ReadAll(readCloser)
-	if err != nil {
-		return fmt.Errorf("could not convert content from the container: %v", err)
+	scanner := bufio.NewScanner(readCloser)
+	for scanner.Scan() {
+		scanner.Bytes()
+		ioWriter.Write(scanner.Bytes())
 	}
-
-	if _, err := ioWriter.Write(content); err != nil {
-		return fmt.Errorf("could not write to output: %v", err)
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("Error reading container logs error: %v", err)
 	}
 
 	return nil
