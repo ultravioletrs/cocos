@@ -16,6 +16,7 @@ type VM interface {
 	SendAgentConfig(ac agent.Computation) error
 	SetProcess(pid int) error
 	GetProcess() int
+	GetCID() int
 }
 
 //go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"

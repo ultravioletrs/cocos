@@ -120,7 +120,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 				EventType:     "vm-provision",
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
-				Status:        "failed",
+				Status:        "error",
 			},
 		},
 	}

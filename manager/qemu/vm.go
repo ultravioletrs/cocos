@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -18,6 +21,7 @@ const (
 	KernelFile   = "bzImage"
 	rootfsFile   = "rootfs.cpio"
 	tmpDir       = "/tmp"
+	interval     = 5 * time.Second
 )
 
 type qemuVM struct {
@@ -28,11 +32,15 @@ type qemuVM struct {
 }
 
 func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
-	return &qemuVM{
+	v := &qemuVM{
 		config:        config.(Config),
 		logsChan:      logsChan,
 		computationId: computationId,
 	}
+
+	go v.checkVMProcessPeriodically()
+
+	return v
 }
 
 func (v *qemuVM) Start() error {
@@ -106,4 +114,43 @@ func (v *qemuVM) executableAndArgs() (string, []string, error) {
 	}
 
 	return exe, args, nil
+}
+
+func (v *qemuVM) checkVMProcessPeriodically() {
+	for {
+		if !processExists(v.GetProcess()) {
+			v.logsChan <- &manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentEvent{
+					AgentEvent: &manager.AgentEvent{
+						ComputationId: v.computationId,
+						EventType:     "vm-running",
+						Status:        "stopped",
+						Timestamp:     timestamppb.Now(),
+						Originator:    "manager",
+					},
+				},
+			}
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func processExists(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+
+	if err = process.Signal(syscall.Signal(0)); err == nil {
+		return true
+	}
+	if err == syscall.ESRCH {
+		return false
+	}
+	return false
+}
+
+func (v *qemuVM) GetCID() int {
+	return v.config.GuestCID
 }
