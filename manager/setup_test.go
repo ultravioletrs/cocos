@@ -64,7 +64,7 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 	return lis.Dial()
 }
 
-func (s *svc) Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage, authInfo credentials.AuthInfo) {
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo) {
 	privKey, err := rsa.GenerateKey(rand.Reader, keyBitSize)
 	if err != nil {
 		s.t.Fatalf("Error generating public key: %v", err)
@@ -82,10 +82,12 @@ func (s *svc) Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage
 
 	go func() {
 		time.Sleep(time.Millisecond * 100)
-		runReqChan <- &manager.ServerStreamMessage{
+		if err := sendMessage(&manager.ServerStreamMessage{
 			Message: &manager.ServerStreamMessage_TerminateReq{
 				TerminateReq: &manager.Terminate{Message: "test terminate"},
 			},
+		}); err != nil {
+			s.t.Fatalf("failed to send terminate request: %s", err)
 		}
 	}()
 
@@ -105,7 +107,8 @@ func (s *svc) Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage
 		pubPem, _ := pem.Decode(pubPemBytes)
 		algoHash := sha3.Sum256(algo)
 		dataHash := sha3.Sum256(data)
-		runReqChan <- &manager.ServerStreamMessage{
+
+		if err := sendMessage(&manager.ServerStreamMessage{
 			Message: &manager.ServerStreamMessage_RunReq{
 				RunReq: &manager.ComputationRunReq{
 					Id:              "1",
@@ -121,6 +124,8 @@ func (s *svc) Run(ipAddress string, runReqChan chan *manager.ServerStreamMessage
 					},
 				},
 			},
+		}); err != nil {
+			s.t.Fatalf("failed to send run request: %s", err)
 		}
 	}()
 }
