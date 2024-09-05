@@ -32,22 +32,23 @@ type qemuVM struct {
 }
 
 func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
-	v := &qemuVM{
+	return &qemuVM{
 		config:        config.(Config),
 		logsChan:      logsChan,
 		computationId: computationId,
 	}
-
-	go v.checkVMProcessPeriodically()
-
-	return v
 }
 
-func (v *qemuVM) Start() error {
+func (v *qemuVM) Start() (err error) {
+	defer func() {
+		if err == nil {
+			go v.checkVMProcessPeriodically()
+		}
+	}()
 	// Create unique qemu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
-		return err
+		return
 	}
 
 	v.config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.config.NetDevConfig.ID, id)
@@ -66,7 +67,7 @@ func (v *qemuVM) Start() error {
 
 	exe, args, err := v.executableAndArgs()
 	if err != nil {
-		return err
+		return
 	}
 
 	v.cmd = exec.Command(exe, args...)
