@@ -22,6 +22,8 @@ var (
 
 const bufferSize = 1024 * 1024 // 1 MB
 
+type SendFunc func(*manager.ServerStreamMessage) error
+
 type grpcServer struct {
 	manager.UnimplementedManagerServiceServer
 	incoming chan *manager.ClientStreamMessage
@@ -29,7 +31,7 @@ type grpcServer struct {
 }
 
 type Service interface {
-	Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo)
+	Run(ctx context.Context, ipAddress string, sendMessage SendFunc, authInfo credentials.AuthInfo)
 }
 
 // NewServer returns new AuthServiceServer instance.
