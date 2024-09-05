@@ -95,14 +95,13 @@ func (s *service) periodicRetry() {
 func (s *service) retrySendCachedMessages() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
-	for i := 0; i < len(s.cachedMessages); {
-		if _, err := s.conn.Write(s.cachedMessages[i]); err != nil {
-			i++
-		} else {
-			s.cachedMessages = append(s.cachedMessages[:i], s.cachedMessages[i+1:]...)
+	tmp := [][]byte{}
+	for _, msg := range s.cachedMessages {
+		if _, err := s.conn.Write(msg); err != nil {
+			tmp = append(tmp, msg)
 		}
 	}
+	s.cachedMessages = tmp
 }
 
 func (s *service) Close() {
