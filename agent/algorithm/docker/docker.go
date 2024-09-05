@@ -90,7 +90,10 @@ func (d *docker) Run() error {
 
 	// Create and start the container.
 	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: dockerImageName,
+		Image:        dockerImageName,
+		Tty:          true,
+		AttachStdout: true,
+		AttachStderr: true,
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
