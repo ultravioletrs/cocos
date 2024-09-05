@@ -64,7 +64,7 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 	return lis.Dial()
 }
 
-func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo) {
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc.SendFunc, authInfo credentials.AuthInfo) {
 	privKey, err := rsa.GenerateKey(rand.Reader, keyBitSize)
 	if err != nil {
 		s.t.Fatalf("Error generating public key: %v", err)

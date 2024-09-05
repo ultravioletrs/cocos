@@ -42,7 +42,7 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage func(*manager.ServerStreamMessage) error, authInfo credentials.AuthInfo) {
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc.SendFunc, authInfo credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAddress))
 
 	pubKey, err := os.ReadFile(pubKeyFile)
