@@ -132,7 +132,7 @@ func (v *qemuVM) checkVMProcessPeriodically() {
 			}
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(interval)
 	}
 }
 

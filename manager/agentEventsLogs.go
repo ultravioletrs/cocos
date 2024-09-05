@@ -111,7 +111,7 @@ func (ms *managerService) reportBrokenConnection(cmpID string) {
 			AgentEvent: &manager.AgentEvent{
 				EventType:     "vm running",
 				ComputationId: cmpID,
-				Status:        "disconnrected",
+				Status:        "disconnected",
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
 			},
