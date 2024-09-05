@@ -119,6 +119,7 @@ func main() {
 				handler = agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
 				logger = slog.New(handler)
 			}
+			fmt.Println("debug loop")
 			time.Sleep(retryInterval)
 		}
 	})
