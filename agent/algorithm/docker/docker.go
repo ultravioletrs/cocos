@@ -122,11 +122,6 @@ func (d *docker) Run() error {
 	}
 	defer stdout.Close()
 
-	err = writeToOut(stdout, d.stdout)
-	if err != nil {
-		d.logger.Warn(fmt.Sprintf("could not write to stdout: %v", err))
-	}
-
 	go func() {
 		if err := writeToOut(stdout, d.stdout); err != nil {
 			d.logger.Warn(fmt.Sprintf("could not write to stdout: %v", err))
