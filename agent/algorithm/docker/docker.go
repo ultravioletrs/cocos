@@ -165,8 +165,9 @@ func (d *docker) Run() error {
 func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
 	scanner := bufio.NewScanner(readCloser)
 	for scanner.Scan() {
-		scanner.Bytes()
-		ioWriter.Write(scanner.Bytes())
+		if _, err := ioWriter.Write(scanner.Bytes()); err != nil {
+			return fmt.Errorf("Error writing to output: %v", err)
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("Error reading container logs error: %v", err)
