@@ -4,6 +4,7 @@ package events
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/mdlayher/vsock"
@@ -12,10 +13,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const retryInterval = 5 * time.Second
+
 type service struct {
-	service       string
-	computationID string
-	conn          *vsock.Conn
+	service        string
+	computationID  string
+	conn           *vsock.Conn
+	cachedMessages [][]byte
+	mutex          sync.Mutex
+	stopRetry      chan struct{}
 }
 
 type AgentEvent struct {
@@ -30,19 +36,21 @@ type AgentEvent struct {
 //go:generate mockery --name Service --output=./mocks --filename events.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
-	Close() error
+	Close()
 }
 
-func New(svc, computationID string, sockPort uint32) (Service, error) {
-	conn, err := vsock.Dial(vsock.Host, sockPort, nil)
-	if err != nil {
-		return nil, err
+func New(svc, computationID string, conn *vsock.Conn) (Service, error) {
+	s := &service{
+		service:        svc,
+		computationID:  computationID,
+		conn:           conn,
+		cachedMessages: make([][]byte, 0),
+		stopRetry:      make(chan struct{}),
 	}
-	return &service{
-		service:       svc,
-		computationID: computationID,
-		conn:          conn,
-	}, nil
+
+	go s.periodicRetry()
+
+	return s, nil
 }
 
 func (s *service) SendEvent(event, status string, details json.RawMessage) error {
@@ -58,12 +66,44 @@ func (s *service) SendEvent(event, status string, details json.RawMessage) error
 	if err != nil {
 		return err
 	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if _, err := s.conn.Write(protoBody); err != nil {
+		s.cachedMessages = append(s.cachedMessages, protoBody)
 		return err
 	}
+
 	return nil
 }
 
-func (s *service) Close() error {
-	return s.conn.Close()
+func (s *service) periodicRetry() {
+	ticker := time.NewTicker(retryInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.retrySendCachedMessages()
+		case <-s.stopRetry:
+			return
+		}
+	}
+}
+
+func (s *service) retrySendCachedMessages() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	tmp := [][]byte{}
+	for _, msg := range s.cachedMessages {
+		if _, err := s.conn.Write(msg); err != nil {
+			tmp = append(tmp, msg)
+		}
+	}
+	s.cachedMessages = tmp
+}
+
+func (s *service) Close() {
+	close(s.stopRetry)
 }
