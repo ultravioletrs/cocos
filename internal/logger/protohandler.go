@@ -113,15 +113,13 @@ func (h *handler) periodicRetry() {
 func (h *handler) retrySendCachedMessages() {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-
-	for i := 0; i < len(h.cachedMessages); {
-		_, err := h.w.Write(h.cachedMessages[i])
-		if err != nil {
-			i++
-		} else {
-			h.cachedMessages = append(h.cachedMessages[:i], h.cachedMessages[i+1:]...)
+	tmp := [][]byte{}
+	for _, msg := range h.cachedMessages {
+		if _, err := h.w.Write(msg); err != nil {
+			tmp = append(tmp, msg)
 		}
 	}
+	h.cachedMessages = tmp
 }
 
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
