@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/gofrs/uuid"
+	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
@@ -16,6 +17,7 @@ const (
 	firmwareVars = "OVMF_VARS"
 	KernelFile   = "bzImage"
 	rootfsFile   = "rootfs.cpio"
+	tmpDir       = "/tmp"
 )
 
 type qemuVM struct {
@@ -42,6 +44,17 @@ func (v *qemuVM) Start() error {
 
 	v.config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.config.NetDevConfig.ID, id)
 	v.config.SevConfig.ID = fmt.Sprintf("%s-%s", v.config.SevConfig.ID, id)
+
+	if !v.config.KernelHash {
+		// Copy firmware vars file.
+		srcFile := v.config.OVMFVarsConfig.File
+		dstFile := fmt.Sprintf("%s/%s-%s.fd", tmpDir, firmwareVars, id)
+		err = internal.CopyFile(srcFile, dstFile)
+		if err != nil {
+			return err
+		}
+		v.config.OVMFVarsConfig.File = dstFile
+	}
 
 	exe, args, err := v.executableAndArgs()
 	if err != nil {

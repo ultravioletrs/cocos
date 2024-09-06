@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
@@ -20,7 +21,10 @@ var (
 	ErrUnexpectedMsg                              = errors.New("unknown message type")
 )
 
-const bufferSize = 1024 * 1024 // 1 MB
+const (
+	bufferSize    = 1024 * 1024 // 1 MB
+	runReqTimeout = 30 * time.Second
+)
 
 type SendFunc func(*manager.ServerStreamMessage) error
 
@@ -89,14 +93,20 @@ func (s *grpcServer) sendRunReqInChunks(stream manager.ManagerService_ProcessSer
 
 	for {
 		n, err := dataBuffer.Read(buf)
-		if err != nil && err != io.EOF {
+		isLast := false
+
+		if err == io.EOF {
+			isLast = true
+		} else if err != nil {
 			return err
 		}
 
 		chunk := &manager.ServerStreamMessage{
 			Message: &manager.ServerStreamMessage_RunReqChunks{
 				RunReqChunks: &manager.RunReqChunks{
-					Data: buf[:n],
+					Id:     runReq.Id,
+					Data:   buf[:n],
+					IsLast: isLast,
 				},
 			},
 		}
@@ -105,7 +115,7 @@ func (s *grpcServer) sendRunReqInChunks(stream manager.ManagerService_ProcessSer
 			return err
 		}
 
-		if err == io.EOF {
+		if isLast {
 			break
 		}
 	}
