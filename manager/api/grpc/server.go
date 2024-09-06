@@ -97,7 +97,6 @@ func (s *grpcServer) sendRunReqInChunks(stream manager.ManagerService_ProcessSer
 
 		if err == io.EOF {
 			isLast = true
-			err = nil
 		} else if err != nil {
 			return err
 		}
