@@ -166,11 +166,11 @@ func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
 	scanner := bufio.NewScanner(readCloser)
 	for scanner.Scan() {
 		if _, err := ioWriter.Write(scanner.Bytes()); err != nil {
-			return fmt.Errorf("Error writing to output: %v", err)
+			return fmt.Errorf("error writing to output: %v", err)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("Error reading container logs error: %v", err)
+		return fmt.Errorf("error reading container logs error: %v", err)
 	}
 
 	return nil
