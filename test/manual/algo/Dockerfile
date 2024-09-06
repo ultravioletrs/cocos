@@ -12,4 +12,4 @@ COPY ./lin_reg.py /cocos/lin_reg.py
 RUN pip install -r requirements.txt
 
 # command to be run when the docker container is started
-CMD ["python3", "/cocos/lin_reg.py"]
+CMD ["python3", "-u", "/cocos/lin_reg.py"]
