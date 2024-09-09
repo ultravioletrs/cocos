@@ -18,7 +18,7 @@ const (
 	receivingAlgorithm
 	receivingData
 	running
-	resultsReady
+	results
 	complete
 	failed
 )
@@ -75,11 +75,11 @@ func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 	sm.Transitions[receivingData][dataReceived] = running
 
 	sm.Transitions[running] = make(map[event]state)
-	sm.Transitions[running][runComplete] = resultsReady
+	sm.Transitions[running][runComplete] = results
 	sm.Transitions[running][runFailed] = failed
 
-	sm.Transitions[resultsReady] = make(map[event]state)
-	sm.Transitions[resultsReady][resultsConsumed] = complete
+	sm.Transitions[results] = make(map[event]state)
+	sm.Transitions[results][resultsConsumed] = complete
 
 	return sm
 }

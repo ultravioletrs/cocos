@@ -92,12 +92,12 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
-	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[idle] = svc.publishEvent("idle", json.RawMessage{})
 	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent("in-progress", json.RawMessage{})
 	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[results] = svc.publishEvent("ready", json.RawMessage{})
+	svc.sm.StateFunctions[complete] = svc.publishEvent("complete", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
 	svc.sm.StateFunctions[failed] = svc.publishEvent("failed", json.RawMessage{})
 
@@ -178,8 +178,10 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+		as.publishEvent("failed", json.RawMessage{})()
 		return fmt.Errorf("error creating datasets directory: %v", err)
 	}
+	as.eventSvc.SendEvent("algorithm", "received",  json.RawMessage{})
 
 	if as.algorithm != nil {
 		as.sm.SendEvent(algorithmReceived)
@@ -242,7 +244,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != resultsReady && as.sm.GetState() != failed {
+	if as.sm.GetState() != results && as.sm.GetState() != failed {
 		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
@@ -254,7 +256,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == resultsReady {
+	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == results {
 		as.sm.SendEvent(resultsConsumed)
 	}
 
