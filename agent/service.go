@@ -178,8 +178,10 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+		as.publishEvent("failed", json.RawMessage{})()
 		return fmt.Errorf("error creating datasets directory: %v", err)
 	}
+	as.eventSvc.SendEvent("algorithm", "received",  json.RawMessage{})
 
 	if as.algorithm != nil {
 		as.sm.SendEvent(algorithmReceived)
