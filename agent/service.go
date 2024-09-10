@@ -30,7 +30,7 @@ const (
 	// ReportDataSize is the size of the report data expected by the attestation service.
 	ReportDataSize     = 64
 	algoFilePermission = 0o700
-	progress 		   = "in-progress"
+	progress           = "in-progress"
 )
 
 var (
