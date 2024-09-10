@@ -1,6 +1,6 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package agent_test
+package agent
 
 import (
 	"context"
@@ -15,12 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
-	amocks "github.com/ultravioletrs/cocos/agent/mocks"
 	"github.com/ultravioletrs/cocos/agent/quoteprovider"
+	mocks2 "github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )
@@ -53,12 +52,12 @@ func TestAlgo(t *testing.T) {
 	testCases := []struct {
 		name     string
 		err      error
-		algo     agent.Algorithm
+		algo     Algorithm
 		algoType string
 	}{
 		{
 			name: "Test Algo successfully",
-			algo: agent.Algorithm{
+			algo: Algorithm{
 				Algorithm: algo,
 				Hash:      algoHash,
 			},
@@ -67,7 +66,7 @@ func TestAlgo(t *testing.T) {
 		},
 		{
 			name: "Test Algo successfully with requirements file",
-			algo: agent.Algorithm{
+			algo: Algorithm{
 				Algorithm:    algo,
 				Hash:         algoHash,
 				Requirements: reqFile,
@@ -77,7 +76,7 @@ func TestAlgo(t *testing.T) {
 		},
 		{
 			name: "Test Algo type binary successfully",
-			algo: agent.Algorithm{
+			algo: Algorithm{
 				Algorithm: algo,
 				Hash:      algoHash,
 			},
@@ -86,7 +85,7 @@ func TestAlgo(t *testing.T) {
 		},
 		{
 			name: "Test Algo type wasm successfully",
-			algo: agent.Algorithm{
+			algo: Algorithm{
 				Algorithm: algo,
 				Hash:      algoHash,
 			},
@@ -95,7 +94,7 @@ func TestAlgo(t *testing.T) {
 		},
 		{
 			name: "Test Algo type docker successfully",
-			algo: agent.Algorithm{
+			algo: Algorithm{
 				Algorithm: algo,
 				Hash:      algoHash,
 			},
@@ -104,9 +103,9 @@ func TestAlgo(t *testing.T) {
 		},
 		{
 			name:     "Test algo hash mismatch",
-			algo:     agent.Algorithm{},
+			algo:     Algorithm{},
 			algoType: "python",
-			err:      agent.ErrHashMismatch,
+			err:      ErrHashMismatch,
 		},
 	}
 
@@ -121,7 +120,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
 
 			time.Sleep(300 * time.Millisecond)
 
@@ -145,7 +144,7 @@ func TestData(t *testing.T) {
 
 	algoHash := sha3.Sum256(algo)
 
-	alg := agent.Algorithm{
+	alg := Algorithm{
 		Hash:      algoHash,
 		Algorithm: algo,
 	}
@@ -157,12 +156,12 @@ func TestData(t *testing.T) {
 
 	cases := []struct {
 		name string
-		data agent.Dataset
+		data Dataset
 		err  error
 	}{
 		{
 			name: "Test data successfully",
-			data: agent.Dataset{
+			data: Dataset{
 				Hash:     dataHash,
 				Dataset:  data,
 				Filename: datasetFile,
@@ -170,28 +169,28 @@ func TestData(t *testing.T) {
 		},
 		{
 			name: "Test State not ready",
-			data: agent.Dataset{
+			data: Dataset{
 				Dataset:  data,
 				Hash:     dataHash,
 				Filename: datasetFile,
 			},
-			err: agent.ErrStateNotReady,
+			err: ErrStateNotReady,
 		},
 		{
 			name: "Test File name does not match manifest",
-			data: agent.Dataset{
+			data: Dataset{
 				Dataset:  data,
 				Hash:     dataHash,
 				Filename: "invalid",
 			},
-			err: agent.ErrFileNameMismatch,
+			err: ErrFileNameMismatch,
 		},
 		{
 			name: "Test dataset not declared in manifest",
-			data: agent.Dataset{
+			data: Dataset{
 				Filename: datasetFile,
 			},
-			err: agent.ErrUndeclaredDataset,
+			err: ErrUndeclaredDataset,
 		},
 	}
 
@@ -203,8 +202,8 @@ func TestData(t *testing.T) {
 					python.PyRuntimeKey, python.PyRuntime),
 			)
 
-			if tc.err != agent.ErrUndeclaredDataset {
-				ctx = agent.IndexToContext(ctx, 0)
+			if tc.err != ErrUndeclaredDataset {
+				ctx = IndexToContext(ctx, 0)
 			}
 
 			ctx, cancel := context.WithCancel(ctx)
@@ -212,10 +211,10 @@ func TestData(t *testing.T) {
 
 			comp := testComputation(t)
 
-			svc := agent.New(ctx, mglog.NewMock(), events, comp, qp)
+			svc := New(ctx, mglog.NewMock(), events, comp, qp)
 			time.Sleep(300 * time.Millisecond)
 
-			if tc.err != agent.ErrStateNotReady {
+			if tc.err != ErrStateNotReady {
 				_ = svc.Algo(ctx, alg)
 				time.Sleep(300 * time.Millisecond)
 			}
@@ -237,47 +236,90 @@ func TestResult(t *testing.T) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		name string
-		err  error
+		name     string
+		err      error
+		setup    func(svc *agentService)
+		ctxSetup func(ctx context.Context) context.Context
 	}{
 		{
 			name: "Test results not ready",
-			err:  agent.ErrResultsNotReady,
+			err:  ErrResultsNotReady,
+			setup: func(svc *agentService) {
+			},
+		},
+		{
+			name: "Test all results consumed",
+			err:  ErrAllResultsConsumed,
+			setup: func(svc *agentService) {
+				svc.sm.SetState(resultsReady)
+				svc.computation.ResultConsumers = []ResultConsumer{}
+			},
+			ctxSetup: func(ctx context.Context) context.Context {
+				return IndexToContext(ctx, 0)
+			},
+		},
+		{
+			name: "Test undeclared consumer",
+			err:  ErrUndeclaredConsumer,
+			setup: func(svc *agentService) {
+				svc.sm.SetState(resultsReady)
+				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("user")}}
+			},
+			ctxSetup: func(ctx context.Context) context.Context {
+				return ctx
+			},
+		},
+		{
+			name: "Test results consumed and event sent",
+			err:  nil,
+			setup: func(svc *agentService) {
+				svc.sm.SetState(resultsReady)
+				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("key")}}
+			},
+			ctxSetup: func(ctx context.Context) context.Context {
+				return IndexToContext(ctx, 0)
+			},
 		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
 			)
 
-			ctx = agent.IndexToContext(ctx, 0)
+			if tc.ctxSetup != nil {
+				ctx = tc.ctxSetup(ctx)
+			}
 
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
+			svc := &agentService{
+				sm:            NewStateMachine(mglog.NewMock(), testComputation(t)),
+				eventSvc:      events,
+				quoteProvider: qp,
+				computation:   testComputation(t),
+			}
 
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
-
-			time.Sleep(300 * time.Millisecond)
+			go svc.sm.Start(ctx)
+			tc.setup(svc)
 			_, err := svc.Result(ctx)
-
 			_ = os.RemoveAll("datasets")
 			_ = os.RemoveAll("results")
-			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+
+			assert.ErrorIs(t, err, tc.err, "expected %v, got %v", tc.err, err)
 		})
 	}
 }
 
 func TestAttestation(t *testing.T) {
 	events := new(mocks.Service)
-	qp := new(amocks.QuoteProvider)
+	qp := new(mocks2.QuoteProvider)
 
 	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	cases := []struct {
 		name       string
-		reportData [agent.ReportDataSize]byte
+		reportData [ReportDataSize]byte
 		rawQuote   []uint8
 		err        error
 	}{
@@ -291,7 +333,7 @@ func TestAttestation(t *testing.T) {
 			name:       "Test attestation failed",
 			reportData: generateReportData(),
 			rawQuote:   nil,
-			err:        agent.ErrAttestationFailed,
+			err:        ErrAttestationFailed,
 		},
 	}
 	for _, tc := range cases {
@@ -303,12 +345,12 @@ func TestAttestation(t *testing.T) {
 			defer cancel()
 
 			getQuote := qp.On("GetRawQuote", mock.Anything).Return(tc.rawQuote, tc.err)
-			if tc.err != agent.ErrAttestationFailed {
+			if tc.err != ErrAttestationFailed {
 				getQuote = qp.On("GetRawQuote", mock.Anything).Return(tc.reportData, nil)
 			}
 			defer getQuote.Unset()
 
-			svc := agent.New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -316,8 +358,8 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
-func generateReportData() [agent.ReportDataSize]byte {
-	bytes := make([]byte, agent.ReportDataSize)
+func generateReportData() [ReportDataSize]byte {
+	bytes := make([]byte, ReportDataSize)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		log.Fatalf("Failed to generate random bytes: %v", err)
@@ -325,7 +367,7 @@ func generateReportData() [agent.ReportDataSize]byte {
 	return [64]byte(bytes)
 }
 
-func testComputation(t *testing.T) agent.Computation {
+func testComputation(t *testing.T) Computation {
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
 
@@ -336,14 +378,14 @@ func testComputation(t *testing.T) agent.Computation {
 
 	dataHash := sha3.Sum256(data)
 
-	return agent.Computation{
+	return Computation{
 		ID:              "1",
 		Name:            "sample computation",
 		Description:     "sample description",
-		Datasets:        []agent.Dataset{{Hash: dataHash, UserKey: []byte("key"), Dataset: data, Filename: datasetFile}},
-		Algorithm:       agent.Algorithm{Hash: algoHash, UserKey: []byte("key"), Algorithm: algo},
-		ResultConsumers: []agent.ResultConsumer{{UserKey: []byte("key")}},
-		AgentConfig: agent.AgentConfig{
+		Datasets:        []Dataset{{Hash: dataHash, UserKey: []byte("key"), Dataset: data, Filename: datasetFile}},
+		Algorithm:       Algorithm{Hash: algoHash, UserKey: []byte("key"), Algorithm: algo},
+		ResultConsumers: []ResultConsumer{{UserKey: []byte("key")}},
+		AgentConfig: AgentConfig{
 			Port:        "7002",
 			LogLevel:    "debug",
 			AttestedTls: false,
