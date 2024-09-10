@@ -48,7 +48,7 @@ func (v *qemuVM) Start() (err error) {
 	// Create unique qemu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
-		return
+		return err
 	}
 
 	v.config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.config.NetDevConfig.ID, id)
@@ -67,7 +67,7 @@ func (v *qemuVM) Start() (err error) {
 
 	exe, args, err := v.executableAndArgs()
 	if err != nil {
-		return
+		return err
 	}
 
 	v.cmd = exec.Command(exe, args...)
