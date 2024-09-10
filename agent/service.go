@@ -30,6 +30,7 @@ const (
 	// ReportDataSize is the size of the report data expected by the attestation service.
 	ReportDataSize     = 64
 	algoFilePermission = 0o700
+	progress 		   = "in-progress"
 )
 
 var (
@@ -93,9 +94,9 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[idle] = svc.publishEvent("idle", json.RawMessage{})
-	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
+	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent(progress, json.RawMessage{})
+	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent(progress, json.RawMessage{})
+	svc.sm.StateFunctions[receivingData] = svc.publishEvent(progress, json.RawMessage{})
 	svc.sm.StateFunctions[results] = svc.publishEvent("ready", json.RawMessage{})
 	svc.sm.StateFunctions[complete] = svc.publishEvent("complete", json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
