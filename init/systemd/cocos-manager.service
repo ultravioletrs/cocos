@@ -7,6 +7,9 @@ ExecStart=cocos-manager
 Restart=on-failure
 RestartSec=5s
 EnvironmentFile=/etc/cocos/cocos-manager.env
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=cocos-manager
 
 [Install]
 WantedBy=multi-user.target
