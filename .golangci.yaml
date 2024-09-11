@@ -68,7 +68,7 @@ linters:
     - errchkjson
     - errname
     - execinquery
-    - exportloopref
+    - copyloopvar
     - ginkgolinter
     - gocheckcompilerdirectives
     - gofumpt

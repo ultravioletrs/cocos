@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -18,6 +21,7 @@ const (
 	KernelFile   = "bzImage"
 	rootfsFile   = "rootfs.cpio"
 	tmpDir       = "/tmp"
+	interval     = 5 * time.Second
 )
 
 type qemuVM struct {
@@ -35,7 +39,12 @@ func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, compu
 	}
 }
 
-func (v *qemuVM) Start() error {
+func (v *qemuVM) Start() (err error) {
+	defer func() {
+		if err == nil {
+			go v.checkVMProcessPeriodically()
+		}
+	}()
 	// Create unique qemu device identifiers
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -106,4 +115,45 @@ func (v *qemuVM) executableAndArgs() (string, []string, error) {
 	}
 
 	return exe, args, nil
+}
+
+func (v *qemuVM) checkVMProcessPeriodically() {
+	for {
+		if !processExists(v.GetProcess()) {
+			v.logsChan <- &manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentEvent{
+					AgentEvent: &manager.AgentEvent{
+						ComputationId: v.computationId,
+						EventType:     "vm-running",
+						Status:        "stopped",
+						Timestamp:     timestamppb.Now(),
+						Originator:    "manager",
+					},
+				},
+			}
+			break
+		}
+		time.Sleep(interval)
+	}
+}
+
+func processExists(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+
+	// On Unix systems, FindProcess always succeeds and returns a Process for the given pid, regardless of whether the process exists.
+	// To test whether the process actually exists, see whether p.Signal(syscall.Signal(0)) reports an error.
+	if err = process.Signal(syscall.Signal(0)); err == nil {
+		return true
+	}
+	if err == syscall.ESRCH {
+		return false
+	}
+	return false
+}
+
+func (v *qemuVM) GetCID() int {
+	return v.config.GuestCID
 }

@@ -15,6 +15,24 @@ type VM struct {
 	mock.Mock
 }
 
+// GetCID provides a mock function with given fields:
+func (_m *VM) GetCID() int {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCID")
+	}
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
 // GetProcess provides a mock function with given fields:
 func (_m *VM) GetProcess() int {
 	ret := _m.Called()

@@ -35,20 +35,20 @@ func (s *authInterceptor) AuthStreamInterceptor() grpc.StreamServerInterceptor {
 		switch info.FullMethod {
 		case agent.AgentService_Algo_FullMethodName:
 			if _, err := s.auth.AuthenticateUser(stream.Context(), auth.AlgorithmProviderRole); err != nil {
-				return status.Errorf(codes.Unauthenticated, err.Error())
+				return status.Errorf(codes.Unauthenticated, "%v", err.Error())
 			}
 			return handler(srv, stream)
 		case agent.AgentService_Data_FullMethodName:
 			ctx, err := s.auth.AuthenticateUser(stream.Context(), auth.DataProviderRole)
 			if err != nil {
-				return status.Errorf(codes.Unauthenticated, err.Error())
+				return status.Errorf(codes.Unauthenticated, "%s", err.Error())
 			}
 			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
 			return handler(srv, wrapped)
 		case agent.AgentService_Result_FullMethodName:
 			ctx, err := s.auth.AuthenticateUser(stream.Context(), auth.ConsumerRole)
 			if err != nil {
-				return status.Errorf(codes.Unauthenticated, err.Error())
+				return status.Errorf(codes.Unauthenticated, "%v", err.Error())
 			}
 			wrapped := &wrappedServerStream{ServerStream: stream, ctx: ctx}
 			return handler(srv, wrapped)
@@ -64,7 +64,7 @@ func (s *authInterceptor) AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 		case agent.AgentService_Result_FullMethodName:
 			ctx, err := s.auth.AuthenticateUser(ctx, auth.ConsumerRole)
 			if err != nil {
-				return nil, status.Errorf(codes.Unauthenticated, err.Error())
+				return nil, status.Errorf(codes.Unauthenticated, "%v", err.Error())
 			}
 			return handler(ctx, req)
 		default:
