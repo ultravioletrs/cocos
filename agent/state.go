@@ -36,6 +36,17 @@ const (
 	Error
 )
 
+//go:generate stringer -type=Status
+type Status uint8
+
+const (
+	idleState Status = iota
+	inProgress
+	ready
+	completed
+	terminated
+)
+
 type event uint8
 
 const (
