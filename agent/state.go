@@ -40,11 +40,11 @@ const (
 type Status uint8
 
 const (
-	idleState Status = iota
-	inProgress
-	ready
-	completed
-	terminated
+	IdleState Status = iota
+	InProgress
+	Ready
+	Completed
+	Terminated
 )
 
 type event uint8
