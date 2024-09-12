@@ -96,7 +96,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent(inProgress.String(), json.RawMessage{})
 	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent(inProgress.String(), json.RawMessage{})
 	svc.sm.StateFunctions[receivingData] = svc.publishEvent(inProgress.String(), json.RawMessage{})
-	svc.sm.StateFunctions[results] = svc.publishEvent(ready.String(), json.RawMessage{})
+	svc.sm.StateFunctions[resultFetch] = svc.publishEvent(ready.String(), json.RawMessage{})
 	svc.sm.StateFunctions[complete] = svc.publishEvent(completed.String(), json.RawMessage{})
 	svc.sm.StateFunctions[running] = svc.runComputation
 	svc.sm.StateFunctions[failed] = svc.publishEvent(failed.String(), json.RawMessage{})
@@ -242,7 +242,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != results && as.sm.GetState() != failed {
+	if as.sm.GetState() != resultFetch && as.sm.GetState() != failed {
 		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
@@ -254,7 +254,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == results {
+	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == resultFetch {
 		as.sm.SendEvent(resultsConsumed)
 	}
 
