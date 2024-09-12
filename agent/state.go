@@ -9,11 +9,11 @@ import (
 	"sync"
 )
 
-//go:generate stringer -type=state
-type state uint8
+//go:generate stringer -type=State
+type State uint8
 
 const (
-	idle state = iota
+	idle State = iota
 	receivingManifest
 	receivingAlgorithm
 	receivingData
@@ -21,6 +21,17 @@ const (
 	results
 	complete
 	failed
+)
+
+//go:generate stringer -type=Status
+type Status uint8
+
+const (
+	idleState Status = iota
+	inProgress
+	ready
+	completed
+	terminated
 )
 
 type event uint8
@@ -38,10 +49,10 @@ const (
 // StateMachine represents the state machine.
 type StateMachine struct {
 	mu             sync.Mutex
-	State          state
+	State          State
 	EventChan      chan event
-	Transitions    map[state]map[event]state
-	StateFunctions map[state]func()
+	Transitions    map[State]map[event]State
+	StateFunctions map[State]func()
 	logger         *slog.Logger
 	wg             *sync.WaitGroup
 }
@@ -51,19 +62,19 @@ func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 	sm := &StateMachine{
 		State:          idle,
 		EventChan:      make(chan event),
-		Transitions:    make(map[state]map[event]state),
-		StateFunctions: make(map[state]func()),
+		Transitions:    make(map[State]map[event]State),
+		StateFunctions: make(map[State]func()),
 		logger:         logger,
 		wg:             &sync.WaitGroup{},
 	}
 
-	sm.Transitions[idle] = make(map[event]state)
+	sm.Transitions[idle] = make(map[event]State)
 	sm.Transitions[idle][start] = receivingManifest
 
-	sm.Transitions[receivingManifest] = make(map[event]state)
+	sm.Transitions[receivingManifest] = make(map[event]State)
 	sm.Transitions[receivingManifest][manifestReceived] = receivingAlgorithm
 
-	sm.Transitions[receivingAlgorithm] = make(map[event]state)
+	sm.Transitions[receivingAlgorithm] = make(map[event]State)
 	switch len(cmp.Datasets) {
 	case 0:
 		sm.Transitions[receivingAlgorithm][algorithmReceived] = running
@@ -71,14 +82,14 @@ func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 		sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
 	}
 
-	sm.Transitions[receivingData] = make(map[event]state)
+	sm.Transitions[receivingData] = make(map[event]State)
 	sm.Transitions[receivingData][dataReceived] = running
 
-	sm.Transitions[running] = make(map[event]state)
+	sm.Transitions[running] = make(map[event]State)
 	sm.Transitions[running][runComplete] = results
 	sm.Transitions[running][runFailed] = failed
 
-	sm.Transitions[results] = make(map[event]state)
+	sm.Transitions[results] = make(map[event]State)
 	sm.Transitions[results][resultsConsumed] = complete
 
 	return sm
@@ -118,13 +129,13 @@ func (sm *StateMachine) SendEvent(event event) {
 	sm.EventChan <- event
 }
 
-func (sm *StateMachine) GetState() state {
+func (sm *StateMachine) GetState() State {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	return sm.State
 }
 
-func (sm *StateMachine) SetState(state state) {
+func (sm *StateMachine) SetState(state State) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.State = state

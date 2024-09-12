@@ -21,9 +21,9 @@ var cmp = Computation{
 
 func TestStateMachineTransitions(t *testing.T) {
 	cases := []struct {
-		fromState state
+		fromState State
 		event     event
-		expected  state
+		expected  State
 		cmp       Computation
 	}{
 		{idle, start, receivingManifest, cmp},
