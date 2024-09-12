@@ -130,7 +130,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
-			ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+			ms.publishEvent("vm-provision", c.Id, agent.Failed.String(), json.RawMessage{})
 			return "", errInvalidHashLength
 		}
 		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey, Filename: data.Filename})
@@ -142,7 +142,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)
 	if err != nil {
-		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		ms.publishEvent("vm-provision", c.Id, agent.Failed.String(), json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
@@ -150,7 +150,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	ch, err := computationHash(ac)
 	if err != nil {
-		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		ms.publishEvent("vm-provision", c.Id, agent.Failed.String(), json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToCalculateHash, err)
 	}
 
@@ -158,9 +158,9 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
 
 	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsChan, c.Id)
-	ms.publishEvent("vm-provision", c.Id, "in-progress", json.RawMessage{})
+	ms.publishEvent("vm-provision", c.Id, agent.InProgress.String(), json.RawMessage{})
 	if err = cvm.Start(); err != nil {
-		ms.publishEvent("vm-provision", c.Id, "failed", json.RawMessage{})
+		ms.publishEvent("vm-provision", c.Id, agent.Failed.String(), json.RawMessage{})
 		return "", err
 	}
 	ms.mu.Lock()
@@ -187,7 +187,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	ms.qemuCfg.VSockConfig.Vnc++
 
-	ms.publishEvent("vm-provision", c.Id, "complete", json.RawMessage{})
+	ms.publishEvent("vm-provision", c.Id, agent.Completed.String(), json.RawMessage{})
 	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
 }
 
@@ -196,11 +196,11 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 	defer ms.mu.Unlock()
 	cvm, ok := ms.vms[computationID]
 	if !ok {
-		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
+		defer ms.publishEvent("stop-computation", computationID, agent.Failed.String(), json.RawMessage{})
 		return ErrNotFound
 	}
 	if err := cvm.Stop(); err != nil {
-		defer ms.publishEvent("stop-computation", computationID, "failed", json.RawMessage{})
+		defer ms.publishEvent("stop-computation", computationID, agent.Failed.String(), json.RawMessage{})
 		return err
 	}
 	delete(ms.vms, computationID)
@@ -209,7 +209,7 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 		ms.logger.Error("Failed to delete persisted VM state", "error", err)
 	}
 
-	defer ms.publishEvent("stop-computation", computationID, "complete", json.RawMessage{})
+	defer ms.publishEvent("stop-computation", computationID, agent.Completed.String(), json.RawMessage{})
 	return nil
 }
 

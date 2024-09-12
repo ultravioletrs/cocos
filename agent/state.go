@@ -13,25 +13,25 @@ import (
 type State uint8
 
 const (
-	idle State = iota
-	receivingManifest
-	receivingAlgorithm
-	receivingData
-	running
-	resultFetch
-	complete
-	failed
+	Idle State = iota
+	ReceivingManifest
+	ReceivingAlgorithm
+	ReceivingData
+	Running
+	ResultFetch
+	Complete
+	Failed
 )
 
 //go:generate stringer -type=Status
 type Status uint8
 
 const (
-	idleState Status = iota
-	inProgress
-	ready
-	completed
-	terminated
+	IdleState Status = iota
+	InProgress
+	Ready
+	Completed
+	Terminated
 )
 
 type event uint8
@@ -60,7 +60,7 @@ type StateMachine struct {
 // NewStateMachine creates a new StateMachine.
 func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 	sm := &StateMachine{
-		State:          idle,
+		State:          Idle,
 		EventChan:      make(chan event),
 		Transitions:    make(map[State]map[event]State),
 		StateFunctions: make(map[State]func()),
@@ -68,29 +68,29 @@ func NewStateMachine(logger *slog.Logger, cmp Computation) *StateMachine {
 		wg:             &sync.WaitGroup{},
 	}
 
-	sm.Transitions[idle] = make(map[event]State)
-	sm.Transitions[idle][start] = receivingManifest
+	sm.Transitions[Idle] = make(map[event]State)
+	sm.Transitions[Idle][start] = ReceivingManifest
 
-	sm.Transitions[receivingManifest] = make(map[event]State)
-	sm.Transitions[receivingManifest][manifestReceived] = receivingAlgorithm
+	sm.Transitions[ReceivingManifest] = make(map[event]State)
+	sm.Transitions[ReceivingManifest][manifestReceived] = ReceivingAlgorithm
 
-	sm.Transitions[receivingAlgorithm] = make(map[event]State)
+	sm.Transitions[ReceivingAlgorithm] = make(map[event]State)
 	switch len(cmp.Datasets) {
 	case 0:
-		sm.Transitions[receivingAlgorithm][algorithmReceived] = running
+		sm.Transitions[ReceivingAlgorithm][algorithmReceived] = Running
 	default:
-		sm.Transitions[receivingAlgorithm][algorithmReceived] = receivingData
+		sm.Transitions[ReceivingAlgorithm][algorithmReceived] = ReceivingData
 	}
 
-	sm.Transitions[receivingData] = make(map[event]State)
-	sm.Transitions[receivingData][dataReceived] = running
+	sm.Transitions[ReceivingData] = make(map[event]State)
+	sm.Transitions[ReceivingData][dataReceived] = Running
 
-	sm.Transitions[running] = make(map[event]State)
-	sm.Transitions[running][runComplete] = resultFetch
-	sm.Transitions[running][runFailed] = failed
+	sm.Transitions[Running] = make(map[event]State)
+	sm.Transitions[Running][runComplete] = ResultFetch
+	sm.Transitions[Running][runFailed] = Failed
 
-	sm.Transitions[resultFetch] = make(map[event]State)
-	sm.Transitions[resultFetch][resultsConsumed] = complete
+	sm.Transitions[ResultFetch] = make(map[event]State)
+	sm.Transitions[ResultFetch][resultsConsumed] = Complete
 
 	return sm
 }

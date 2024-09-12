@@ -26,13 +26,13 @@ func TestStateMachineTransitions(t *testing.T) {
 		expected  State
 		cmp       Computation
 	}{
-		{idle, start, receivingManifest, cmp},
-		{receivingManifest, manifestReceived, receivingAlgorithm, cmp},
-		{receivingAlgorithm, algorithmReceived, receivingData, cmp},
-		{receivingAlgorithm, algorithmReceived, running, Computation{}},
-		{receivingData, dataReceived, running, cmp},
-		{running, runComplete, resultFetch, cmp},
-		{resultFetch, resultsConsumed, complete, cmp},
+		{Idle, start, ReceivingManifest, cmp},
+		{ReceivingManifest, manifestReceived, ReceivingAlgorithm, cmp},
+		{ReceivingAlgorithm, algorithmReceived, ReceivingData, cmp},
+		{ReceivingAlgorithm, algorithmReceived, Running, Computation{}},
+		{ReceivingData, dataReceived, Running, cmp},
+		{Running, runComplete, ResultFetch, cmp},
+		{ResultFetch, resultsConsumed, Complete, cmp},
 	}
 
 	for _, tc := range cases {
@@ -61,11 +61,11 @@ func TestStateMachineInvalidTransition(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go sm.Start(ctx)
 
-	sm.SetState(idle)
+	sm.SetState(Idle)
 
 	sm.SendEvent(dataReceived)
 
-	if sm.State != idle {
+	if sm.State != Idle {
 		t.Errorf("State should not change on an invalid event, but got %v", sm.State)
 	}
 	cancel()
