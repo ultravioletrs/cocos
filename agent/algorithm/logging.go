@@ -4,6 +4,7 @@ package algorithm
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"log/slog"
 
@@ -65,7 +66,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		s.Logger.Error(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent("algorithm-run", "error", nil); err != nil {
+	if err := s.EventSvc.SendEvent("algorithm-run", "error", json.RawMessage{}); err != nil {
 		return len(p), err
 	}
 

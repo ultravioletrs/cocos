@@ -55,6 +55,8 @@ var (
 	ErrFileNameMismatch = errors.New("malformed data, filename does not match manifest")
 	// ErrAllResultsConsumed indicates all results have been consumed.
 	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
+	// ErrAttestationFailed attestation failed.
+	ErrAttestationFailed = errors.New("failed to get raw quote")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -124,7 +126,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error getting current directory: %v", err)
 	}
 
-	f, err := os.Create(filepath.Join(currentDir, "algorithm"))
+	f, err := os.Create(filepath.Join(currentDir, "algo"))
 	if err != nil {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
@@ -317,8 +319,9 @@ func (as *agentService) runComputation() {
 }
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
+	st := as.sm.GetState().String()
 	return func() {
-		if err := as.eventSvc.SendEvent(as.sm.State.String(), status, details); err != nil {
+		if err := as.eventSvc.SendEvent(st, status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
 	}

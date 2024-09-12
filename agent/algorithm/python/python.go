@@ -18,15 +18,15 @@ import (
 
 const (
 	PyRuntime    = "python3"
-	pyRuntimeKey = "python_runtime"
+	PyRuntimeKey = "python_runtime"
 )
 
 func PythonRunTimeToContext(ctx context.Context, runtime string) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, pyRuntimeKey, runtime)
+	return metadata.AppendToOutgoingContext(ctx, PyRuntimeKey, runtime)
 }
 
 func PythonRunTimeFromContext(ctx context.Context) string {
-	return metadata.ValueFromIncomingContext(ctx, pyRuntimeKey)[0]
+	return metadata.ValueFromIncomingContext(ctx, PyRuntimeKey)[0]
 }
 
 var _ algorithm.Algorithm = (*python)(nil)
