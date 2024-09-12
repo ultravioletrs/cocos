@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 ExecStart=cocos-manager
-Restart=on-failure
+Restart=always
 RestartSec=5s
 EnvironmentFile=/etc/cocos/cocos-manager.env
 
