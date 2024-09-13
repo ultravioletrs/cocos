@@ -9,66 +9,79 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
     steps:
-    - name: Update Ubuntu
-      run: |
-        sudo apt-get update
-        sudo apt-get upgrade -y
-    
-    - name: Install Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.23.x
-        cache-dependency-path: "go.sum"
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
 
-    - name: Checkout cocos
-      uses: actions/checkout@v4
-      with:
-        repository: 'ultravioletrs/cocos'
-        path: cocos
+      - name: Update Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get upgrade -y
 
-    - name: Checkout buildroot
-      uses: actions/checkout@v4
-      with:
-        repository: 'buildroot/buildroot'
-        path: buildroot
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.x
 
-    - name: Build
-      run: |
-        cd buildroot
-        make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
-        make
+      - name: Checkout cocos
+        uses: actions/checkout@v4
+        with:
+          repository: 'ultravioletrs/cocos'
+          path: cocos
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@latest
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+      - name: Checkout buildroot
+        uses: actions/checkout@v4
+        with:
+          repository: 'buildroot/buildroot'
+          path: buildroot
 
-    - name: Upload Release Asset
-      id: upload-release-kernel
-      uses: actions/upload-release-asset@latest
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./buildroot/output/images/bzImage
-        asset_name: bzImage
-        asset_content_type: application/octet-stream
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Upload Release Asset
-      id: upload-release-rootfs
-      uses: actions/upload-release-asset@latest
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./buildroot/output/images/rootfs.cpio.gz
-        asset_name: rootfs.cpio.gz
-        asset_content_type: application/gzip
+      - name: Build
+        run: |
+          cd buildroot
+          make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
+          make
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (Kernel)
+        uses: actions/upload-release-asset@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./buildroot/output/images/bzImage
+          asset_name: bzImage
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (Rootfs)
+        uses: actions/upload-release-asset@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./buildroot/output/images/rootfs.cpio.gz
+          asset_name: rootfs.cpio.gz
+          asset_content_type: application/gzip

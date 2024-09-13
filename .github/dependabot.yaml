@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/scripts/backend_info"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+    groups:
+      rs-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directories:
+      - "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+    groups:
+      pip-dependency:
+        patterns:
+          - "*"
