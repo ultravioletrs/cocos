@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"log/slog"
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -62,7 +63,7 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
 					ComputationId: s.ComputationId,
-					Level:         "debug",
+					Level:         slog.LevelDebug.String(),
 					Timestamp:     timestamppb.Now(),
 				},
 			},
@@ -101,7 +102,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 				AgentLog: &manager.AgentLog{
 					Message:       string(buf[:n]),
 					ComputationId: s.ComputationId,
-					Level:         "error",
+					Level:         slog.LevelError.String(),
 					Timestamp:     timestamppb.Now(),
 				},
 			},
