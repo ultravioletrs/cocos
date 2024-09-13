@@ -23,6 +23,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get upgrade -y
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          df -h
 
       - name: Install Go
         uses: actions/setup-go@v5
