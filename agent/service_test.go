@@ -251,7 +251,7 @@ func TestResult(t *testing.T) {
 			name: "Test all results consumed",
 			err:  ErrAllResultsConsumed,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(resultsReady)
+				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
@@ -262,7 +262,7 @@ func TestResult(t *testing.T) {
 			name: "Test undeclared consumer",
 			err:  ErrUndeclaredConsumer,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(resultsReady)
+				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("user")}}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
@@ -273,7 +273,7 @@ func TestResult(t *testing.T) {
 			name: "Test results consumed and event sent",
 			err:  nil,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(resultsReady)
+				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("key")}}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
