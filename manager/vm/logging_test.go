@@ -3,6 +3,7 @@
 package vm
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestStdoutWrite(t *testing.T) {
 					agentLog := msg.GetAgentLog()
 					assert.NotNil(t, agentLog)
 					assert.Equal(t, "test-computation", agentLog.ComputationId)
-					assert.Equal(t, "debug", agentLog.Level)
+					assert.Equal(t, slog.LevelDebug.String(), agentLog.Level)
 					assert.NotEmpty(t, agentLog.Message)
 					assert.NotNil(t, agentLog.Timestamp)
 				case <-time.After(time.Second):
@@ -113,7 +114,7 @@ func TestStderrWrite(t *testing.T) {
 						agentLog := msg.GetAgentLog()
 						assert.NotNil(t, agentLog)
 						assert.Equal(t, "test-computation", agentLog.ComputationId)
-						assert.Equal(t, "error", agentLog.Level)
+						assert.Equal(t, slog.LevelError.String(), agentLog.Level)
 						assert.NotEmpty(t, agentLog.Message)
 						assert.NotNil(t, agentLog.Timestamp)
 					case *manager.ClientStreamMessage_AgentEvent:
