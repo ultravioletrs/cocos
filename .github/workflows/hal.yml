@@ -31,6 +31,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.23.x
+          cache-dependency-path: "go.sum"
 
       - name: Checkout cocos
         uses: actions/checkout@v4
@@ -43,14 +44,6 @@ jobs:
         with:
           repository: 'buildroot/buildroot'
           path: buildroot
-
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Build
         run: |
