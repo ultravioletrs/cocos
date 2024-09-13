@@ -31,8 +31,8 @@ func TestStateMachineTransitions(t *testing.T) {
 		{ReceivingAlgorithm, algorithmReceived, ReceivingData, cmp},
 		{ReceivingAlgorithm, algorithmReceived, Running, Computation{}},
 		{ReceivingData, dataReceived, Running, cmp},
-		{Running, runComplete, ResultFetch, cmp},
-		{ResultFetch, resultsConsumed, Complete, cmp},
+		{Running, runComplete, ConsumingResults, cmp},
+		{ConsumingResults, resultsConsumed, Complete, cmp},
 	}
 
 	for _, tc := range cases {
