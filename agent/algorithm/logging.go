@@ -9,6 +9,7 @@ import (
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent/events"
+	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 var (
