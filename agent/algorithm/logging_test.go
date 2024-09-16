@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
+	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 func TestStdoutWrite(t *testing.T) {
@@ -72,7 +73,7 @@ func TestStderrWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockEventService := mocks.NewService(t)
-			mockEventService.On("SendEvent", "algorithm-run", "error", mock.Anything).Return(nil)
+			mockEventService.On("SendEvent", manager.AlgorithmRun.String(), manager.Error.String(), mock.Anything).Return(nil)
 
 			stderr := &Stderr{Logger: mglog.NewMock(), EventSvc: mockEventService}
 			n, err := stderr.Write([]byte(tt.input))

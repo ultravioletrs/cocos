@@ -9,13 +9,14 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[VmProvision-0]
-	_ = x[StopComputation-1]
-	_ = x[Starting-2]
+	_ = x[StopComputationRun-1]
+	_ = x[VmRunning-2]
+	_ = x[AlgorithmRun-3]
 }
 
-const _ManagerState_name = "VmProvisionStopComputationStarting"
+const _ManagerState_name = "VmProvisionStopComputationRunVmRunningAlgorithmRun"
 
-var _ManagerState_index = [...]uint8{0, 11, 26, 34}
+var _ManagerState_index = [...]uint8{0, 11, 29, 38, 50}
 
 func (i ManagerState) String() string {
 	if i >= ManagerState(len(_ManagerState_index)-1) {

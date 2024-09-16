@@ -124,8 +124,8 @@ func (v *qemuVM) checkVMProcessPeriodically() {
 				Message: &manager.ClientStreamMessage_AgentEvent{
 					AgentEvent: &manager.AgentEvent{
 						ComputationId: v.computationId,
-						EventType:     "vm-running",
-						Status:        "stopped",
+						EventType:     manager.VmRunning.String(),
+						Status:        manager.Stopped.String(),
 						Timestamp:     timestamppb.Now(),
 						Originator:    "manager",
 					},
