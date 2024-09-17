@@ -16,7 +16,11 @@ var (
 	_ io.Writer = &Stderr{}
 )
 
-const bufSize = 1024
+const (
+	bufSize      = 1024
+	algorithmRun = "AlgorithmRun"
+	errorStatus  = "Error"
+)
 
 type Stdout struct {
 	Logger *slog.Logger
@@ -66,7 +70,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		s.Logger.Error(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent("algorithm-run", "error", json.RawMessage{}); err != nil {
+	if err := s.EventSvc.SendEvent(algorithmRun, errorStatus, json.RawMessage{}); err != nil {
 		return len(p), err
 	}
 

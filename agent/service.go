@@ -92,14 +92,14 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 
 	go svc.sm.Start(ctx)
 	svc.sm.SendEvent(start)
-	svc.sm.StateFunctions[idle] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingManifest] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingAlgorithm] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[receivingData] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[resultsReady] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[complete] = svc.publishEvent("in-progress", json.RawMessage{})
-	svc.sm.StateFunctions[running] = svc.runComputation
-	svc.sm.StateFunctions[failed] = svc.publishEvent("failed", json.RawMessage{})
+	svc.sm.StateFunctions[Idle] = svc.publishEvent(IdleState.String(), json.RawMessage{})
+	svc.sm.StateFunctions[ReceivingManifest] = svc.publishEvent(InProgress.String(), json.RawMessage{})
+	svc.sm.StateFunctions[ReceivingAlgorithm] = svc.publishEvent(InProgress.String(), json.RawMessage{})
+	svc.sm.StateFunctions[ReceivingData] = svc.publishEvent(InProgress.String(), json.RawMessage{})
+	svc.sm.StateFunctions[ConsumingResults] = svc.publishEvent(Ready.String(), json.RawMessage{})
+	svc.sm.StateFunctions[Complete] = svc.publishEvent(Completed.String(), json.RawMessage{})
+	svc.sm.StateFunctions[Running] = svc.runComputation
+	svc.sm.StateFunctions[Failed] = svc.publishEvent(Failed.String(), json.RawMessage{})
 
 	svc.computation = cmp
 
@@ -108,7 +108,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 }
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
-	if as.sm.GetState() != receivingAlgorithm {
+	if as.sm.GetState() != ReceivingAlgorithm {
 		return ErrStateNotReady
 	}
 	if as.algorithm != nil {
@@ -189,7 +189,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 }
 
 func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
-	if as.sm.GetState() != receivingData {
+	if as.sm.GetState() != ReceivingData {
 		return ErrStateNotReady
 	}
 	if len(as.computation.Datasets) == 0 {
@@ -242,7 +242,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != resultsReady && as.sm.GetState() != failed {
+	if as.sm.GetState() != ConsumingResults && as.sm.GetState() != Failed {
 		return []byte{}, ErrResultsNotReady
 	}
 	if len(as.computation.ResultConsumers) == 0 {
@@ -254,7 +254,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	}
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == resultsReady {
+	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == ConsumingResults {
 		as.sm.SendEvent(resultsConsumed)
 	}
 
