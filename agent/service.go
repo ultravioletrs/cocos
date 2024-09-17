@@ -271,7 +271,7 @@ func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataS
 }
 
 func (as *agentService) runComputation() {
-	as.publishEvent("starting", json.RawMessage{})()
+	as.publishEvent(InProgress.String(), json.RawMessage{})()
 	as.sm.logger.Debug("computation run started")
 	defer func() {
 		if as.runError != nil {
@@ -284,7 +284,7 @@ func (as *agentService) runComputation() {
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
 		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
 		as.sm.logger.Warn(as.runError.Error())
-		as.publishEvent("failed", json.RawMessage{})()
+		as.publishEvent(Failed.String(), json.RawMessage{})()
 		return
 	}
 
@@ -297,11 +297,11 @@ func (as *agentService) runComputation() {
 		}
 	}()
 
-	as.publishEvent("in-progress", json.RawMessage{})()
+	as.publishEvent(InProgress.String(), json.RawMessage{})()
 	if err := as.algorithm.Run(); err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
-		as.publishEvent("failed", json.RawMessage{})()
+		as.publishEvent(Failed.String(), json.RawMessage{})()
 		return
 	}
 
@@ -309,11 +309,11 @@ func (as *agentService) runComputation() {
 	if err != nil {
 		as.runError = err
 		as.sm.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
-		as.publishEvent("failed", json.RawMessage{})()
+		as.publishEvent(Failed.String(), json.RawMessage{})()
 		return
 	}
 
-	as.publishEvent("complete", json.RawMessage{})()
+	as.publishEvent(Completed.String(), json.RawMessage{})()
 
 	as.result = results
 }
