@@ -45,6 +45,7 @@ const (
 	Ready
 	Completed
 	Terminated
+	Error
 )
 
 type event uint8
