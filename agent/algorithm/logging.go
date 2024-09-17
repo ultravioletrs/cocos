@@ -67,7 +67,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		s.Logger.Error(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent(manager.AlgorithmRun.String(), manager.Error.String(), json.RawMessage{}); err != nil {
+	if err := s.EventSvc.SendEvent("AlgorithmRun", manager.Error.String(), json.RawMessage{}); err != nil {
 		return len(p), err
 	}
 

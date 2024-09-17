@@ -21,6 +21,7 @@ const (
 	ConsumingResults
 	Complete
 	Failed
+	AlgorithmRun
 )
 
 //go:generate stringer -type=Status
@@ -32,6 +33,7 @@ const (
 	Ready
 	Completed
 	Terminated
+	Error
 )
 
 type event uint8

@@ -11,12 +11,11 @@ func _() {
 	_ = x[VmProvision-0]
 	_ = x[StopComputationRun-1]
 	_ = x[VmRunning-2]
-	_ = x[AlgorithmRun-3]
 }
 
-const _ManagerState_name = "VmProvisionStopComputationRunVmRunningAlgorithmRun"
+const _ManagerState_name = "VmProvisionStopComputationRunVmRunning"
 
-var _ManagerState_index = [...]uint8{0, 11, 29, 38, 50}
+var _ManagerState_index = [...]uint8{0, 11, 29, 38}
 
 func (i ManagerState) String() string {
 	if i >= ManagerState(len(_ManagerState_index)-1) {

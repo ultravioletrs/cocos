@@ -9,7 +9,6 @@ const (
 	VmProvision ManagerState = iota
 	StopComputationRun
 	VmRunning
-	AlgorithmRun
 )
 
 //go:generate stringer -type=ManagerStatus

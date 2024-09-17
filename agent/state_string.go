@@ -16,11 +16,12 @@ func _() {
 	_ = x[ConsumingResults-5]
 	_ = x[Complete-6]
 	_ = x[Failed-7]
+	_ = x[AlgorithmRun-8]
 }
 
-const _State_name = "IdleReceivingManifestReceivingAlgorithmReceivingDataRunningConsumingResultsCompleteFailed"
+const _State_name = "IdleReceivingManifestReceivingAlgorithmReceivingDataRunningConsumingResultsCompleteFailedAlgorithmRun"
 
-var _State_index = [...]uint8{0, 4, 21, 39, 52, 59, 75, 83, 89}
+var _State_index = [...]uint8{0, 4, 21, 39, 52, 59, 75, 83, 89, 101}
 
 func (i State) String() string {
 	if i >= State(len(_State_index)-1) {

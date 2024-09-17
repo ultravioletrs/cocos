@@ -13,11 +13,12 @@ func _() {
 	_ = x[Ready-2]
 	_ = x[Completed-3]
 	_ = x[Terminated-4]
+	_ = x[Error-5]
 }
 
-const _Status_name = "IdleStateInProgressReadyCompletedTerminated"
+const _Status_name = "IdleStateInProgressReadyCompletedTerminatedError"
 
-var _Status_index = [...]uint8{0, 9, 19, 24, 33, 43}
+var _Status_index = [...]uint8{0, 9, 19, 24, 33, 43, 48}
 
 func (i Status) String() string {
 	if i >= Status(len(_Status_index)-1) {
