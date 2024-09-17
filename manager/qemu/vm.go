@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	firmwareVars = "OVMF_VARS"
-	KernelFile   = "bzImage"
-	rootfsFile   = "rootfs.cpio"
-	tmpDir       = "/tmp"
-	interval     = 5 * time.Second
+	firmwareVars    = "OVMF_VARS"
+	KernelFile      = "bzImage"
+	rootfsFile      = "rootfs.cpio"
+	tmpDir          = "/tmp"
+	interval        = 5 * time.Second
+	shutdownTimeout = 30 * time.Second
 )
 
 type qemuVM struct {
@@ -92,7 +93,7 @@ func (v *qemuVM) Stop() error {
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(30 * time.Second):
+	case <-time.After(shutdownTimeout):
 		err := v.cmd.Process.Kill()
 		if err != nil {
 			return fmt.Errorf("failed to kill process: %v", err)
