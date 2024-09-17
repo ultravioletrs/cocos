@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	firmwareVars = "OVMF_VARS"
-	KernelFile   = "bzImage"
-	rootfsFile   = "rootfs.cpio"
-	tmpDir       = "/tmp"
-	interval     = 5 * time.Second
+	firmwareVars    = "OVMF_VARS"
+	KernelFile      = "bzImage"
+	rootfsFile      = "rootfs.cpio"
+	tmpDir          = "/tmp"
+	interval        = 5 * time.Second
+	shutdownTimeout = 30 * time.Second
 )
 
 type qemuVM struct {
@@ -78,7 +79,28 @@ func (v *qemuVM) Start() (err error) {
 }
 
 func (v *qemuVM) Stop() error {
-	return v.cmd.Process.Kill()
+	err := v.cmd.Process.Signal(syscall.SIGTERM)
+	if err != nil {
+		return fmt.Errorf("failed to send SIGTERM: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := v.cmd.Process.Wait()
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(shutdownTimeout):
+		err := v.cmd.Process.Kill()
+		if err != nil {
+			return fmt.Errorf("failed to kill process: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (v *qemuVM) SetProcess(pid int) error {
