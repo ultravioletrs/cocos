@@ -9,7 +9,6 @@ import (
 	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent/events"
-	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 var (
@@ -20,6 +19,7 @@ var (
 const (
 	bufSize      = 1024
 	algorithmRun = "AlgorithmRun"
+	errorStatus  = "Error"
 )
 
 type Stdout struct {
@@ -70,7 +70,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		s.Logger.Error(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent(algorithmRun, manager.Error.String(), json.RawMessage{}); err != nil {
+	if err := s.EventSvc.SendEvent(algorithmRun, errorStatus, json.RawMessage{}); err != nil {
 		return len(p), err
 	}
 
