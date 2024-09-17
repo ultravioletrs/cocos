@@ -78,7 +78,28 @@ func (v *qemuVM) Start() (err error) {
 }
 
 func (v *qemuVM) Stop() error {
-	return v.cmd.Process.Kill()
+	err := v.cmd.Process.Signal(syscall.SIGTERM)
+	if err != nil {
+		return fmt.Errorf("failed to send SIGTERM: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := v.cmd.Process.Wait()
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		err := v.cmd.Process.Kill()
+		if err != nil {
+			return fmt.Errorf("failed to kill process: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (v *qemuVM) SetProcess(pid int) error {

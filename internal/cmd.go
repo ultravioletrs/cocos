@@ -62,14 +62,3 @@ func RunCmdOutput(command string, args ...string) (string, error) {
 
 	return string(output), nil
 }
-
-// RunCmdStart starts the specified command and returns the *exec.Cmd for the running process.
-func RunCmdStart(command string, args ...string) (*exec.Cmd, error) {
-	cmd := exec.Command(command, args...)
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting command '%s': %s", cmd.String(), err)
-	}
-
-	return cmd, nil
-}
