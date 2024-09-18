@@ -7,7 +7,10 @@ import (
 	"strconv"
 )
 
-const BaseGuestCID = 3
+const (
+	BaseGuestCID      = 3
+	KernelCommandLine = "quiet console=null rootfstype=ramfs"
+)
 
 type MemoryConfig struct {
 	Size  string `env:"MEMORY_SIZE"  envDefault:"2048M"`
@@ -175,7 +178,7 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-append", strconv.Quote("quiet console=null rootfstype=ramfs"))
+	args = append(args, "-append", strconv.Quote(KernelCommandLine))
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// SEV
