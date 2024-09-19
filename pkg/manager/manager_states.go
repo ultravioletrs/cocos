@@ -18,4 +18,5 @@ const (
 	Starting ManagerStatus = iota
 	Stopped
 	Error
+	Disconnected
 )
