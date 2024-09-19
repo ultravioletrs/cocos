@@ -4,6 +4,7 @@ package manager
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"regexp"
 	"strconv"
@@ -65,7 +66,26 @@ func (ms *managerService) handleConnections(conn net.Conn) {
 		}
 		ms.eventsChan <- &message
 
-		ms.logger.WithGroup("agent-events-logs").Info(message.String())
+		args := []any{}
+
+		switch message.Message.(type) {
+		case *manager.ClientStreamMessage_AgentEvent:
+			args = append(args, slog.Group("agent-event",
+				slog.String("event-type", message.GetAgentEvent().GetEventType()),
+				slog.String("computation-id", message.GetAgentEvent().GetComputationId()),
+				slog.String("status", message.GetAgentEvent().GetStatus()),
+				slog.String("originator", message.GetAgentEvent().GetOriginator()),
+				slog.String("timestamp", message.GetAgentEvent().GetTimestamp().String()),
+				slog.String("details", string(message.GetAgentEvent().GetDetails()))))
+		case *manager.ClientStreamMessage_AgentLog:
+			args = append(args, slog.Group("agent-log",
+				slog.String("computation-id", message.GetAgentLog().GetComputationId()),
+				slog.String("level", message.GetAgentLog().GetLevel()),
+				slog.String("timestamp", message.GetAgentLog().GetTimestamp().String()),
+				slog.String("message", message.GetAgentLog().GetMessage())))
+		}
+
+		ms.logger.Info("", args...)
 	}
 }
 
