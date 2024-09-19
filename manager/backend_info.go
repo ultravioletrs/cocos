@@ -7,6 +7,7 @@
 package manager
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -52,9 +53,19 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 			return nil, err
 		}
 	}
-	backendInfo.SNPPolicy.Measurement = measurement
+	if measurement == nil {
+		backendInfo.SNPPolicy.Measurement = measurement
+	}
 
-	f, err = json.MarshalIndent(backendInfo, "", " ")
+	if ms.qemuCfg.HostData != "" {
+		hostData, err := base64.StdEncoding.DecodeString(ms.qemuCfg.HostData)
+		if err != nil {
+			return nil, err
+		}
+		backendInfo.SNPPolicy.HostData = hostData
+	}
+
+	f, err = json.Marshal(backendInfo)
 	if err != nil {
 		return nil, err
 	}
