@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
+	github.com/virtee/sev-snp-measure-go v0.0.0-20240530153610-e6e8dc9b6877
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.53.0
 	go.opentelemetry.io/otel/trace v1.28.0
 	golang.org/x/crypto v0.25.0
@@ -79,3 +80,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/virtee/sev-snp-measure-go => github.com/sammyoina/sev-snp-measure-go v0.0.0-20240918192515-70b6b9542aa5

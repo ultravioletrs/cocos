@@ -16,6 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
+	cmd "github.com/virtee/sev-snp-measure-go/sevsnpmeasure/cmd"
 )
 
 const (
@@ -114,6 +115,9 @@ func main() {
 	// Attestation commands
 	attestationCmd.AddCommand(cliSVC.NewGetAttestationCmd())
 	attestationCmd.AddCommand(cliSVC.NewValidateAttestationValidationCmd())
+
+	// measure.
+	rootCmd.AddCommand(cmd.NewRootCmd())
 
 	// Flags
 	keysCmd.PersistentFlags().StringVarP(
