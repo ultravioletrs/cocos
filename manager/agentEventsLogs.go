@@ -119,9 +119,9 @@ func (ms *managerService) reportBrokenConnection(cmpID string) {
 	ms.eventsChan <- &manager.ClientStreamMessage{
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
-				EventType:     "vm running",
+				EventType:     manager.VmRunning.String(),
 				ComputationId: cmpID,
-				Status:        "disconnected",
+				Status:        manager.Disconnected.String(),
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
 			},
