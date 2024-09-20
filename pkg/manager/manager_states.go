@@ -17,6 +17,6 @@ type ManagerStatus uint8
 const (
 	Starting ManagerStatus = iota
 	Stopped
-	Error
+	Warning
 	Disconnected
 )

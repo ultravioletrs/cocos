@@ -121,7 +121,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 				EventType:     manager.VmRunning.String(),
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
-				Status:        manager.Error.String(),
+				Status:        manager.Warning.String(),
 			},
 		},
 	}
