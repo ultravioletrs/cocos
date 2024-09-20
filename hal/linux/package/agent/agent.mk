@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-AGENT_VERSION = main
-AGENT_SITE = $(call github,ultravioletrs,cocos,$(AGENT_VERSION))
+AGENT_VERSION = state-check
+AGENT_SITE = $(call github,sammyoina,cocos-ai,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS
 	$(MAKE) -C $(@D) agent EMBED_ENABLED=$(AGENT_EMBED_ENABLED)
