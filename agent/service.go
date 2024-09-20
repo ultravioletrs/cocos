@@ -320,8 +320,8 @@ func (as *agentService) runComputation() {
 }
 
 func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
-	st := as.sm.GetState().String()
 	return func() {
+		st := as.sm.GetState().String()
 		if err := as.eventSvc.SendEvent(st, status, details); err != nil {
 			as.sm.logger.Warn(err.Error())
 		}
