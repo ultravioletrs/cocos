@@ -121,7 +121,7 @@ func TestStderrWrite(t *testing.T) {
 						agentEvent := msg.GetAgentEvent()
 						assert.NotNil(t, agentEvent)
 						assert.Equal(t, "test-computation", agentEvent.ComputationId)
-						assert.Equal(t, manager.VmProvision.String(), agentEvent.EventType)
+						assert.Equal(t, manager.VmRunning.String(), agentEvent.EventType)
 						assert.Equal(t, manager.Error.String(), agentEvent.Status)
 						assert.NotNil(t, agentEvent.Timestamp)
 					}

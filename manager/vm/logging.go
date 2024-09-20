@@ -118,7 +118,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
 				ComputationId: s.ComputationId,
-				EventType:     manager.VmProvision.String(),
+				EventType:     manager.VmRunning.String(),
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
 				Status:        manager.Error.String(),

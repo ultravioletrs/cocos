@@ -45,17 +45,17 @@ func (ms *managerService) RetrieveAgentEventsLogs() {
 }
 
 func (ms *managerService) handleConnections(conn net.Conn) {
+	cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
+	if err != nil {
+		ms.logger.Warn(err.Error())
+		return
+	}
 	defer conn.Close()
 	for {
 		b := make([]byte, messageSize)
 		n, err := conn.Read(b)
 		if err != nil {
 			ms.logger.Warn(err.Error())
-			cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
-			if err != nil {
-				ms.logger.Warn(err.Error())
-				continue
-			}
 			go ms.reportBrokenConnection(cmpID)
 			return
 		}
