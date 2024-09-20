@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -102,18 +103,24 @@ func SendAgentConfig(cid uint32, ac agent.Computation) error {
 
 func handleConnections(conn net.Conn) {
 	defer conn.Close()
+	buf := make([]byte, 4096)
 	for {
-		b := make([]byte, 1024)
-		n, err := conn.Read(b)
+		n, err := conn.Read(buf)
 		if err != nil {
-			log.Println(err)
+			if err == io.EOF {
+				log.Println("Connection closed by client")
+			} else {
+				log.Println("Error reading from connection:", err)
+			}
 			return
 		}
+
 		var message pkgmanager.ClientStreamMessage
-		if err := proto.Unmarshal(b[:n], &message); err != nil {
-			log.Println(err)
-			return
+		if err := proto.Unmarshal(buf[:n], &message); err != nil {
+			log.Println("Failed to unmarshal message:", err)
+			continue
 		}
+
 		fmt.Println(message.String())
 	}
 }

@@ -236,7 +236,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	}
 
 	if len(as.computation.Datasets) == 0 {
-		as.sm.SendEvent(dataReceived)
+		defer as.sm.SendEvent(dataReceived)
 	}
 
 	return nil
@@ -256,7 +256,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
 	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == ConsumingResults {
-		as.sm.SendEvent(resultsConsumed)
+		defer as.sm.SendEvent(resultsConsumed)
 	}
 
 	return as.result, as.runError

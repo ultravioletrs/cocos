@@ -90,6 +90,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		h.mutex.Lock()
 		_, err = h.w.Write(b)
 		if err != nil {
+			fmt.Println("failed to send log, caching", err)
 			h.cachedMessages = append(h.cachedMessages, b)
 		}
 		h.mutex.Unlock()
