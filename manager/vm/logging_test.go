@@ -122,7 +122,7 @@ func TestStderrWrite(t *testing.T) {
 						assert.NotNil(t, agentEvent)
 						assert.Equal(t, "test-computation", agentEvent.ComputationId)
 						assert.Equal(t, manager.VmRunning.String(), agentEvent.EventType)
-						assert.Equal(t, manager.Error.String(), agentEvent.Status)
+						assert.Equal(t, manager.Warning.String(), agentEvent.Status)
 						assert.NotNil(t, agentEvent.Timestamp)
 					}
 				case <-time.After(time.Second):

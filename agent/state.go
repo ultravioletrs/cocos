@@ -33,7 +33,7 @@ const (
 	Ready
 	Completed
 	Terminated
-	Error
+	Warning
 )
 
 type event uint8
