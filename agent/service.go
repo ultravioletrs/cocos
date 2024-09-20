@@ -90,8 +90,6 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 		quoteProvider: quoteProvider,
 	}
 
-	go svc.sm.Start(ctx)
-	svc.sm.SendEvent(start)
 	svc.sm.StateFunctions[Idle] = svc.publishEvent(IdleState.String(), json.RawMessage{})
 	svc.sm.StateFunctions[ReceivingManifest] = svc.publishEvent(InProgress.String(), json.RawMessage{})
 	svc.sm.StateFunctions[ReceivingAlgorithm] = svc.publishEvent(InProgress.String(), json.RawMessage{})
@@ -100,6 +98,9 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	svc.sm.StateFunctions[Complete] = svc.publishEvent(Completed.String(), json.RawMessage{})
 	svc.sm.StateFunctions[Running] = svc.runComputation
 	svc.sm.StateFunctions[Failed] = svc.publishEvent(Failed.String(), json.RawMessage{})
+
+	go svc.sm.Start(ctx)
+	svc.sm.SendEvent(start)
 
 	svc.computation = cmp
 
