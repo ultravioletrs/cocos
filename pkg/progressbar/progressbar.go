@@ -9,18 +9,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/ultravioletrs/cocos/agent"
 	"golang.org/x/term"
 )
 
 const (
-	progressBarDots = "... "
-	leftBracket     = "["
-	rightBracket    = "]"
-	head            = ">"
-	body            = "="
-	bodyPadding     = "."
-	bufferSize      = 1024 * 1024
+	leftBracket  = "["
+	rightBracket = "]"
+	head         = ">"
+	body         = "="
+	bodyPadding  = "."
+	bufferSize   = 1024 * 1024
 )
 
 var (
@@ -186,7 +186,7 @@ func (p *ProgressBar) updateProgress(bytesRead int) {
 	}
 }
 
-// Progress bar example: Uploading algorithm... 25% [==>   ].
+// Progress bar example:  📥 Uploading algorithm... [█████░░░░░░░░░░░░] [25%].
 func (p *ProgressBar) renderProgressBar() error {
 	var builder strings.Builder
 
@@ -194,7 +194,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	width, err := terminalWidth()
 	if err != nil {
 		if !warnOnlyOnce {
-			fmt.Println("Progress bar could not be rendered")
+			color.Red("Progress bar could not be rendered")
 			warnOnlyOnce = true
 		}
 		return nil
@@ -208,28 +208,26 @@ func (p *ProgressBar) renderProgressBar() error {
 		return fmt.Errorf("failed to clear progress bar: %v", err)
 	}
 
+	// Emoji to indicate progress action (📥 for uploading).
+	emoji := "📥 "
+	if p.currentUploadPercentage == 100 {
+		emoji = "✅ "
+	}
+
 	// The progress bar starts with the description.
-	if _, err := builder.WriteString(p.description); err != nil {
+	description := color.New(color.FgYellow).Sprintf("%s%s", emoji, p.description)
+	if _, err := builder.WriteString(description); err != nil {
 		return fmt.Errorf("failed to add description: %v", err)
 	}
 
-	// Add dots to progress bar.
-	if _, err := builder.WriteString(progressBarDots); err != nil {
-		return fmt.Errorf("failed to add dots: %v", err)
-	}
-
-	// Add uploaded percentage.
-	strCurrentUploadPercentage := fmt.Sprintf("%4d%% ", p.currentUploadPercentage)
-	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
-		return fmt.Errorf("failed to add upload percentage bracket: %v", err)
-	}
-
-	// Add letf bracket and space to progress bar.
+	// Add left bracket (colored).
+	leftBracket := color.New(color.FgBlue).Sprint(leftBracket)
 	if _, err := builder.WriteString(leftBracket); err != nil {
 		return fmt.Errorf("failed to add left bracket: %v", err)
 	}
 
-	progressWidth := width - builder.Len() - len(rightBracket+" ")
+	// Calculate the progress bar's width.
+	progressWidth := width - builder.Len() - len(rightBracket+" [100%]")
 	numOfCharactersBody := progressWidth * p.currentUploadPercentage / 100
 	if numOfCharactersBody == 0 {
 		numOfCharactersBody = 1
@@ -237,33 +235,31 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	numOfCharactersPadding := progressWidth - numOfCharactersBody
 
-	// Add body which represents the percentage.
-	progress := strings.Repeat(body, numOfCharactersBody-1)
-
-	// Add progress to the progress bar.
+	// Using unicode block characters for a smooth bar.
+	progress := color.New(color.FgGreen).Sprint(strings.Repeat("█", numOfCharactersBody))
 	if _, err := builder.WriteString(progress); err != nil {
-		return fmt.Errorf("failed to add progress strings to padding: %v", err)
+		return fmt.Errorf("failed to add progress strings: %v", err)
 	}
 
-	// Add head to progress bar.
-	if _, err := builder.WriteString(head); err != nil {
-		return fmt.Errorf("failed to add head to padding: %v", err)
-	}
-
-	// Add padding to end of bar.
-	padding := strings.Repeat(bodyPadding, numOfCharactersPadding)
-
-	// Add padding to progress bar.
+	// Add the unfilled part (light blocks as padding).
+	padding := strings.Repeat("░", numOfCharactersPadding)
 	if _, err := builder.WriteString(padding); err != nil {
 		return fmt.Errorf("failed to add padding: %v", err)
 	}
 
 	// Add right bracket to progress bar.
+	rightBracket := color.New(color.FgBlue).Sprint("]")
 	if _, err := builder.WriteString(rightBracket); err != nil {
 		return fmt.Errorf("failed to add right bracket: %v", err)
 	}
 
-	// Write progress bar.
+	// Add the percentage at the end inside square brackets.
+	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]", p.currentUploadPercentage)
+	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
+		return fmt.Errorf("failed to add upload percentage: %v", err)
+	}
+
+	// Write progress bar to the console.
 	if _, err := io.WriteString(os.Stdout, builder.String()); err != nil {
 		return fmt.Errorf("failed to write string: %v", err)
 	}
