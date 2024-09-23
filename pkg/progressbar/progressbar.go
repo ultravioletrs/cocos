@@ -17,9 +17,6 @@ import (
 const (
 	leftBracket  = "["
 	rightBracket = "]"
-	head         = ">"
-	body         = "="
-	bodyPadding  = "."
 	bufferSize   = 1024 * 1024
 )
 
@@ -209,13 +206,16 @@ func (p *ProgressBar) renderProgressBar() error {
 	}
 
 	// Emoji to indicate progress action (📥 for uploading).
-	emoji := "📥 "
+	emoji := color.New(color.FgYellow).Sprintf("📥  ")
 	if p.currentUploadPercentage == 100 {
-		emoji = "✅ "
+		emoji = color.New(color.FgGreen).Sprintf("✔  ")
+	}
+	if _, err := builder.WriteString(emoji); err != nil {
+		return fmt.Errorf("failed to add description: %v", err)
 	}
 
 	// The progress bar starts with the description.
-	description := color.New(color.FgYellow).Sprintf("%s%s", emoji, p.description)
+	description := color.New(color.FgYellow).Sprintf("%s ", p.description)
 	if _, err := builder.WriteString(description); err != nil {
 		return fmt.Errorf("failed to add description: %v", err)
 	}

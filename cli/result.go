@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,8 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
-				log.Fatalf("Error reading private key file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v", err)
+				log.Fatal(msg)
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -33,14 +35,16 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			privKey := decodeKey(pemBlock)
 			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
-				log.Fatalf("Error retrieving computation result: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error retrieving computation result: %v", err)
+				log.Fatal(msg)
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
+				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v", resultFilePath, err)
+				log.Fatal(msg)
 			}
 
-			log.Println("Computation result retrieved and saved successfully!")
+			log.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))
 		},
 	}
 }

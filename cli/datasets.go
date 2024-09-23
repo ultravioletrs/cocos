@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
@@ -31,7 +32,8 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			f, err := os.Stat(datasetPath)
 			if err != nil {
-				log.Fatalf("Error reading dataset file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v", err)
+				log.Fatal(msg)
 			}
 
 			var dataset []byte
@@ -39,12 +41,14 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			if f.IsDir() {
 				dataset, err = internal.ZipDirectoryToMemory(datasetPath)
 				if err != nil {
-					log.Fatalf("Error zipping dataset directory: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error zipping dataset directory: %v", err)
+					log.Fatal(msg)
 				}
 			} else {
 				dataset, err = os.ReadFile(datasetPath)
 				if err != nil {
-					log.Fatalf("Error reading dataset file: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v", err)
+					log.Fatal(msg)
 				}
 			}
 
@@ -64,10 +68,11 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataReq, privKey); err != nil {
-				log.Fatalf("Error uploading dataset: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Failed to upload dataset due to error: %v ❌  ", err.Error())
+				log.Fatal(msg)
 			}
 
-			log.Println("Successfully uploaded dataset")
+			log.Println(color.New(color.FgGreen).Sprint("Successfully uploaded dataset! ✔ "))
 		},
 	}
 
