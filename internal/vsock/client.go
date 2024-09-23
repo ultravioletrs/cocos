@@ -20,6 +20,7 @@ const (
 	retryDelay     = time.Second
 	maxMessageSize = 1 << 20 // 1 MB
 	ackTimeout     = 5 * time.Second
+	maxConcurrent  = 100 // Maximum number of concurrent messages
 )
 
 type Message struct {
@@ -28,18 +29,27 @@ type Message struct {
 }
 
 type AckWriter struct {
-	conn        net.Conn
-	ackChannels map[uint32]chan bool
-	ackMu       sync.Mutex
-	nextID      uint32
+	conn            net.Conn
+	pendingMessages chan *Message
+	ackChannels     map[uint32]chan bool
+	ackMu           sync.RWMutex
+	nextID          uint32
+	done            chan struct{}
+	wg              sync.WaitGroup
 }
 
 func NewAckWriter(conn net.Conn) *AckWriter {
-	return &AckWriter{
-		conn:        conn,
-		ackChannels: make(map[uint32]chan bool),
-		nextID:      1,
+	aw := &AckWriter{
+		conn:            conn,
+		pendingMessages: make(chan *Message, maxConcurrent),
+		ackChannels:     make(map[uint32]chan bool),
+		nextID:          1,
+		done:            make(chan struct{}),
 	}
+	aw.wg.Add(2)
+	go aw.sendMessages()
+	go aw.handleAcknowledgments()
+	return aw
 }
 
 func (aw *AckWriter) WriteProto(msg proto.Message) (int, error) {
@@ -47,7 +57,6 @@ func (aw *AckWriter) WriteProto(msg proto.Message) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error marshaling protobuf message: %v", err)
 	}
-
 	return aw.Write(data)
 }
 
@@ -64,28 +73,42 @@ func (aw *AckWriter) Write(p []byte) (int, error) {
 	aw.ackChannels[messageID] = ackCh
 	aw.ackMu.Unlock()
 
-	defer func() {
-		aw.ackMu.Lock()
-		delete(aw.ackChannels, messageID)
-		aw.ackMu.Unlock()
-		close(ackCh)
-	}()
+	message := &Message{ID: messageID, Content: p}
 
-	for i := 0; i < maxRetries; i++ {
-		if err := aw.writeMessage(messageID, p); err != nil {
-			return 0, fmt.Errorf("error writing message: %v", err)
-		}
-
-		select {
-		case <-ackCh:
-			return len(p), nil
-		case <-time.After(ackTimeout):
-			// Timeout, retry
-			log.Printf("Retry %d: No ACK received for message %d", i+1, messageID)
-		}
+	select {
+	case aw.pendingMessages <- message:
+		// Message queued successfully
+	case <-aw.done:
+		return 0, fmt.Errorf("writer is closed")
 	}
 
-	return 0, fmt.Errorf("failed to receive ACK after %d attempts", maxRetries)
+	select {
+	case <-ackCh:
+		return len(p), nil
+	case <-time.After(ackTimeout):
+		return 0, fmt.Errorf("timeout waiting for acknowledgment")
+	case <-aw.done:
+		return 0, fmt.Errorf("writer closed while waiting for acknowledgment")
+	}
+}
+
+func (aw *AckWriter) sendMessages() {
+	defer aw.wg.Done()
+	for {
+		select {
+		case <-aw.done:
+			return
+		case msg := <-aw.pendingMessages:
+			for i := 0; i < maxRetries; i++ {
+				if err := aw.writeMessage(msg.ID, msg.Content); err != nil {
+					log.Printf("Error writing message %d (attempt %d): %v", msg.ID, i+1, err)
+					time.Sleep(retryDelay)
+					continue
+				}
+				break
+			}
+		}
+	}
 }
 
 func (aw *AckWriter) writeMessage(messageID uint32, p []byte) error {
@@ -108,32 +131,49 @@ func (aw *AckWriter) writeMessage(messageID uint32, p []byte) error {
 	return nil
 }
 
-func (aw *AckWriter) HandleAcknowledgments() {
+func (aw *AckWriter) handleAcknowledgments() {
+	defer aw.wg.Done()
 	for {
-		var ackID uint32
-		err := binary.Read(aw.conn, binary.LittleEndian, &ackID)
-		if err != nil {
-			if err == io.EOF {
-				return
+		select {
+		case <-aw.done:
+			return
+		default:
+			var ackID uint32
+			err := binary.Read(aw.conn, binary.LittleEndian, &ackID)
+			if err != nil {
+				if err == io.EOF {
+					log.Println("Connection closed, stopping acknowledgment handler")
+					return
+				}
+				log.Printf("Error reading ACK: %v", err)
+				time.Sleep(retryDelay)
+				continue
 			}
-			log.Printf("Error reading ACK: %v", err)
-			continue
-		}
 
-		aw.ackMu.Lock()
-		ackCh, ok := aw.ackChannels[ackID]
-		aw.ackMu.Unlock()
+			aw.ackMu.RLock()
+			ackCh, ok := aw.ackChannels[ackID]
+			aw.ackMu.RUnlock()
 
-		if ok {
-			select {
-			case ackCh <- true:
-			default:
-				// Channel is already closed or full
+			if ok {
+				select {
+				case ackCh <- true:
+				default:
+					// Channel is already closed or full
+				}
+				aw.ackMu.Lock()
+				delete(aw.ackChannels, ackID)
+				aw.ackMu.Unlock()
+			} else {
+				log.Printf("Received ACK for unknown message ID: %d", ackID)
 			}
-		} else {
-			log.Printf("Received ACK for unknown message ID: %d", ackID)
 		}
 	}
+}
+
+func (aw *AckWriter) Close() error {
+	close(aw.done)
+	aw.wg.Wait()
+	return aw.conn.Close()
 }
 
 type AckReader struct {

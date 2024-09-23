@@ -7,16 +7,16 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/pem"
 	"log"
 	"net"
 	"os"
 	"strconv"
 
-	internalvsock "github.com/ultravioletrs/cocos/internal/vsock" // Import your custom vsock package
-
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
+	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
@@ -34,50 +34,39 @@ func main() {
 	dataPath := os.Args[1]
 	algoPath := os.Args[2]
 	pubKeyFile := os.Args[3]
-	attestedTLS, err := strconv.ParseBool(os.Args[4])
+	attestedTLSParam, err := strconv.ParseBool(os.Args[4])
 	if err != nil {
 		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
+	attestedTLS := attestedTLSParam
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
 		log.Fatalf("failed to read public key file: %s", err)
 	}
-
+	pubPem, _ := pem.Decode(pubKey)
 	algoHash, err := internal.Checksum(algoPath)
 	if err != nil {
-		log.Fatalf("failed to calculate algorithm checksum: %s", err)
+		log.Fatalf("failed to calculate checksum: %s", err)
 	}
-
 	dataHash, err := internal.Checksum(dataPath)
 	if err != nil {
-		log.Fatalf("failed to calculate data checksum: %s", err)
+		log.Fatalf("failed to calculate checksum: %s", err)
 	}
 
 	ac := agent.Computation{
-		ID: "123",
-		Datasets: agent.Datasets{
-			agent.Dataset{
-				Hash:    [32]byte(dataHash),
-				UserKey: pubKey,
-			},
-		},
-		Algorithm: agent.Algorithm{
-			Hash:    [32]byte(algoHash),
-			UserKey: pubKey,
-		},
-		ResultConsumers: []agent.ResultConsumer{
-			{UserKey: pubKey},
-		},
+		ID:              "123",
+		Datasets:        agent.Datasets{agent.Dataset{Hash: [32]byte(dataHash), UserKey: pubPem.Bytes}},
+		Algorithm:       agent.Algorithm{Hash: [32]byte(algoHash), UserKey: pubPem.Bytes},
+		ResultConsumers: []agent.ResultConsumer{{UserKey: pubPem.Bytes}},
 		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
 			Port:        "7002",
 			AttestedTls: attestedTLS,
 		},
 	}
-
 	if err := sendAgentConfig(3, ac); err != nil {
-		log.Fatalf("failed to send agent config: %s", err)
+		log.Fatal(err)
 	}
 
 	listener, err := vsock.Listen(managerVsockPort, nil)
@@ -124,8 +113,6 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	ackReader := internalvsock.NewAckReader(conn)
-	ackWriter := internalvsock.NewAckWriter(conn)
-	go ackWriter.HandleAcknowledgments()
 
 	for {
 		var message pkgmanager.ClientStreamMessage
