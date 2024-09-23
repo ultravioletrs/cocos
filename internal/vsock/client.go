@@ -68,10 +68,8 @@ func (aw *AckWriter) Write(p []byte) (int, error) {
 	aw.ackMu.Lock()
 	messageID := aw.nextID
 	aw.nextID++
-	aw.ackMu.Unlock()
 
 	ackCh := make(chan bool, 1)
-	aw.ackMu.Lock()
 	aw.ackChannels[messageID] = ackCh
 	aw.ackMu.Unlock()
 
