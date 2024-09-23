@@ -3,17 +3,14 @@
 package manager
 
 import (
-	"bufio"
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"regexp"
 	"strconv"
-	"strings"
-	"sync"
 
 	"github.com/mdlayher/vsock"
+	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -27,19 +24,6 @@ const (
 var (
 	errFailedToParseCID    = fmt.Errorf("failed to parse computation ID")
 	errComputationNotFound = fmt.Errorf("computation not found")
-)
-
-type Client struct {
-	id     string
-	conn   net.Conn
-	outCh  chan string
-	reader *bufio.Reader
-	writer *bufio.Writer
-}
-
-var (
-	clients    = make(map[string]*Client)
-	clientsMux sync.RWMutex
 )
 
 // RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
@@ -70,50 +54,19 @@ func (ms *managerService) handleConnection(conn net.Conn) {
 		return
 	}
 
-	client := &Client{
-		id:     cmpID,
-		conn:   conn,
-		outCh:  make(chan string, 100),
-		reader: bufio.NewReader(conn),
-		writer: bufio.NewWriter(conn),
-	}
+	ackReader := internalvsock.NewAckReader(conn)
 
-	clientsMux.Lock()
-	clients[client.id] = client
-	clientsMux.Unlock()
-
-	defer func() {
-		clientsMux.Lock()
-		delete(clients, client.id)
-		clientsMux.Unlock()
-	}()
-
-	go client.writeLoop()
-	client.readLoop(ms)
-}
-
-func (c *Client) readLoop(ms *managerService) {
 	for {
-		msg, err := c.reader.ReadString('\n')
+		var message manager.ClientStreamMessage
+		data, err := ackReader.Read()
 		if err != nil {
-			log.Printf("Error reading from client %s: %v", c.id, err)
-			ms.reportBrokenConnection(c.id)
+			go ms.reportBrokenConnection(cmpID)
+			ms.logger.Warn(err.Error())
 			return
 		}
 
-		parts := strings.SplitN(strings.TrimSpace(msg), ":", 2)
-		if len(parts) != 2 {
-			log.Printf("Invalid message format from client %s: %s", c.id, msg)
-			continue
-		}
-
-		messageID, content := parts[0], parts[1]
-		fmt.Printf("Received message from client %s: ID=%s, Content=%s\n", c.id, messageID, content)
-
-		var message manager.ClientStreamMessage
-
-		if err := proto.Unmarshal([]byte(content), &message); err != nil {
-			log.Printf("Error unmarshalling message from client %s: %v", c.id, err)
+		if err := proto.Unmarshal(data, &message); err != nil {
+			ms.logger.Warn(err.Error())
 			continue
 		}
 
@@ -139,20 +92,6 @@ func (c *Client) readLoop(ms *managerService) {
 		}
 
 		ms.logger.Info("", args...)
-
-		// Send acknowledgment with the message ID
-		c.outCh <- fmt.Sprintf("ACK:%s\n", messageID)
-	}
-}
-
-func (c *Client) writeLoop() {
-	for msg := range c.outCh {
-		_, err := c.writer.WriteString(msg)
-		if err != nil {
-			log.Printf("Error writing to client %s: %v", c.id, err)
-			return
-		}
-		c.writer.Flush()
 	}
 }
 
