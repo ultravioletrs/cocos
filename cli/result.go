@@ -40,7 +40,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v", resultFilePath, err)
+				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v  ❌ ", resultFilePath, err)
 				log.Fatal(msg)
 			}
 

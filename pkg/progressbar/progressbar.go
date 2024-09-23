@@ -205,13 +205,13 @@ func (p *ProgressBar) renderProgressBar() error {
 		return fmt.Errorf("failed to clear progress bar: %v", err)
 	}
 
-	// Emoji to indicate progress action (📥 for uploading).
-	emoji := color.New(color.FgYellow).Sprintf("📥  ")
-	if p.currentUploadPercentage == 100 {
-		emoji = color.New(color.FgGreen).Sprintf("✔  ")
+	// Emoji to indicate progress action (📥 for datasets).
+	emoji := "🚀  "
+	if strings.Contains(p.description, "data") {
+		emoji = "📥  "
 	}
 	if _, err := builder.WriteString(emoji); err != nil {
-		return fmt.Errorf("failed to add description: %v", err)
+		return fmt.Errorf("failed to add emoji: %v", err)
 	}
 
 	// The progress bar starts with the description.
