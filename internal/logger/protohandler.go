@@ -4,7 +4,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"sync"
@@ -61,7 +60,6 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	chunkSize := 500
 	numChunks := (len(message) + chunkSize - 1) / chunkSize
 
-	fmt.Println("sending log", message)
 	for i := 0; i < numChunks; i++ {
 		start := i * chunkSize
 		end := start + chunkSize
@@ -90,7 +88,6 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		h.mutex.Lock()
 		_, err = h.w.Write(b)
 		if err != nil {
-			fmt.Println("failed to send log, caching", err)
 			h.cachedMessages = append(h.cachedMessages, b)
 		}
 		h.mutex.Unlock()
@@ -118,7 +115,6 @@ func (h *handler) retrySendCachedMessages() {
 	defer h.mutex.Unlock()
 	tmp := [][]byte{}
 	for _, msg := range h.cachedMessages {
-		fmt.Println("retrying log", msg)
 		if _, err := h.w.Write(msg); err != nil {
 			tmp = append(tmp, msg)
 		}
