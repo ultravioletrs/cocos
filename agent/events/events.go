@@ -4,10 +4,10 @@ package events
 
 import (
 	"encoding/json"
+	"io"
 	"sync"
 	"time"
 
-	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -18,7 +18,7 @@ const retryInterval = 5 * time.Second
 type service struct {
 	service        string
 	computationID  string
-	conn           *vsock.Conn
+	conn           io.Writer
 	cachedMessages [][]byte
 	mutex          sync.Mutex
 	stopRetry      chan struct{}
@@ -39,7 +39,7 @@ type Service interface {
 	Close()
 }
 
-func New(svc, computationID string, conn *vsock.Conn) (Service, error) {
+func New(svc, computationID string, conn io.Writer) (Service, error) {
 	s := &service{
 		service:        svc,
 		computationID:  computationID,

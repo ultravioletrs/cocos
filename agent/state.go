@@ -104,22 +104,28 @@ func (sm *StateMachine) Start(ctx context.Context) {
 	for {
 		select {
 		case event := <-sm.EventChan:
+			currentState := sm.GetState()
+			var nextState State
+			var stateFunc func()
+			var valid bool
+
 			sm.mu.Lock()
-			nextState, valid := sm.Transitions[sm.State][event]
+			nextState, valid = sm.Transitions[sm.State][event]
 			if valid {
 				sm.State = nextState
-				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", sm.State, nextState))
-			} else {
-				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.State))
+				stateFunc = sm.StateFunctions[nextState]
 			}
 			sm.mu.Unlock()
 
-			sm.mu.Lock()
-			stateFunc, exists := sm.StateFunctions[sm.State]
-			sm.mu.Unlock()
-			if exists {
-				go stateFunc()
+			if valid {
+				sm.logger.Debug(fmt.Sprintf("Transition: %v -> %v\n", currentState, nextState))
+				if stateFunc != nil {
+					go stateFunc()
+				}
+			} else {
+				sm.logger.Error(fmt.Sprintf("Invalid transition: %v -> ???\n", sm.State))
 			}
+
 		case <-ctx.Done():
 			return
 		}

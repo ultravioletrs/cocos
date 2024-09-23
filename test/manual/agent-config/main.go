@@ -8,7 +8,6 @@ package main
 import (
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -17,10 +16,15 @@ import (
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/internal"
+	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
-	"google.golang.org/protobuf/proto"
+)
+
+const (
+	managerVsockPort = manager.ManagerVsockPort
+	vsockConfigPort  = qemu.VsockConfigPort
 )
 
 func main() {
@@ -50,10 +54,6 @@ func main() {
 		log.Fatalf("failed to calculate checksum: %s", err)
 	}
 
-	l, err := vsock.Listen(manager.ManagerVsockPort, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ac := agent.Computation{
 		ID:              "123",
 		Datasets:        agent.Datasets{agent.Dataset{Hash: [32]byte(dataHash), UserKey: pubPem.Bytes}},
@@ -65,21 +65,30 @@ func main() {
 			AttestedTls: attestedTLS,
 		},
 	}
-	if err := SendAgentConfig(3, ac); err != nil {
+	if err := sendAgentConfig(3, ac); err != nil {
 		log.Fatal(err)
 	}
 
+	listener, err := vsock.Listen(managerVsockPort, nil)
+	if err != nil {
+		log.Fatalf("failed to listen on vsock: %s", err)
+	}
+	defer listener.Close()
+
+	log.Printf("Listening on vsock port %d", managerVsockPort)
+
 	for {
-		conn, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
-			log.Println(err)
+			log.Printf("failed to accept connection: %s", err)
 			continue
 		}
-		go handleConnections(conn)
+
+		go handleConnection(conn)
 	}
 }
 
-func SendAgentConfig(cid uint32, ac agent.Computation) error {
+func sendAgentConfig(cid uint32, ac agent.Computation) error {
 	conn, err := vsock.Dial(cid, qemu.VsockConfigPort, nil)
 	if err != nil {
 		return err
@@ -100,20 +109,19 @@ func SendAgentConfig(cid uint32, ac agent.Computation) error {
 	return nil
 }
 
-func handleConnections(conn net.Conn) {
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
+
+	ackReader := internalvsock.NewAckReader(conn)
+
 	for {
-		b := make([]byte, 1024)
-		n, err := conn.Read(b)
-		if err != nil {
-			log.Println(err)
-			return
-		}
 		var message pkgmanager.ClientStreamMessage
-		if err := proto.Unmarshal(b[:n], &message); err != nil {
-			log.Println(err)
+		err := ackReader.ReadProto(&message)
+		if err != nil {
+			log.Printf("Error reading message: %v", err)
 			return
 		}
-		fmt.Println(message.String())
+
+		log.Printf("Received message: %s", message.String())
 	}
 }

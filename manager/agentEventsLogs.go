@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/mdlayher/vsock"
+	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -40,30 +41,35 @@ func (ms *managerService) RetrieveAgentEventsLogs() {
 			continue
 		}
 
-		go ms.handleConnections(conn)
+		go ms.handleConnection(conn)
 	}
 }
 
-func (ms *managerService) handleConnections(conn net.Conn) {
+func (ms *managerService) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
 	cmpID, err := ms.computationIDFromAddress(conn.RemoteAddr().String())
 	if err != nil {
 		ms.logger.Warn(err.Error())
 		return
 	}
-	defer conn.Close()
+
+	ackReader := internalvsock.NewAckReader(conn)
+
 	for {
-		b := make([]byte, messageSize)
-		n, err := conn.Read(b)
+		var message manager.ClientStreamMessage
+		data, err := ackReader.Read()
 		if err != nil {
-			ms.logger.Warn(err.Error())
 			go ms.reportBrokenConnection(cmpID)
+			ms.logger.Warn(err.Error())
 			return
 		}
-		var message manager.ClientStreamMessage
-		if err := proto.Unmarshal(b[:n], &message); err != nil {
+
+		if err := proto.Unmarshal(data, &message); err != nil {
 			ms.logger.Warn(err.Error())
 			continue
 		}
+
 		ms.eventsChan <- &message
 
 		args := []any{}
