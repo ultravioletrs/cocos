@@ -126,6 +126,9 @@ func TestAlgo(t *testing.T) {
 
 			err = svc.Algo(ctx, tc.algo)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+			err = os.RemoveAll("venv")
+			err = os.RemoveAll("algo")
+			err = os.RemoveAll("datasets")
 		})
 	}
 }
@@ -219,9 +222,11 @@ func TestData(t *testing.T) {
 				time.Sleep(300 * time.Millisecond)
 			}
 			err = svc.Data(ctx, tc.data)
+			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 			_ = os.RemoveAll("datasets")
 			_ = os.RemoveAll("results")
-			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+			err = os.RemoveAll("venv")
+			err = os.RemoveAll("algo")
 		})
 	}
 }
