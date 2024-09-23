@@ -25,6 +25,7 @@ import (
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
+	ackvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"golang.org/x/sync/errgroup"
@@ -53,6 +54,8 @@ func main() {
 	}
 	defer conn.Close()
 
+	ackConn := ackvsock.NewAckWriter(conn)
+
 	var exitCode int
 	defer mglog.ExitWithError(&exitCode)
 
@@ -63,10 +66,10 @@ func main() {
 		return
 	}
 
-	handler := agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
+	handler := agentlogger.NewProtoHandler(ackConn, &slog.HandlerOptions{Level: level}, cfg.ID)
 	logger := slog.New(handler)
 
-	eventSvc, err := events.New(svcName, cfg.ID, conn)
+	eventSvc, err := events.New(svcName, cfg.ID, ackConn)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		exitCode = 1
