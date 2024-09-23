@@ -208,7 +208,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	// Emoji to indicate progress action (📥 for datasets).
 	emoji := "🚀 "
 	if strings.Contains(p.description, "data") {
-		emoji = "📥 "
+		emoji = "📤 "
 	}
 	if _, err := builder.WriteString(emoji); err != nil {
 		return fmt.Errorf("failed to add emoji: %v", err)
