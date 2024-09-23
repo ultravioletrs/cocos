@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path"
+	"syscall"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
@@ -32,6 +35,15 @@ type config struct {
 }
 
 func main() {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-signalChan
+		fmt.Println(color.New(color.FgRed).Sprint("\nOperation aborted by user!"))
+		os.Exit(2)
+	}()
+
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
