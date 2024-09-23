@@ -7,13 +7,12 @@ package main
 
 import (
 	"encoding/json"
-	"encoding/pem"
-	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
 	"strconv"
+
+	internalvsock "github.com/ultravioletrs/cocos/internal/vsock" // Import your custom vsock package
 
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
@@ -21,7 +20,11 @@ import (
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
-	"google.golang.org/protobuf/proto"
+)
+
+const (
+	managerVsockPort = manager.ManagerVsockPort
+	vsockConfigPort  = qemu.VsockConfigPort
 )
 
 func main() {
@@ -31,56 +34,72 @@ func main() {
 	dataPath := os.Args[1]
 	algoPath := os.Args[2]
 	pubKeyFile := os.Args[3]
-	attestedTLSParam, err := strconv.ParseBool(os.Args[4])
+	attestedTLS, err := strconv.ParseBool(os.Args[4])
 	if err != nil {
 		log.Fatalf("usage: %s <data-path> <algo-path> <public-key-path> <attested-tls-bool>, <attested-tls-bool> must be a bool value", os.Args[0])
 	}
-	attestedTLS := attestedTLSParam
 
 	pubKey, err := os.ReadFile(pubKeyFile)
 	if err != nil {
 		log.Fatalf("failed to read public key file: %s", err)
 	}
-	pubPem, _ := pem.Decode(pubKey)
+
 	algoHash, err := internal.Checksum(algoPath)
 	if err != nil {
-		log.Fatalf("failed to calculate checksum: %s", err)
-	}
-	dataHash, err := internal.Checksum(dataPath)
-	if err != nil {
-		log.Fatalf("failed to calculate checksum: %s", err)
+		log.Fatalf("failed to calculate algorithm checksum: %s", err)
 	}
 
-	l, err := vsock.Listen(manager.ManagerVsockPort, nil)
+	dataHash, err := internal.Checksum(dataPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to calculate data checksum: %s", err)
 	}
+
 	ac := agent.Computation{
-		ID:              "123",
-		Datasets:        agent.Datasets{agent.Dataset{Hash: [32]byte(dataHash), UserKey: pubPem.Bytes}},
-		Algorithm:       agent.Algorithm{Hash: [32]byte(algoHash), UserKey: pubPem.Bytes},
-		ResultConsumers: []agent.ResultConsumer{{UserKey: pubPem.Bytes}},
+		ID: "123",
+		Datasets: agent.Datasets{
+			agent.Dataset{
+				Hash:    [32]byte(dataHash),
+				UserKey: pubKey,
+			},
+		},
+		Algorithm: agent.Algorithm{
+			Hash:    [32]byte(algoHash),
+			UserKey: pubKey,
+		},
+		ResultConsumers: []agent.ResultConsumer{
+			{UserKey: pubKey},
+		},
 		AgentConfig: agent.AgentConfig{
 			LogLevel:    "debug",
 			Port:        "7002",
 			AttestedTls: attestedTLS,
 		},
 	}
-	if err := SendAgentConfig(3, ac); err != nil {
-		log.Fatal(err)
+
+	if err := sendAgentConfig(3, ac); err != nil {
+		log.Fatalf("failed to send agent config: %s", err)
 	}
 
+	listener, err := vsock.Listen(managerVsockPort, nil)
+	if err != nil {
+		log.Fatalf("failed to listen on vsock: %s", err)
+	}
+	defer listener.Close()
+
+	log.Printf("Listening on vsock port %d", managerVsockPort)
+
 	for {
-		conn, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
-			log.Println(err)
+			log.Printf("failed to accept connection: %s", err)
 			continue
 		}
-		go handleConnections(conn)
+
+		go handleConnection(conn)
 	}
 }
 
-func SendAgentConfig(cid uint32, ac agent.Computation) error {
+func sendAgentConfig(cid uint32, ac agent.Computation) error {
 	conn, err := vsock.Dial(cid, qemu.VsockConfigPort, nil)
 	if err != nil {
 		return err
@@ -101,26 +120,21 @@ func SendAgentConfig(cid uint32, ac agent.Computation) error {
 	return nil
 }
 
-func handleConnections(conn net.Conn) {
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
-	buf := make([]byte, 4096)
+
+	ackReader := internalvsock.NewAckReader(conn)
+	ackWriter := internalvsock.NewAckWriter(conn)
+	go ackWriter.HandleAcknowledgments()
+
 	for {
-		n, err := conn.Read(buf)
+		var message pkgmanager.ClientStreamMessage
+		err := ackReader.ReadProto(&message)
 		if err != nil {
-			if err == io.EOF {
-				log.Println("Connection closed by client")
-			} else {
-				log.Println("Error reading from connection:", err)
-			}
+			log.Printf("Error reading message: %v", err)
 			return
 		}
 
-		var message pkgmanager.ClientStreamMessage
-		if err := proto.Unmarshal(buf[:n], &message); err != nil {
-			log.Println("Failed to unmarshal message:", err)
-			continue
-		}
-
-		fmt.Println(message.String())
+		log.Printf("Received message: %s", message.String())
 	}
 }

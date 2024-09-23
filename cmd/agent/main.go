@@ -119,8 +119,6 @@ func main() {
 				if err != nil {
 					log.Fatal("failed to reconnect: ", err)
 				}
-				handler = agentlogger.NewProtoHandler(conn, &slog.HandlerOptions{Level: level}, cfg.ID)
-				logger = slog.New(handler)
 			}
 			time.Sleep(retryInterval)
 		}
