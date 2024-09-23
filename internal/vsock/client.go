@@ -65,8 +65,10 @@ func (aw *AckWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("message size exceeds maximum allowed size of %d bytes", maxMessageSize)
 	}
 
+	aw.ackMu.Lock()
 	messageID := aw.nextID
 	aw.nextID++
+	aw.ackMu.Unlock()
 
 	ackCh := make(chan bool, 1)
 	aw.ackMu.Lock()
