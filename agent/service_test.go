@@ -126,6 +126,11 @@ func TestAlgo(t *testing.T) {
 
 			err = svc.Algo(ctx, tc.algo)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+			t.Cleanup(func() {
+				err = os.RemoveAll("venv")
+				err = os.RemoveAll("algo")
+				err = os.RemoveAll("datasets")
+			})
 		})
 	}
 }
@@ -219,9 +224,13 @@ func TestData(t *testing.T) {
 				time.Sleep(300 * time.Millisecond)
 			}
 			err = svc.Data(ctx, tc.data)
-			_ = os.RemoveAll("datasets")
-			_ = os.RemoveAll("results")
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+			t.Cleanup(func() {
+				_ = os.RemoveAll("datasets")
+				_ = os.RemoveAll("results")
+				err = os.RemoveAll("venv")
+				err = os.RemoveAll("algo")
+			})
 		})
 	}
 }
@@ -302,9 +311,10 @@ func TestResult(t *testing.T) {
 			go svc.sm.Start(ctx)
 			tc.setup(svc)
 			_, err := svc.Result(ctx)
-			_ = os.RemoveAll("datasets")
-			_ = os.RemoveAll("results")
-
+			t.Cleanup(func() {
+				_ = os.RemoveAll("datasets")
+				_ = os.RemoveAll("results")
+			})
 			assert.ErrorIs(t, err, tc.err, "expected %v, got %v", tc.err, err)
 		})
 	}
