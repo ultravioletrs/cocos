@@ -32,7 +32,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			f, err := os.Stat(datasetPath)
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v ❌ ", err)
 				log.Fatal(msg)
 			}
 
@@ -41,13 +41,13 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			if f.IsDir() {
 				dataset, err = internal.ZipDirectoryToMemory(datasetPath)
 				if err != nil {
-					msg := color.New(color.FgRed).Sprintf("Error zipping dataset directory: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error zipping dataset directory: %v ❌ ", err)
 					log.Fatal(msg)
 				}
 			} else {
 				dataset, err = os.ReadFile(datasetPath)
 				if err != nil {
-					msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v ❌ ", err)
 					log.Fatal(msg)
 				}
 			}
@@ -68,7 +68,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataReq, privKey); err != nil {
-				msg := color.New(color.FgRed).Sprintf("Failed to upload dataset due to error: %v ❌  ", err.Error())
+				msg := color.New(color.FgRed).Sprintf("Failed to upload dataset due to error: %v ❌ ", err.Error())
 				log.Fatal(msg)
 			}
 

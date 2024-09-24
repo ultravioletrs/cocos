@@ -36,7 +36,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading algorithm file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading algorithm file: %v ❌ ", err)
 				log.Fatal(msg)
 			}
 
@@ -44,7 +44,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 			if requirementsFile != "" {
 				req, err = os.ReadFile(requirementsFile)
 				if err != nil {
-					msg := color.New(color.FgRed).Sprintf("Error reading requirments file: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error reading requirments file: %v ❌ ", err)
 					log.Fatal(msg)
 				}
 			}
@@ -56,7 +56,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v", err.Error())
+				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err.Error())
 				log.Fatal(msg)
 			}
 
