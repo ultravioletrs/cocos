@@ -88,7 +88,6 @@ func TestRun(t *testing.T) {
 			qemuCfg := qemu.Config{
 				VSockConfig: qemu.VSockConfig{
 					GuestCID: 3,
-					Vnc:      5900,
 				},
 			}
 			logger := slog.Default()
