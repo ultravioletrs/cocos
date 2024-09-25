@@ -17,6 +17,6 @@ updates:
       interval: "monthly"
       day: "monday"
     groups:
-      pip-dependency:
+      go-dependency:
         patterns:
           - "*"
