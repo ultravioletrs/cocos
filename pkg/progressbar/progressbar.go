@@ -254,7 +254,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	}
 
 	// Add the percentage at the end inside square brackets.
-	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]\n", p.currentUploadPercentage)
+	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]", p.currentUploadPercentage)
 	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
 		return fmt.Errorf("failed to add upload percentage: %v", err)
 	}
