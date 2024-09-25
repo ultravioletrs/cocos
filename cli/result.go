@@ -20,7 +20,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Example: "result <private_key_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("Retrieving computation result file")
+			log.Println("⏳ Retrieving computation result file")
 
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {

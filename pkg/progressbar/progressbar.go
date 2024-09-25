@@ -208,7 +208,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	// Emoji to indicate progress action (📥 for datasets).
 	emoji := "🚀 "
 	if strings.Contains(p.description, "data") {
-		emoji = "📤 "
+		emoji = "📦 "
 	}
 	if _, err := builder.WriteString(emoji); err != nil {
 		return fmt.Errorf("failed to add emoji: %v", err)
@@ -254,7 +254,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	}
 
 	// Add the percentage at the end inside square brackets.
-	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]", p.currentUploadPercentage)
+	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]\n", p.currentUploadPercentage)
 	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
 		return fmt.Errorf("failed to add upload percentage: %v", err)
 	}

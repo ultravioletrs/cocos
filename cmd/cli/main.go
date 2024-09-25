@@ -40,7 +40,8 @@ func main() {
 
 	go func() {
 		<-signalChan
-		log.Println(color.New(color.FgRed).Sprint("\nOperation aborted by user!"))
+		fmt.Println()
+		log.Println(color.New(color.FgRed).Sprint("Operation aborted by user!"))
 		os.Exit(2)
 	}()
 
