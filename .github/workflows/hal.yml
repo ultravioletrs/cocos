@@ -63,33 +63,10 @@ jobs:
           make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
           make
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+          files: |
+            buildroot/output/images/bzImage
+            buildroot/output/images/rootfs.cpio.gz
 
-      - name: Upload Release Asset (Kernel)
-        uses: actions/upload-release-asset@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./buildroot/output/images/bzImage
-          asset_name: bzImage
-          asset_content_type: application/octet-stream
-
-      - name: Upload Release Asset (Rootfs)
-        uses: actions/upload-release-asset@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./buildroot/output/images/rootfs.cpio.gz
-          asset_name: rootfs.cpio.gz
-          asset_content_type: application/gzip
