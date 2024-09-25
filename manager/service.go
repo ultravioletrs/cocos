@@ -185,8 +185,6 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", err
 	}
 
-	ms.qemuCfg.VSockConfig.Vnc++
-
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Completed.String(), json.RawMessage{})
 	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
 }

@@ -61,7 +61,6 @@ type SevConfig struct {
 type VSockConfig struct {
 	ID       string `env:"VSOCK_ID"        envDefault:"vhost-vsock-pci0"`
 	GuestCID int    `env:"VSOCK_GUEST_CID" envDefault:"3"`
-	Vnc      int    `env:"VSOCK_VNC"       envDefault:"0"`
 }
 
 type Config struct {
@@ -165,7 +164,6 @@ func (config Config) ConstructQemuArgs() []string {
 			config.VirtioNetPciConfig.ROMFile))
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
-	args = append(args, "-vnc", fmt.Sprintf(":%d", config.Vnc))
 
 	if config.EnableSEVSNP {
 		args = append(args, "-object",
