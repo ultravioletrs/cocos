@@ -1,4 +1,7 @@
 # Cocos AI
+
+![Coverage](badge.svg)
+
 [Cocos AI (Confdential Computing System for AI/ML)][cocos] is a platform for secure multiparty computation (SMPC)
 based on the [Confidential Computing][cc] and [Trusted Execution Environments (TEEs)][tee].
 

@@ -23,7 +23,7 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
-.PHONY: all $(SERVICES) $(BACKEND_INFO) install clean
+.PHONY: all $(SERVICES) $(BACKEND_INFO) install clean test_coverage
 
 all: $(SERVICES)
 
@@ -59,3 +59,11 @@ stop:
 install_service:
 	sudo install -m 644 $(SERVICE_FILE) $(SERVICE_DIR)/$(SERVICE_NAME).service
 	sudo systemctl daemon-reload
+
+test_coverage:
+	go test ./... -coverprofile coverage.out
+	$(eval COVERAGE := $(shell go tool cover -func=coverage.out | grep total: | grep -Eo '[0-9]+\.[0-9]+'))
+	@echo "Coverage: $(COVERAGE)%"
+	$(eval COLOR := $(shell if [ $$(echo "$(COVERAGE) <= 50" | bc -l) -eq 1 ]; then echo "red"; elif [ $$(echo "$(COVERAGE) > 80" | bc -l) -eq 1 ]; then echo "green"; else echo "orange"; fi))
+	curl -s "https://img.shields.io/badge/coverage-$(COVERAGE)%25-$(COLOR)" > badge.svg
+	rm coverage.out
