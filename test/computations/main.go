@@ -27,7 +27,7 @@ import (
 var _ managergrpc.Service = (*svc)(nil)
 
 const (
-	svcName     = "manager_test_server"
+	svcName     = "computations_test_server"
 	defaultPort = "7001"
 )
 
