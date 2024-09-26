@@ -1,4 +1,8 @@
 # Cocos AI
+
+[![codecov](https://codecov.io/gh/ultravioletrs/cocos/graph/badge.svg?token=HX01LR01K9)](https://codecov.io/gh/ultravioletrs/cocos)
+![Go report card](https://goreportcard.com/badge/github.com/ultravioletrs/cocos)
+
 [Cocos AI (Confdential Computing System for AI/ML)][cocos] is a platform for secure multiparty computation (SMPC)
 based on the [Confidential Computing][cc] and [Trusted Execution Environments (TEEs)][tee].
 
