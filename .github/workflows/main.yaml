@@ -31,4 +31,13 @@ jobs:
           make
 
       - name: Run tests
-        run: go test -v --race -covermode=atomic -coverprofile cover.out ./...
+        run: go test -v --race -covermode=atomic -coverprofile coverage/cover.txt ./...
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/
+          name: codecov-umbrella
+          verbose: true
+
