@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package internal
 
 import (
@@ -21,11 +23,11 @@ func TestZipDirectoryToMemory(t *testing.T) {
 
 	for path, content := range testFiles {
 		fullPath := filepath.Join(tempDir, path)
-		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+		err := os.MkdirAll(filepath.Dir(fullPath), 0o755)
 		if err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		err = os.WriteFile(fullPath, []byte(content), 0644)
+		err = os.WriteFile(fullPath, []byte(content), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}

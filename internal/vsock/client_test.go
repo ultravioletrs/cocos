@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package vsock
 
 import (
@@ -10,11 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 )
 
-// MockConn implements net.Conn for testing purposes
+// MockConn implements net.Conn for testing purposes.
 type MockConn struct {
 	ReadData    []byte
 	WrittenData []byte
@@ -61,7 +64,7 @@ func (m *MockConn) Close() error {
 	return nil
 }
 
-// Implement other net.Conn methods with empty implementations
+// Implement other net.Conn methods with empty implementations.
 func (m *MockConn) LocalAddr() net.Addr                { return nil }
 func (m *MockConn) RemoteAddr() net.Addr               { return nil }
 func (m *MockConn) SetDeadline(t time.Time) error      { return nil }
@@ -184,9 +187,7 @@ func TestNewAckReader(t *testing.T) {
 	mockConn := &MockConn{}
 	reader := NewAckReader(mockConn)
 
-	if _, ok := reader.(Reader); !ok {
-		t.Errorf("NewAckReader() did not return a Reader")
-	}
+	assert.NotNil(t, reader)
 }
 
 func TestAckWriter_Close(t *testing.T) {

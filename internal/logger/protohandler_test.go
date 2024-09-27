@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package logger
 
 import (
@@ -73,7 +75,7 @@ func TestCloseStopsRetry(t *testing.T) {
 	time.Sleep(1 * time.Second) // Ensure no retry after close
 }
 
-// Utility function to retrieve cached messages
+// Utility function to retrieve cached messages.
 func (h *handler) CachedMessages() [][]byte {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()

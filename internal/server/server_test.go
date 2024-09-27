@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package server
 
 import (
@@ -107,7 +109,10 @@ func TestStopHandler(t *testing.T) {
 				// Simulate SIGINT
 				go func() {
 					time.Sleep(100 * time.Millisecond)
-					syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+					err := syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+					if err != nil {
+						t.Errorf("failed to send signal: %v", err)
+					}
 				}()
 			}
 
@@ -128,7 +133,6 @@ func TestStopHandler(t *testing.T) {
 					t.Error("Context was not canceled")
 				}
 			}
-
 		})
 	}
 }

@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package internal
 
 import (
@@ -17,7 +19,7 @@ func TestCopyFile(t *testing.T) {
 
 	srcPath := filepath.Join(tempDir, "source.txt")
 	content := []byte("Hello, World!")
-	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+	if err := os.WriteFile(srcPath, content, 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -46,7 +48,7 @@ func TestDeleteFilesInDir(t *testing.T) {
 	filenames := []string{"file1.txt", "file2.txt", "file3.txt"}
 	for _, filename := range filenames {
 		filepath := filepath.Join(tempDir, filename)
-		if err := os.WriteFile(filepath, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(filepath, []byte("test"), 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 	}
@@ -74,7 +76,7 @@ func TestChecksum(t *testing.T) {
 
 	filePath := filepath.Join(tempDir, "test.txt")
 	content := []byte("Hello, World!")
-	if err := os.WriteFile(filePath, content, 0644); err != nil {
+	if err := os.WriteFile(filePath, content, 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -89,13 +91,13 @@ func TestChecksum(t *testing.T) {
 	}
 
 	dirPath := filepath.Join(tempDir, "testdir")
-	if err := os.Mkdir(dirPath, 0755); err != nil {
+	if err := os.Mkdir(dirPath, 0o755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dirPath, "file1.txt"), []byte("File 1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dirPath, "file1.txt"), []byte("File 1"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dirPath, "file2.txt"), []byte("File 2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dirPath, "file2.txt"), []byte("File 2"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
