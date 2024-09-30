@@ -33,7 +33,8 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			f, err := os.Stat(datasetPath)
 			if err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v ❌ ", err)
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			var dataset []byte
@@ -42,13 +43,15 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				dataset, err = internal.ZipDirectoryToMemory(datasetPath)
 				if err != nil {
 					msg := color.New(color.FgRed).Sprintf("Error zipping dataset directory: %v ❌ ", err)
-					log.Fatal(msg)
+					log.Println(msg)
+					return
 				}
 			} else {
 				dataset, err = os.ReadFile(datasetPath)
 				if err != nil {
 					msg := color.New(color.FgRed).Sprintf("Error reading dataset file: %v ❌ ", err)
-					log.Fatal(msg)
+					log.Println(msg)
+					return
 				}
 			}
 
@@ -59,7 +62,9 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
-				log.Fatalf("Error reading private key file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err)
+				log.Println(msg)
+				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -69,7 +74,8 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataReq, privKey); err != nil {
 				msg := color.New(color.FgRed).Sprintf("Failed to upload dataset due to error: %v ❌ ", err.Error())
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			log.Println(color.New(color.FgGreen).Sprint("Successfully uploaded dataset! ✔ "))

@@ -25,7 +25,8 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err)
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -36,12 +37,14 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error retrieving computation result: %v ❌ ", err)
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v  ❌ ", resultFilePath, err)
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			log.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))

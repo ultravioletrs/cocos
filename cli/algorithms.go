@@ -37,7 +37,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error reading algorithm file: %v ❌ ", err)
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			var req []byte
@@ -45,7 +46,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 				req, err = os.ReadFile(requirementsFile)
 				if err != nil {
 					msg := color.New(color.FgRed).Sprintf("Error reading requirments file: %v ❌ ", err)
-					log.Fatal(msg)
+					log.Println(msg)
+					return
 				}
 			}
 
@@ -57,7 +59,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
 				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err.Error())
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -68,7 +71,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
 				msg := color.New(color.FgRed).Sprintf("Failed to upload algorithm due to error: %v ❌ ", err.Error())
-				log.Fatal(msg)
+				log.Println(msg)
+				return
 			}
 
 			log.Println(color.New(color.FgGreen).Sprint("Successfully uploaded algorithm! ✔ "))
