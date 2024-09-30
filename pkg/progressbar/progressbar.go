@@ -71,10 +71,13 @@ type ProgressBar struct {
 	currentUploadPercentage int
 	description             string
 	maxWidth                int
+	TerminalWidthFunc       func() (int, error)
 }
 
 func New() *ProgressBar {
-	return &ProgressBar{}
+	return &ProgressBar{
+		TerminalWidthFunc: terminalWidth,
+	}
 }
 
 func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
@@ -128,7 +131,10 @@ func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream 
 			return err
 		}
 
-		p.updateProgress(n)
+		err = p.updateProgress(n)
+		if err != nil {
+			return err
+		}
 
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
 			return err
@@ -155,7 +161,10 @@ func (p *ProgressBar) sendBuffer(buffer *bytes.Buffer, stream streamSender, crea
 			return err
 		}
 
-		p.updateProgress(n)
+		err = p.updateProgress(n)
+		if err != nil {
+			return err
+		}
 
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
 			return err
@@ -176,19 +185,23 @@ func (p *ProgressBar) reset(description string, totalBytes int) {
 	p.description = description
 }
 
-func (p *ProgressBar) updateProgress(bytesRead int) {
-	if p.currentUploadedBytes < p.numberOfBytes {
-		p.currentUploadedBytes += bytesRead
-		p.currentUploadPercentage = p.currentUploadedBytes * 100 / p.numberOfBytes
+func (p *ProgressBar) updateProgress(bytesRead int) error {
+	if p.currentUploadedBytes+bytesRead > p.numberOfBytes {
+		return fmt.Errorf("progress update exceeds total bytes: attempted to add %d bytes, but only %d bytes remain", bytesRead, p.numberOfBytes-p.currentUploadedBytes)
 	}
+
+	p.currentUploadedBytes += bytesRead
+	p.currentUploadPercentage = p.currentUploadedBytes * 100 / p.numberOfBytes
+
+	return nil
 }
 
-// Progress bar example:  📥 Uploading algorithm... [█████░░░░░░░░░░░░] [25%].
+// Progress bar example: 📦 Uploading algorithm... [█████░░░░░░░░░░░░] [25%].
 func (p *ProgressBar) renderProgressBar() error {
 	var builder strings.Builder
 
 	// Get terminal width.
-	width, err := terminalWidth()
+	width, err := p.TerminalWidthFunc()
 	if err != nil {
 		if !warnOnlyOnce {
 			color.Red("Progress bar could not be rendered")
@@ -210,7 +223,7 @@ func (p *ProgressBar) renderProgressBar() error {
 	if strings.Contains(p.description, "data") {
 		emoji = "📦 "
 	}
-	if _, err := builder.WriteString(emoji); err != nil {
+	if _, err := builder.WriteString(color.New(color.FgYellow).Sprint(emoji)); err != nil {
 		return fmt.Errorf("failed to add emoji: %v", err)
 	}
 
