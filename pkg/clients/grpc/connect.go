@@ -68,7 +68,7 @@ type Config struct {
 	URL          string        `env:"URL"             envDefault:"localhost:7001"`
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
 	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
-	Manifest     string        `env:"MANIFEST"        envDefault:""`
+	BackendInfo  string        `env:"BACKEND_INFO"    envDefault:""`
 }
 
 type AttestationConfiguration struct {
@@ -142,7 +142,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := ReadManifest(cfg.Manifest, &attestationConfiguration)
+		err := ReadManifest(cfg.BackendInfo, &attestationConfiguration)
 		if err != nil {
 			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
 		}
