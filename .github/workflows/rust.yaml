@@ -1,0 +1,41 @@
+name: Rust CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/backend_info/**"
+      - ".github/workflows/rust.yaml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/backend_info/**"
+      - ".github/workflows/rust.yaml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./scripts/backend_info
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check cargo
+        run: cargo check --release --all-targets
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run linter
+        run: cargo clippy -- -D warnings
+
+      - name: Build for all features
+        run: cargo build --release --all-features
