@@ -146,7 +146,14 @@ func main() {
 	backendCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Error(fmt.Sprintf("Command execution failed: %s", err))
+		logErrorCmd(*rootCmd, err)
 		return
 	}
+}
+
+func logErrorCmd(cmd cobra.Command, err error) {
+	boldRed := color.New(color.FgRed, color.Bold)
+	boldRed.Fprintf(cmd.ErrOrStderr(), "\nerror: ")
+
+	fmt.Fprintf(cmd.ErrOrStderr(), "%s\n\n", color.RedString(err.Error()))
 }
