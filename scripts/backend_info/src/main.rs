@@ -1,11 +1,11 @@
-use clap::{Arg, Command, value_parser};
+use clap::{value_parser, Arg, Command};
 use serde::Serialize;
+use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
 use std::fs::File;
 use std::io::Write;
-use sev::firmware::host::*;
 
-const BACKEND_INFO_JSON : &str = "backend_info.json";
+const BACKEND_INFO_JSON: &str = "backend_info.json";
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
 const EXTENDED_MODEL_SHIFT: u32 = 16;
 const FAMILY_SHIFT: u32 = 8;
@@ -25,7 +25,7 @@ struct SevProduct {
 
 #[derive(Serialize)]
 struct Vmpl {
-    value : u32,
+    value: u32,
 }
 
 #[derive(Serialize)]
@@ -45,15 +45,15 @@ struct SnpPolicy {
     minimum_version: String,
     permit_provisional_firmware: bool,
     require_id_block: bool,
-    product: SevProduct, 
+    product: SevProduct,
 }
 
 #[derive(Serialize)]
 struct RootOfTrust {
     product: String,
-    check_crl : bool,
-    disallow_network : bool,
-    product_line : String,
+    check_crl: bool,
+    disallow_network: bool,
+    product_line: String,
 }
 
 #[derive(Serialize)]
@@ -63,19 +63,19 @@ struct Computation {
 }
 
 fn get_sev_snp_processor() -> u32 {
-    let cpuid_result = unsafe { __cpuid(1)};
+    let cpuid_result = unsafe { __cpuid(1) };
     cpuid_result.eax
 }
 
 fn get_product_name(product: i32) -> String {
     match product {
-        SEV_PRODUCT_MILAN => return "Milan".to_string(),
-        SEV_PRODUCT_GENOA => return "Genoa".to_string(),
-        _ => return "Unknown".to_string(),
+        SEV_PRODUCT_MILAN => "Milan".to_string(),
+        SEV_PRODUCT_GENOA => "Genoa".to_string(),
+        _ => "Unknown".to_string(),
     }
 }
 
-fn get_uint64_from_tcb(tcb_version : &TcbVersion) -> u64 {
+fn get_uint64_from_tcb(tcb_version: &TcbVersion) -> u64 {
     let microcode = (tcb_version.microcode as u64) << 56;
     let snp = (tcb_version.snp as u64) << 48;
     let tee = (tcb_version.tee as u64) << 8;
@@ -103,20 +103,22 @@ fn sev_product(eax: u32) -> SevProduct {
         };
     }
 
-    SevProduct {
-        name: product_name,
-    }
+    SevProduct { name: product_name }
 }
 
 fn main() {
     let matches = Command::new("Backend info")
-        .about("Processes command line options and outputs a JSON file for Attestation verification")
-        .arg(Arg::new("policy")
-            .long("policy")
-            .value_name("INT")
-            .help("Sets the policy integer")
-            .required(true)
-            .value_parser(value_parser!(u64)))
+        .about(
+            "Processes command line options and outputs a JSON file for Attestation verification",
+        )
+        .arg(
+            Arg::new("policy")
+                .long("policy")
+                .value_name("INT")
+                .help("Sets the policy integer")
+                .required(true)
+                .value_parser(value_parser!(u64)),
+        )
         .get_matches();
 
     let mut firmware: Firmware = Firmware::open().unwrap();
@@ -125,7 +127,7 @@ fn main() {
     let policy: u64 = *matches.get_one::<u64>("policy").unwrap();
     let family_id = vec![0; 16];
     let image_id = vec![0; 16];
-    let vmpl = Vmpl { value: 0};
+    let vmpl = Vmpl { value: 0 };
     let minimum_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let minimum_launch_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let require_author_key = false;
@@ -160,10 +162,10 @@ fn main() {
     };
 
     let root_of_trust = RootOfTrust {
-        product : get_product_name(product.name),
-        check_crl : true,
-        disallow_network : false,
-        product_line : get_product_name(product.name),
+        product: get_product_name(product.name),
+        check_crl: true,
+        disallow_network: false,
+        product_line: get_product_name(product.name),
     };
 
     let computation = Computation {
@@ -173,7 +175,8 @@ fn main() {
 
     let json = serde_json::to_string_pretty(&computation).expect("Failed to serialize to JSON");
     let mut file = File::create(BACKEND_INFO_JSON).expect("Failed to create file");
-    file.write_all(json.as_bytes()).expect("Failed to write to file");
+    file.write_all(json.as_bytes())
+        .expect("Failed to write to file");
 
     println!("Computation JSON has been written to {}", BACKEND_INFO_JSON);
 }
