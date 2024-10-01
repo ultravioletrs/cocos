@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
@@ -57,6 +58,7 @@ func TestStop(t *testing.T) {
 		cmd: &exec.Cmd{
 			Process: cmd.Process,
 		},
+		StateMachine: vm.NewStateMachine(),
 	}
 
 	err = vm.Stop()

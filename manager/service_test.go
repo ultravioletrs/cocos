@@ -86,6 +86,7 @@ func TestRun(t *testing.T) {
 
 			vmMock.On("SendAgentConfig", mock.Anything).Return(nil)
 			vmMock.On("GetProcess").Return(1234)
+			vmMock.On("Transition", mock.Anything).Return(nil)
 
 			persistence.On("SaveVM", mock.Anything).Return(nil)
 

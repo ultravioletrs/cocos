@@ -97,7 +97,11 @@ func TestStderrWrite(t *testing.T) {
 			s := &Stderr{
 				LogsChan:      logsChan,
 				ComputationId: "test-computation",
+				StateMachine:  NewStateMachine(),
 			}
+
+			err := s.StateMachine.Transition(manager.VmRunning)
+			assert.NoError(t, err)
 
 			n, err := s.Write([]byte(tt.input))
 
