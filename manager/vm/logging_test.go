@@ -29,7 +29,7 @@ func TestStdoutWrite(t *testing.T) {
 		},
 		{
 			name:           "Large write exceeding buffer size",
-			input:          string(make([]byte, bufSize*2+1)),
+			input:          string(make([]byte, bufSize*2+3)),
 			expectedWrites: 3,
 		},
 	}
