@@ -9,18 +9,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/ultravioletrs/cocos/agent"
 	"golang.org/x/term"
 )
 
 const (
-	progressBarDots = "... "
-	leftBracket     = "["
-	rightBracket    = "]"
-	head            = ">"
-	body            = "="
-	bodyPadding     = "."
-	bufferSize      = 1024 * 1024
+	leftBracket  = "["
+	rightBracket = "]"
+	bufferSize   = 1024 * 1024
 )
 
 var (
@@ -74,10 +71,13 @@ type ProgressBar struct {
 	currentUploadPercentage int
 	description             string
 	maxWidth                int
+	TerminalWidthFunc       func() (int, error)
 }
 
 func New() *ProgressBar {
-	return &ProgressBar{}
+	return &ProgressBar{
+		TerminalWidthFunc: terminalWidth,
+	}
 }
 
 func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
@@ -131,7 +131,10 @@ func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream 
 			return err
 		}
 
-		p.updateProgress(n)
+		err = p.updateProgress(n)
+		if err != nil {
+			return err
+		}
 
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
 			return err
@@ -158,7 +161,10 @@ func (p *ProgressBar) sendBuffer(buffer *bytes.Buffer, stream streamSender, crea
 			return err
 		}
 
-		p.updateProgress(n)
+		err = p.updateProgress(n)
+		if err != nil {
+			return err
+		}
 
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
 			return err
@@ -179,22 +185,26 @@ func (p *ProgressBar) reset(description string, totalBytes int) {
 	p.description = description
 }
 
-func (p *ProgressBar) updateProgress(bytesRead int) {
-	if p.currentUploadedBytes < p.numberOfBytes {
-		p.currentUploadedBytes += bytesRead
-		p.currentUploadPercentage = p.currentUploadedBytes * 100 / p.numberOfBytes
+func (p *ProgressBar) updateProgress(bytesRead int) error {
+	if p.currentUploadedBytes+bytesRead > p.numberOfBytes {
+		return fmt.Errorf("progress update exceeds total bytes: attempted to add %d bytes, but only %d bytes remain", bytesRead, p.numberOfBytes-p.currentUploadedBytes)
 	}
+
+	p.currentUploadedBytes += bytesRead
+	p.currentUploadPercentage = p.currentUploadedBytes * 100 / p.numberOfBytes
+
+	return nil
 }
 
-// Progress bar example: Uploading algorithm... 25% [==>   ].
+// Progress bar example: 📦 Uploading algorithm... [█████░░░░░░░░░░░░] [25%].
 func (p *ProgressBar) renderProgressBar() error {
 	var builder strings.Builder
 
 	// Get terminal width.
-	width, err := terminalWidth()
+	width, err := p.TerminalWidthFunc()
 	if err != nil {
 		if !warnOnlyOnce {
-			fmt.Println("Progress bar could not be rendered")
+			color.Red("Progress bar could not be rendered")
 			warnOnlyOnce = true
 		}
 		return nil
@@ -208,28 +218,29 @@ func (p *ProgressBar) renderProgressBar() error {
 		return fmt.Errorf("failed to clear progress bar: %v", err)
 	}
 
+	// Emoji to indicate progress action (📥 for datasets).
+	emoji := "🚀 "
+	if strings.Contains(p.description, "data") {
+		emoji = "📦 "
+	}
+	if _, err := builder.WriteString(color.New(color.FgYellow).Sprint(emoji)); err != nil {
+		return fmt.Errorf("failed to add emoji: %v", err)
+	}
+
 	// The progress bar starts with the description.
-	if _, err := builder.WriteString(p.description); err != nil {
+	description := color.New(color.FgYellow).Sprintf("%s ", p.description)
+	if _, err := builder.WriteString(description); err != nil {
 		return fmt.Errorf("failed to add description: %v", err)
 	}
 
-	// Add dots to progress bar.
-	if _, err := builder.WriteString(progressBarDots); err != nil {
-		return fmt.Errorf("failed to add dots: %v", err)
-	}
-
-	// Add uploaded percentage.
-	strCurrentUploadPercentage := fmt.Sprintf("%4d%% ", p.currentUploadPercentage)
-	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
-		return fmt.Errorf("failed to add upload percentage bracket: %v", err)
-	}
-
-	// Add letf bracket and space to progress bar.
+	// Add left bracket (colored).
+	leftBracket := color.New(color.FgBlue).Sprint(leftBracket)
 	if _, err := builder.WriteString(leftBracket); err != nil {
 		return fmt.Errorf("failed to add left bracket: %v", err)
 	}
 
-	progressWidth := width - builder.Len() - len(rightBracket+" ")
+	// Calculate the progress bar's width.
+	progressWidth := width - builder.Len() - len(rightBracket+" [100%]")
 	numOfCharactersBody := progressWidth * p.currentUploadPercentage / 100
 	if numOfCharactersBody == 0 {
 		numOfCharactersBody = 1
@@ -237,33 +248,31 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	numOfCharactersPadding := progressWidth - numOfCharactersBody
 
-	// Add body which represents the percentage.
-	progress := strings.Repeat(body, numOfCharactersBody-1)
-
-	// Add progress to the progress bar.
+	// Using unicode block characters for a smooth bar.
+	progress := color.New(color.FgGreen).Sprint(strings.Repeat("█", numOfCharactersBody))
 	if _, err := builder.WriteString(progress); err != nil {
-		return fmt.Errorf("failed to add progress strings to padding: %v", err)
+		return fmt.Errorf("failed to add progress strings: %v", err)
 	}
 
-	// Add head to progress bar.
-	if _, err := builder.WriteString(head); err != nil {
-		return fmt.Errorf("failed to add head to padding: %v", err)
-	}
-
-	// Add padding to end of bar.
-	padding := strings.Repeat(bodyPadding, numOfCharactersPadding)
-
-	// Add padding to progress bar.
+	// Add the unfilled part (light blocks as padding).
+	padding := strings.Repeat("░", numOfCharactersPadding)
 	if _, err := builder.WriteString(padding); err != nil {
 		return fmt.Errorf("failed to add padding: %v", err)
 	}
 
 	// Add right bracket to progress bar.
+	rightBracket := color.New(color.FgBlue).Sprint("]")
 	if _, err := builder.WriteString(rightBracket); err != nil {
 		return fmt.Errorf("failed to add right bracket: %v", err)
 	}
 
-	// Write progress bar.
+	// Add the percentage at the end inside square brackets.
+	strCurrentUploadPercentage := color.New(color.FgGreen).Sprintf(" [%d%%]", p.currentUploadPercentage)
+	if _, err := builder.WriteString(strCurrentUploadPercentage); err != nil {
+		return fmt.Errorf("failed to add upload percentage: %v", err)
+	}
+
+	// Write progress bar to the console.
 	if _, err := io.WriteString(os.Stdout, builder.String()); err != nil {
 		return fmt.Errorf("failed to write string: %v", err)
 	}

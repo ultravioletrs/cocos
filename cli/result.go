@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -19,11 +20,13 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Example: "result <private_key_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("Retrieving computation result file")
+			log.Println("⏳ Retrieving computation result file")
 
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
-				log.Fatalf("Error reading private key file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err)
+				log.Println(msg)
+				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -33,14 +36,18 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 			privKey := decodeKey(pemBlock)
 			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
-				log.Fatalf("Error retrieving computation result: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error retrieving computation result: %v ❌ ", err)
+				log.Println(msg)
+				return
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				log.Fatalf("Error saving computation result to %s: %v", resultFilePath, err)
+				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v  ❌ ", resultFilePath, err)
+				log.Println(msg)
+				return
 			}
 
-			log.Println("Computation result retrieved and saved successfully!")
+			log.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))
 		},
 	}
 }

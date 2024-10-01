@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -35,14 +36,18 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				log.Fatalf("Error reading algorithm file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading algorithm file: %v ❌ ", err)
+				log.Println(msg)
+				return
 			}
 
 			var req []byte
 			if requirementsFile != "" {
 				req, err = os.ReadFile(requirementsFile)
 				if err != nil {
-					log.Fatalf("Error reading requirments file: %v", err)
+					msg := color.New(color.FgRed).Sprintf("Error reading requirments file: %v ❌ ", err)
+					log.Println(msg)
+					return
 				}
 			}
 
@@ -53,7 +58,9 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
-				log.Fatalf("Error reading private key file: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err.Error())
+				log.Println(msg)
+				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -63,10 +70,12 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 
 			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
-				log.Fatalf("Error uploading algorithm with error: %v", err)
+				msg := color.New(color.FgRed).Sprintf("Failed to upload algorithm due to error: %v ❌ ", err.Error())
+				log.Println(msg)
+				return
 			}
 
-			log.Println("Successfully uploaded algorithm")
+			log.Println(color.New(color.FgGreen).Sprint("Successfully uploaded algorithm! ✔ "))
 		},
 	}
 
