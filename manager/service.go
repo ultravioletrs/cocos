@@ -187,7 +187,10 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		return "", err
 	}
 
-	ms.vms[c.Id].Transition(manager.VmRunning)
+	if err := ms.vms[c.Id].Transition(manager.VmRunning); err != nil {
+		ms.logger.Warn("Failed to transition VM state", "computation", c.Id, "error", err)
+	}
+
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Completed.String(), json.RawMessage{})
 	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
 }
@@ -328,7 +331,10 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm.Transition(manager.VmRunning)
+		if err := cvm.Transition(manager.VmRunning); err != nil {
+			ms.logger.Warn("Failed to transition VM state", "computation", state.ID, "error", err)
+		}
+
 		ms.vms[state.ID] = cvm
 		ms.logger.Info("Successfully restored VM state", "id", state.ID, "computationId", state.ID, "pid", state.PID)
 	}

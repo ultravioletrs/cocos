@@ -81,7 +81,22 @@ func (v *qemuVM) Start() (err error) {
 }
 
 func (v *qemuVM) Stop() error {
-	defer v.StateMachine.Transition(manager.StopComputationRun)
+	defer func() {
+		err := v.StateMachine.Transition(manager.StopComputationRun)
+		if err != nil {
+			v.logsChan <- &manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentEvent{
+					AgentEvent: &manager.AgentEvent{
+						ComputationId: v.computationId,
+						EventType:     v.StateMachine.State(),
+						Status:        manager.Warning.String(),
+						Timestamp:     timestamppb.Now(),
+						Originator:    "manager",
+					},
+				},
+			}
+		}
+	}()
 	err := v.cmd.Process.Signal(syscall.SIGTERM)
 	if err != nil {
 		return fmt.Errorf("failed to send SIGTERM: %v", err)
