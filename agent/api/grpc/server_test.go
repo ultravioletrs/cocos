@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import (
@@ -12,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// MockAgentService_AlgoServer is a mock for the agent.AgentService_AlgoServer interface
 type MockAgentService_AlgoServer struct {
 	grpc.ServerStream
 	mock.Mock
@@ -33,7 +34,6 @@ func (m *MockAgentService_AlgoServer) SendAndClose(resp *agent.AlgoResponse) err
 	return args.Error(0)
 }
 
-// MockAgentService_DataServer is a mock for the agent.AgentService_DataServer interface
 type MockAgentService_DataServer struct {
 	grpc.ServerStream
 	mock.Mock
@@ -54,7 +54,6 @@ func (m *MockAgentService_DataServer) SendAndClose(resp *agent.DataResponse) err
 	return args.Error(0)
 }
 
-// MockAgentService_ResultServer is a mock for the agent.AgentService_ResultServer interface
 type MockAgentService_ResultServer struct {
 	grpc.ServerStream
 	mock.Mock
@@ -70,7 +69,6 @@ func (m *MockAgentService_ResultServer) Send(resp *agent.ResultResponse) error {
 	return args.Error(0)
 }
 
-// TestAlgo tests the Algo method of grpcServer
 func TestAlgo(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
@@ -89,7 +87,6 @@ func TestAlgo(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// TestData tests the Data method of grpcServer
 func TestData(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
@@ -108,7 +105,6 @@ func TestData(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// TestResult tests the Result method of grpcServer
 func TestResult(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
@@ -124,7 +120,6 @@ func TestResult(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// TestAttestation tests the Attestation method of grpcServer
 func TestAttestation(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
@@ -139,7 +134,6 @@ func TestAttestation(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test decode and encode functions
 func TestDecodeAlgoRequest(t *testing.T) {
 	req := &agent.AlgoRequest{Algorithm: []byte("algo"), Requirements: []byte("req")}
 	decoded, err := decodeAlgoRequest(context.Background(), req)

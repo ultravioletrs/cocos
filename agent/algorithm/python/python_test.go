@@ -17,9 +17,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const runtime = "python3"
+
 func TestPythonRunTimeToContext(t *testing.T) {
 	ctx := context.Background()
-	runtime := "python3.9"
 	newCtx := PythonRunTimeToContext(ctx, runtime)
 
 	md, ok := metadata.FromOutgoingContext(newCtx)
@@ -34,7 +35,6 @@ func TestPythonRunTimeToContext(t *testing.T) {
 }
 
 func TestPythonRunTimeFromContext(t *testing.T) {
-	runtime := "python3.9"
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(PyRuntimeKey, runtime))
 
 	got := PythonRunTimeFromContext(ctx)
@@ -46,7 +46,6 @@ func TestPythonRunTimeFromContext(t *testing.T) {
 func TestNewAlgorithm(t *testing.T) {
 	logger := &slog.Logger{}
 	eventsSvc := new(mocks.Service)
-	runtime := "python3.9"
 	requirementsFile := "requirements.txt"
 	algoFile := "algorithm.py"
 	args := []string{"--arg1", "value1"}
@@ -116,7 +115,7 @@ func TestRunWithRequirements(t *testing.T) {
 
 	scriptContent := []byte("import requests\nprint(requests.__version__)")
 	scriptPath := filepath.Join(tmpDir, "test_script.py")
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

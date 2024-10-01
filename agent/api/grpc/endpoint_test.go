@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package grpc
 
 import (
@@ -9,6 +11,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	"golang.org/x/crypto/sha3"
 )
+
+const svcErr = "Service Error"
 
 func TestAlgoEndpoint(t *testing.T) {
 	svc := new(mocks.Service)
@@ -35,7 +39,7 @@ func TestAlgoEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "Service Error" {
+			if tt.name == svcErr {
 				svc.On("Algo", context.Background(), agent.Algorithm{Algorithm: tt.req.Algorithm}).Return(errors.New("")).Once()
 			} else {
 				svc.On("Algo", context.Background(), agent.Algorithm{Algorithm: tt.req.Algorithm}).Return(nil).Once()
@@ -74,7 +78,7 @@ func TestDataEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "Service Error" {
+			if tt.name == svcErr {
 				svc.On("Data", context.Background(), agent.Dataset{Dataset: tt.req.Dataset}).Return(errors.New("")).Once()
 			} else {
 				svc.On("Data", context.Background(), agent.Dataset{Dataset: tt.req.Dataset}).Return(nil).Once()
@@ -108,7 +112,7 @@ func TestResultEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "Service Error" {
+			if tt.name == svcErr {
 				svc.On("Result", context.Background()).Return([]byte{}, errors.New("")).Once()
 			} else {
 				svc.On("Result", context.Background()).Return([]byte{}, nil).Once()
@@ -148,7 +152,7 @@ func TestAttestationEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "Service Error" {
+			if tt.name == svcErr {
 				svc.On("Attestation", context.Background(), tt.req.ReportData).Return([]byte{}, errors.New("")).Once()
 			} else {
 				svc.On("Attestation", context.Background(), tt.req.ReportData).Return([]byte{}, nil).Once()

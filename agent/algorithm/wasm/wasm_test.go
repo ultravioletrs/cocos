@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package wasm
 
 import (
@@ -60,7 +62,6 @@ func TestRunError(t *testing.T) {
 	}
 }
 
-// Mock exec.Command
 func mockExecCommand(command string, args ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--", command}
 	cs = append(cs, args...)
@@ -69,14 +70,12 @@ func mockExecCommand(command string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// Mock exec.Command that returns an error
 func mockExecCommandError(command string, args ...string) *exec.Cmd {
 	cmd := mockExecCommand(command, args...)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS_ERROR=1")
 	return cmd
 }
 
-// TestHelperProcess isn't a real test. It's used as a helper process for mocking exec.Command
 func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
@@ -87,5 +86,4 @@ func TestHelperProcess(t *testing.T) {
 	os.Exit(0)
 }
 
-// Global variable to allow mocking of exec.Command
 var execCommand = exec.Command
