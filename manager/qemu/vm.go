@@ -30,6 +30,7 @@ type qemuVM struct {
 	cmd           *exec.Cmd
 	logsChan      chan *manager.ClientStreamMessage
 	computationId string
+	vm.StateMachine
 }
 
 func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
@@ -37,6 +38,7 @@ func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, compu
 		config:        config.(Config),
 		logsChan:      logsChan,
 		computationId: computationId,
+		StateMachine:  vm.NewStateMachine(),
 	}
 }
 
@@ -73,12 +75,13 @@ func (v *qemuVM) Start() (err error) {
 
 	v.cmd = exec.Command(exe, args...)
 	v.cmd.Stdout = &vm.Stdout{LogsChan: v.logsChan, ComputationId: v.computationId}
-	v.cmd.Stderr = &vm.Stderr{LogsChan: v.logsChan, ComputationId: v.computationId}
+	v.cmd.Stderr = &vm.Stderr{LogsChan: v.logsChan, ComputationId: v.computationId, StateMachine: v.StateMachine}
 
 	return v.cmd.Start()
 }
 
 func (v *qemuVM) Stop() error {
+	defer v.StateMachine.Transition(manager.StopComputationRun)
 	err := v.cmd.Process.Signal(syscall.SIGTERM)
 	if err != nil {
 		return fmt.Errorf("failed to send SIGTERM: %v", err)
@@ -146,7 +149,7 @@ func (v *qemuVM) checkVMProcessPeriodically() {
 				Message: &manager.ClientStreamMessage_AgentEvent{
 					AgentEvent: &manager.AgentEvent{
 						ComputationId: v.computationId,
-						EventType:     manager.VmRunning.String(),
+						EventType:     v.StateMachine.State(),
 						Status:        manager.Stopped.String(),
 						Timestamp:     timestamppb.Now(),
 						Originator:    "manager",

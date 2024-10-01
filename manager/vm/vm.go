@@ -17,6 +17,8 @@ type VM interface {
 	SetProcess(pid int) error
 	GetProcess() int
 	GetCID() int
+	Transition(newState manager.ManagerState) error
+	State() string
 }
 
 //go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
