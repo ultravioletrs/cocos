@@ -154,26 +154,30 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 		Example: "get <report_data>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("Getting attestation")
+			cmd.Println("Getting attestation")
 
 			reportData, err := hex.DecodeString(args[0])
 			if err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				cmd.Printf("attestation validation and verification failed with error: %s", err)
+				return
 			}
 			if len(reportData) != agent.ReportDataSize {
-				log.Fatalf("report data must be a hex encoded string of length %d bytes", agent.ReportDataSize)
+				cmd.Printf("report data must be a hex encoded string of length %d bytes", agent.ReportDataSize)
+				return
 			}
 
 			result, err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData))
 			if err != nil {
-				log.Fatalf("Error retrieving attestation: %v", err)
+				cmd.Printf("Error retrieving attestation: %v", err)
+				return
 			}
 
 			if err = os.WriteFile(attestationFilePath, result, 0o644); err != nil {
-				log.Fatalf("Error saving attestation result: %v", err)
+				cmd.Printf("Error saving attestation result: %v", err)
+				return
 			}
 
-			log.Println("Attestation result retrieved and saved successfully!")
+			cmd.Println("Attestation result retrieved and saved successfully!")
 		},
 	}
 }
