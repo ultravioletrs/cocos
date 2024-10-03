@@ -22,8 +22,15 @@ import (
 
 const defGuestFeatures = 0x1
 
-func (ms *managerService) FetchBackendInfo() ([]byte, error) {
+func (ms *managerService) FetchBackendInfo(computationId string) ([]byte, error) {
 	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
+
+	vm := ms.vms[computationId]
+
+	config, ok := vm.GetConfig().(qemu.Config)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast config to qemu.Config")
+	}
 
 	_, err := cmd.Output()
 	if err != nil {
@@ -42,13 +49,13 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 	}
 
 	var measurement []byte
-	if ms.qemuCfg.EnableSEV {
-		measurement, err = guest.CalcLaunchDigest(guest.SEV, ms.qemuCfg.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), ms.qemuCfg.OVMFCodeConfig.File, ms.qemuCfg.KernelFile, ms.qemuCfg.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+	if config.EnableSEV {
+		measurement, err = guest.CalcLaunchDigest(guest.SEV, config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
 		}
-	} else if ms.qemuCfg.EnableSEVSNP {
-		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, ms.qemuCfg.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), ms.qemuCfg.OVMFCodeConfig.File, ms.qemuCfg.KernelFile, ms.qemuCfg.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+	} else if config.EnableSEVSNP {
+		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, config.SMPCount, uint64(cpuid.CpuSigs[config.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -57,8 +64,8 @@ func (ms *managerService) FetchBackendInfo() ([]byte, error) {
 		backendInfo.SNPPolicy.Measurement = measurement
 	}
 
-	if ms.qemuCfg.HostData != "" {
-		hostData, err := base64.StdEncoding.DecodeString(ms.qemuCfg.HostData)
+	if config.HostData != "" {
+		hostData, err := base64.StdEncoding.DecodeString(config.HostData)
 		if err != nil {
 			return nil, err
 		}

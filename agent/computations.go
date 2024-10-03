@@ -21,6 +21,7 @@ type AgentConfig struct {
 	ServerCAFile string `json:"server_ca_file"`
 	ClientCAFile string `json:"client_ca_file"`
 	AttestedTls  bool   `json:"attested_tls"`
+	TEE          bool   `json:"tee"`
 }
 
 type Computation struct {

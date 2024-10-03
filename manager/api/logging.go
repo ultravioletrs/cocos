@@ -58,11 +58,16 @@ func (lm *loggingMiddleware) RetrieveAgentEventsLogs() {
 	lm.svc.RetrieveAgentEventsLogs()
 }
 
-func (lm *loggingMiddleware) FetchBackendInfo() ([]byte, error) {
+func (lm *loggingMiddleware) FetchBackendInfo(cmpId string) (body []byte, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method FetchBackendInfo took %s to complete", time.Since(begin))
+		message := fmt.Sprintf("Method FetchBackendInfo  for computation %s took %s to complete", cmpId, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.FetchBackendInfo()
+	return lm.svc.FetchBackendInfo(cmpId)
 }

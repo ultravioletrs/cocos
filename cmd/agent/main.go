@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/client"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
@@ -28,6 +30,7 @@ import (
 	ackvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -80,6 +83,12 @@ func main() {
 	qp, err := quoteprovider.GetQuoteProvider()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
+		exitCode = 1
+		return
+	}
+
+	if err := verifyManifest(cfg, qp); err != nil {
+		logger.Error(fmt.Sprintf("failed to verify manifest %s", err.Error()))
 		exitCode = 1
 		return
 	}
@@ -206,4 +215,35 @@ func dialVsock() (*vsock.Conn, error) {
 	}
 
 	return conn, nil
+}
+
+func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
+	if !cfg.AgentConfig.TEE {
+		return nil
+	}
+
+	ar, err := qp.GetRawQuote(sha3.Sum512([]byte(cfg.ID)))
+	if err != nil {
+		return err
+	}
+
+	arProto, err := abi.ReportCertsToProto(ar[:abi.ReportSize])
+	if err != nil {
+		return err
+	}
+
+	cfgBytes, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	mcHash := sha3.Sum256(cfgBytes)
+
+	if arProto.Report.HostData != nil {
+		if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
+			return fmt.Errorf("manifest verification failed")
+		}
+	}
+
+	return nil
 }

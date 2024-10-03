@@ -63,7 +63,7 @@ type Service interface {
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
 	// FetchBackendInfo measures and fetches the backend information.
-	FetchBackendInfo() ([]byte, error)
+	FetchBackendInfo(computationID string) ([]byte, error)
 }
 
 type managerService struct {
@@ -129,6 +129,10 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 		},
 	}
 	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
+
+	if ms.qemuCfg.EnableSEV || ms.qemuCfg.EnableSEVSNP {
+		ac.AgentConfig.TEE = true
+	}
 
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {

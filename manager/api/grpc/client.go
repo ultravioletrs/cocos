@@ -134,7 +134,7 @@ func (client ManagerClient) handleStopComputation(ctx context.Context, mes *pkgm
 }
 
 func (client ManagerClient) handleBackendInfoReq(mes *pkgmanager.ServerStreamMessage_BackendInfoReq) {
-	res, err := client.svc.FetchBackendInfo()
+	res, err := client.svc.FetchBackendInfo(mes.BackendInfoReq.Id)
 	if err != nil {
 		client.logger.Warn(err.Error())
 		return
