@@ -3,8 +3,6 @@
 package cli
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/internal"
 )
@@ -20,10 +18,11 @@ func (cli *CLI) NewFileHashCmd() *cobra.Command {
 
 			hash, err := internal.ChecksumHex(path)
 			if err != nil {
-				log.Fatalf("Error computing hash: %v", err)
+				cmd.Printf("Error computing hash: %v", err)
+				return
 			}
 
-			log.Println("Hash of file:", hash)
+			cmd.Println("Hash of file:", hash)
 		},
 	}
 }

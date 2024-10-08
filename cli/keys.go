@@ -25,6 +25,8 @@ const (
 	publicKeyType  = "PUBLIC KEY"
 	publicKeyFile  = "public.pem"
 	privateKeyFile = "private.pem"
+	ECDSA          = "ecdsa"
+	ED25519        = "ed25519"
 )
 
 var KeyType string
@@ -39,7 +41,7 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			switch KeyType {
-			case "ecdsa":
+			case ECDSA:
 				privEcdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				if err != nil {
 					log.Fatalf("Error generating keys: %v", err)
@@ -52,7 +54,7 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 
 				generateAndWriteKeys(privEcdsaKey, pubKeyBytes, ecdsaKeyType)
 
-			case "ed25519":
+			case ED25519:
 				pubEd25519Key, privEd25519Key, err := ed25519.GenerateKey(rand.Reader)
 				if err != nil {
 					log.Fatalf("Error generating keys: %v", err)
