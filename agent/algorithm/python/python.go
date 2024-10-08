@@ -67,6 +67,13 @@ func (p *python) Run() error {
 
 	pythonPath := filepath.Join(venvPath, "bin", "python")
 
+	updatePipCmd := exec.Command(pythonPath, "-m", "pip", "install", "--upgrade", "pip")
+	updatePipCmd.Stderr = p.stderr
+	updatePipCmd.Stdout = p.stdout
+	if err := updatePipCmd.Run(); err != nil {
+		return fmt.Errorf("error updating pip: %v", err)
+	}
+
 	if p.requirementsFile != "" {
 		rcmd := exec.Command(pythonPath, "-m", "pip", "install", "-r", p.requirementsFile)
 		rcmd.Stderr = p.stderr
