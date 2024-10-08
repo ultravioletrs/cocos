@@ -125,9 +125,9 @@ func TestHandleConnection(t *testing.T) {
 	msg := &manager.ClientStreamMessage{
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
-				EventType:     manager.VmRunning.String(),
+				EventType:     manager.VmProvision.String(),
 				ComputationId: "comp1",
-				Status:        manager.VmRunning.String(),
+				Status:        manager.VmProvision.String(),
 				Timestamp:     timestamppb.Now(),
 				Originator:    "agent",
 			},
@@ -153,6 +153,9 @@ func TestHandleConnection(t *testing.T) {
 func TestReportBrokenConnection(t *testing.T) {
 	ms := &managerService{
 		eventsChan: make(chan *manager.ClientStreamMessage, 1),
+		vms: map[string]vm.VM{
+			"comp1": qemu.NewVM(qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 3}}, make(chan *manager.ClientStreamMessage), "comp1"),
+		},
 	}
 
 	ms.reportBrokenConnection("comp1")
