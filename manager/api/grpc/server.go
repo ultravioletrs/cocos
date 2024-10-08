@@ -56,22 +56,31 @@ func (s *grpcServer) Process(stream manager.ManagerService_ProcessServer) error 
 
 	eg.Go(func() error {
 		for {
-			req, err := stream.Recv()
-			if err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				req, err := stream.Recv()
+				if err != nil {
+					return err
+				}
+				s.incoming <- req
 			}
-
-			s.incoming <- req
 		}
 	})
 
 	eg.Go(func() error {
 		sendMessage := func(msg *manager.ServerStreamMessage) error {
-			switch m := msg.Message.(type) {
-			case *manager.ServerStreamMessage_RunReq:
-				return s.sendRunReqInChunks(stream, m.RunReq)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
-				return stream.Send(msg)
+				switch m := msg.Message.(type) {
+				case *manager.ServerStreamMessage_RunReq:
+					return s.sendRunReqInChunks(stream, m.RunReq)
+				default:
+					return stream.Send(msg)
+				}
 			}
 		}
 
