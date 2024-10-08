@@ -15,7 +15,6 @@ import (
 	"os"
 	"testing"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,9 +33,6 @@ var (
 )
 
 func TestAlgo(t *testing.T) {
-	logger, err := mglog.New(os.Stdout, "info")
-	require.NoError(t, err)
-
 	conn, err := grpc.DialContext(context.Background(), "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
@@ -45,7 +41,7 @@ func TestAlgo(t *testing.T) {
 
 	client := agent.NewAgentServiceClient(conn)
 
-	sdk := sdk.NewAgentSDK(logger, client)
+	sdk := sdk.NewAgentSDK(client)
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
 
@@ -124,9 +120,6 @@ func TestAlgo(t *testing.T) {
 }
 
 func TestData(t *testing.T) {
-	logger, err := mglog.New(os.Stdout, "info")
-	require.NoError(t, err)
-
 	conn, err := grpc.DialContext(context.Background(), "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
@@ -135,7 +128,7 @@ func TestData(t *testing.T) {
 
 	client := agent.NewAgentServiceClient(conn)
 
-	sdk := sdk.NewAgentSDK(logger, client)
+	sdk := sdk.NewAgentSDK(client)
 
 	data, err := os.ReadFile(dataPath)
 	require.NoError(t, err)
@@ -224,9 +217,6 @@ func TestData(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	logger, err := mglog.New(os.Stdout, "info")
-	require.NoError(t, err)
-
 	conn, err := grpc.DialContext(context.Background(), "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
@@ -235,7 +225,7 @@ func TestResult(t *testing.T) {
 
 	client := agent.NewAgentServiceClient(conn)
 
-	sdk := sdk.NewAgentSDK(logger, client)
+	sdk := sdk.NewAgentSDK(client)
 
 	resultConsumerKey, _ := generateKeys(t, "ecdsa")
 	resultConsumer1Key, _ := generateKeys(t, "ed25519")
@@ -319,9 +309,6 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	logger, err := mglog.New(os.Stdout, "info")
-	require.NoError(t, err)
-
 	resultConsumerKey, _ := generateKeys(t, "rsa")
 	resultConsumer1Key, _ := generateKeys(t, "ed25519")
 
@@ -339,7 +326,7 @@ func TestAttestation(t *testing.T) {
 
 	client := agent.NewAgentServiceClient(conn)
 
-	sdk := sdk.NewAgentSDK(logger, client)
+	sdk := sdk.NewAgentSDK(client)
 
 	_, err = rand.Read(reportData)
 	require.NoError(t, err)

@@ -20,12 +20,11 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Example: "result <private_key_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("⏳ Retrieving computation result file")
+			cmd.Println("⏳ Retrieving computation result file")
 
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err)
-				log.Println(msg)
+				printError(cmd, "Error reading private key file: %v ❌ ", err)
 				return
 			}
 
@@ -33,17 +32,19 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			var result []byte
 
-			privKey := decodeKey(pemBlock)
+			privKey, err := decodeKey(pemBlock)
+			if err != nil {
+				printError(cmd, "Error decoding private key: %v ❌ ", err)
+				return
+			}
 			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error retrieving computation result: %v ❌ ", err)
-				log.Println(msg)
+				printError(cmd, "Error retrieving computation result: %v ❌ ", err)
 				return
 			}
 
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error saving computation result to %s: %v  ❌ ", resultFilePath, err)
-				log.Println(msg)
+				printError(cmd, "Error saving computation result file: %v  ❌ ", err)
 				return
 			}
 

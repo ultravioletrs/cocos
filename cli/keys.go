@@ -10,9 +10,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"log"
 	"os"
-	"reflect"
 
 	"github.com/spf13/cobra"
 )
@@ -44,48 +42,64 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 			case ECDSA:
 				privEcdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				if err != nil {
-					log.Fatalf("Error generating keys: %v", err)
+					printError(cmd, "Error generating keys: %v ❌ ", err)
+					return
 				}
 
 				pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privEcdsaKey.PublicKey)
 				if err != nil {
-					log.Fatalf("Error marshalling public key: %v", err)
+					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+					return
 				}
 
-				generateAndWriteKeys(privEcdsaKey, pubKeyBytes, ecdsaKeyType)
+				if err := generateAndWriteKeys(privEcdsaKey, pubKeyBytes, ecdsaKeyType); err != nil {
+					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+					return
+				}
 
 			case ED25519:
 				pubEd25519Key, privEd25519Key, err := ed25519.GenerateKey(rand.Reader)
 				if err != nil {
-					log.Fatalf("Error generating keys: %v", err)
+					printError(cmd, "Error generating keys: %v ❌ ", err)
+					return
 				}
 				pubKey, err := x509.MarshalPKIXPublicKey(pubEd25519Key)
 				if err != nil {
-					log.Fatalf("Error marshalling public key: %v", err)
+					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+					return
 				}
-				generateAndWriteKeys(privEd25519Key, pubKey, ed25519KeyType)
+				if err := generateAndWriteKeys(privEd25519Key, pubKey, ed25519KeyType); err != nil {
+					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+					return
+				}
 
-			// Default to RSA
 			default:
 				privKey, err := rsa.GenerateKey(rand.Reader, keyBitSize)
 				if err != nil {
-					log.Fatalf("Error generating keys: %v", err)
+					printError(cmd, "Error generating keys: %v ❌ ", err)
+					return
 				}
 
 				pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
 				if err != nil {
-					log.Fatalf("Error marshalling public key: %v", err)
+					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+					return
 				}
-				generateAndWriteKeys(privKey, pubKeyBytes, rsaKeyType)
+				if err := generateAndWriteKeys(privKey, pubKeyBytes, rsaKeyType); err != nil {
+					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+					return
+				}
 			}
+
+			cmd.Printf("Successfully generated public/private key pair of type: %s", KeyType)
 		},
 	}
 }
 
-func generateAndWriteKeys(privKey interface{}, pubKeyBytes []byte, keyType string) {
+func generateAndWriteKeys(privKey interface{}, pubKeyBytes []byte, keyType string) error {
 	privFile, err := os.Create(privateKeyFile)
 	if err != nil {
-		log.Fatalf("Error creating private key file: %v", err)
+		return err
 	}
 	defer privFile.Close()
 
@@ -99,22 +113,19 @@ func generateAndWriteKeys(privKey interface{}, pubKeyBytes []byte, keyType strin
 		b, err = x509.MarshalPKCS8PrivateKey(privKey)
 	}
 	if err != nil {
-		log.Printf("Error marshalling private key: %v", err)
-		return
+		return err
 	}
 
 	if err := pem.Encode(privFile, &pem.Block{
 		Type:  keyType,
 		Bytes: b,
 	}); err != nil {
-		log.Printf("Error encoding private key: %v", err)
-		return
+		return err
 	}
 
 	pubFile, err := os.Create(publicKeyFile)
 	if err != nil {
-		log.Printf("Error creating public key file: %v", err)
-		return
+		return err
 	}
 	defer pubFile.Close()
 
@@ -122,9 +133,8 @@ func generateAndWriteKeys(privKey interface{}, pubKeyBytes []byte, keyType strin
 		Type:  publicKeyType,
 		Bytes: pubKeyBytes,
 	}); err != nil {
-		log.Printf("Error encoding public key: %v", err)
-		return
+		return err
 	}
 
-	log.Printf("Successfully generated public/private key pair of type: %s", reflect.TypeOf(privKey).String())
+	return nil
 }
