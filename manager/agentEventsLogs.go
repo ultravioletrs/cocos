@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	ManagerVsockPort     = 9997
+	ManagerVsockPort     = 9998 // CHANGED BY ME
 	messageSize      int = 1024
 )
 
