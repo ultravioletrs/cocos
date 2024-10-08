@@ -86,6 +86,7 @@ func TestRun(t *testing.T) {
 
 			vmMock.On("SendAgentConfig", mock.Anything).Return(nil)
 			vmMock.On("GetProcess").Return(1234)
+			vmMock.On("Transition", mock.Anything).Return(nil)
 
 			persistence.On("SaveVM", mock.Anything).Return(nil)
 
@@ -324,6 +325,7 @@ func TestRestoreVMs(t *testing.T) {
 	vmMock := new(mocks.VM)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	vmMock.On("SetProcess", mock.Anything).Return(nil)
+	vmMock.On("Transition", mock.Anything).Return(nil)
 	ms := &managerService{
 		persistence: mockPersistence,
 		vms:         make(map[string]vm.VM),

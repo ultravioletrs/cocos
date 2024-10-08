@@ -29,7 +29,7 @@ func TestStdoutWrite(t *testing.T) {
 		},
 		{
 			name:           "Large write exceeding buffer size",
-			input:          string(make([]byte, bufSize*2+1)),
+			input:          string(make([]byte, bufSize*2+3)),
 			expectedWrites: 3,
 		},
 	}
@@ -97,7 +97,11 @@ func TestStderrWrite(t *testing.T) {
 			s := &Stderr{
 				LogsChan:      logsChan,
 				ComputationId: "test-computation",
+				StateMachine:  NewStateMachine(),
 			}
+
+			err := s.StateMachine.Transition(manager.VmRunning)
+			assert.NoError(t, err)
 
 			n, err := s.Write([]byte(tt.input))
 

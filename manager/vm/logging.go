@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -58,18 +59,7 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 			return len(p) - inBuf.Len(), err
 		}
 
-		msg := &manager.ClientStreamMessage{
-			Message: &manager.ClientStreamMessage_AgentLog{
-				AgentLog: &manager.AgentLog{
-					Message:       string(buf[:n]),
-					ComputationId: s.ComputationId,
-					Level:         slog.LevelDebug.String(),
-					Timestamp:     timestamppb.Now(),
-				},
-			},
-		}
-
-		if err := safeSend(s.LogsChan, msg); err != nil {
+		if err := sendLog(s.LogsChan, s.ComputationId, string(buf[:n]), slog.LevelDebug.String()); err != nil {
 			return len(p) - inBuf.Len(), err
 		}
 	}
@@ -80,6 +70,7 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 type Stderr struct {
 	LogsChan      chan *manager.ClientStreamMessage
 	ComputationId string
+	StateMachine  StateMachine
 }
 
 // Write implements io.Writer.
@@ -97,18 +88,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 			return len(p) - inBuf.Len(), err
 		}
 
-		msg := &manager.ClientStreamMessage{
-			Message: &manager.ClientStreamMessage_AgentLog{
-				AgentLog: &manager.AgentLog{
-					Message:       string(buf[:n]),
-					ComputationId: s.ComputationId,
-					Level:         slog.LevelError.String(),
-					Timestamp:     timestamppb.Now(),
-				},
-			},
-		}
-
-		if err := safeSend(s.LogsChan, msg); err != nil {
+		if err := sendLog(s.LogsChan, s.ComputationId, string(buf[:n]), ""); err != nil {
 			return len(p) - inBuf.Len(), err
 		}
 	}
@@ -118,7 +98,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		Message: &manager.ClientStreamMessage_AgentEvent{
 			AgentEvent: &manager.AgentEvent{
 				ComputationId: s.ComputationId,
-				EventType:     manager.VmRunning.String(),
+				EventType:     s.StateMachine.State(),
 				Timestamp:     timestamppb.Now(),
 				Originator:    "manager",
 				Status:        manager.Warning.String(),
@@ -131,4 +111,35 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+func sendLog(logsChan chan *manager.ClientStreamMessage, computationID, message, level string) error {
+	if len(message) < 3 {
+		return nil
+	}
+
+	if level == "" {
+		if strings.Contains(strings.ToLower(message), "warning") {
+			level = slog.LevelWarn.String()
+		} else {
+			level = slog.LevelError.String()
+		}
+	}
+
+	msg := &manager.ClientStreamMessage{
+		Message: &manager.ClientStreamMessage_AgentLog{
+			AgentLog: &manager.AgentLog{
+				Message:       message,
+				ComputationId: computationID,
+				Level:         level,
+				Timestamp:     timestamppb.Now(),
+			},
+		},
+	}
+
+	if err := safeSend(logsChan, msg); err != nil {
+		return err
+	}
+
+	return nil
 }

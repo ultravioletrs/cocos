@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
@@ -57,6 +58,7 @@ func TestStop(t *testing.T) {
 		cmd: &exec.Cmd{
 			Process: cmd.Process,
 		},
+		StateMachine: vm.NewStateMachine(),
 	}
 
 	err = vm.Stop()
@@ -110,6 +112,7 @@ func TestCheckVMProcessPeriodically(t *testing.T) {
 		cmd: &exec.Cmd{
 			Process: &os.Process{Pid: -1}, // Use an invalid PID to simulate a stopped process
 		},
+		StateMachine: vm.NewStateMachine(),
 	}
 
 	go vm.checkVMProcessPeriodically()
@@ -118,7 +121,7 @@ func TestCheckVMProcessPeriodically(t *testing.T) {
 	case msg := <-logsChan:
 		assert.NotNil(t, msg.GetAgentEvent())
 		assert.Equal(t, "test-computation", msg.GetAgentEvent().ComputationId)
-		assert.Equal(t, manager.VmRunning.String(), msg.GetAgentEvent().EventType)
+		assert.Equal(t, manager.VmProvision.String(), msg.GetAgentEvent().EventType)
 		assert.Equal(t, manager.Stopped.String(), msg.GetAgentEvent().Status)
 	case <-time.After(2 * interval):
 		t.Fatal("Timeout waiting for VM stopped message")
