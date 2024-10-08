@@ -118,3 +118,29 @@ func TestDatasetsCmd_UploadFailure(t *testing.T) {
 		os.Remove(privateKeyFile)
 	})
 }
+
+func TestDatasetsCmd_InvalidPrivateKey(t *testing.T) {
+	mockSDK := new(mocks.SDK)
+	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	testCLI := New(mockSDK)
+
+	datasetFile, err := createTempDatasetFile("test dataset content")
+	require.NoError(t, err)
+
+	err = os.WriteFile(privateKeyFile, []byte("invalid private key"), 0o644)
+	require.NoError(t, err)
+
+	cmd := testCLI.NewDatasetsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	cmd.SetArgs([]string{datasetFile, privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), "Error decoding private key")
+	t.Cleanup(func() {
+		os.Remove(datasetFile)
+		os.Remove(privateKeyFile)
+	})
+}

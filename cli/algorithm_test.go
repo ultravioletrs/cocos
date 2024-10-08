@@ -132,3 +132,34 @@ func TestAlgorithmCmd_UploadFailure(t *testing.T) {
 		os.Remove(algorithmFile)
 	})
 }
+
+func TestAlgorithmCmd_InvalidPrivateKey(t *testing.T) {
+	mockSDK := new(mocks.SDK)
+	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	testCLI := New(mockSDK)
+
+	err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
+	require.NoError(t, err)
+
+	privKeyFile, err := os.Create(privateKeyFile)
+	require.NoError(t, err)
+	defer privKeyFile.Close()
+
+	_, err = privKeyFile.WriteString("invalid private key")
+	require.NoError(t, err)
+
+	cmd := testCLI.NewAlgorithmCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	cmd.SetArgs([]string{algorithmFile, privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), "Error decoding private key")
+
+	t.Cleanup(func() {
+		os.Remove(algorithmFile)
+		os.Remove(privateKeyFile)
+	})
+}

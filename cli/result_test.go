@@ -106,3 +106,29 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 		os.Remove(privateKeyFile)
 	})
 }
+
+func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
+	mockSDK := new(mocks.SDK)
+	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+	testCLI := New(mockSDK)
+
+	invalidPrivateKey, err := os.CreateTemp("", "invalid_private_key.pem")
+	require.NoError(t, err)
+	err = invalidPrivateKey.Close()
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := os.Remove(invalidPrivateKey.Name())
+		require.NoError(t, err)
+	})
+
+	cmd := testCLI.NewResultsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{invalidPrivateKey.Name()})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), "Error decoding private key")
+	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything)
+}

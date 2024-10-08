@@ -86,6 +86,9 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 }
 
 func decodeKey(b *pem.Block) (interface{}, error) {
+	if b == nil {
+		return nil, errors.New("error decoding key")
+	}
 	switch b.Type {
 	case rsaKeyType:
 		privKey, err := x509.ParsePKCS8PrivateKey(b.Bytes)
