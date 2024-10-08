@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"testing"
@@ -38,14 +39,14 @@ func TestDatasetsCmd_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewDatasetsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{datasetFile, privateKeyFile})
-		err = cmd.Execute()
-		require.NoError(t, err)
-	})
+	cmd.SetArgs([]string{datasetFile, privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Successfully uploaded dataset")
+	require.Contains(t, buf.String(), "Successfully uploaded dataset")
 	mockSDK.AssertCalled(t, "Data", mock.Anything, mock.Anything, mock.Anything)
 
 	t.Cleanup(func() {
@@ -60,14 +61,14 @@ func TestDatasetsCmd_MissingDatasetFile(t *testing.T) {
 	testCLI := New(mockSDK)
 
 	cmd := testCLI.NewDatasetsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{"non_existent_dataset.txt", privateKeyFile})
-		err := cmd.Execute()
-		require.NoError(t, err)
-	})
+	cmd.SetArgs([]string{"non_existent_dataset.txt", privateKeyFile})
+	err := cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Error reading dataset file")
+	require.Contains(t, buf.String(), "Error reading dataset file")
 }
 
 func TestDatasetsCmd_MissingPrivateKeyFile(t *testing.T) {
@@ -79,14 +80,14 @@ func TestDatasetsCmd_MissingPrivateKeyFile(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewDatasetsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{datasetFile, "non_existent_private_key.pem"})
-		err = cmd.Execute()
-		require.NoError(t, err)
-	})
+	cmd.SetArgs([]string{datasetFile, "non_existent_private_key.pem"})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Error reading private key file")
+	require.Contains(t, buf.String(), "Error reading private key file")
 	t.Cleanup(func() {
 		os.Remove(datasetFile)
 	})
@@ -104,14 +105,14 @@ func TestDatasetsCmd_UploadFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewDatasetsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{datasetFile, privateKeyFile})
-		err = cmd.Execute()
-		require.NoError(t, err)
-	})
+	cmd.SetArgs([]string{datasetFile, privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Failed to upload dataset due to error")
+	require.Contains(t, buf.String(), "Failed to upload dataset due to error")
 	t.Cleanup(func() {
 		os.Remove(datasetFile)
 		os.Remove(privateKeyFile)

@@ -112,7 +112,7 @@ func main() {
 
 	cliSVC := cli.New(agentSDK)
 
-	rootCmd.Flags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	keysCmd := cliSVC.NewKeysCmd()
 	attestationCmd := cliSVC.NewAttestationCmd()

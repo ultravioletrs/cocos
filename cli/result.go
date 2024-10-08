@@ -4,7 +4,6 @@ package cli
 
 import (
 	"encoding/pem"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -48,7 +47,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			log.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))
+			cmd.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))
 		},
 	}
 }
