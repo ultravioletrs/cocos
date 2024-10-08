@@ -14,7 +14,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"log/slog"
 
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/auth"
@@ -38,20 +37,17 @@ const (
 
 type agentSDK struct {
 	client agent.AgentServiceClient
-	logger *slog.Logger
 }
 
-func NewAgentSDK(log *slog.Logger, agentClient agent.AgentServiceClient) SDK {
+func NewAgentSDK(agentClient agent.AgentServiceClient) SDK {
 	return &agentSDK{
 		client: agentClient,
-		logger: log,
 	}
 }
 
 func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error {
 	md, err := generateMetadata(string(auth.AlgorithmProviderRole), privKey)
 	if err != nil {
-		sdk.logger.Error("Failed to generate metadata")
 		return err
 	}
 
@@ -61,7 +57,6 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 
 	stream, err := sdk.client.Algo(ctx)
 	if err != nil {
-		sdk.logger.Error("Failed to call Algo RPC")
 		return err
 	}
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
@@ -69,7 +64,6 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 
 	pb := progressbar.New()
 	if err := pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream); err != nil {
-		sdk.logger.Error("Failed to send Algorithm")
 		return err
 	}
 
@@ -79,7 +73,6 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey any) error {
 	md, err := generateMetadata(string(auth.DataProviderRole), privKey)
 	if err != nil {
-		sdk.logger.Error("Failed to generate metadata")
 		return err
 	}
 
@@ -89,14 +82,12 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 
 	stream, err := sdk.client.Data(ctx)
 	if err != nil {
-		sdk.logger.Error("Failed to call Data RPC")
 		return err
 	}
 	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
 	pb := progressbar.New()
 	if err := pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream); err != nil {
-		sdk.logger.Error("Failed to send Data")
 		return err
 	}
 
@@ -108,14 +99,12 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 
 	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
 	if err != nil {
-		sdk.logger.Error("Failed to generate metadata")
 		return nil, err
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Result(ctx, request)
 	if err != nil {
-		sdk.logger.Error("Failed to call Result RPC")
 		return nil, err
 	}
 
@@ -141,7 +130,6 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 
 	response, err := sdk.client.Attestation(ctx, request)
 	if err != nil {
-		sdk.logger.Error("Failed to call Attestation RPC")
 		return nil, err
 	}
 

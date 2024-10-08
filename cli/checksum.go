@@ -18,7 +18,7 @@ func (cli *CLI) NewFileHashCmd() *cobra.Command {
 
 			hash, err := internal.ChecksumHex(path)
 			if err != nil {
-				cmd.Printf("Error computing hash: %v", err)
+				printError(cmd, "Error computing hash: %v ❌ ", err)
 				return
 			}
 

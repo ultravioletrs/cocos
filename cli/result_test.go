@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"testing"
@@ -23,13 +24,13 @@ func TestResultsCmd_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewResultsCmd()
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{privateKeyFile})
-		err = cmd.Execute()
-		require.NoError(t, err)
-	})
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Computation result retrieved and saved successfully")
+	require.Contains(t, buf.String(), "Computation result retrieved and saved successfully")
 
 	resultFile, err := os.ReadFile("results.zip")
 	require.NoError(t, err)
@@ -47,13 +48,13 @@ func TestResultsCmd_MissingPrivateKeyFile(t *testing.T) {
 	testCLI := New(mockSDK)
 
 	cmd := testCLI.NewResultsCmd()
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{"non_existent_private_key.pem"})
-		err := cmd.Execute()
-		require.NoError(t, err)
-	})
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{"non_existent_private_key.pem"})
+	err := cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Error reading private key file")
+	require.Contains(t, buf.String(), "Error reading private key file")
 }
 
 func TestResultsCmd_ResultFailure(t *testing.T) {
@@ -65,13 +66,13 @@ func TestResultsCmd_ResultFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewResultsCmd()
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{privateKeyFile})
-		err = cmd.Execute()
-		require.NoError(t, err)
-	})
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "error retrieving computation result")
+	require.Contains(t, buf.String(), "error retrieving computation result")
 	mockSDK.AssertCalled(t, "Result", mock.Anything, mock.Anything)
 	t.Cleanup(func() {
 		os.Remove(privateKeyFile)
@@ -91,17 +92,43 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := testCLI.NewResultsCmd()
-	output := captureLogOutput(func() {
-		cmd.SetArgs([]string{privateKeyFile})
-		err := cmd.Execute()
-		require.NoError(t, err)
-	})
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{privateKeyFile})
+	err = cmd.Execute()
+	require.NoError(t, err)
 
-	require.Contains(t, output, "Error saving computation result to results.zip")
+	require.Contains(t, buf.String(), "Error saving computation result file")
 	mockSDK.AssertCalled(t, "Result", mock.Anything, mock.Anything)
 
 	t.Cleanup(func() {
 		os.Remove("results.zip")
 		os.Remove(privateKeyFile)
 	})
+}
+
+func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
+	mockSDK := new(mocks.SDK)
+	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+	testCLI := New(mockSDK)
+
+	invalidPrivateKey, err := os.CreateTemp("", "invalid_private_key.pem")
+	require.NoError(t, err)
+	err = invalidPrivateKey.Close()
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := os.Remove(invalidPrivateKey.Name())
+		require.NoError(t, err)
+	})
+
+	cmd := testCLI.NewResultsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{invalidPrivateKey.Name()})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), "Error decoding private key")
+	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything)
 }

@@ -5,7 +5,6 @@ package cli
 import (
 	"context"
 	"encoding/pem"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -32,12 +31,11 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			algorithmFile := args[0]
 
-			log.Println("Uploading algorithm file:", algorithmFile)
+			cmd.Println("Uploading algorithm file:", algorithmFile)
 
 			algorithm, err := os.ReadFile(algorithmFile)
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading algorithm file: %v ❌ ", err)
-				log.Println(msg)
+				printError(cmd, "Error reading algorithm file: %v ❌ ", err)
 				return
 			}
 
@@ -45,8 +43,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 			if requirementsFile != "" {
 				req, err = os.ReadFile(requirementsFile)
 				if err != nil {
-					msg := color.New(color.FgRed).Sprintf("Error reading requirments file: %v ❌ ", err)
-					log.Println(msg)
+					printError(cmd, "Error reading requirments file: %v ❌ ", err)
 					return
 				}
 			}
@@ -58,24 +55,26 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
-				msg := color.New(color.FgRed).Sprintf("Error reading private key file: %v ❌ ", err.Error())
-				log.Println(msg)
+				printError(cmd, "Error reading private key file: %v ❌ ", err)
 				return
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			privKey := decodeKey(pemBlock)
+			privKey, err := decodeKey(pemBlock)
+			if err != nil {
+				printError(cmd, "Error decoding private key: %v ❌ ", err)
+				return
+			}
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 
 			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
-				msg := color.New(color.FgRed).Sprintf("Failed to upload algorithm due to error: %v ❌ ", err.Error())
-				log.Println(msg)
+				printError(cmd, "Failed to upload algorithm due to error: %v ❌ ", err)
 				return
 			}
 
-			log.Println(color.New(color.FgGreen).Sprint("Successfully uploaded algorithm! ✔ "))
+			cmd.Println(color.New(color.FgGreen).Sprint("Successfully uploaded algorithm! ✔ "))
 		},
 	}
 

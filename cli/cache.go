@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"path"
 
@@ -29,7 +29,8 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 			attestationConfiguration := grpc.AttestationConfiguration{}
 			err := grpc.ReadBackendInfo(args[0], &attestationConfiguration)
 			if err != nil {
-				log.Fatalf("Error while reading manifest: %v", err)
+				printError(cmd, "Error while reading manifest: %v ❌ ", err)
+				return
 			}
 
 			product := attestationConfiguration.RootOfTrust.Product
@@ -39,17 +40,24 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 
 			bundle, err := getter.Get(caURL)
 			if err != nil {
-				log.Fatalf("Error fetching ARK and ASK from AMD KDS for product: %s, error: %v", product, err)
+				message := fmt.Sprintf("Error fetching ARK and ASK from AMD KDS for product: %s", product)
+				message += ", error: %v ❌ "
+				printError(cmd, message, err)
+				return
 			}
 
 			err = os.MkdirAll(path.Join(fileSavePath, product), filePermisionKeys)
 			if err != nil {
-				log.Fatalf("Error while creating directory for product name %s, error: %v", product, err)
+				message := fmt.Sprintf("Error while creating directory for product name %s", product)
+				message += ", error: %v ❌ "
+				printError(cmd, message, err)
+				return
 			}
 
 			bundleFilePath := path.Join(fileSavePath, product, caBundleName)
 			if err = saveToFile(bundleFilePath, bundle); err != nil {
-				log.Fatalf("Error while saving ARK-ASK to file: %v", err)
+				printError(cmd, "Error while saving ARK-ASK to file: %v ❌ ", err)
+				return
 			}
 		},
 	}

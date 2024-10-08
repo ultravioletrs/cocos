@@ -4,13 +4,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"path"
 	"syscall"
 
-	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -35,54 +33,6 @@ type config struct {
 }
 
 func main() {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-signalChan
-		fmt.Println()
-		log.Println(color.New(color.FgRed).Sprint("Operation aborted by user!"))
-		os.Exit(2)
-	}()
-
-	var cfg config
-	if err := env.Parse(&cfg); err != nil {
-		log.Fatalf("failed to load %s configuration : %s", svcName, err)
-	}
-
-	homePath, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Error fetching user home directory: %v", err)
-	}
-
-	directoryCachePath := path.Join(homePath, cocosDirectory)
-
-	if err := os.MkdirAll(directoryCachePath, filePermision); err != nil {
-		log.Fatalf("Error while creating directory %s, error: %v", directoryCachePath, err)
-	}
-
-	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
-	if err != nil {
-		log.Fatalf("Error creating logger: %s", err)
-	}
-
-	agentGRPCConfig := grpc.Config{}
-	if err := env.ParseWithOptions(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
-		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
-		return
-	}
-
-	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	defer agentGRPCClient.Close()
-
-	agentSDK := sdk.NewAgentSDK(logger, agentClient)
-
-	cliSVC := cli.New(agentSDK)
-
 	rootCmd := &cobra.Command{
 		Use:   "cocos-cli [command]",
 		Short: "CLI application for CoCos Service API",
@@ -110,6 +60,59 @@ func main() {
 			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
 		},
 	}
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-signalChan
+		fmt.Println()
+		rootCmd.Println(color.New(color.FgRed).Sprint("Operation aborted by user!"))
+		os.Exit(2)
+	}()
+
+	var cfg config
+	if err := env.Parse(&cfg); err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to load %s configuration : %s", svcName, err)
+		rootCmd.Println(message)
+		return
+	}
+
+	homePath, err := os.UserHomeDir()
+	if err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to fetch user home directory: %s", err)
+		rootCmd.Println(message)
+		return
+	}
+
+	directoryCachePath := path.Join(homePath, cocosDirectory)
+
+	if err := os.MkdirAll(directoryCachePath, filePermision); err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to create directory %s : %s", directoryCachePath, err)
+		rootCmd.Println(message)
+		return
+	}
+
+	agentGRPCConfig := grpc.Config{}
+	if err := env.ParseWithOptions(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to load %s gRPC client configuration : %s", svcName, err)
+		rootCmd.Println(message)
+		return
+	}
+
+	agentGRPCClient, agentClient, err := agent.NewAgentClient(agentGRPCConfig)
+	if err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to create %s gRPC client : %s", svcName, err)
+		rootCmd.Println(message)
+		return
+	}
+	defer agentGRPCClient.Close()
+
+	agentSDK := sdk.NewAgentSDK(agentClient)
+
+	cliSVC := cli.New(agentSDK)
+
+	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	keysCmd := cliSVC.NewKeysCmd()
 	attestationCmd := cliSVC.NewAttestationCmd()

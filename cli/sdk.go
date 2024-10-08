@@ -4,6 +4,8 @@ package cli
 
 import "github.com/ultravioletrs/cocos/pkg/sdk"
 
+var Verbose bool
+
 type CLI struct {
 	agentSDK sdk.SDK
 }

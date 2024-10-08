@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -83,7 +82,8 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := changeAttestationConfiguration(args[1], args[0], measurementLength, measurementField); err != nil {
-				log.Fatalf("Error could not change measurement data %v", err)
+				printError(cmd, "Error could not change measurement data: %v ❌ ", err)
+				return
 			}
 		},
 	}
@@ -97,7 +97,8 @@ func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := changeAttestationConfiguration(args[1], args[0], hostDataLength, hostDataField); err != nil {
-				log.Fatalf("Error could not change host data %v", err)
+				printError(cmd, "Error could not change host data: %v ❌ ", err)
+				return
 			}
 		},
 	}

@@ -5,12 +5,12 @@ package cli
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
@@ -158,22 +158,23 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			reportData, err := hex.DecodeString(args[0])
 			if err != nil {
-				cmd.Printf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error decoding report data: %v ❌ ", err)
 				return
 			}
 			if len(reportData) != agent.ReportDataSize {
-				cmd.Printf("report data must be a hex encoded string of length %d bytes", agent.ReportDataSize)
+				msg := color.New(color.FgRed).Sprintf("report data must be a hex encoded string of length %d bytes ❌ ", agent.ReportDataSize)
+				cmd.Println(msg)
 				return
 			}
 
 			result, err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData))
 			if err != nil {
-				cmd.Printf("Error retrieving attestation: %v", err)
+				printError(cmd, "Failed to get attestation due to error: %v ❌ ", err)
 				return
 			}
 
 			if err = os.WriteFile(attestationFilePath, result, 0o644); err != nil {
-				cmd.Printf("Error saving attestation result: %v", err)
+				printError(cmd, "Error saving attestation result: %v ❌ ", err)
 				return
 			}
 
@@ -189,37 +190,45 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		Example: "validate <attestation_report_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("Checking attestation")
+			cmd.Println("Checking attestation")
 
 			attestationFile = string(args[0])
 
 			if err := parseConfig(); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error parsing config: %v ❌ ", err)
+				return
 			}
 			if err := parseHashes(); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error parsing hashes: %v ❌ ", err)
+				return
 			}
 			if err := parseFiles(); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error parsing files: %v ❌ ", err)
+				return
 			}
 			// This format is the attestation report in AMD's specified ABI format, immediately
 			// followed by the certificate table bytes.
 			if len(attestation) < abi.ReportSize {
-				log.Fatalf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(attestation), abi.ReportSize)
+				msg := color.New(color.FgRed).Sprintf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes ❌ ", len(attestation), abi.ReportSize)
+				cmd.Println(msg)
+				return
 			}
 			if err := parseUints(); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error parsing uints: %v ❌ ", err)
+				return
 			}
 			cfg.Policy.Vmpl = wrapperspb.UInt32(0)
 
 			if err := validateInput(); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Error validating input: %v ❌ ", err)
+				return
 			}
 
 			if err := verifyAndValidateAttestation(attestation); err != nil {
-				log.Fatalf("attestation validation and verification failed with error: %s", err)
+				printError(cmd, "Attestation validation and verification failed with error: %v ❌ ", err)
+				return
 			}
-			log.Println("Attestation validation and verification is successful!")
+			cmd.Println("Attestation validation and verification is successful!")
 		},
 	}
 	cmd.Flags().StringVar(
@@ -398,11 +407,13 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	)
 
 	if err := cmd.MarkFlagRequired("report_data"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
+		printError(cmd, "Failed to mark flag as required: %v ❌ ", err)
+		return nil
 	}
 
 	if err := cmd.MarkFlagRequired("product"); err != nil {
-		log.Fatalf("Failed to mark flag as required: %s", err)
+		printError(cmd, "Failed to mark flag as required: %v ❌ ", err)
+		return nil
 	}
 
 	return cmd
