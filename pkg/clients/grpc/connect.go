@@ -142,7 +142,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := ReadManifest(cfg.BackendInfo, &attestationConfiguration)
+		err := ReadBackendInfo(cfg.BackendInfo, &attestationConfiguration)
 		if err != nil {
 			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
 		}
@@ -193,7 +193,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func ReadManifest(manifestPath string, attestationConfiguration *AttestationConfiguration) error {
+func ReadBackendInfo(manifestPath string, attestationConfiguration *AttestationConfiguration) error {
 	if manifestPath != "" {
 		manifest, err := os.Open(manifestPath)
 		if err != nil {
