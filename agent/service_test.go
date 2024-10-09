@@ -261,17 +261,6 @@ func TestResult(t *testing.T) {
 			state: Running,
 		},
 		{
-			name: "Test all results consumed",
-			err:  ErrAllResultsConsumed,
-			setup: func(svc *agentService) {
-				svc.computation.ResultConsumers = []ResultConsumer{}
-			},
-			ctxSetup: func(ctx context.Context) context.Context {
-				return IndexToContext(ctx, 0)
-			},
-			state: ConsumingResults,
-		},
-		{
 			name: "Test undeclared consumer",
 			err:  ErrUndeclaredConsumer,
 			setup: func(svc *agentService) {

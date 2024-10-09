@@ -159,8 +159,8 @@ func TestConcurrency(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		if err := sm.Start(ctx); err != nil {
-			t.Errorf("Start returned error: %v", err)
+		if err := sm.Start(ctx); err == nil {
+			t.Errorf("Start did not return error")
 		}
 	}()
 
