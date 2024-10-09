@@ -20,6 +20,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"github.com/ultravioletrs/cocos/agent/quoteprovider"
 	mocks2 "github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
+	"github.com/ultravioletrs/cocos/agent/statemachine"
+	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )
@@ -249,45 +251,47 @@ func TestResult(t *testing.T) {
 		err      error
 		setup    func(svc *agentService)
 		ctxSetup func(ctx context.Context) context.Context
+		state    statemachine.State
 	}{
 		{
 			name: "Test results not ready",
 			err:  ErrResultsNotReady,
 			setup: func(svc *agentService) {
 			},
+			state: Running,
 		},
 		{
 			name: "Test all results consumed",
 			err:  ErrAllResultsConsumed,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
 				return IndexToContext(ctx, 0)
 			},
+			state: ConsumingResults,
 		},
 		{
 			name: "Test undeclared consumer",
 			err:  ErrUndeclaredConsumer,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("user")}}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
 				return ctx
 			},
+			state: ConsumingResults,
 		},
 		{
 			name: "Test results consumed and event sent",
 			err:  nil,
 			setup: func(svc *agentService) {
-				svc.sm.SetState(ConsumingResults)
 				svc.computation.ResultConsumers = []ResultConsumer{{UserKey: []byte("key")}}
 			},
 			ctxSetup: func(ctx context.Context) context.Context {
 				return IndexToContext(ctx, 0)
 			},
+			state: ConsumingResults,
 		},
 	}
 
@@ -301,8 +305,13 @@ func TestResult(t *testing.T) {
 				ctx = tc.ctxSetup(ctx)
 			}
 
+			sm := new(smmocks.StateMachine)
+			sm.On("Start", ctx).Return(nil)
+			sm.On("GetState").Return(tc.state)
+			sm.On("SendEvent", mock.Anything).Return()
+
 			svc := &agentService{
-				sm:            NewStateMachine(mglog.NewMock(), testComputation(t)),
+				sm:            sm,
 				eventSvc:      events,
 				quoteProvider: qp,
 				computation:   testComputation(t),

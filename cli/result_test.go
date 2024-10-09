@@ -1,11 +1,15 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package cli
 
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -32,12 +36,50 @@ func TestResultsCmd_Success(t *testing.T) {
 
 	require.Contains(t, buf.String(), "Computation result retrieved and saved successfully")
 
-	resultFile, err := os.ReadFile("results.zip")
+	files, err := filepath.Glob("results*.zip")
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+
+	resultFile, err := os.ReadFile(files[0])
 	require.NoError(t, err)
 	require.Equal(t, compResult, string(resultFile))
 
 	t.Cleanup(func() {
-		os.Remove("results.zip")
+		for _, file := range files {
+			os.Remove(file)
+		}
+		os.Remove(privateKeyFile)
+	})
+}
+
+func TestResultsCmd_MultipleExecutions(t *testing.T) {
+	mockSDK := new(mocks.SDK)
+	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+	testCLI := New(mockSDK)
+
+	err := generateRSAPrivateKeyFile(privateKeyFile)
+	require.NoError(t, err)
+
+	cmd := testCLI.NewResultsCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{privateKeyFile})
+
+	for i := 0; i < 3; i++ {
+		err = cmd.Execute()
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), "Computation result retrieved and saved successfully")
+		buf.Reset()
+	}
+
+	files, err := filepath.Glob("results*.zip")
+	require.NoError(t, err)
+	require.Len(t, files, 3)
+
+	t.Cleanup(func() {
+		for _, file := range files {
+			os.Remove(file)
+		}
 		os.Remove(privateKeyFile)
 	})
 }
@@ -87,8 +129,8 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 	err := generateRSAPrivateKeyFile(privateKeyFile)
 	require.NoError(t, err)
 
-	// Simulate failure in saving the result file by making a directory with the same name as the result file
-	err = os.Mkdir("results.zip", 0o755)
+	// Simulate failure in saving the result file by making all files read-only
+	err = os.Chmod(".", 0o555)
 	require.NoError(t, err)
 
 	cmd := testCLI.NewResultsCmd()
@@ -102,7 +144,7 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 	mockSDK.AssertCalled(t, "Result", mock.Anything, mock.Anything)
 
 	t.Cleanup(func() {
-		os.Remove("results.zip")
+		os.Chmod(".", 0o755)
 		os.Remove(privateKeyFile)
 	})
 }
@@ -131,4 +173,27 @@ func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 
 	require.Contains(t, buf.String(), "Error decoding private key")
 	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything)
+}
+
+func TestGetUniqueFilePath(t *testing.T) {
+	prefix := "test"
+	ext := ".txt"
+
+	path, err := getUniqueFilePath(prefix, ext)
+	require.NoError(t, err)
+	require.Equal(t, "test.txt", path)
+
+	_, err = os.Create("test.txt")
+	require.NoError(t, err)
+	defer os.Remove("test.txt")
+	for i := 1; i < 3; i++ {
+		fileName := fmt.Sprintf("%s_%d%s", prefix, i, ext)
+		_, err := os.Create(fileName)
+		require.NoError(t, err)
+		defer os.Remove(fileName)
+	}
+
+	path, err = getUniqueFilePath(prefix, ext)
+	require.NoError(t, err)
+	require.Equal(t, "test_3.txt", path)
 }
