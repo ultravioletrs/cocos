@@ -163,7 +163,7 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 		},
 	}
 
-	mockSvc.On("FetchBackendInfo").Return([]byte("test-backend-info"), nil)
+	mockSvc.On("FetchBackendInfo", infoReq.BackendInfoReq.Id).Return([]byte("test-backend-info"), nil)
 
 	client.handleBackendInfoReq(infoReq)
 
