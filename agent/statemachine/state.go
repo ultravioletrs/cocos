@@ -106,7 +106,7 @@ func (sm *stateMachine) handleEvent(event Event) error {
 	sm.mu.Unlock()
 
 	if action != nil {
-		action(nextState)
+		go action(nextState)
 	}
 
 	return nil

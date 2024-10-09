@@ -1,7 +1,6 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-// Copyright (c) Ultraviolet
-// SPDX-License-Identifier: Apache-2.0
+
 package cli
 
 import (
@@ -144,8 +143,10 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 	mockSDK.AssertCalled(t, "Result", mock.Anything, mock.Anything)
 
 	t.Cleanup(func() {
-		os.Chmod(".", 0o755)
-		os.Remove(privateKeyFile)
+		err := os.Chmod(".", 0o755)
+		require.NoError(t, err)
+		err = os.Remove(privateKeyFile)
+		require.NoError(t, err)
 	})
 }
 

@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package agent
 
 import (
@@ -9,6 +11,7 @@ import (
 )
 
 type MockState int
+
 type MockEvent int
 
 func (s MockState) String() string {
@@ -48,7 +51,12 @@ func TestAddTransition(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
+
 	sm.SendEvent(Event1)
 
 	time.Sleep(50 * time.Millisecond)
@@ -69,7 +77,12 @@ func TestSetAction(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
+
 	sm.SendEvent(Event1)
 
 	time.Sleep(50 * time.Millisecond)
@@ -112,7 +125,11 @@ func TestMultipleTransitions(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
 
 	transitions := []struct {
 		event MockEvent
@@ -141,7 +158,11 @@ func TestConcurrency(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
 
 	for i := 0; i < 100; i++ {
 		go func() {

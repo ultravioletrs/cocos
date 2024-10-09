@@ -317,7 +317,11 @@ func TestResult(t *testing.T) {
 				computation:   testComputation(t),
 			}
 
-			go svc.sm.Start(ctx)
+			go func() {
+				if err := svc.sm.Start(ctx); err != nil {
+					t.Errorf("Error starting state machine: %v", err)
+				}
+			}()
 			tc.setup(svc)
 			_, err := svc.Result(ctx)
 			t.Cleanup(func() {

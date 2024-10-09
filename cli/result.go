@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const resultFilePrefix = "results"
-const resultFileExt = ".zip"
+const (
+	resultFilePrefix = "results"
+	resultFileExt    = ".zip"
+)
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{

@@ -166,7 +166,11 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 	sm.SetAction(Complete, svc.publishEvent(Completed.String()))
 	sm.SetAction(Failed, svc.publishEvent(Failed.String()))
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	sm.SendEvent(Start)
 	defer sm.SendEvent(ManifestReceived)
 
