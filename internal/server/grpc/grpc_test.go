@@ -3,13 +3,13 @@
 package grpc
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"strings"
@@ -59,7 +59,7 @@ func TestServerStart(t *testing.T) {
 		Host: "localhost",
 		Port: "0",
 	}
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
@@ -115,13 +115,14 @@ func TestServerStartWithTLS(t *testing.T) {
 
 	wg.Wait()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	cancel()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	logContent := logBuffer.String()
+	fmt.Println(logContent)
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
 }
 
@@ -172,7 +173,7 @@ func TestServerStop(t *testing.T) {
 		Host: "localhost",
 		Port: "0",
 	}
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)

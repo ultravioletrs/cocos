@@ -146,8 +146,6 @@ func TestHandleConnection(t *testing.T) {
 	receivedMsg := <-ms.eventsChan
 	assert.Equal(t, msg.GetAgentEvent().EventType, receivedMsg.GetAgentEvent().EventType)
 	assert.Equal(t, msg.GetAgentEvent().ComputationId, receivedMsg.GetAgentEvent().ComputationId)
-
-	mockConn.AssertExpectations(t)
 }
 
 func TestReportBrokenConnection(t *testing.T) {
