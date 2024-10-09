@@ -111,14 +111,15 @@ type Service interface {
 }
 
 type agentService struct {
-	computation   Computation               // Holds the current computation request details.
-	algorithm     algorithm.Algorithm       // Filepath to the algorithm received for the computation.
-	result        []byte                    // Stores the result of the computation.
-	sm            statemachine.StateMachine // Manages the state transitions of the agent service.
-	runError      error                     // Stores any error encountered during the computation run.
-	eventSvc      events.Service            // Service for publishing events related to computation.
-	quoteProvider client.QuoteProvider      // Provider for generating attestation quotes.
-	logger        *slog.Logger              // Logger for the agent service.
+	computation     Computation               // Holds the current computation request details.
+	algorithm       algorithm.Algorithm       // Filepath to the algorithm received for the computation.
+	result          []byte                    // Stores the result of the computation.
+	sm              statemachine.StateMachine // Manages the state transitions of the agent service.
+	runError        error                     // Stores any error encountered during the computation run.
+	eventSvc        events.Service            // Service for publishing events related to computation.
+	quoteProvider   client.QuoteProvider      // Provider for generating attestation quotes.
+	logger          *slog.Logger              // Logger for the agent service.
+	resultsConsumed bool                      // Indicates if the results have been consumed.
 }
 
 var _ Service = (*agentService)(nil)
@@ -307,19 +308,22 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != ConsumingResults && as.sm.GetState() != Failed {
+	currentState := as.sm.GetState()
+	if currentState != ConsumingResults && currentState != Complete && currentState != Failed {
 		return []byte{}, ErrResultsNotReady
 	}
-	if len(as.computation.ResultConsumers) == 0 {
-		return []byte{}, ErrAllResultsConsumed
-	}
+
 	index, ok := IndexFromContext(ctx)
 	if !ok {
 		return []byte{}, ErrUndeclaredConsumer
 	}
-	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == ConsumingResults {
+	if index < 0 || index >= len(as.computation.ResultConsumers) {
+		return []byte{}, ErrUndeclaredConsumer
+	}
+
+	if !as.resultsConsumed && currentState == ConsumingResults {
+		as.resultsConsumed = true
 		defer as.sm.SendEvent(ResultsConsumed)
 	}
 
