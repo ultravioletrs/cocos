@@ -4,75 +4,182 @@ package agent
 
 import (
 	"context"
-	"fmt"
+	sync "sync"
 	"testing"
 	"time"
 
-	mglog "github.com/absmach/magistrala/logger"
+	"github.com/ultravioletrs/cocos/agent/statemachine"
 )
 
-var cmp = Computation{
-	Datasets: []Dataset{
-		{
-			Dataset: []byte("test"),
-			UserKey: []byte("test"),
-		},
-	},
+type MockState int
+
+type MockEvent int
+
+func (s MockState) String() string {
+	return []string{"State1", "State2", "State3"}[s]
 }
 
-func TestStateMachineTransitions(t *testing.T) {
-	cases := []struct {
-		fromState State
-		event     event
-		expected  State
-		cmp       Computation
-	}{
-		{Idle, start, ReceivingManifest, cmp},
-		{ReceivingManifest, manifestReceived, ReceivingAlgorithm, cmp},
-		{ReceivingAlgorithm, algorithmReceived, ReceivingData, cmp},
-		{ReceivingAlgorithm, algorithmReceived, Running, Computation{}},
-		{ReceivingData, dataReceived, Running, cmp},
-		{Running, runComplete, ConsumingResults, cmp},
-		{ConsumingResults, resultsConsumed, Complete, cmp},
+func (e MockEvent) String() string {
+	return []string{"Event1", "Event2", "Event3"}[e]
+}
+
+const (
+	State1 MockState = iota
+	State2
+	State3
+)
+
+const (
+	Event1 MockEvent = iota
+	Event2
+	Event3
+)
+
+func TestNewStateMachine(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
+	if sm == nil {
+		t.Fatal("NewStateMachine returned nil")
 	}
-
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Transition from %v to %v", tc.fromState, tc.expected), func(t *testing.T) {
-			sm := NewStateMachine(mglog.NewMock(), tc.cmp)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			go sm.Start(ctx)
-
-			time.Sleep(50 * time.Millisecond)
-
-			sm.SetState(tc.fromState)
-			sm.SendEvent(tc.event)
-
-			time.Sleep(50 * time.Millisecond)
-
-			if sm.GetState() != tc.expected {
-				t.Errorf("Expected state %v after the event, but got %v", tc.expected, sm.GetState())
-			}
-		})
+	if sm.GetState() != State1 {
+		t.Errorf("Initial state not set correctly, got %v, want %v", sm.GetState(), State1)
 	}
 }
 
-func TestStateMachineInvalidTransition(t *testing.T) {
-	sm := NewStateMachine(mglog.NewMock(), cmp)
-	ctx, cancel := context.WithCancel(context.Background())
+func TestAddTransition(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
+	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	go sm.Start(ctx)
+	go func() {
+		if err := sm.Start(ctx); err != context.Canceled {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
+
+	sm.SendEvent(Event1)
 
 	time.Sleep(50 * time.Millisecond)
 
-	sm.SetState(Idle)
-	sm.SendEvent(dataReceived)
+	if sm.GetState() != State2 {
+		t.Errorf("Transition not applied correctly, got state %v, want %v", sm.GetState(), State2)
+	}
+}
 
-	time.Sleep(50 * time.Millisecond)
+func TestSetAction(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
 
-	if sm.GetState() != Idle {
-		t.Errorf("State should not change on an invalid event, but got %v", sm.GetState())
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	sm.SetAction(State2, func(s statemachine.State) {
+		defer wg.Done()
+	})
+
+	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	go func() {
+		if err := sm.Start(ctx); err != context.Canceled {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
+
+	sm.SendEvent(Event1)
+
+	wg.Wait()
+
+	if ctx.Err() != nil {
+		t.Error("Action was not called within the expected time")
+	}
+}
+
+func TestInvalidTransition(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
+	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	errChan := make(chan error)
+	go func() {
+		errChan <- sm.Start(ctx)
+	}()
+
+	sm.SendEvent(Event2)
+
+	select {
+	case err := <-errChan:
+		if err == nil {
+			t.Errorf("Expected invalid transition error, got: %v", err)
+		}
+	case <-time.After(150 * time.Millisecond):
+		t.Error("Timeout waiting for invalid transition error")
+	}
+}
+
+func TestMultipleTransitions(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
+	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
+	sm.AddTransition(statemachine.Transition{From: State2, Event: Event2, To: State3})
+	sm.AddTransition(statemachine.Transition{From: State3, Event: Event3, To: State1})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	go func() {
+		if err := sm.Start(ctx); err != context.Canceled {
+			t.Errorf("Start returned error: %v", err)
+		}
+	}()
+
+	transitions := []struct {
+		event MockEvent
+		want  MockState
+	}{
+		{Event1, State2},
+		{Event2, State3},
+		{Event3, State1},
+	}
+
+	for _, tt := range transitions {
+		sm.SendEvent(tt.event)
+		time.Sleep(50 * time.Millisecond)
+
+		if sm.GetState() != tt.want {
+			t.Errorf("After event %v, got state %v, want %v", tt.event, sm.GetState(), tt.want)
+		}
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	sm := statemachine.NewStateMachine(State1)
+	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
+	sm.AddTransition(statemachine.Transition{From: State2, Event: Event2, To: State1})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	go func() {
+		if err := sm.Start(ctx); err == nil {
+			t.Errorf("Expected context error, got nil")
+		}
+	}()
+
+	for i := 0; i < 100; i++ {
+		go func() {
+			sm.SendEvent(Event1)
+			sm.SendEvent(Event2)
+		}()
+	}
+
+	time.Sleep(400 * time.Millisecond)
+
+	finalState := sm.GetState()
+	if finalState != State1 && finalState != State2 {
+		t.Errorf("Unexpected final state: %v", finalState)
 	}
 }

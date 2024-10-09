@@ -20,11 +20,51 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
+	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
 	"golang.org/x/crypto/sha3"
 )
 
 var _ Service = (*agentService)(nil)
+
+//go:generate stringer -type=AgentState
+type AgentState int
+
+const (
+	Idle AgentState = iota
+	ReceivingManifest
+	ReceivingAlgorithm
+	ReceivingData
+	Running
+	ConsumingResults
+	Complete
+	Failed
+)
+
+//go:generate stringer -type=AgentEvent
+type AgentEvent int
+
+const (
+	Start AgentEvent = iota
+	ManifestReceived
+	AlgorithmReceived
+	DataReceived
+	RunComplete
+	ResultsConsumed
+	RunFailed
+)
+
+//go:generate stringer -type=Status
+type Status uint8
+
+const (
+	IdleState Status = iota
+	InProgress
+	Ready
+	Completed
+	Terminated
+	Warning
+)
 
 const (
 	// ReportDataSize is the size of the report data expected by the attestation service.
@@ -71,40 +111,69 @@ type Service interface {
 }
 
 type agentService struct {
-	computation   Computation          // Holds the current computation request details.
-	algorithm     algorithm.Algorithm  // Filepath to the algorithm received for the computation.
-	result        []byte               // Stores the result of the computation.
-	sm            *StateMachine        // Manages the state transitions of the agent service.
-	runError      error                // Stores any error encountered during the computation run.
-	eventSvc      events.Service       // Service for publishing events related to computation.
-	quoteProvider client.QuoteProvider // Provider for generating attestation quotes.
+	computation     Computation               // Holds the current computation request details.
+	algorithm       algorithm.Algorithm       // Filepath to the algorithm received for the computation.
+	result          []byte                    // Stores the result of the computation.
+	sm              statemachine.StateMachine // Manages the state transitions of the agent service.
+	runError        error                     // Stores any error encountered during the computation run.
+	eventSvc        events.Service            // Service for publishing events related to computation.
+	quoteProvider   client.QuoteProvider      // Provider for generating attestation quotes.
+	logger          *slog.Logger              // Logger for the agent service.
+	resultsConsumed bool                      // Indicates if the results have been consumed.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
 func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation, quoteProvider client.QuoteProvider) Service {
+	sm := statemachine.NewStateMachine(Idle)
 	svc := &agentService{
-		sm:            NewStateMachine(logger, cmp),
+		sm:            sm,
 		eventSvc:      eventSvc,
 		quoteProvider: quoteProvider,
+		logger:        logger,
+		computation:   cmp,
 	}
 
-	svc.sm.StateFunctions[Idle] = svc.publishEvent(IdleState.String(), json.RawMessage{})
-	svc.sm.StateFunctions[ReceivingManifest] = svc.publishEvent(InProgress.String(), json.RawMessage{})
-	svc.sm.StateFunctions[ReceivingAlgorithm] = svc.publishEvent(InProgress.String(), json.RawMessage{})
-	svc.sm.StateFunctions[ReceivingData] = svc.publishEvent(InProgress.String(), json.RawMessage{})
-	svc.sm.StateFunctions[ConsumingResults] = svc.publishEvent(Ready.String(), json.RawMessage{})
-	svc.sm.StateFunctions[Complete] = svc.publishEvent(Completed.String(), json.RawMessage{})
-	svc.sm.StateFunctions[Running] = svc.runComputation
-	svc.sm.StateFunctions[Failed] = svc.publishEvent(Failed.String(), json.RawMessage{})
+	transitions := []statemachine.Transition{
+		{From: Idle, Event: Start, To: ReceivingManifest},
+		{From: ReceivingManifest, Event: ManifestReceived, To: ReceivingAlgorithm},
+	}
 
-	go svc.sm.Start(ctx)
-	svc.sm.SendEvent(start)
+	if len(cmp.Datasets) == 0 {
+		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: Running})
+	} else {
+		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: ReceivingData})
+		transitions = append(transitions, statemachine.Transition{From: ReceivingData, Event: DataReceived, To: Running})
+	}
 
-	svc.computation = cmp
+	transitions = append(transitions, []statemachine.Transition{
+		{From: Running, Event: RunComplete, To: ConsumingResults},
+		{From: Running, Event: RunFailed, To: Failed},
+		{From: ConsumingResults, Event: ResultsConsumed, To: Complete},
+	}...)
 
-	svc.sm.SendEvent(manifestReceived)
+	for _, t := range transitions {
+		sm.AddTransition(t)
+	}
+
+	sm.SetAction(Idle, svc.publishEvent(IdleState.String()))
+	sm.SetAction(ReceivingManifest, svc.publishEvent(InProgress.String()))
+	sm.SetAction(ReceivingAlgorithm, svc.publishEvent(InProgress.String()))
+	sm.SetAction(ReceivingData, svc.publishEvent(InProgress.String()))
+	sm.SetAction(Running, svc.runComputation)
+	sm.SetAction(ConsumingResults, svc.publishEvent(Ready.String()))
+	sm.SetAction(Complete, svc.publishEvent(Completed.String()))
+	sm.SetAction(Failed, svc.publishEvent(Failed.String()))
+
+	go func() {
+		if err := sm.Start(ctx); err != nil {
+			logger.Error(err.Error())
+		}
+	}()
+	sm.SendEvent(Start)
+	defer sm.SendEvent(ManifestReceived)
+
 	return svc
 }
 
@@ -153,7 +222,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = binary.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypePython):
 		var requirementsFile string
 		if len(algo.Requirements) > 0 {
@@ -171,11 +240,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.sm.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
+		as.algorithm = python.NewAlgorithm(as.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args)
 	case string(algorithm.AlgoTypeDocker):
-		as.algorithm = docker.NewAlgorithm(as.sm.logger, as.eventSvc, f.Name())
+		as.algorithm = docker.NewAlgorithm(as.logger, as.eventSvc, f.Name())
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
@@ -183,7 +252,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	}
 
 	if as.algorithm != nil {
-		as.sm.SendEvent(algorithmReceived)
+		as.sm.SendEvent(AlgorithmReceived)
 	}
 
 	return nil
@@ -236,27 +305,30 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	}
 
 	if len(as.computation.Datasets) == 0 {
-		defer as.sm.SendEvent(dataReceived)
+		defer as.sm.SendEvent(DataReceived)
 	}
 
 	return nil
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	if as.sm.GetState() != ConsumingResults && as.sm.GetState() != Failed {
+	currentState := as.sm.GetState()
+	if currentState != ConsumingResults && currentState != Complete && currentState != Failed {
 		return []byte{}, ErrResultsNotReady
 	}
-	if len(as.computation.ResultConsumers) == 0 {
-		return []byte{}, ErrAllResultsConsumed
-	}
+
 	index, ok := IndexFromContext(ctx)
 	if !ok {
 		return []byte{}, ErrUndeclaredConsumer
 	}
-	as.computation.ResultConsumers = slices.Delete(as.computation.ResultConsumers, index, index+1)
 
-	if len(as.computation.ResultConsumers) == 0 && as.sm.GetState() == ConsumingResults {
-		defer as.sm.SendEvent(resultsConsumed)
+	if index < 0 || index >= len(as.computation.ResultConsumers) {
+		return []byte{}, ErrUndeclaredConsumer
+	}
+
+	if !as.resultsConsumed && currentState == ConsumingResults {
+		as.resultsConsumed = true
+		defer as.sm.SendEvent(ResultsConsumed)
 	}
 
 	return as.result, as.runError
@@ -271,59 +343,58 @@ func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataS
 	return rawQuote, nil
 }
 
-func (as *agentService) runComputation() {
-	as.publishEvent(InProgress.String(), json.RawMessage{})()
-	as.sm.logger.Debug("computation run started")
+func (as *agentService) runComputation(state statemachine.State) {
+	as.publishEvent(InProgress.String())(state)
+	as.logger.Debug("computation run started")
 	defer func() {
 		if as.runError != nil {
-			as.sm.SendEvent(runFailed)
+			as.sm.SendEvent(RunFailed)
 		} else {
-			as.sm.SendEvent(runComplete)
+			as.sm.SendEvent(RunComplete)
 		}
 	}()
 
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
 		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
-		as.sm.logger.Warn(as.runError.Error())
-		as.publishEvent(Failed.String(), json.RawMessage{})()
+		as.logger.Warn(as.runError.Error())
+		as.publishEvent(Failed.String())(state)
 		return
 	}
 
 	defer func() {
 		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
-			as.sm.logger.Warn(fmt.Sprintf("error removing results directory and its contents: %s", err.Error()))
+			as.logger.Warn(fmt.Sprintf("error removing results directory and its contents: %s", err.Error()))
 		}
 		if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
-			as.sm.logger.Warn(fmt.Sprintf("error removing datasets directory and its contents: %s", err.Error()))
+			as.logger.Warn(fmt.Sprintf("error removing datasets directory and its contents: %s", err.Error()))
 		}
 	}()
 
-	as.publishEvent(InProgress.String(), json.RawMessage{})()
+	as.publishEvent(InProgress.String())(state)
 	if err := as.algorithm.Run(); err != nil {
 		as.runError = err
-		as.sm.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
-		as.publishEvent(Failed.String(), json.RawMessage{})()
+		as.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
+		as.publishEvent(Failed.String())(state)
 		return
 	}
 
 	results, err := internal.ZipDirectoryToMemory(algorithm.ResultsDir)
 	if err != nil {
 		as.runError = err
-		as.sm.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
-		as.publishEvent(Failed.String(), json.RawMessage{})()
+		as.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
+		as.publishEvent(Failed.String())(state)
 		return
 	}
 
-	as.publishEvent(Completed.String(), json.RawMessage{})()
+	as.publishEvent(Completed.String())(state)
 
 	as.result = results
 }
 
-func (as *agentService) publishEvent(status string, details json.RawMessage) func() {
-	return func() {
-		st := as.sm.GetState().String()
-		if err := as.eventSvc.SendEvent(st, status, details); err != nil {
-			as.sm.logger.Warn(err.Error())
+func (as *agentService) publishEvent(status string) statemachine.Action {
+	return func(state statemachine.State) {
+		if err := as.eventSvc.SendEvent(state.String(), status, json.RawMessage{}); err != nil {
+			as.logger.Warn(err.Error())
 		}
 	}
 }

@@ -4,13 +4,17 @@ package cli
 
 import (
 	"encoding/pem"
+	"fmt"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
-const resultFilePath = "results.zip"
+const (
+	resultFilePrefix = "results"
+	resultFileExt    = ".zip"
+)
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
@@ -42,12 +46,35 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
+			resultFilePath, err := getUniqueFilePath(resultFilePrefix, resultFileExt)
+			if err != nil {
+				printError(cmd, "Error generating unique file path: %v ❌ ", err)
+				return
+			}
+
 			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
 				printError(cmd, "Error saving computation result file: %v  ❌ ", err)
 				return
 			}
 
-			cmd.Println(color.New(color.FgGreen).Sprint("Computation result retrieved and saved successfully! ✔ "))
+			cmd.Println(color.New(color.FgGreen).Sprintf("Computation result retrieved and saved successfully as %s! ✔ ", resultFilePath))
 		},
+	}
+}
+
+func getUniqueFilePath(prefix, ext string) (string, error) {
+	for i := 0; ; i++ {
+		var filename string
+		if i == 0 {
+			filename = prefix + ext
+		} else {
+			filename = fmt.Sprintf("%s_%d%s", prefix, i, ext)
+		}
+
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			return filename, nil
+		} else if err != nil {
+			return "", err
+		}
 	}
 }
