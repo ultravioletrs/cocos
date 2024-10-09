@@ -3,6 +3,7 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -11,6 +12,8 @@ import (
 	"encoding/pem"
 	"log/slog"
 	"math/big"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,100 +54,126 @@ func TestNew(t *testing.T) {
 
 func TestServerStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	config := server.Config{
 		Host: "localhost",
-		Port: "0", // Use any available port
+		Port: "0",
 	}
-	logger := slog.Default()
+	buf := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		wg.Done()
 		err := srv.Start()
 		assert.NoError(t, err)
 	}()
 
-	// Give the server some time to start
+	wg.Wait()
+
 	time.Sleep(100 * time.Millisecond)
 
-	err := srv.Stop()
-	assert.NoError(t, err)
+	cancel()
+
+	assert.Contains(t, buf.String(), "TestServer service gRPC server listening at localhost:0 without TLS")
 }
 
 func TestServerStartWithTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	cert, key, err := generateSelfSignedCert()
 	assert.NoError(t, err)
 
 	config := server.Config{
 		Host:     "localhost",
-		Port:     "0", // Use any available port
+		Port:     "0",
 		CertFile: string(cert),
 		KeyFile:  string(key),
 	}
-	logger := slog.Default()
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		wg.Done()
 		err := srv.Start()
 		assert.NoError(t, err)
 	}()
 
-	// Give the server some time to start
+	wg.Wait()
+
 	time.Sleep(100 * time.Millisecond)
 
-	err = srv.Stop()
-	assert.NoError(t, err)
+	cancel()
+
+	time.Sleep(100 * time.Millisecond)
+
+	logContent := logBuffer.String()
+	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
 }
 
 func TestServerStartWithAttestedTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	config := server.Config{
 		Host:        "localhost",
-		Port:        "0", // Use any available port
+		Port:        "0",
 		AttestedTLS: true,
 	}
-	logger := slog.Default()
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 	qp.On("GetRawQuote", mock.Anything).Return([]byte("mock-quote"), nil)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		wg.Done()
 		err := srv.Start()
 		assert.NoError(t, err)
 	}()
 
-	// Give the server some time to start
+	wg.Wait()
+
 	time.Sleep(100 * time.Millisecond)
 
-	err := srv.Stop()
-	assert.NoError(t, err)
+	cancel()
+
+	time.Sleep(100 * time.Millisecond)
+
+	logContent := logBuffer.String()
+	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with Attested TLS")
 
 	qp.AssertExpectations(t)
 }
 
 func TestServerStop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	config := server.Config{
 		Host: "localhost",
-		Port: "0", // Use any available port
+		Port: "0",
 	}
-	logger := slog.Default()
+	buf := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
@@ -155,11 +184,16 @@ func TestServerStop(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	// Give the server some time to start
+	time.Sleep(100 * time.Millisecond)
+
+	cancel()
+
 	time.Sleep(100 * time.Millisecond)
 
 	err := srv.Stop()
 	assert.NoError(t, err)
+
+	assert.Contains(t, buf.String(), "TestServer gRPC service shutdown at localhost:0")
 }
 
 func generateSelfSignedCert() ([]byte, []byte, error) {
@@ -195,4 +229,21 @@ func generateSelfSignedCertFromKey(key *rsa.PrivateKey) ([]byte, error) {
 	}
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes}), nil
+}
+
+type ThreadSafeBuffer struct {
+	buffer strings.Builder
+	mu     sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }
