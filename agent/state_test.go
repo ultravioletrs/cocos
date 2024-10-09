@@ -4,6 +4,7 @@ package agent
 
 import (
 	"context"
+	sync "sync"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ func TestAddTransition(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		if err := sm.Start(ctx); err != nil {
+		if err := sm.Start(ctx); err != context.Canceled {
 			t.Errorf("Start returned error: %v", err)
 		}
 	}()
@@ -68,27 +69,31 @@ func TestAddTransition(t *testing.T) {
 
 func TestSetAction(t *testing.T) {
 	sm := statemachine.NewStateMachine(State1)
-	actionCalled := false
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	sm.SetAction(State2, func(s statemachine.State) {
-		actionCalled = true
+		defer wg.Done()
 	})
+
 	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
 	go func() {
-		if err := sm.Start(ctx); err != nil {
+		if err := sm.Start(ctx); err != context.Canceled {
 			t.Errorf("Start returned error: %v", err)
 		}
 	}()
 
 	sm.SendEvent(Event1)
 
-	time.Sleep(50 * time.Millisecond)
+	wg.Wait()
 
-	if !actionCalled {
-		t.Error("Action was not called after transition")
+	if ctx.Err() != nil {
+		t.Error("Action was not called within the expected time")
 	}
 }
 
@@ -126,7 +131,7 @@ func TestMultipleTransitions(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		if err := sm.Start(ctx); err != nil {
+		if err := sm.Start(ctx); err != context.Canceled {
 			t.Errorf("Start returned error: %v", err)
 		}
 	}()
@@ -160,7 +165,7 @@ func TestConcurrency(t *testing.T) {
 
 	go func() {
 		if err := sm.Start(ctx); err == nil {
-			t.Errorf("Start did not return error")
+			t.Errorf("Expected context error, got nil")
 		}
 	}()
 
