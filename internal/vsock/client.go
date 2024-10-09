@@ -38,7 +38,7 @@ type AckWriter struct {
 	wg              sync.WaitGroup
 }
 
-func NewAckWriter(conn net.Conn) *AckWriter {
+func NewAckWriter(conn net.Conn) io.WriteCloser {
 	aw := &AckWriter{
 		conn:            conn,
 		pendingMessages: make(chan *Message, maxConcurrent),
@@ -50,14 +50,6 @@ func NewAckWriter(conn net.Conn) *AckWriter {
 	go aw.sendMessages()
 	go aw.handleAcknowledgments()
 	return aw
-}
-
-func (aw *AckWriter) WriteProto(msg proto.Message) (int, error) {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return 0, fmt.Errorf("error marshaling protobuf message: %v", err)
-	}
-	return aw.Write(data)
 }
 
 func (aw *AckWriter) Write(p []byte) (int, error) {
@@ -176,11 +168,16 @@ func (aw *AckWriter) Close() error {
 	return aw.conn.Close()
 }
 
+type Reader interface {
+	Read() ([]byte, error)
+	ReadProto(msg proto.Message) error
+}
+
 type AckReader struct {
 	conn net.Conn
 }
 
-func NewAckReader(conn net.Conn) *AckReader {
+func NewAckReader(conn net.Conn) Reader {
 	return &AckReader{
 		conn: conn,
 	}
