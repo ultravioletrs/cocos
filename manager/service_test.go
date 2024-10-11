@@ -5,12 +5,15 @@ package manager
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"testing"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -211,7 +214,14 @@ func TestGetFreePort(t *testing.T) {
 	port, err := getFreePort(6000, 6100)
 
 	assert.NoError(t, err)
-	assert.Greater(t, port, 0)
+	assert.GreaterOrEqual(t, port, 6000)
+
+	_, err = net.Listen("tcp", net.JoinHostPort("localhost", fmt.Sprint(port)))
+	assert.NoError(t, err)
+
+	port, err = getFreePort(6000, 6100)
+	assert.NoError(t, err)
+	assert.Greater(t, port, 6000)
 }
 
 func TestPublishEvent(t *testing.T) {
@@ -341,9 +351,11 @@ func TestRestoreVMs(t *testing.T) {
 	mockPersistence.On("LoadVMs").Return([]qemu.VMState{
 		{ID: "vm1", PID: cmd.Process.Pid},
 		{ID: "vm2", PID: 1000},
+		{ID: "vm3", PID: 2000},
 	}, nil)
 
-	mockPersistence.On("DeleteVM", mock.Anything).Return(nil)
+	mockPersistence.On("DeleteVM", "vm2").Return(nil)
+	mockPersistence.On("DeleteVM", "vm3").Return(errors.New("failed to delete"))
 
 	err = ms.restoreVMs()
 	assert.NoError(t, err)
