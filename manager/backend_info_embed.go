@@ -8,6 +8,6 @@ package manager
 
 import backendinfo "github.com/ultravioletrs/cocos/scripts/backend_info"
 
-func (ms *managerService) FetchBackendInfo() ([]byte, error) {
+func (ms *managerService) FetchBackendInfo(computationId string) ([]byte, error) {
 	return backendinfo.BackendInfo, nil
 }
