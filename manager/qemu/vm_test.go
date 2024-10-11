@@ -14,12 +14,13 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
+const testComputationID = "test-computation"
+
 func TestNewVM(t *testing.T) {
 	config := Config{}
 	logsChan := make(chan *manager.ClientStreamMessage)
-	computationId := "test-computation"
 
-	vm := NewVM(config, logsChan, computationId)
+	vm := NewVM(config, logsChan, testComputationID)
 
 	assert.NotNil(t, vm)
 	assert.IsType(t, &qemuVM{}, vm)
@@ -38,9 +39,8 @@ func TestStart(t *testing.T) {
 		QemuBinPath: "echo",
 	}
 	logsChan := make(chan *manager.ClientStreamMessage)
-	computationId := "test-computation"
 
-	vm := NewVM(config, logsChan, computationId).(*qemuVM)
+	vm := NewVM(config, logsChan, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -63,9 +63,8 @@ func TestStartSudo(t *testing.T) {
 		UseSudo:     true,
 	}
 	logsChan := make(chan *manager.ClientStreamMessage)
-	computationId := "test-computation"
 
-	vm := NewVM(config, logsChan, computationId).(*qemuVM)
+	vm := NewVM(config, logsChan, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -172,7 +171,7 @@ func TestCheckVMProcessPeriodically(t *testing.T) {
 	logsChan := make(chan *manager.ClientStreamMessage, 1)
 	vm := &qemuVM{
 		logsChan:      logsChan,
-		computationId: "test-computation",
+		computationId: testComputationID,
 		cmd: &exec.Cmd{
 			Process: &os.Process{Pid: -1}, // Use an invalid PID to simulate a stopped process
 		},
@@ -184,7 +183,7 @@ func TestCheckVMProcessPeriodically(t *testing.T) {
 	select {
 	case msg := <-logsChan:
 		assert.NotNil(t, msg.GetAgentEvent())
-		assert.Equal(t, "test-computation", msg.GetAgentEvent().ComputationId)
+		assert.Equal(t, testComputationID, msg.GetAgentEvent().ComputationId)
 		assert.Equal(t, manager.VmProvision.String(), msg.GetAgentEvent().EventType)
 		assert.Equal(t, manager.Stopped.String(), msg.GetAgentEvent().Status)
 	case <-time.After(2 * interval):
