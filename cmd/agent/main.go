@@ -250,10 +250,11 @@ func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
 
 	mcHash := sha3.Sum256(cfgBytes)
 
-	if arProto.Report.HostData != nil {
-		if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
-			return fmt.Errorf("manifest verification failed")
-		}
+	if arProto.Report.HostData == nil {
+		return fmt.Errorf("manifest verification failed: HostData is nil")
+	}
+	if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
+		return fmt.Errorf("manifest verification failed")
 	}
 
 	return nil

@@ -18,9 +18,9 @@ type Service struct {
 	mock.Mock
 }
 
-// FetchBackendInfo provides a mock function with given fields: computationID
-func (_m *Service) FetchBackendInfo(computationID string) ([]byte, error) {
-	ret := _m.Called(computationID)
+// FetchBackendInfo provides a mock function with given fields: ctx, computationID
+func (_m *Service) FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error) {
+	ret := _m.Called(ctx, computationID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FetchBackendInfo")
@@ -28,19 +28,19 @@ func (_m *Service) FetchBackendInfo(computationID string) ([]byte, error) {
 
 	var r0 []byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) ([]byte, error)); ok {
-		return rf(computationID)
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
+		return rf(ctx, computationID)
 	}
-	if rf, ok := ret.Get(0).(func(string) []byte); ok {
-		r0 = rf(computationID)
+	if rf, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
+		r0 = rf(ctx, computationID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(computationID)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, computationID)
 	} else {
 		r1 = ret.Error(1)
 	}

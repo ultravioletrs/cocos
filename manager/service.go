@@ -63,7 +63,7 @@ type Service interface {
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
 	// FetchBackendInfo measures and fetches the backend information.
-	FetchBackendInfo(computationID string) ([]byte, error)
+	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
 }
 
 type managerService struct {

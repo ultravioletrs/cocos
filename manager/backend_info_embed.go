@@ -6,8 +6,12 @@
 
 package manager
 
-import backendinfo "github.com/ultravioletrs/cocos/scripts/backend_info"
+import (
+	"context"
 
-func (ms *managerService) FetchBackendInfo(computationId string) ([]byte, error) {
+	backendinfo "github.com/ultravioletrs/cocos/scripts/backend_info"
+)
+
+func (ms *managerService) FetchBackendInfo(_ context.Context, _ string) ([]byte, error) {
 	return backendinfo.BackendInfo, nil
 }

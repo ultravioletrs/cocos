@@ -80,7 +80,7 @@ func (client ManagerClient) processIncomingMessage(ctx context.Context, req *pkg
 	case *pkgmanager.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
 	case *pkgmanager.ServerStreamMessage_BackendInfoReq:
-		go client.handleBackendInfoReq(mes)
+		go client.handleBackendInfoReq(ctx, mes)
 	default:
 		return errors.New("unknown message type")
 	}
@@ -133,8 +133,8 @@ func (client ManagerClient) handleStopComputation(ctx context.Context, mes *pkgm
 	client.sendMessage(&pkgmanager.ClientStreamMessage{Message: msg})
 }
 
-func (client ManagerClient) handleBackendInfoReq(mes *pkgmanager.ServerStreamMessage_BackendInfoReq) {
-	res, err := client.svc.FetchBackendInfo(mes.BackendInfoReq.Id)
+func (client ManagerClient) handleBackendInfoReq(ctx context.Context, mes *pkgmanager.ServerStreamMessage_BackendInfoReq) {
+	res, err := client.svc.FetchBackendInfo(ctx, mes.BackendInfoReq.Id)
 	if err != nil {
 		client.logger.Warn(err.Error())
 		return

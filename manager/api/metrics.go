@@ -55,11 +55,11 @@ func (ms *metricsMiddleware) RetrieveAgentEventsLogs() {
 	ms.svc.RetrieveAgentEventsLogs()
 }
 
-func (ms *metricsMiddleware) FetchBackendInfo(cmpId string) ([]byte, error) {
+func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "FetchBackendInfo").Add(1)
 		ms.latency.With("method", "FetchBackendInfo").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.FetchBackendInfo(cmpId)
+	return ms.svc.FetchBackendInfo(ctx, cmpId)
 }

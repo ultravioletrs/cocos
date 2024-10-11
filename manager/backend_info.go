@@ -7,6 +7,7 @@
 package manager
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,10 +23,13 @@ import (
 
 const defGuestFeatures = 0x1
 
-func (ms *managerService) FetchBackendInfo(computationId string) ([]byte, error) {
+func (ms *managerService) FetchBackendInfo(_ context.Context, computationId string) ([]byte, error) {
 	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
 
-	vm := ms.vms[computationId]
+	vm, exists := ms.vms[computationId]
+	if !exists {
+		return nil, fmt.Errorf("computationId %s not found", computationId)
+	}
 
 	config, ok := vm.GetConfig().(qemu.Config)
 	if !ok {

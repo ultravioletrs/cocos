@@ -165,7 +165,7 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 
 	mockSvc.On("FetchBackendInfo", infoReq.BackendInfoReq.Id).Return([]byte("test-backend-info"), nil)
 
-	client.handleBackendInfoReq(infoReq)
+	client.handleBackendInfoReq(context.Background(), infoReq)
 
 	// Wait for the goroutine to finish
 	time.Sleep(50 * time.Millisecond)
