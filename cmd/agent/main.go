@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -87,8 +88,8 @@ func main() {
 		return
 	}
 
-	if err := verifyManifest(cfg, qp); err != nil {
-		logger.Error(fmt.Sprintf("failed to verify manifest %s", err.Error()))
+	if err := verifyManifest(cfg, qp, logger); err != nil {
+		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}
@@ -217,7 +218,7 @@ func dialVsock() (*vsock.Conn, error) {
 	return conn, nil
 }
 
-func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
+func verifyManifest(cfg agent.Computation, qp client.QuoteProvider, logger *slog.Logger) error {
 	if !cfg.AgentConfig.TEE {
 		return nil
 	}
@@ -238,6 +239,9 @@ func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
 	}
 
 	mcHash := sha3.Sum256(cfgBytes)
+
+	logger.Info("HostData: " + base64.StdEncoding.EncodeToString(mcHash[:]))
+	logger.Info("cmp hash: " + base64.StdEncoding.EncodeToString(arProto.Report.HostData))
 
 	if arProto.Report.HostData != nil {
 		if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
