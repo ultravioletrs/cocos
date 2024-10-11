@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"os"
 	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
@@ -93,6 +94,8 @@ func main() {
 		exitCode = 1
 		return
 	}
+
+	setDefaultValues(&cfg)
 
 	svc := newService(ctx, logger, eventSvc, cfg, qp)
 
@@ -189,13 +192,21 @@ func readConfig() (agent.Computation, error) {
 	if err := json.Unmarshal(buffer, &ac); err != nil {
 		return agent.Computation{}, err
 	}
-	if ac.AgentConfig.LogLevel == "" {
-		ac.AgentConfig.LogLevel = "info"
-	}
-	if ac.AgentConfig.Port == "" {
-		ac.AgentConfig.Port = defSvcGRPCPort
-	}
 	return ac, nil
+}
+
+func setDefaultValues(cfg *agent.Computation) {
+	if cfg.AgentConfig.LogLevel == "" {
+		cfg.AgentConfig.LogLevel = "info"
+	}
+	if cfg.AgentConfig.Port == "" {
+		cfg.AgentConfig.Port = defSvcGRPCPort
+	}
+}
+
+func isTEE() bool {
+	_, err := os.Stat("/dev/sev-guest")
+	return !os.IsNotExist(err)
 }
 
 func dialVsock() (*vsock.Conn, error) {
@@ -219,7 +230,7 @@ func dialVsock() (*vsock.Conn, error) {
 }
 
 func verifyManifest(cfg agent.Computation, qp client.QuoteProvider, logger *slog.Logger) error {
-	if !cfg.AgentConfig.TEE {
+	if !isTEE() {
 		return nil
 	}
 

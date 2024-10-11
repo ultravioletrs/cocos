@@ -130,10 +130,6 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	}
 	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
 
-	if ms.qemuCfg.EnableSEV || ms.qemuCfg.EnableSEVSNP {
-		ac.AgentConfig.TEE = true
-	}
-
 	for _, data := range c.Datasets {
 		if len(data.Hash) != hashLength {
 			ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
@@ -162,6 +158,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
 	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+	fmt.Println("HostData: ", ms.qemuCfg.SevConfig.HostData)
 
 	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsChan, c.Id)
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
@@ -285,6 +282,8 @@ func computationHash(ac agent.Computation) ([32]byte, error) {
 	if err != nil {
 		return [32]byte{}, err
 	}
+
+	fmt.Println("jsonData: ", string(jsonData))
 
 	return sha3.Sum256(jsonData), nil
 }
