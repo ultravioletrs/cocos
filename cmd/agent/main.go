@@ -238,10 +238,12 @@ func verifyManifest(cfg agent.Computation, qp client.QuoteProvider, logger *slog
 		return err
 	}
 
+	logger.Info("Config: " + string(cfgBytes))
+
 	mcHash := sha3.Sum256(cfgBytes)
 
-	logger.Info("HostData: " + base64.StdEncoding.EncodeToString(mcHash[:]))
-	logger.Info("cmp hash: " + base64.StdEncoding.EncodeToString(arProto.Report.HostData))
+	logger.Info("cmp hash: " + base64.StdEncoding.EncodeToString(mcHash[:]))
+	logger.Info("host data: " + base64.StdEncoding.EncodeToString(arProto.Report.HostData))
 
 	if arProto.Report.HostData != nil {
 		if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
