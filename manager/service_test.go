@@ -77,6 +77,37 @@ func TestRun(t *testing.T) {
 			vmStartError:  assert.AnError,
 			expectedError: assert.AnError,
 		},
+		{
+			name: "Invalid algorithm hash",
+			req: &manager.ComputationRunReq{
+				Id:   "test-computation",
+				Name: "Test Computation",
+				Algorithm: &manager.Algorithm{
+					Hash: make([]byte, hashLength-1),
+				},
+				AgentConfig: &manager.AgentConfig{},
+			},
+			vmStartError:  nil,
+			expectedError: errInvalidHashLength,
+		},
+		{
+			name: "Invalid dataset hash",
+			req: &manager.ComputationRunReq{
+				Id:   "test-computation",
+				Name: "Test Computation",
+				Algorithm: &manager.Algorithm{
+					Hash: make([]byte, hashLength),
+				},
+				AgentConfig: &manager.AgentConfig{},
+				Datasets: []*manager.Dataset{
+					{
+						Hash: make([]byte, hashLength-1),
+					},
+				},
+			},
+			vmStartError:  nil,
+			expectedError: errInvalidHashLength,
+		},
 	}
 
 	for _, tt := range tests {
