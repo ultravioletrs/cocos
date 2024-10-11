@@ -379,10 +379,14 @@ func TestRestoreVMs(t *testing.T) {
 	err := cmd.Start()
 	assert.NoError(t, err)
 
+	cmd2 := exec.Command("echo", "test")
+	err = cmd2.Run()
+	assert.NoError(t, err)
+
 	mockPersistence.On("LoadVMs").Return([]qemu.VMState{
 		{ID: "vm1", PID: cmd.Process.Pid},
-		{ID: "vm2", PID: 1000},
-		{ID: "vm3", PID: 2000},
+		{ID: "vm2", PID: cmd2.Process.Pid},
+		{ID: "vm3", PID: cmd2.Process.Pid},
 	}, nil)
 
 	mockPersistence.On("DeleteVM", "vm2").Return(nil)
