@@ -26,7 +26,9 @@ const defGuestFeatures = 0x1
 func (ms *managerService) FetchBackendInfo(_ context.Context, computationId string) ([]byte, error) {
 	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
 
+	ms.mu.Lock()
 	vm, exists := ms.vms[computationId]
+	ms.mu.Unlock()
 	if !exists {
 		return nil, fmt.Errorf("computationId %s not found", computationId)
 	}
@@ -53,12 +55,13 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 	}
 
 	var measurement []byte
-	if config.EnableSEV {
+	switch {
+	case config.EnableSEV:
 		measurement, err = guest.CalcLaunchDigest(guest.SEV, config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
 		}
-	} else if config.EnableSEVSNP {
+	case config.EnableSEVSNP:
 		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, config.SMPCount, uint64(cpuid.CpuSigs[config.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, qemu.KernelCommandLine, defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
