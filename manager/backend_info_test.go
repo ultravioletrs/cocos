@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package manager
 
 import (
@@ -35,7 +37,7 @@ echo 'No JSON file created'
 
 	tempDir := t.TempDir()
 	binaryPath := filepath.Join(tempDir, "backend_info")
-	err := os.WriteFile(binaryPath, content, 0755)
+	err := os.WriteFile(binaryPath, content, 0o755)
 	assert.NoError(t, err)
 	return tempDir
 }
