@@ -56,7 +56,6 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage/
-          name: codecov-umbrella
+          files: ./coverage/*.out
+          codecov_yml_path: codecov.yml
           verbose: true
-
