@@ -5,6 +5,7 @@
 #include <openssl/evp.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -90,21 +91,12 @@ SSL_CTX *create_context(int is_server) {
         return NULL;
     }
 
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
     return ctx;
 }
 
-int configure_context(SSL_CTX *ctx, char *cert_file, char *key_file) {
-    printf("Cert file: %s\n", cert_file);
-    printf("Key file: %s\n", key_file);
-    // Load server certificate and private key
-    if (SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0 ||
-        SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) <= 0) {
-        perror("could not configure context");
-        return EXIT_FAILURE;
-    }
-    return 0;
-}
-
+// TODO: Delete
 void sprint_string_hex(char* dst, const unsigned char* s, int len){ 
     for(int i = 0; i < len; i++){
         sprintf(dst, "%02x", (unsigned int) *s++);
@@ -174,7 +166,7 @@ int add_custom_tls_extension(SSL_CTX *ctx) {
     return ret;
 }
 
-// Function to start the tls server
+// Function to start the TLS server
 tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port) {
     tls_server_connection *tls_server = (tls_server_connection*)malloc(sizeof(tls_server_connection));
 
@@ -193,26 +185,55 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
         free(tls_server);
         return NULL;
     }
-    // add_custom_tls_extension(tls_server->ctx);
+    add_custom_tls_extension(tls_server->ctx);
 
-    tls_server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    tls_server->server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (tls_server->server_fd < 0) {
         free(tls_server);
         perror("Unable to create socket");
         return NULL;
     }
 
-    tls_server->addr.sin_family = AF_INET;
-    tls_server->addr.sin_port = htons(port);
+    // both IPv4-mapped and IPv6 addresses
+    int opt = 0;
+    if (setsockopt(tls_server->server_fd, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) != 0) {
+        perror("setsockopt(IPV6_V6ONLY) failed");
+        close(tls_server->server_fd);
+        free(tls_server);
+        return NULL;
+    }
+
+    memset(&(tls_server->addr), 0, sizeof(tls_server->addr));
+    struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&tls_server->addr;
+    addr6->sin6_family = AF_INET6;
+    addr6->sin6_port = htons(port);
 
     // in the case that the ip is an empty string or NULL, the ip will be 0.0.0.0 
     if (ip == NULL || ((strlen(ip) + 1) < INET_ADDRSTRLEN)) {
-        tls_server->addr.sin_addr.s_addr = INADDR_ANY;
+        addr6->sin6_addr = in6addr_any;
     } else {
-        if (inet_pton(AF_INET, ip, &(tls_server->addr.sin_addr)) <= 0) {
-            perror("Invalid IP address");
-            free(tls_server);
-            return NULL;
+        if (strchr(ip, ':') != NULL) {
+            // IPv6 address
+            if (inet_pton(AF_INET6, ip, &(addr6->sin6_addr)) <= 0) {
+                perror("Invalid IPv6 address");
+                close(tls_server->server_fd);
+                free(tls_server);
+                return NULL;
+            }
+        } else {
+            // IPv4 address (IPv4-mapped to IPv6)
+            struct in_addr ipv4_addr;
+            if (inet_pton(AF_INET, ip, &ipv4_addr) <= 0) {
+                perror("Invalid IPv4 address");
+                close(tls_server->server_fd);
+                free(tls_server);
+                return NULL;
+            }
+            // Use IPv4-mapped IPv6 address (::ffff:IPv4)
+            memset(&addr6->sin6_addr, 0, sizeof(addr6->sin6_addr));
+            addr6->sin6_addr.s6_addr[10] = 0xff;
+            addr6->sin6_addr.s6_addr[11] = 0xff;
+            memcpy(&addr6->sin6_addr.s6_addr[12], &ipv4_addr, sizeof(ipv4_addr));
         }
     }
 
@@ -234,10 +255,10 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
 
 // Function to accept a client connection
 tls_connection* tls_server_accept(tls_server_connection *tls_server) {
-    uint32_t len = sizeof(tls_server->addr);
+    uint32_t len = sizeof(struct sockaddr_storage);
     tls_connection *conn = (tls_connection*)malloc(sizeof(tls_connection));
 
-    int client_fd = accept(tls_server->server_fd, (struct sockaddr*)&(tls_server->addr), &len);
+    int client_fd = accept(tls_server->server_fd, NULL, NULL);
     if (client_fd < 0) {
         perror("Unable to accept");
         free(conn);
@@ -250,39 +271,29 @@ tls_connection* tls_server_accept(tls_server_connection *tls_server) {
     SSL_set_fd(conn->ssl, client_fd);
 
     if (SSL_accept(conn->ssl) <= 0) {
-        printf("Unable to accept. Handshake failed.\n");
+        perror("unable to accept. SSL handshake failed.\n");
+        free(conn);
+        SSL_free(conn->ssl);
+        return NULL;
+    }
+
+    if (getsockname(client_fd, (struct sockaddr *)&conn->local_addr, &len) == -1) {
+        perror("getsockname failed during tls server accept");
+        close(client_fd);
+        SSL_free(conn->ssl);
+        free(conn);
+        return NULL;
+    }
+
+    if (getpeername(client_fd, (struct sockaddr *)&conn->remote_addr, &len) == -1) {
+        perror("getpeername failed during tls server accept");
+        close(client_fd);
+        SSL_free(conn->ssl);
         free(conn);
         return NULL;
     }
 
     return conn;
-}
-
-char* tls_return_ip(struct sockaddr_in  *addr) {
-    char *ip_str = (char*)malloc(INET_ADDRSTRLEN*sizeof(char));
-
-    if (inet_ntop(AF_INET, &(addr->sin_addr), ip_str, INET_ADDRSTRLEN) == NULL) {
-        perror("inet_ntop");
-        free(ip_str);
-        return NULL;
-    }
-
-    return ip_str;
-}
-
-char* tls_server_return_ip(tls_server_connection *tls_server) {
-    socklen_t len = sizeof(tls_server->addr);
-
-    printf("tls_server_return_ip called: \n");
-    if (getsockname(tls_server->server_fd, (struct sockaddr*)(&tls_server->addr), &len) == -1) {
-        return NULL;
-    }
-
-    return tls_return_ip(&(tls_server->addr));
-}
-
-int tls_server_return_port(tls_server_connection *tls_server) {
-    return ntohs(tls_server->addr.sin_port);
 }
 
 // Function to close the server
@@ -373,27 +384,25 @@ int tls_get_error(tls_connection *conn, int ret) {
     }
 }
 
-char* tls_conn_return_addr(tls_connection *conn) {
-    socklen_t len = sizeof(conn->local_addr);
+char* tls_return_addr(struct sockaddr_storage *addr) {
+    socklen_t addr_len = sizeof(struct sockaddr_storage);
+    int inet_size =addr->ss_family == AF_INET ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN;
+    char *ip_str = (char*)malloc(inet_size*sizeof(char));
+    void * addr_ptr;
 
-    if (getsockname(conn->socket_fd, (struct sockaddr*)(&conn->local_addr), &len) == -1) {
-        return NULL;
-    }
-
-    return tls_return_ip(&(conn->local_addr));
-}
-
-char* tls_conn_remote_addr(tls_connection *conn) {
-    socklen_t addr_len = sizeof(conn->remote_addr);
-    char *ip_str = (char*)malloc(INET_ADDRSTRLEN*sizeof(char));
-
-    if (getpeername(conn->socket_fd, (struct sockaddr*)&(conn->remote_addr), &addr_len) == -1) {
-        perror("getpeername failed");
+    if (addr->ss_family == AF_INET) {
+        struct sockaddr_in *ipv4 = (struct sockaddr_in *)addr;
+        addr_ptr = &(ipv4->sin_addr);
+    } else if (addr->ss_family == AF_INET6) {
+        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)addr;
+        addr_ptr = &(ipv6->sin6_addr);
+    } else {
+        fprintf(stderr, "unknown family: %d\n", addr->ss_family);
         free(ip_str);
         return NULL;
     }
 
-    if (inet_ntop(AF_INET, &(conn->remote_addr.sin_addr), ip_str, INET_ADDRSTRLEN) == NULL) {
+    if (inet_ntop(addr->ss_family, addr_ptr, ip_str, inet_size) == NULL) {
         perror("inet_ntop failed");
         free(ip_str);
         return NULL;
@@ -402,12 +411,17 @@ char* tls_conn_remote_addr(tls_connection *conn) {
     return ip_str;
 }
 
-int tls_return_local_port(tls_connection *conn) {
-    return ntohs(conn->local_addr.sin_port);
-}
+int tls_return_port(struct sockaddr_storage *addr) {
+    if (addr->ss_family == AF_INET) {
+        struct sockaddr_in *ipv4 = (struct sockaddr_in *)addr;
+        return ntohs(ipv4->sin_port);
+    } else if (addr->ss_family == AF_INET6) {
+        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)addr;
+         return ntohs(ipv6->sin6_port);
+    }
 
-int tls_return_remote_port(tls_connection *conn) {
-    return ntohs(conn->remote_addr.sin_port);
+    fprintf(stderr, "cannot return port from unknown family: %d\n", addr->ss_family);
+    return -1;
 }
 
 void custom_free(void *ptr) {
@@ -417,49 +431,88 @@ void custom_free(void *ptr) {
 tls_connection* new_tls_connection(char *address, int port) {
     SSL_CTX *ctx;
     SSL *ssl;
-    int server_fd;
+    int socket_fd;
+    int status;
+    struct addrinfo hints, *res, *p;
+    char port_str[6];
     tls_connection *tls_client = (tls_connection*)malloc(sizeof(tls_connection));
+    socklen_t addr_len;
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
 
     init_openssl();
     ctx = create_context(TLS_CLIENT_CTX);
     if (ctx == NULL) {
         perror("could not create context");
         free(tls_client);
+        SSL_CTX_free(ctx);
         return NULL;
     }
-    // add_custom_tls_extension(ctx);
+    add_custom_tls_extension(ctx);
 
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) {
-        perror("unable to create socket");
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0; // any protocol.
+
+    if ((status = getaddrinfo(address, port_str, &hints, &res)) != 0) {
+        perror("getaddrinfo error");
         free(tls_client);
+        SSL_CTX_free(ctx);
         return NULL;
     }
 
-    tls_client->local_addr.sin_family = AF_INET;
-    tls_client->local_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, address, &(tls_client->local_addr.sin_addr)) <= 0) {
-        fprintf(stderr, "failed to get ip address in string form: %s\n", address);
-        perror("Invalid IP address\n");
-        return NULL;
+    for (p = res; p != NULL; p = p->ai_next) {
+
+        socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (socket_fd < 0) {
+            perror("unable to create socket");
+            continue;
+        }
+
+        if (connect(socket_fd, p->ai_addr, p->ai_addrlen)) {
+            close(socket_fd);
+            perror("unable to connect DANKO");
+            continue;
+        }
+
+        fprintf(stderr, "connected on %s\n", address);
+        memcpy(&tls_client->local_addr, p->ai_addr, p->ai_addrlen);
+        break;
     }
 
-    if (connect(server_fd, (struct sockaddr*)&(tls_client->local_addr), sizeof(tls_client->local_addr)) < 0) {
-        perror("unable to connect");
+    freeaddrinfo(res);
+
+    if (p == NULL) {
+        perror("failed to connect");
         free(tls_client);
+        SSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    addr_len = sizeof(tls_client->remote_addr);
+    if (getpeername(socket_fd, (struct sockaddr *)&tls_client->remote_addr, &addr_len) == -1) {
+        perror("getpeername failed");
+        close(socket_fd);
+        free(tls_client);
+        SSL_CTX_free(ctx);
         return NULL;
     }
 
     ssl = SSL_new(ctx);
-    SSL_set_fd(ssl, server_fd);
+    SSL_set_fd(ssl, socket_fd);
 
     if (SSL_connect(ssl) <= 0) {
-        perror("unable to connect");
+        perror("unable to SSL connect");
+        close(socket_fd);
+        SSL_free(ssl);
+        SSL_CTX_free(ctx);
         free(tls_client);
         return NULL;
     }
 
-    tls_client->socket_fd = server_fd;
+    tls_client->socket_fd = socket_fd;
     tls_client->ssl = ssl;
     tls_client->ctx = ctx;
     return tls_client;
