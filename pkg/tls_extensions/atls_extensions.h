@@ -18,7 +18,7 @@ typedef struct tls_server_c
 {
     SSL_CTX *ctx;
     int server_fd;
-    struct sockaddr_in addr;
+    struct sockaddr_storage addr;
 } tls_server_connection;
 
 typedef struct tls_c
@@ -26,8 +26,8 @@ typedef struct tls_c
     SSL_CTX *ctx;
     SSL *ssl;
     int socket_fd;
-    struct sockaddr_in local_addr;
-    struct sockaddr_in remote_addr;
+    struct sockaddr_storage local_addr;
+    struct sockaddr_storage remote_addr;
 } tls_connection;
 
 void sprint_string_hex(char* dst, const unsigned char* s, int len);
@@ -41,13 +41,10 @@ int tls_extension_client(char *address, int port);
 void custom_free(void *ptr);
 tls_connection* new_tls_connection(char *address, int port);
 int set_socket_timeout(tls_connection* conn, int timeout_sec, int timeout_usec);
-char* tls_conn_return_addr(tls_connection *conn);
-char* tls_conn_remote_addr(tls_connection *conn);
-int tls_return_local_port(tls_connection *conn);
+// char* tls_conn_return_addr(tls_connection *conn);
+char* tls_return_addr(struct sockaddr_storage *addr);
 int tls_get_error(tls_connection *conn, int ret);
-int tls_return_remote_port(tls_connection *conn);
-char* tls_server_return_ip(tls_server_connection *tls_server);
-int tls_server_return_port(tls_server_connection *tls_server);
+int tls_return_port(struct sockaddr_storage *addr);
 int compute_sha256_of_public_key(X509 *cert, unsigned char *hash);
 
 // Extensions

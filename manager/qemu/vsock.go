@@ -9,7 +9,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 )
 
-const VsockConfigPort uint32 = 7777 // CHANGED BY ME
+const VsockConfigPort uint32 = 7777 // TODO: Change to default
 
 func (v *qemuVM) SendAgentConfig(ac agent.Computation) error {
 	conn, err := vsock.Dial(uint32(v.config.GuestCID), VsockConfigPort, nil)
