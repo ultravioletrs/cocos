@@ -150,32 +150,57 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 }
 
 func TestManagerClient_handleBackendInfoReq(t *testing.T) {
-	mockStream := new(mockStream)
-	mockSvc := new(mocks.Service)
-	messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
-	logger := mglog.NewMock()
+	t.Run("success", func(t *testing.T) {
+		mockStream := new(mockStream)
+		mockSvc := new(mocks.Service)
+		messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+		logger := mglog.NewMock()
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger)
+		client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-	infoReq := &pkgmanager.ServerStreamMessage_BackendInfoReq{
-		BackendInfoReq: &pkgmanager.BackendInfoReq{
-			Id: "test-info-id",
-		},
-	}
+		infoReq := &pkgmanager.ServerStreamMessage_BackendInfoReq{
+			BackendInfoReq: &pkgmanager.BackendInfoReq{
+				Id: "test-info-id",
+			},
+		}
 
-	mockSvc.On("FetchBackendInfo", context.Background(), infoReq.BackendInfoReq.Id).Return([]byte("test-backend-info"), nil)
+		mockSvc.On("FetchBackendInfo", context.Background(), infoReq.BackendInfoReq.Id).Return([]byte("test-backend-info"), nil)
 
-	client.handleBackendInfoReq(context.Background(), infoReq)
+		client.handleBackendInfoReq(context.Background(), infoReq)
 
-	// Wait for the goroutine to finish
-	time.Sleep(50 * time.Millisecond)
+		// Wait for the goroutine to finish
+		time.Sleep(50 * time.Millisecond)
 
-	mockSvc.AssertExpectations(t)
-	assert.Len(t, messageQueue, 1)
+		mockSvc.AssertExpectations(t)
+		assert.Len(t, messageQueue, 1)
 
-	msg := <-messageQueue
-	infoRes, ok := msg.Message.(*pkgmanager.ClientStreamMessage_BackendInfo)
-	assert.True(t, ok)
-	assert.Equal(t, "test-info-id", infoRes.BackendInfo.Id)
-	assert.Equal(t, []byte("test-backend-info"), infoRes.BackendInfo.Info)
+		msg := <-messageQueue
+		infoRes, ok := msg.Message.(*pkgmanager.ClientStreamMessage_BackendInfo)
+		assert.True(t, ok)
+		assert.Equal(t, "test-info-id", infoRes.BackendInfo.Id)
+		assert.Equal(t, []byte("test-backend-info"), infoRes.BackendInfo.Info)
+	})
+	t.Run("error", func(t *testing.T) {
+		mockStream := new(mockStream)
+		mockSvc := new(mocks.Service)
+		messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+		logger := mglog.NewMock()
+
+		client := NewClient(mockStream, mockSvc, messageQueue, logger)
+
+		infoReq := &pkgmanager.ServerStreamMessage_BackendInfoReq{
+			BackendInfoReq: &pkgmanager.BackendInfoReq{
+				Id: "test-info-id",
+			},
+		}
+
+		mockSvc.On("FetchBackendInfo", context.Background(), infoReq.BackendInfoReq.Id).Return(nil, assert.AnError)
+
+		client.handleBackendInfoReq(context.Background(), infoReq)
+
+		time.Sleep(50 * time.Millisecond)
+
+		mockSvc.AssertExpectations(t)
+		assert.Len(t, messageQueue, 0)
+	})
 }
