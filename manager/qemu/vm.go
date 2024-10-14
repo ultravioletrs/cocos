@@ -197,3 +197,7 @@ func processExists(pid int) bool {
 func (v *qemuVM) GetCID() int {
 	return v.config.GuestCID
 }
+
+func (v *qemuVM) GetConfig() interface{} {
+	return v.config
+}

@@ -34,14 +34,28 @@ jobs:
         run: |
           mkdir coverage
 
-      - name: Run tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/cover.out ./...
+      - name: Run Agent tests
+        run: go test -v --race -covermode=atomic -coverprofile coverage/agent.out ./agent/...
+
+      - name: Run cli tests
+        run: go test -v --race -covermode=atomic -coverprofile coverage/cli.out ./cli/...
+
+      - name: Run cmd tests
+        run: go test -v --race -covermode=atomic -coverprofile coverage/cmd.out ./cmd/...
+
+      - name: Run internal tests
+        run: go test -v --race -covermode=atomic -coverprofile coverage/internal.out ./internal/...
+
+      - name: Run pkg tests
+        run: go test -v --race -covermode=atomic -coverprofile coverage/pkg.out ./pkg/...
+
+      - name: Run manager tests
+        run: sudo go test -v --race -covermode=atomic -coverprofile coverage/manager.out ./manager/...
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage/
-          name: codecov-umbrella
+          files: ./coverage/*.out
+          codecov_yml_path: codecov.yml
           verbose: true
-

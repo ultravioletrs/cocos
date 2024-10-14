@@ -3,17 +3,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
+	"os"
 	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/client"
 	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
@@ -28,6 +31,7 @@ import (
 	ackvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -83,6 +87,14 @@ func main() {
 		exitCode = 1
 		return
 	}
+
+	if err := verifyManifest(cfg, qp); err != nil {
+		logger.Error(err.Error())
+		exitCode = 1
+		return
+	}
+
+	setDefaultValues(&cfg)
 
 	svc := newService(ctx, logger, eventSvc, cfg, qp)
 
@@ -179,13 +191,21 @@ func readConfig() (agent.Computation, error) {
 	if err := json.Unmarshal(buffer, &ac); err != nil {
 		return agent.Computation{}, err
 	}
-	if ac.AgentConfig.LogLevel == "" {
-		ac.AgentConfig.LogLevel = "info"
-	}
-	if ac.AgentConfig.Port == "" {
-		ac.AgentConfig.Port = defSvcGRPCPort
-	}
 	return ac, nil
+}
+
+func setDefaultValues(cfg *agent.Computation) {
+	if cfg.AgentConfig.LogLevel == "" {
+		cfg.AgentConfig.LogLevel = "info"
+	}
+	if cfg.AgentConfig.Port == "" {
+		cfg.AgentConfig.Port = defSvcGRPCPort
+	}
+}
+
+func isTEE() bool {
+	_, err := os.Stat("/dev/sev-guest")
+	return !os.IsNotExist(err)
 }
 
 func dialVsock() (*vsock.Conn, error) {
@@ -206,4 +226,36 @@ func dialVsock() (*vsock.Conn, error) {
 	}
 
 	return conn, nil
+}
+
+func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
+	if !isTEE() {
+		return nil
+	}
+
+	ar, err := qp.GetRawQuote(sha3.Sum512([]byte(cfg.ID)))
+	if err != nil {
+		return err
+	}
+
+	arProto, err := abi.ReportCertsToProto(ar[:abi.ReportSize])
+	if err != nil {
+		return err
+	}
+
+	cfgBytes, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	mcHash := sha3.Sum256(cfgBytes)
+
+	if arProto.Report.HostData == nil {
+		return fmt.Errorf("manifest verification failed: HostData is nil")
+	}
+	if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
+		return fmt.Errorf("manifest verification failed")
+	}
+
+	return nil
 }

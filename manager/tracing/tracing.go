@@ -40,9 +40,9 @@ func (tm *tracingMiddleware) RetrieveAgentEventsLogs() {
 	tm.svc.RetrieveAgentEventsLogs()
 }
 
-func (tm *tracingMiddleware) FetchBackendInfo() ([]byte, error) {
-	_, span := tm.tracer.Start(context.Background(), "fetch_backend_info")
+func (tm *tracingMiddleware) FetchBackendInfo(ctx context.Context, computationId string) ([]byte, error) {
+	_, span := tm.tracer.Start(ctx, "fetch_backend_info")
 	defer span.End()
 
-	return tm.svc.FetchBackendInfo()
+	return tm.svc.FetchBackendInfo(ctx, computationId)
 }

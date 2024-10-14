@@ -63,7 +63,7 @@ type Service interface {
 	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
 	RetrieveAgentEventsLogs()
 	// FetchBackendInfo measures and fetches the backend information.
-	FetchBackendInfo() ([]byte, error)
+	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
 }
 
 type managerService struct {
@@ -128,6 +128,11 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 			LogLevel:     c.AgentConfig.LogLevel,
 		},
 	}
+	if len(c.Algorithm.Hash) != hashLength {
+		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
+		return "", errInvalidHashLength
+	}
+
 	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
 
 	for _, data := range c.Datasets {
