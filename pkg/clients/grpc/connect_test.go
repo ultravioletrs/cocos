@@ -177,7 +177,7 @@ func TestReadBackendInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.manifestPath != "" && tt.fileContent != "" {
-				err := os.WriteFile(tt.manifestPath, []byte(tt.fileContent), 0644)
+				err := os.WriteFile(tt.manifestPath, []byte(tt.fileContent), 0o644)
 				require.NoError(t, err)
 				defer os.Remove(tt.manifestPath)
 			}
@@ -325,7 +325,6 @@ func TestVerifyAttestationReportTLS(t *testing.T) {
 	err = json.Unmarshal(backendinfoFile, &attestationConfiguration)
 	require.NoError(t, err)
 
-	// Test cases
 	tests := []struct {
 		name      string
 		rawCerts  [][]byte
@@ -393,11 +392,11 @@ func TestFillInAttestationLocal(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	cocosDir := tempDir + "/.cocos/Milan"
-	err = os.MkdirAll(cocosDir, 0755)
+	err = os.MkdirAll(cocosDir, 0o755)
 	require.NoError(t, err)
 
 	bundleContent := []byte("mock ASK ARK bundle")
-	err = os.WriteFile(cocosDir+"/ask_ark.pem", bundleContent, 0644)
+	err = os.WriteFile(cocosDir+"/ask_ark.pem", bundleContent, 0o644)
 	require.NoError(t, err)
 
 	attestationConfiguration = AttestationConfiguration{
