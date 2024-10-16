@@ -5,35 +5,34 @@ package manager
 import (
 	"testing"
 
+	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 func TestNewManagerClient(t *testing.T) {
 	// Test cases
 	tests := []struct {
-		name    string
-		cfg     grpc.Config
-		wantErr bool
+		name string
+		cfg  grpc.Config
+		err  error
 	}{
 		{
-			name:    "Valid config",
-			cfg:     grpc.Config{},
-			wantErr: false,
+			name: "Valid config",
+			cfg:  grpc.Config{},
+			err:  nil,
 		},
 		{
-			name:    "Invalid config",
-			cfg:     grpc.Config{AttestedTLS: true},
-			wantErr: true,
+			name: "Invalid config",
+			cfg:  grpc.Config{AttestedTLS: true},
+			err:  grpc.ErrBackendInfoMissing,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := NewManagerClient(tt.cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewManagerClient() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			assert.True(t, errors.Contains(err, tt.err))
 		})
 	}
 }

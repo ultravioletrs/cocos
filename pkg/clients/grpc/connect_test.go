@@ -9,11 +9,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
@@ -36,6 +38,7 @@ func TestNewClient(t *testing.T) {
 		name    string
 		cfg     Config
 		wantErr bool
+		err     error
 	}{
 		{
 			name: "Success without TLS",
@@ -43,6 +46,7 @@ func TestNewClient(t *testing.T) {
 				URL: "localhost:7001",
 			},
 			wantErr: false,
+			err:     nil,
 		},
 		{
 			name: "Success with TLS",
@@ -51,6 +55,7 @@ func TestNewClient(t *testing.T) {
 				ServerCAFile: caCertFile,
 			},
 			wantErr: false,
+			err:     nil,
 		},
 		{
 			name: "Success with mTLS",
@@ -61,6 +66,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    clientKeyFile,
 			},
 			wantErr: false,
+			err:     nil,
 		},
 		{
 			name: "Fail with invalid ServerCAFile",
@@ -69,6 +75,7 @@ func TestNewClient(t *testing.T) {
 				ServerCAFile: "nonexistent.pem",
 			},
 			wantErr: true,
+			err:     errFailedToLoadRootCA,
 		},
 		{
 			name: "Fail with invalid ClientCert",
@@ -79,6 +86,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    clientKeyFile,
 			},
 			wantErr: true,
+			err:     errFailedToLoadClientCertKey,
 		},
 		{
 			name: "Fail with invalid ClientKey",
@@ -89,12 +97,14 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    "nonexistent.pem",
 			},
 			wantErr: true,
+			err:     errFailedToLoadClientCertKey,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := NewClient(tt.cfg)
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, client)
@@ -147,30 +157,35 @@ func TestReadBackendInfo(t *testing.T) {
 		manifestPath string
 		fileContent  string
 		wantErr      bool
+		err          error
 	}{
 		{
 			name:         "Valid manifest",
 			manifestPath: "valid_manifest.json",
 			fileContent:  validJSON,
 			wantErr:      false,
+			err:          nil,
 		},
 		{
 			name:         "Invalid JSON",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSON,
 			wantErr:      true,
+			err:          ErrBackendInfoDecode,
 		},
 		{
 			name:         "Non-existent file",
 			manifestPath: "nonexistent.json",
 			fileContent:  "",
 			wantErr:      true,
+			err:          errBackendInfoOpen,
 		},
 		{
 			name:         "Empty manifest path",
 			manifestPath: "",
 			fileContent:  "",
 			wantErr:      true,
+			err:          ErrBackendInfoMissing,
 		},
 	}
 
@@ -185,6 +200,7 @@ func TestReadBackendInfo(t *testing.T) {
 			config := &AttestationConfiguration{}
 			err := ReadBackendInfo(tt.manifestPath, config)
 
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -326,35 +342,31 @@ func TestVerifyAttestationReportTLS(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name      string
-		rawCerts  [][]byte
-		wantError bool
+		name     string
+		rawCerts [][]byte
+		err      error
 	}{
 		{
-			name:      "Valid certificate with attestation, malformed guest policy",
-			rawCerts:  [][]byte{certDER},
-			wantError: true,
+			name:     "Valid certificate with attestation, malformed guest policy",
+			rawCerts: [][]byte{certDER},
+			err:      errAttVerification,
 		},
 		{
-			name:      "Invalid certificate",
-			rawCerts:  [][]byte{[]byte("invalid cert")},
-			wantError: true,
+			name:     "Invalid certificate",
+			rawCerts: [][]byte{[]byte("invalid cert")},
+			err:      errCertificateParse,
 		},
 		{
-			name:      "Certificate without custom extension",
-			rawCerts:  [][]byte{createCertWithoutCustomExtension(t)},
-			wantError: true,
+			name:     "Certificate without custom extension",
+			rawCerts: [][]byte{createCertWithoutCustomExtension(t)},
+			err:      errCustomExtension,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := verifyAttestationReportTLS(tt.rawCerts, nil)
-			if tt.wantError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
 }
@@ -363,25 +375,21 @@ func TestCheckIfCertificateSelfSigned(t *testing.T) {
 	selfSignedCert := createSelfSignedCert(t)
 
 	tests := []struct {
-		name      string
-		cert      *x509.Certificate
-		wantError bool
+		name string
+		cert *x509.Certificate
+		err  error
 	}{
 		{
-			name:      "Self-signed certificate",
-			cert:      selfSignedCert,
-			wantError: false,
+			name: "Self-signed certificate",
+			cert: selfSignedCert,
+			err:  nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := checkIfCertificateSelfSigned(tt.cert)
-			if tt.wantError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
 }
@@ -407,14 +415,14 @@ func TestFillInAttestationLocal(t *testing.T) {
 	tests := []struct {
 		name        string
 		attestation *sevsnp.Attestation
-		wantError   bool
+		err         error
 	}{
 		{
 			name: "Empty attestation",
 			attestation: &sevsnp.Attestation{
 				CertificateChain: &sevsnp.CertificateChain{},
 			},
-			wantError: false,
+			err: nil,
 		},
 		{
 			name: "Attestation with existing chain",
@@ -424,18 +432,14 @@ func TestFillInAttestationLocal(t *testing.T) {
 					ArkCert: []byte("existing ARK cert"),
 				},
 			},
-			wantError: false,
+			err: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := fillInAttestationLocal(tt.attestation)
-			if tt.wantError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
 }

@@ -43,15 +43,17 @@ const (
 )
 
 var (
-	errGrpcConnect      = errors.New("failed to connect to grpc server")
-	errGrpcClose        = errors.New("failed to close grpc connection")
-	errManifestOpen     = errors.New("failed to open Manifest")
-	errManifestMissing  = errors.New("failed due to missing Manifest")
-	errManifestDecode   = errors.New("failed to decode Manifest json")
-	errCertificateParse = errors.New("failed to parse x509 certificate")
-	errAttVerification  = errors.New("attestation verification failed")
-	errAttValidation    = errors.New("attestation validation failed")
-	errCustomExtension  = errors.New("failed due to missing custom extension")
+	errGrpcConnect               = errors.New("failed to connect to grpc server")
+	errGrpcClose                 = errors.New("failed to close grpc connection")
+	errBackendInfoOpen           = errors.New("failed to open Backend Info file")
+	ErrBackendInfoMissing        = errors.New("failed due to missing backend info file")
+	ErrBackendInfoDecode         = errors.New("failed to decode backend info file")
+	errCertificateParse          = errors.New("failed to parse x509 certificate")
+	errAttVerification           = errors.New("attestation verification failed")
+	errAttValidation             = errors.New("attestation validation failed")
+	errCustomExtension           = errors.New("failed due to missing custom extension")
+	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
+	errFailedToLoadRootCA        = errors.New("failed to load root ca file")
 )
 
 var (
@@ -144,7 +146,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	if cfg.AttestedTLS {
 		err := ReadBackendInfo(cfg.BackendInfo, &attestationConfiguration)
 		if err != nil {
-			return nil, secure, fmt.Errorf("failed to read Manifest %w", err)
+			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Backend Info"), err)
 		}
 
 		tlsConfig := &tls.Config{
@@ -159,7 +161,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 			// Loading root ca certificates file
 			rootCA, err := os.ReadFile(cfg.ServerCAFile)
 			if err != nil {
-				return nil, secure, fmt.Errorf("failed to load root ca file: %w", err)
+				return nil, secure, errors.Wrap(errFailedToLoadRootCA, err)
 			}
 			if len(rootCA) > 0 {
 				capool := x509.NewCertPool()
@@ -174,7 +176,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 			if cfg.ClientCert != "" || cfg.ClientKey != "" {
 				certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
 				if err != nil {
-					return nil, secure, fmt.Errorf("failed to client certificate and key %w", err)
+					return nil, secure, errors.Wrap(errFailedToLoadClientCertKey, err)
 				}
 				tlsConfig.Certificates = []tls.Certificate{certificate}
 				secure = withmTLS
@@ -197,20 +199,20 @@ func ReadBackendInfo(manifestPath string, attestationConfiguration *AttestationC
 	if manifestPath != "" {
 		manifest, err := os.Open(manifestPath)
 		if err != nil {
-			return errors.Wrap(errManifestOpen, err)
+			return errors.Wrap(errBackendInfoOpen, err)
 		}
 		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
 		err = decoder.Decode(attestationConfiguration)
 		if err != nil {
-			return errors.Wrap(errManifestDecode, err)
+			return errors.Wrap(ErrBackendInfoDecode, err)
 		}
 
 		return nil
 	}
 
-	return errManifestMissing
+	return ErrBackendInfoMissing
 }
 
 func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
