@@ -60,8 +60,6 @@ type Service interface {
 	Run(ctx context.Context, c *manager.ComputationRunReq) (string, error)
 	// Stop stops a computation.
 	Stop(ctx context.Context, computationID string) error
-	// RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
-	RetrieveAgentEventsLogs()
 	// FetchBackendInfo measures and fetches the backend information.
 	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
 }

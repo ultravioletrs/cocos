@@ -4,15 +4,10 @@ package manager
 
 import (
 	"fmt"
-	"log/slog"
-	"net"
 	"regexp"
 	"strconv"
 
-	"github.com/mdlayher/vsock"
-	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/pkg/manager"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -27,7 +22,7 @@ var (
 )
 
 // RetrieveAgentEventsLogs Retrieve and forward agent logs and events via vsock.
-func (ms *managerService) RetrieveAgentEventsLogs() {
+/*func (ms *managerService) RetrieveAgentEventsLogs() {
 	l, err := vsock.Listen(ManagerVsockPort, nil)
 	if err != nil {
 		ms.logger.Warn(err.Error())
@@ -93,7 +88,7 @@ func (ms *managerService) handleConnection(conn net.Conn) {
 
 		ms.logger.Info("", args...)
 	}
-}
+}*/
 
 func (ms *managerService) computationIDFromAddress(address string) (string, error) {
 	re := regexp.MustCompile(`vm\((\d+)\)`)
@@ -133,4 +128,13 @@ func (ms *managerService) reportBrokenConnection(cmpID string) {
 			},
 		},
 	}
+}
+
+func (ms *managerService) ReportBrokenConnection(addr string) {
+	cmpID, err := ms.computationIDFromAddress(addr)
+	if err != nil {
+		ms.logger.Warn(err.Error())
+		return
+	}
+	ms.reportBrokenConnection(cmpID)
 }
