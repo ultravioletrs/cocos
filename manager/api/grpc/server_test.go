@@ -10,7 +10,7 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 )

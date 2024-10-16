@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 )
 
@@ -24,6 +24,6 @@ func TestNewAlgorithm(t *testing.T) {
 	assert.True(t, ok, "NewAlgorithm should return a *docker")
 	assert.Equal(t, algoFile, d.algoFile, "algoFile should be set correctly")
 	assert.NotNil(t, d.logger, "logger should be set")
-	assert.IsType(t, &algorithm.Stderr{}, d.stderr, "stderr should be of type *algorithm.Stderr")
-	assert.IsType(t, &algorithm.Stdout{}, d.stdout, "stdout should be of type *algorithm.Stdout")
+	assert.IsType(t, &logging.Stderr{}, d.stderr, "stderr should be of type *algorithm.Stderr")
+	assert.IsType(t, &logging.Stdout{}, d.stdout, "stdout should be of type *algorithm.Stdout")
 }

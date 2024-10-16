@@ -104,18 +104,15 @@ func (aw *AckWriter) sendMessages() {
 }
 
 func (aw *AckWriter) writeMessage(messageID uint32, p []byte) error {
-	// Write message ID
 	if err := binary.Write(aw.conn, binary.LittleEndian, messageID); err != nil {
 		return err
 	}
 
-	// Write message length
 	messageLen := uint32(len(p))
 	if err := binary.Write(aw.conn, binary.LittleEndian, messageLen); err != nil {
 		return err
 	}
 
-	// Write message content
 	if _, err := aw.conn.Write(p); err != nil {
 		return err
 	}

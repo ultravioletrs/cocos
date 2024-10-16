@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -22,15 +21,6 @@ type service struct {
 	cachedMessages [][]byte
 	mutex          sync.Mutex
 	stopRetry      chan struct{}
-}
-
-type AgentEvent struct {
-	EventType     string          `json:"event_type"`
-	Timestamp     time.Time       `json:"timestamp"`
-	ComputationID string          `json:"computation_id,omitempty"`
-	Details       json.RawMessage `json:"details,omitempty"`
-	Originator    string          `json:"originator"`
-	Status        string          `json:"status,omitempty"`
 }
 
 //go:generate mockery --name Service --output=./mocks --filename events.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
@@ -54,7 +44,7 @@ func New(svc, computationID string, conn io.Writer) (Service, error) {
 }
 
 func (s *service) SendEvent(event, status string, details json.RawMessage) error {
-	body := manager.ClientStreamMessage{Message: &manager.ClientStreamMessage_AgentEvent{AgentEvent: &manager.AgentEvent{
+	body := EventsLogs{Message: &EventsLogs_AgentEvent{AgentEvent: &AgentEvent{
 		EventType:     event,
 		Timestamp:     timestamppb.Now(),
 		ComputationId: s.computationID,

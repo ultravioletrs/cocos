@@ -9,6 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events"
 )
 
@@ -24,8 +25,8 @@ type binary struct {
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string) algorithm.Algorithm {
 	return &binary{
 		algoFile: algoFile,
-		stderr:   &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
-		stdout:   &algorithm.Stdout{Logger: logger},
+		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:   &logging.Stdout{Logger: logger},
 		args:     args,
 	}
 }

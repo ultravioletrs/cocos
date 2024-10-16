@@ -29,7 +29,7 @@ import (
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	ackvsock "github.com/ultravioletrs/cocos/internal/vsock"
-	"github.com/ultravioletrs/cocos/manager"
+	managerevents "github.com/ultravioletrs/cocos/manager/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
@@ -213,7 +213,7 @@ func dialVsock() (*vsock.Conn, error) {
 	var err error
 
 	err = backoff.Retry(func() error {
-		conn, err = vsock.Dial(vsock.Host, manager.ManagerVsockPort, nil)
+		conn, err = vsock.Dial(vsock.Host, managerevents.ManagerVsockPort, nil)
 		if err == nil {
 			log.Println("vsock connection established")
 			return nil

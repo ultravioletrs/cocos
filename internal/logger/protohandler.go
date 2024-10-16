@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/agent/events"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -71,9 +71,9 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 
 		chunk := message[start:end]
 
-		agentLog := manager.ClientStreamMessage{
-			Message: &manager.ClientStreamMessage_AgentLog{
-				AgentLog: &manager.AgentLog{
+		agentLog := events.EventsLogs{
+			Message: &events.EventsLogs_AgentLog{
+				AgentLog: &events.AgentLog{
 					Timestamp:     timestamp,
 					Message:       chunk,
 					Level:         level,

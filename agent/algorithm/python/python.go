@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"google.golang.org/grpc/metadata"
 )
@@ -43,8 +44,8 @@ type python struct {
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string, args []string) algorithm.Algorithm {
 	p := &python{
 		algoFile:         algoFile,
-		stderr:           &algorithm.Stderr{Logger: logger, EventSvc: eventsSvc},
-		stdout:           &algorithm.Stdout{Logger: logger},
+		stderr:           &logging.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stdout:           &logging.Stdout{Logger: logger},
 		requirementsFile: requirementsFile,
 		args:             args,
 	}

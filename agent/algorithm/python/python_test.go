@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"google.golang.org/grpc/metadata"
 )
@@ -90,8 +90,8 @@ func TestRun(t *testing.T) {
 
 	algo := &python{
 		algoFile: scriptPath,
-		stderr:   io.MultiWriter(&stderr, &algorithm.Stderr{Logger: slog.Default(), EventSvc: eventsSvc}),
-		stdout:   io.MultiWriter(&stdout, &algorithm.Stdout{Logger: slog.Default()}),
+		stderr:   io.MultiWriter(&stderr, &logging.Stderr{Logger: slog.Default(), EventSvc: eventsSvc}),
+		stdout:   io.MultiWriter(&stdout, &logging.Stdout{Logger: slog.Default()}),
 		runtime:  "python3",
 	}
 
@@ -132,8 +132,8 @@ func TestRunWithRequirements(t *testing.T) {
 	algo := &python{
 		algoFile:         scriptPath,
 		requirementsFile: requirementsPath,
-		stderr:           io.MultiWriter(&stderr, &algorithm.Stderr{Logger: slog.Default(), EventSvc: eventsSvc}),
-		stdout:           io.MultiWriter(&stdout, &algorithm.Stdout{Logger: slog.Default()}),
+		stderr:           io.MultiWriter(&stderr, &logging.Stderr{Logger: slog.Default(), EventSvc: eventsSvc}),
+		stdout:           io.MultiWriter(&stdout, &logging.Stdout{Logger: slog.Default()}),
 		runtime:          "python3",
 	}
 

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
+	"github.com/ultravioletrs/cocos/manager"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
-	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

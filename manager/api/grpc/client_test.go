@@ -11,8 +11,8 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/mocks"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,12 +22,12 @@ type mockStream struct {
 	grpc.ClientStream
 }
 
-func (m *mockStream) Recv() (*pkgmanager.ServerStreamMessage, error) {
+func (m *mockStream) Recv() (*manager.ServerStreamMessage, error) {
 	args := m.Called()
-	return args.Get(0).(*pkgmanager.ServerStreamMessage), args.Error(1)
+	return args.Get(0).(*manager.ServerStreamMessage), args.Error(1)
 }
 
-func (m *mockStream) Send(msg *pkgmanager.ClientStreamMessage) error {
+func (m *mockStream) Send(msg *manager.ClientStreamMessage) error {
 	args := m.Called(msg)
 	return args.Error(0)
 }
@@ -35,7 +35,7 @@ func (m *mockStream) Send(msg *pkgmanager.ClientStreamMessage) error {
 func TestManagerClient_Process(t *testing.T) {
 	mockStream := new(mockStream)
 	mockSvc := new(mocks.Service)
-	messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+	messageQueue := make(chan *manager.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
 	client := NewClient(mockStream, mockSvc, messageQueue, logger)
@@ -43,7 +43,7 @@ func TestManagerClient_Process(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	mockStream.On("Recv").Return(&pkgmanager.ServerStreamMessage{Message: &pkgmanager.ServerStreamMessage_StopComputation{StopComputation: &pkgmanager.StopComputation{}}}, nil).Maybe()
+	mockStream.On("Recv").Return(&manager.ServerStreamMessage{Message: &manager.ServerStreamMessage_StopComputation{StopComputation: &manager.StopComputation{}}}, nil).Maybe()
 	mockStream.On("Send", mock.Anything).Return(nil).Maybe()
 
 	mockSvc.On("Stop", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -57,25 +57,25 @@ func TestManagerClient_Process(t *testing.T) {
 func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	mockStream := new(mockStream)
 	mockSvc := new(mocks.Service)
-	messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+	messageQueue := make(chan *manager.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
 	client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-	runReq := &pkgmanager.ComputationRunReq{
+	runReq := &manager.ComputationRunReq{
 		Id: "test-id",
 	}
 	runReqBytes, _ := proto.Marshal(runReq)
 
-	chunk1 := &pkgmanager.ServerStreamMessage_RunReqChunks{
-		RunReqChunks: &pkgmanager.RunReqChunks{
+	chunk1 := &manager.ServerStreamMessage_RunReqChunks{
+		RunReqChunks: &manager.RunReqChunks{
 			Id:     "chunk-1",
 			Data:   runReqBytes[:len(runReqBytes)/2],
 			IsLast: false,
 		},
 	}
-	chunk2 := &pkgmanager.ServerStreamMessage_RunReqChunks{
-		RunReqChunks: &pkgmanager.RunReqChunks{
+	chunk2 := &manager.ServerStreamMessage_RunReqChunks{
+		RunReqChunks: &manager.RunReqChunks{
 			Id:     "chunk-1",
 			Data:   runReqBytes[len(runReqBytes)/2:],
 			IsLast: true,
@@ -97,7 +97,7 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	assert.Len(t, messageQueue, 1)
 
 	msg := <-messageQueue
-	runRes, ok := msg.Message.(*pkgmanager.ClientStreamMessage_RunRes)
+	runRes, ok := msg.Message.(*manager.ClientStreamMessage_RunRes)
 	assert.True(t, ok)
 	assert.Equal(t, "8080", runRes.RunRes.AgentPort)
 	assert.Equal(t, "test-id", runRes.RunRes.ComputationId)
@@ -106,8 +106,8 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 func TestManagerClient_handleTerminateReq(t *testing.T) {
 	client := ManagerClient{}
 
-	terminateReq := &pkgmanager.ServerStreamMessage_TerminateReq{
-		TerminateReq: &pkgmanager.Terminate{
+	terminateReq := &manager.ServerStreamMessage_TerminateReq{
+		TerminateReq: &manager.Terminate{
 			Message: "Test termination",
 		},
 	}
@@ -121,13 +121,13 @@ func TestManagerClient_handleTerminateReq(t *testing.T) {
 func TestManagerClient_handleStopComputation(t *testing.T) {
 	mockStream := new(mockStream)
 	mockSvc := new(mocks.Service)
-	messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+	messageQueue := make(chan *manager.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
 	client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-	stopReq := &pkgmanager.ServerStreamMessage_StopComputation{
-		StopComputation: &pkgmanager.StopComputation{
+	stopReq := &manager.ServerStreamMessage_StopComputation{
+		StopComputation: &manager.StopComputation{
 			ComputationId: "test-comp-id",
 		},
 	}
@@ -143,7 +143,7 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 	assert.Len(t, messageQueue, 1)
 
 	msg := <-messageQueue
-	stopRes, ok := msg.Message.(*pkgmanager.ClientStreamMessage_StopComputationRes)
+	stopRes, ok := msg.Message.(*manager.ClientStreamMessage_StopComputationRes)
 	assert.True(t, ok)
 	assert.Equal(t, "test-comp-id", stopRes.StopComputationRes.ComputationId)
 	assert.Empty(t, stopRes.StopComputationRes.Message)
@@ -153,13 +153,13 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockStream := new(mockStream)
 		mockSvc := new(mocks.Service)
-		messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+		messageQueue := make(chan *manager.ClientStreamMessage, 10)
 		logger := mglog.NewMock()
 
 		client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-		infoReq := &pkgmanager.ServerStreamMessage_BackendInfoReq{
-			BackendInfoReq: &pkgmanager.BackendInfoReq{
+		infoReq := &manager.ServerStreamMessage_BackendInfoReq{
+			BackendInfoReq: &manager.BackendInfoReq{
 				Id: "test-info-id",
 			},
 		}
@@ -175,7 +175,7 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 		assert.Len(t, messageQueue, 1)
 
 		msg := <-messageQueue
-		infoRes, ok := msg.Message.(*pkgmanager.ClientStreamMessage_BackendInfo)
+		infoRes, ok := msg.Message.(*manager.ClientStreamMessage_BackendInfo)
 		assert.True(t, ok)
 		assert.Equal(t, "test-info-id", infoRes.BackendInfo.Id)
 		assert.Equal(t, []byte("test-backend-info"), infoRes.BackendInfo.Info)
@@ -183,13 +183,13 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		mockStream := new(mockStream)
 		mockSvc := new(mocks.Service)
-		messageQueue := make(chan *pkgmanager.ClientStreamMessage, 10)
+		messageQueue := make(chan *manager.ClientStreamMessage, 10)
 		logger := mglog.NewMock()
 
 		client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-		infoReq := &pkgmanager.ServerStreamMessage_BackendInfoReq{
-			BackendInfoReq: &pkgmanager.BackendInfoReq{
+		infoReq := &manager.ServerStreamMessage_BackendInfoReq{
+			BackendInfoReq: &manager.BackendInfoReq{
 				Id: "test-info-id",
 			},
 		}
