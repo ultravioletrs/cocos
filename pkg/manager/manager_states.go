@@ -19,4 +19,5 @@ const (
 	Stopped
 	Warning
 	Disconnected
+	Failed
 )

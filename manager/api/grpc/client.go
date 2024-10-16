@@ -10,7 +10,6 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/manager"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,15 +21,15 @@ var (
 )
 
 type ManagerClient struct {
-	stream        pkgmanager.ManagerService_ProcessClient
+	stream        manager.ManagerService_ProcessClient
 	svc           manager.Service
-	messageQueue  chan *pkgmanager.ClientStreamMessage
+	messageQueue  chan *manager.ClientStreamMessage
 	logger        *slog.Logger
 	runReqManager *runRequestManager
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream pkgmanager.ManagerService_ProcessClient, svc manager.Service, messageQueue chan *pkgmanager.ClientStreamMessage, logger *slog.Logger) ManagerClient {
+func NewClient(stream manager.ManagerService_ProcessClient, svc manager.Service, messageQueue chan *manager.ClientStreamMessage, logger *slog.Logger) ManagerClient {
 	return ManagerClient{
 		stream:        stream,
 		svc:           svc,
@@ -71,15 +70,15 @@ func (client ManagerClient) handleIncomingMessages(ctx context.Context) error {
 	}
 }
 
-func (client ManagerClient) processIncomingMessage(ctx context.Context, req *pkgmanager.ServerStreamMessage) error {
+func (client ManagerClient) processIncomingMessage(ctx context.Context, req *manager.ServerStreamMessage) error {
 	switch mes := req.Message.(type) {
-	case *pkgmanager.ServerStreamMessage_RunReqChunks:
+	case *manager.ServerStreamMessage_RunReqChunks:
 		return client.handleRunReqChunks(ctx, mes)
-	case *pkgmanager.ServerStreamMessage_TerminateReq:
+	case *manager.ServerStreamMessage_TerminateReq:
 		return client.handleTerminateReq(mes)
-	case *pkgmanager.ServerStreamMessage_StopComputation:
+	case *manager.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
-	case *pkgmanager.ServerStreamMessage_BackendInfoReq:
+	case *manager.ServerStreamMessage_BackendInfoReq:
 		go client.handleBackendInfoReq(ctx, mes)
 	default:
 		return errors.New("unknown message type")
@@ -87,11 +86,11 @@ func (client ManagerClient) processIncomingMessage(ctx context.Context, req *pkg
 	return nil
 }
 
-func (client *ManagerClient) handleRunReqChunks(ctx context.Context, mes *pkgmanager.ServerStreamMessage_RunReqChunks) error {
+func (client *ManagerClient) handleRunReqChunks(ctx context.Context, mes *manager.ServerStreamMessage_RunReqChunks) error {
 	buffer, complete := client.runReqManager.addChunk(mes.RunReqChunks.Id, mes.RunReqChunks.Data, mes.RunReqChunks.IsLast)
 
 	if complete {
-		var runReq pkgmanager.ComputationRunReq
+		var runReq manager.ComputationRunReq
 		if err := proto.Unmarshal(buffer, &runReq); err != nil {
 			return errors.Wrap(err, errCorruptedManifest)
 		}
@@ -102,50 +101,50 @@ func (client *ManagerClient) handleRunReqChunks(ctx context.Context, mes *pkgman
 	return nil
 }
 
-func (client ManagerClient) executeRun(ctx context.Context, runReq *pkgmanager.ComputationRunReq) {
+func (client ManagerClient) executeRun(ctx context.Context, runReq *manager.ComputationRunReq) {
 	port, err := client.svc.Run(ctx, runReq)
 	if err != nil {
 		client.logger.Warn(err.Error())
 		return
 	}
-	runRes := &pkgmanager.ClientStreamMessage_RunRes{
-		RunRes: &pkgmanager.RunResponse{
+	runRes := &manager.ClientStreamMessage_RunRes{
+		RunRes: &manager.RunResponse{
 			AgentPort:     port,
 			ComputationId: runReq.Id,
 		},
 	}
-	client.sendMessage(&pkgmanager.ClientStreamMessage{Message: runRes})
+	client.sendMessage(&manager.ClientStreamMessage{Message: runRes})
 }
 
-func (client ManagerClient) handleTerminateReq(mes *pkgmanager.ServerStreamMessage_TerminateReq) error {
+func (client ManagerClient) handleTerminateReq(mes *manager.ServerStreamMessage_TerminateReq) error {
 	return errors.Wrap(errTerminationFromServer, errors.New(mes.TerminateReq.Message))
 }
 
-func (client ManagerClient) handleStopComputation(ctx context.Context, mes *pkgmanager.ServerStreamMessage_StopComputation) {
-	msg := &pkgmanager.ClientStreamMessage_StopComputationRes{
-		StopComputationRes: &pkgmanager.StopComputationResponse{
+func (client ManagerClient) handleStopComputation(ctx context.Context, mes *manager.ServerStreamMessage_StopComputation) {
+	msg := &manager.ClientStreamMessage_StopComputationRes{
+		StopComputationRes: &manager.StopComputationResponse{
 			ComputationId: mes.StopComputation.ComputationId,
 		},
 	}
 	if err := client.svc.Stop(ctx, mes.StopComputation.ComputationId); err != nil {
 		msg.StopComputationRes.Message = err.Error()
 	}
-	client.sendMessage(&pkgmanager.ClientStreamMessage{Message: msg})
+	client.sendMessage(&manager.ClientStreamMessage{Message: msg})
 }
 
-func (client ManagerClient) handleBackendInfoReq(ctx context.Context, mes *pkgmanager.ServerStreamMessage_BackendInfoReq) {
+func (client ManagerClient) handleBackendInfoReq(ctx context.Context, mes *manager.ServerStreamMessage_BackendInfoReq) {
 	res, err := client.svc.FetchBackendInfo(ctx, mes.BackendInfoReq.Id)
 	if err != nil {
 		client.logger.Warn(err.Error())
 		return
 	}
-	info := &pkgmanager.ClientStreamMessage_BackendInfo{
-		BackendInfo: &pkgmanager.BackendInfo{
+	info := &manager.ClientStreamMessage_BackendInfo{
+		BackendInfo: &manager.BackendInfo{
 			Info: res,
 			Id:   mes.BackendInfoReq.Id,
 		},
 	}
-	client.sendMessage(&pkgmanager.ClientStreamMessage{Message: info})
+	client.sendMessage(&manager.ClientStreamMessage{Message: info})
 }
 
 func (client ManagerClient) handleOutgoingMessages(ctx context.Context) error {
@@ -161,7 +160,7 @@ func (client ManagerClient) handleOutgoingMessages(ctx context.Context) error {
 	}
 }
 
-func (client ManagerClient) sendMessage(mes *pkgmanager.ClientStreamMessage) {
+func (client ManagerClient) sendMessage(mes *manager.ClientStreamMessage) {
 	ctx, cancel := context.WithTimeout(context.Background(), sendTimeout)
 	defer cancel()
 

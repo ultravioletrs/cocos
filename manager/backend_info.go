@@ -14,8 +14,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
@@ -48,7 +48,7 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		return nil, err
 	}
 
-	var backendInfo cli.AttestationConfiguration
+	var backendInfo grpc.AttestationConfiguration
 
 	if err = json.Unmarshal(f, &backendInfo); err != nil {
 		return nil, err

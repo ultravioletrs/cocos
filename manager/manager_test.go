@@ -7,7 +7,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )

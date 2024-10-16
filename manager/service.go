@@ -57,11 +57,13 @@ var (
 //go:generate mockery --name Service --output=./mocks --filename service.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	// Run create a computation.
-	Run(ctx context.Context, c *manager.ComputationRunReq) (string, error)
+	Run(ctx context.Context, c *ComputationRunReq) (string, error)
 	// Stop stops a computation.
 	Stop(ctx context.Context, computationID string) error
 	// FetchBackendInfo measures and fetches the backend information.
 	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
+	// ReportBrokenConnection reports a broken connection.
+	ReportBrokenConnection(addr string)
 }
 
 type managerService struct {
@@ -69,7 +71,7 @@ type managerService struct {
 	qemuCfg                      qemu.Config
 	backendMeasurementBinaryPath string
 	logger                       *slog.Logger
-	eventsChan                   chan *manager.ClientStreamMessage
+	eventsChan                   chan *ClientStreamMessage
 	vms                          map[string]vm.VM
 	vmFactory                    vm.Provider
 	portRangeMin                 int
@@ -80,7 +82,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *manager.ClientStreamMessage, vmFactory vm.Provider) (Service, error) {
+func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -110,7 +112,7 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 	return ms, nil
 }
 
-func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq) (string, error) {
+func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
 	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
 	ac := agent.Computation{
 		ID:          c.Id,
@@ -162,7 +164,7 @@ func (ms *managerService) Run(ctx context.Context, c *manager.ComputationRunReq)
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
 	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
 
-	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsChan, c.Id)
+	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsLogsSender, c.Id)
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
 	if err = cvm.Start(); err != nil {
 		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
@@ -265,9 +267,9 @@ func checkPortisFree(port int) bool {
 }
 
 func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
-	ms.eventsChan <- &manager.ClientStreamMessage{
-		Message: &manager.ClientStreamMessage_AgentEvent{
-			AgentEvent: &manager.AgentEvent{
+	ms.eventsChan <- &ClientStreamMessage{
+		Message: &ClientStreamMessage_AgentEvent{
+			AgentEvent: &AgentEvent{
 				EventType:     event,
 				ComputationId: cmpID,
 				Status:        status,
@@ -327,7 +329,7 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm := ms.vmFactory(state.Config, ms.eventsChan, state.ID)
+		cvm := ms.vmFactory(state.Config, ms.eventsLogsSender, state.ID)
 
 		if err = cvm.SetProcess(state.PID); err != nil {
 			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)
@@ -359,4 +361,33 @@ func (ms *managerService) processExists(pid int) bool {
 		return false
 	}
 	return false
+}
+
+func (ms *managerService) eventsLogsSender(e vm.EventsLogs) {
+	switch msg := e.(type) {
+	case *vm.Event:
+		ms.eventsChan <- &ClientStreamMessage{
+			Message: &ClientStreamMessage_AgentEvent{
+				AgentEvent: &AgentEvent{
+					EventType:     msg.EventType,
+					Timestamp:     msg.Timestamp,
+					ComputationId: msg.ComputationId,
+					Originator:    msg.Originator,
+					Status:        msg.Status,
+					Details:       msg.Details,
+				},
+			},
+		}
+	case *vm.Log:
+		ms.eventsChan <- &ClientStreamMessage{
+			Message: &ClientStreamMessage_AgentLog{
+				AgentLog: &AgentLog{
+					ComputationId: msg.ComputationId,
+					Level:         msg.Level,
+					Timestamp:     msg.Timestamp,
+					Message:       msg.Message,
+				},
+			},
+		}
+	}
 }

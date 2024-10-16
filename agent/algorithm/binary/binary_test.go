@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ultravioletrs/cocos/agent/algorithm"
+	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 )
 
@@ -39,11 +39,11 @@ func TestNewAlgorithm(t *testing.T) {
 		}
 	}
 
-	if _, ok := b.stderr.(*algorithm.Stderr); !ok {
+	if _, ok := b.stderr.(*logging.Stderr); !ok {
 		t.Errorf("Expected stderr to be *algorithm.Stderr")
 	}
 
-	if _, ok := b.stdout.(*algorithm.Stdout); !ok {
+	if _, ok := b.stdout.(*logging.Stdout); !ok {
 		t.Errorf("Expected stdout to be *algorithm.Stdout")
 	}
 }

@@ -3,13 +3,13 @@
 package events
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
 
 	"github.com/mdlayher/vsock"
+	agentevents "github.com/ultravioletrs/cocos/agent/events"
 	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,7 +22,7 @@ type ReportBrokenConnectionFunc func(address string)
 
 type events struct {
 	reportBrokenConnection ReportBrokenConnectionFunc
-	lis                    *vsock.Listener
+	lis                    net.Listener
 	logger                 *slog.Logger
 	eventsChan             chan *manager.ClientStreamMessage
 }
@@ -57,10 +57,8 @@ func (e *events) handleConnection(conn net.Conn) {
 	ackReader := internalvsock.NewAckReader(conn)
 
 	for {
-		var message manager.ClientStreamMessage
-		fmt.Println("Reading message")
+		var message agentevents.EventsLogs
 		data, err := ackReader.Read()
-		fmt.Println("Read message", data)
 		if err != nil {
 			go e.reportBrokenConnection(conn.RemoteAddr().String())
 			e.logger.Warn(err.Error())
@@ -72,14 +70,12 @@ func (e *events) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		fmt.Println("Received message", message)
-		e.eventsChan <- &message
-		fmt.Println("Sent message to eventsChan", message)
+		var mes manager.ClientStreamMessage
 
 		args := []any{}
 
 		switch message.Message.(type) {
-		case *manager.ClientStreamMessage_AgentEvent:
+		case *agentevents.EventsLogs_AgentEvent:
 			args = append(args, slog.Group("agent-event",
 				slog.String("event-type", message.GetAgentEvent().GetEventType()),
 				slog.String("computation-id", message.GetAgentEvent().GetComputationId()),
@@ -87,13 +83,37 @@ func (e *events) handleConnection(conn net.Conn) {
 				slog.String("originator", message.GetAgentEvent().GetOriginator()),
 				slog.String("timestamp", message.GetAgentEvent().GetTimestamp().String()),
 				slog.String("details", string(message.GetAgentEvent().GetDetails()))))
-		case *manager.ClientStreamMessage_AgentLog:
+			mes = manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentEvent{
+					AgentEvent: &manager.AgentEvent{
+						EventType:     message.GetAgentEvent().GetEventType(),
+						ComputationId: message.GetAgentEvent().GetComputationId(),
+						Status:        message.GetAgentEvent().GetStatus(),
+						Originator:    message.GetAgentEvent().GetOriginator(),
+						Timestamp:     message.GetAgentEvent().GetTimestamp(),
+						Details:       message.GetAgentEvent().GetDetails(),
+					},
+				},
+			}
+		case *agentevents.EventsLogs_AgentLog:
 			args = append(args, slog.Group("agent-log",
 				slog.String("computation-id", message.GetAgentLog().GetComputationId()),
 				slog.String("level", message.GetAgentLog().GetLevel()),
 				slog.String("timestamp", message.GetAgentLog().GetTimestamp().String()),
 				slog.String("message", message.GetAgentLog().GetMessage())))
+			mes = manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentLog{
+					AgentLog: &manager.AgentLog{
+						ComputationId: message.GetAgentLog().GetComputationId(),
+						Level:         message.GetAgentLog().GetLevel(),
+						Timestamp:     message.GetAgentLog().GetTimestamp(),
+						Message:       message.GetAgentLog().GetMessage(),
+					},
+				},
+			}
 		}
+
+		e.eventsChan <- &mes
 
 		e.logger.Info("", args...)
 	}

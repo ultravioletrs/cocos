@@ -18,12 +18,12 @@ import (
 	"github.com/ultravioletrs/cocos/internal"
 	internalvsock "github.com/ultravioletrs/cocos/internal/vsock"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 const (
-	managerVsockPort = manager.ManagerVsockPort
+	managerVsockPort = events.ManagerVsockPort
 	vsockConfigPort  = qemu.VsockConfigPort
 )
 
@@ -115,7 +115,7 @@ func handleConnection(conn net.Conn) {
 	ackReader := internalvsock.NewAckReader(conn)
 
 	for {
-		var message pkgmanager.ClientStreamMessage
+		var message manager.ClientStreamMessage
 		err := ackReader.ReadProto(&message)
 		if err != nil {
 			log.Printf("Error reading message: %v", err)
