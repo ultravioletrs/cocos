@@ -51,10 +51,6 @@ func (ms *metricsMiddleware) Stop(ctx context.Context, computationID string) err
 	return ms.svc.Stop(ctx, computationID)
 }
 
-func (ms *metricsMiddleware) RetrieveAgentEventsLogs() {
-	ms.svc.RetrieveAgentEventsLogs()
-}
-
 func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "FetchBackendInfo").Add(1)

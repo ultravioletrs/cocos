@@ -54,10 +54,6 @@ func (lm *loggingMiddleware) Stop(ctx context.Context, computationID string) (er
 	return lm.svc.Stop(ctx, computationID)
 }
 
-func (lm *loggingMiddleware) RetrieveAgentEventsLogs() {
-	lm.svc.RetrieveAgentEventsLogs()
-}
-
 func (lm *loggingMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) (body []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method FetchBackendInfo  for computation %s took %s to complete", cmpId, time.Since(begin))

@@ -152,7 +152,6 @@ func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, e
 	if err != nil {
 		return nil, err
 	}
-	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
