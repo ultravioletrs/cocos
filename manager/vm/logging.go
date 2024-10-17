@@ -4,7 +4,6 @@ package vm
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"log/slog"
 	"strings"
@@ -14,10 +13,8 @@ import (
 )
 
 var (
-	_                      io.Writer = &Stdout{}
-	_                      io.Writer = &Stderr{}
-	ErrFailedToSendMessage           = errors.New("failed to send message to channel")
-	ErrPanicRecovered                = errors.New("panic recovered: channel may be closed")
+	_ io.Writer = &Stdout{}
+	_ io.Writer = &Stderr{}
 )
 
 const bufSize = 1024
@@ -84,9 +81,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		Status:        pkgmanager.Warning.String(),
 	}
 
-	s.EventSender(eventMsg)
-
-	return len(p), nil
+	return len(p), s.EventSender(eventMsg)
 }
 
 func sendLog(eventSender EventSender, computationID, message, level string) error {
@@ -109,7 +104,5 @@ func sendLog(eventSender EventSender, computationID, message, level string) erro
 		Timestamp:     timestamppb.Now(),
 	}
 
-	eventSender(&msg)
-
-	return nil
+	return eventSender(&msg)
 }

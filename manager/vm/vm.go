@@ -54,4 +54,4 @@ func (l *Log) IsEventLog() bool {
 	return true
 }
 
-type EventSender func(event EventsLogs)
+type EventSender func(event EventsLogs) error
