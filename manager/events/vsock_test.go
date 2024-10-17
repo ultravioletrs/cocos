@@ -4,6 +4,7 @@ package events
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
@@ -114,7 +115,7 @@ func TestListen(t *testing.T) {
 	mockConn.On("Close").Return(nil)
 	mockConn.On("Read", mock.Anything).Return(0, nil)
 
-	go e.Listen()
+	go e.Listen(context.Background())
 
 	time.Sleep(100 * time.Millisecond)
 

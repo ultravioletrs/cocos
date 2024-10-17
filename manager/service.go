@@ -363,7 +363,7 @@ func (ms *managerService) processExists(pid int) bool {
 	return false
 }
 
-func (ms *managerService) eventsLogsSender(e vm.EventsLogs) error {
+func (ms *managerService) eventsLogsSender(e interface{}) error {
 	switch msg := e.(type) {
 	case *vm.Event:
 		ms.eventsChan <- &ClientStreamMessage{

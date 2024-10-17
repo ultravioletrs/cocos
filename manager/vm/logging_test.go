@@ -36,9 +36,9 @@ func TestStdoutWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eventLogChan := make(chan EventsLogs, 10)
+			eventLogChan := make(chan interface{}, 10)
 			s := &Stdout{
-				EventSender: func(event EventsLogs) error {
+				EventSender: func(event interface{}) error {
 					eventLogChan <- event
 					return nil
 				},
@@ -96,9 +96,9 @@ func TestStderrWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eventLogChan := make(chan EventsLogs, 10)
+			eventLogChan := make(chan interface{}, 10)
 			s := &Stderr{
-				EventSender: func(event EventsLogs) error {
+				EventSender: func(event interface{}) error {
 					eventLogChan <- event
 					return nil
 				},
@@ -144,9 +144,9 @@ func TestStderrWrite(t *testing.T) {
 }
 
 func TestStdoutWriteErrorHandling(t *testing.T) {
-	eventLogChan := make(chan EventsLogs, 10)
+	eventLogChan := make(chan interface{}, 10)
 	s := &Stdout{
-		EventSender: func(event EventsLogs) error {
+		EventSender: func(event interface{}) error {
 			eventLogChan <- event
 			return assert.AnError
 		},
@@ -162,9 +162,9 @@ func TestStdoutWriteErrorHandling(t *testing.T) {
 }
 
 func TestStderrWriteErrorHandling(t *testing.T) {
-	eventLogChan := make(chan EventsLogs, 10)
+	eventLogChan := make(chan interface{}, 10)
 	s := &Stderr{
-		EventSender: func(event EventsLogs) error {
+		EventSender: func(event interface{}) error {
 			eventLogChan <- event
 			return assert.AnError
 		},

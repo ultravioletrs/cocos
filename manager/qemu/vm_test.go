@@ -19,7 +19,7 @@ const testComputationID = "test-computation"
 func TestNewVM(t *testing.T) {
 	config := Config{}
 
-	vm := NewVM(config, func(event vm.EventsLogs) error { return nil }, testComputationID)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID)
 
 	assert.NotNil(t, vm)
 	assert.IsType(t, &qemuVM{}, vm)
@@ -38,7 +38,7 @@ func TestStart(t *testing.T) {
 		QemuBinPath: "echo",
 	}
 
-	vm := NewVM(config, func(event vm.EventsLogs) error { return nil }, testComputationID).(*qemuVM)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -61,7 +61,7 @@ func TestStartSudo(t *testing.T) {
 		UseSudo:     true,
 	}
 
-	vm := NewVM(config, func(event vm.EventsLogs) error { return nil }, testComputationID).(*qemuVM)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -101,7 +101,7 @@ func TestStop(t *testing.T) {
 				Process: cmd.Process,
 			},
 			StateMachine: sm,
-			eventsLogsSender: func(event vm.EventsLogs) error {
+			eventsLogsSender: func(event interface{}) error {
 				return nil
 			},
 		}
@@ -163,9 +163,9 @@ func TestGetConfig(t *testing.T) {
 }
 
 func TestCheckVMProcessPeriodically(t *testing.T) {
-	logsChan := make(chan vm.EventsLogs, 1)
+	logsChan := make(chan interface{}, 1)
 	vmi := &qemuVM{
-		eventsLogsSender: func(event vm.EventsLogs) error {
+		eventsLogsSender: func(event interface{}) error {
 			logsChan <- event
 			return nil
 		},

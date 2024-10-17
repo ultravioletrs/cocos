@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package events
 
-type Events interface {
-	Listen()
+import "context"
+
+type Listener interface {
+	Listen(ctx context.Context)
 }

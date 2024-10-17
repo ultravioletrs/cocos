@@ -128,7 +128,7 @@ func main() {
 		return
 	}
 
-	go eventsSvc.Listen()
+	go eventsSvc.Listen(ctx)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan, logger)
 
