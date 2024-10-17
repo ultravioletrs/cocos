@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package events
 
 import (
@@ -114,13 +116,11 @@ func TestListen(t *testing.T) {
 
 	go e.Listen()
 
-	// Allow some time for the goroutine to run
 	time.Sleep(100 * time.Millisecond)
 
 	mockListener.AssertExpectations(t)
 }
 
-// Helper function to check if vsock device exists
 func vsockDeviceExists() bool {
 	fs, err := os.Stat("/dev/vsock")
 	if err != nil {
@@ -203,12 +203,16 @@ func TestHandleConnection(t *testing.T) {
 	data, _ := proto.Marshal(message)
 
 	messageID := uint32(1)
-	binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
-	binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(len(data)))
+	err := binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
+	assert.NoError(t, err)
+	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(len(data)))
+	assert.NoError(t, err)
 	mockConn.readBuf.Write(data)
 
-	binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(2))
-	binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
+	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(2))
+	assert.NoError(t, err)
+	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
+	assert.NoError(t, err)
 
 	go e.handleConnection(mockConn)
 
@@ -222,7 +226,7 @@ func TestHandleConnection(t *testing.T) {
 	}
 
 	var receivedAck uint32
-	err := binary.Read(mockConn.writeBuf, binary.LittleEndian, &receivedAck)
+	err = binary.Read(mockConn.writeBuf, binary.LittleEndian, &receivedAck)
 	assert.NoError(t, err)
 	assert.Equal(t, messageID, receivedAck)
 
