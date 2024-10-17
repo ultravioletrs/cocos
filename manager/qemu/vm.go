@@ -84,13 +84,15 @@ func (v *qemuVM) Stop() error {
 	defer func() {
 		err := v.StateMachine.Transition(manager.StopComputationRun)
 		if err != nil {
-			v.eventsLogsSender(&vm.Event{
+			if err := v.eventsLogsSender(&vm.Event{
 				EventType:     v.StateMachine.State(),
 				Timestamp:     timestamppb.Now(),
 				ComputationId: v.computationId,
 				Originator:    "manager",
 				Status:        manager.Warning.String(),
-			})
+			}); err != nil {
+				return
+			}
 		}
 	}()
 	err := v.cmd.Process.Signal(syscall.SIGTERM)
@@ -156,13 +158,15 @@ func (v *qemuVM) executableAndArgs() (string, []string, error) {
 func (v *qemuVM) checkVMProcessPeriodically() {
 	for {
 		if !processExists(v.GetProcess()) {
-			v.eventsLogsSender(&vm.Event{
+			if err := v.eventsLogsSender(&vm.Event{
 				EventType:     v.StateMachine.State(),
 				Timestamp:     timestamppb.Now(),
 				ComputationId: v.computationId,
 				Originator:    "manager",
 				Status:        manager.Stopped.String(),
-			})
+			}); err != nil {
+				return
+			}
 			break
 		}
 		time.Sleep(interval)
