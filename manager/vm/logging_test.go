@@ -38,8 +38,9 @@ func TestStdoutWrite(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eventLogChan := make(chan EventsLogs, 10)
 			s := &Stdout{
-				EventSender: func(event EventsLogs) {
+				EventSender: func(event EventsLogs) error {
 					eventLogChan <- event
+					return nil
 				},
 				ComputationId: "test-computation",
 			}
@@ -97,8 +98,9 @@ func TestStderrWrite(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eventLogChan := make(chan EventsLogs, 10)
 			s := &Stderr{
-				EventSender: func(event EventsLogs) {
+				EventSender: func(event EventsLogs) error {
 					eventLogChan <- event
+					return nil
 				},
 				ComputationId: "test-computation",
 				StateMachine:  NewStateMachine(),
@@ -144,39 +146,35 @@ func TestStderrWrite(t *testing.T) {
 func TestStdoutWriteErrorHandling(t *testing.T) {
 	eventLogChan := make(chan EventsLogs, 10)
 	s := &Stdout{
-		EventSender: func(event EventsLogs) {
+		EventSender: func(event EventsLogs) error {
 			eventLogChan <- event
+			return assert.AnError
 		},
 		ComputationId: "test-computation",
 	}
-
-	// Test with a closed channel to simulate an error condition
-	close(eventLogChan)
 
 	message := []byte("This should fail")
 	n, err := s.Write(message)
 
 	assert.Error(t, err)
 	assert.Equal(t, len(message), n)
-	assert.Equal(t, ErrPanicRecovered, err)
+	assert.Equal(t, assert.AnError, err)
 }
 
 func TestStderrWriteErrorHandling(t *testing.T) {
 	eventLogChan := make(chan EventsLogs, 10)
 	s := &Stderr{
-		EventSender: func(event EventsLogs) {
+		EventSender: func(event EventsLogs) error {
 			eventLogChan <- event
+			return assert.AnError
 		},
 		ComputationId: "test-computation",
 	}
-
-	// Test with a closed channel to simulate an error condition
-	close(eventLogChan)
 
 	message := []byte("This should fail")
 	n, err := s.Write(message)
 
 	assert.Error(t, err)
 	assert.Equal(t, len(message), n)
-	assert.Equal(t, ErrPanicRecovered, err)
+	assert.Equal(t, assert.AnError, err)
 }
