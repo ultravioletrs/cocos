@@ -214,15 +214,17 @@ func TestHandleConnection(t *testing.T) {
 	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
 	assert.NoError(t, err)
 
-	go e.handleConnection(mockConn)
-
-	time.Sleep(100 * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		e.handleConnection(mockConn)
+		close(done)
+	}()
 
 	select {
 	case receivedMessage := <-eventsChan:
 		assert.NotNil(t, receivedMessage)
-	default:
-		t.Error("Expected message not received in eventsChan")
+	case <-time.After(1 * time.Second):
+		t.Error("Timeout waiting for message in eventsChan")
 	}
 
 	var receivedAck uint32
@@ -230,7 +232,15 @@ func TestHandleConnection(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, messageID, receivedAck)
 
-	time.Sleep(100 * time.Millisecond)
+	// Signal handleConnection to exit
+	mockConn.readBuf.Write([]byte{0, 0, 0, 0})
+
+	select {
+	case <-done:
+		// handleConnection has exited
+	case <-time.After(1 * time.Second):
+		t.Error("Timeout waiting for handleConnection to exit")
+	}
 
 	mockConn.AssertExpectations(t)
 }
