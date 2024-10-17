@@ -36,6 +36,7 @@ func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc,
 		lis:                    l,
 		reportBrokenConnection: reportBrokenConnection,
 		logger:                 logger,
+		eventsChan:             eventsChan,
 	}
 }
 
