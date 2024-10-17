@@ -3,6 +3,7 @@
 package events
 
 import (
+	"context"
 	"log/slog"
 	"net"
 
@@ -27,7 +28,7 @@ type events struct {
 	eventsChan             chan *manager.ClientStreamMessage
 }
 
-func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc, eventsChan chan *manager.ClientStreamMessage) Events {
+func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc, eventsChan chan *manager.ClientStreamMessage) Listener {
 	l, err := vsock.Listen(ManagerVsockPort, nil)
 	if err != nil {
 		return nil
@@ -40,15 +41,21 @@ func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc,
 	}
 }
 
-func (e *events) Listen() {
+func (e *events) Listen(ctx context.Context) {
 	for {
-		conn, err := e.lis.Accept()
-		if err != nil {
-			e.logger.Warn(err.Error())
-			continue
-		}
+		select {
+		case <-ctx.Done():
+			e.logger.Info("Listener shutting down")
+			return
+		default:
+			conn, err := e.lis.Accept()
+			if err != nil {
+				e.logger.Warn(err.Error())
+				continue
+			}
 
-		go e.handleConnection(conn)
+			go e.handleConnection(conn)
+		}
 	}
 }
 

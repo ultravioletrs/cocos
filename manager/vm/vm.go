@@ -26,10 +26,6 @@ type VM interface {
 //go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Provider func(config interface{}, eventSender EventSender, computationId string) VM
 
-type EventsLogs interface {
-	IsEventLog() bool
-}
-
 type Event struct {
 	EventType     string
 	Timestamp     *timestamppb.Timestamp
@@ -37,10 +33,6 @@ type Event struct {
 	Details       []byte
 	Originator    string
 	Status        string
-}
-
-func (e *Event) IsEventLog() bool {
-	return true
 }
 
 type Log struct {
@@ -54,4 +46,4 @@ func (l *Log) IsEventLog() bool {
 	return true
 }
 
-type EventSender func(event EventsLogs) error
+type EventSender func(event interface{}) error
