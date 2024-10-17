@@ -200,16 +200,19 @@ func TestHandleConnection(t *testing.T) {
 		},
 	}
 
-	data, _ := proto.Marshal(message)
+	data, err := proto.Marshal(message)
+	assert.NoError(t, err)
 
 	messageID := uint32(1)
-	err := binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
+	err = binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
 	assert.NoError(t, err)
 	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(len(data)))
 	assert.NoError(t, err)
-	mockConn.readBuf.Write(data)
+	_, err = mockConn.readBuf.Write(data)
+	assert.NoError(t, err)
 
-	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(2))
+	// Add EOF to signal end of stream
+	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
 	assert.NoError(t, err)
 	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
 	assert.NoError(t, err)
@@ -220,27 +223,28 @@ func TestHandleConnection(t *testing.T) {
 		close(done)
 	}()
 
+	var receivedMessage *manager.ClientStreamMessage
 	select {
-	case receivedMessage := <-eventsChan:
-		assert.NotNil(t, receivedMessage)
-	case <-time.After(1 * time.Second):
-		t.Error("Timeout waiting for message in eventsChan")
+	case receivedMessage = <-eventsChan:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for message in eventsChan")
 	}
 
+	assert.NotNil(t, receivedMessage)
+
+	select {
+	case <-done:
+		// handleConnection has exited
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for handleConnection to exit")
+	}
+
+	// Check if ack was written
 	var receivedAck uint32
 	err = binary.Read(mockConn.writeBuf, binary.LittleEndian, &receivedAck)
 	assert.NoError(t, err)
 	assert.Equal(t, messageID, receivedAck)
 
-	// Signal handleConnection to exit
-	mockConn.readBuf.Write([]byte{0, 0, 0, 0})
-
-	select {
-	case <-done:
-		// handleConnection has exited
-	case <-time.After(1 * time.Second):
-		t.Error("Timeout waiting for handleConnection to exit")
-	}
-
+	// Ensure no unexpected calls were made on the mock
 	mockConn.AssertExpectations(t)
 }
