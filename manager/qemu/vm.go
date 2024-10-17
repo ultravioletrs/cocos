@@ -26,19 +26,19 @@ const (
 )
 
 type qemuVM struct {
-	config        Config
-	cmd           *exec.Cmd
-	logsChan      chan *manager.ClientStreamMessage
-	computationId string
+	config           Config
+	cmd              *exec.Cmd
+	eventsLogsSender vm.EventSender
+	computationId    string
 	vm.StateMachine
 }
 
-func NewVM(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
+func NewVM(config interface{}, eventsLogsSender vm.EventSender, computationId string) vm.VM {
 	return &qemuVM{
-		config:        config.(Config),
-		logsChan:      logsChan,
-		computationId: computationId,
-		StateMachine:  vm.NewStateMachine(),
+		config:           config.(Config),
+		eventsLogsSender: eventsLogsSender,
+		computationId:    computationId,
+		StateMachine:     vm.NewStateMachine(),
 	}
 }
 
@@ -74,8 +74,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.cmd = exec.Command(exe, args...)
-	v.cmd.Stdout = &vm.Stdout{LogsChan: v.logsChan, ComputationId: v.computationId}
-	v.cmd.Stderr = &vm.Stderr{LogsChan: v.logsChan, ComputationId: v.computationId, StateMachine: v.StateMachine}
+	v.cmd.Stdout = &vm.Stdout{ComputationId: v.computationId, EventSender: v.eventsLogsSender}
+	v.cmd.Stderr = &vm.Stderr{EventSender: v.eventsLogsSender, ComputationId: v.computationId, StateMachine: v.StateMachine}
 
 	return v.cmd.Start()
 }
@@ -84,16 +84,14 @@ func (v *qemuVM) Stop() error {
 	defer func() {
 		err := v.StateMachine.Transition(manager.StopComputationRun)
 		if err != nil {
-			v.logsChan <- &manager.ClientStreamMessage{
-				Message: &manager.ClientStreamMessage_AgentEvent{
-					AgentEvent: &manager.AgentEvent{
-						ComputationId: v.computationId,
-						EventType:     v.StateMachine.State(),
-						Status:        manager.Warning.String(),
-						Timestamp:     timestamppb.Now(),
-						Originator:    "manager",
-					},
-				},
+			if err := v.eventsLogsSender(&vm.Event{
+				EventType:     v.StateMachine.State(),
+				Timestamp:     timestamppb.Now(),
+				ComputationId: v.computationId,
+				Originator:    "manager",
+				Status:        manager.Warning.String(),
+			}); err != nil {
+				return
 			}
 		}
 	}()
@@ -160,16 +158,14 @@ func (v *qemuVM) executableAndArgs() (string, []string, error) {
 func (v *qemuVM) checkVMProcessPeriodically() {
 	for {
 		if !processExists(v.GetProcess()) {
-			v.logsChan <- &manager.ClientStreamMessage{
-				Message: &manager.ClientStreamMessage_AgentEvent{
-					AgentEvent: &manager.AgentEvent{
-						ComputationId: v.computationId,
-						EventType:     v.StateMachine.State(),
-						Status:        manager.Stopped.String(),
-						Timestamp:     timestamppb.Now(),
-						Originator:    "manager",
-					},
-				},
+			if err := v.eventsLogsSender(&vm.Event{
+				EventType:     v.StateMachine.State(),
+				Timestamp:     timestamppb.Now(),
+				ComputationId: v.computationId,
+				Originator:    "manager",
+				Status:        manager.Stopped.String(),
+			}); err != nil {
+				return
 			}
 			break
 		}

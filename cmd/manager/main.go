@@ -22,11 +22,11 @@ import (
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
+	"github.com/ultravioletrs/cocos/manager/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
@@ -113,13 +113,22 @@ func main() {
 		return
 	}
 
-	eventsChan := make(chan *pkgmanager.ClientStreamMessage, clientBufferSize)
+	eventsChan := make(chan *manager.ClientStreamMessage, clientBufferSize)
 	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}
+
+	eventsSvc := events.New(logger, svc.ReportBrokenConnection, eventsChan)
+	if eventsSvc == nil {
+		logger.Error("Failed to create events service")
+		exitCode = 1
+		return
+	}
+
+	go eventsSvc.Listen(ctx)
 
 	mc := managerapi.NewClient(pc, svc, eventsChan, logger)
 
@@ -147,12 +156,11 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *pkgmanager.ClientStreamMessage, backendMeasurementPath string) (manager.Service, error) {
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, backendMeasurementPath string) (manager.Service, error) {
 	svc, err := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
 	if err != nil {
 		return nil, err
 	}
-	go svc.RetrieveAgentEventsLogs()
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)

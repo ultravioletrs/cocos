@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 func TestStdoutWrite(t *testing.T) {
@@ -36,9 +36,12 @@ func TestStdoutWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logsChan := make(chan *manager.ClientStreamMessage, 10)
+			eventLogChan := make(chan interface{}, 10)
 			s := &Stdout{
-				LogsChan:      logsChan,
+				EventSender: func(event interface{}) error {
+					eventLogChan <- event
+					return nil
+				},
 				ComputationId: "test-computation",
 			}
 
@@ -50,9 +53,9 @@ func TestStdoutWrite(t *testing.T) {
 			var receivedWrites int
 			for i := 0; i < tt.expectedWrites; i++ {
 				select {
-				case msg := <-logsChan:
+				case msg := <-eventLogChan:
 					receivedWrites++
-					agentLog := msg.GetAgentLog()
+					agentLog := msg.(*Log)
 					assert.NotNil(t, agentLog)
 					assert.Equal(t, "test-computation", agentLog.ComputationId)
 					assert.Equal(t, slog.LevelDebug.String(), agentLog.Level)
@@ -93,14 +96,17 @@ func TestStderrWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logsChan := make(chan *manager.ClientStreamMessage, 10)
+			eventLogChan := make(chan interface{}, 10)
 			s := &Stderr{
-				LogsChan:      logsChan,
+				EventSender: func(event interface{}) error {
+					eventLogChan <- event
+					return nil
+				},
 				ComputationId: "test-computation",
 				StateMachine:  NewStateMachine(),
 			}
 
-			err := s.StateMachine.Transition(manager.VmRunning)
+			err := s.StateMachine.Transition(pkgmanager.VmRunning)
 			assert.NoError(t, err)
 
 			n, err := s.Write([]byte(tt.input))
@@ -111,23 +117,21 @@ func TestStderrWrite(t *testing.T) {
 			var receivedWrites int
 			for i := 0; i < tt.expectedWrites; i++ {
 				select {
-				case msg := <-logsChan:
+				case msg := <-eventLogChan:
 					receivedWrites++
-					switch msg.Message.(type) {
-					case *manager.ClientStreamMessage_AgentLog:
-						agentLog := msg.GetAgentLog()
-						assert.NotNil(t, agentLog)
-						assert.Equal(t, "test-computation", agentLog.ComputationId)
-						assert.Equal(t, slog.LevelError.String(), agentLog.Level)
-						assert.NotEmpty(t, agentLog.Message)
-						assert.NotNil(t, agentLog.Timestamp)
-					case *manager.ClientStreamMessage_AgentEvent:
-						agentEvent := msg.GetAgentEvent()
-						assert.NotNil(t, agentEvent)
-						assert.Equal(t, "test-computation", agentEvent.ComputationId)
-						assert.Equal(t, manager.VmRunning.String(), agentEvent.EventType)
-						assert.Equal(t, manager.Warning.String(), agentEvent.Status)
-						assert.NotNil(t, agentEvent.Timestamp)
+					switch logEv := msg.(type) {
+					case *Log:
+						assert.NotNil(t, logEv)
+						assert.Equal(t, "test-computation", logEv.ComputationId)
+						assert.Equal(t, slog.LevelError.String(), logEv.Level)
+						assert.NotEmpty(t, logEv.Message)
+						assert.NotNil(t, logEv.Timestamp)
+					case *Event:
+						assert.NotNil(t, logEv)
+						assert.Equal(t, "test-computation", logEv.ComputationId)
+						assert.Equal(t, pkgmanager.VmRunning.String(), logEv.EventType)
+						assert.Equal(t, pkgmanager.Warning.String(), logEv.Status)
+						assert.NotNil(t, logEv.Timestamp)
 					}
 				case <-time.After(time.Second):
 					t.Fatal("Timed out waiting for log message")
@@ -140,37 +144,37 @@ func TestStderrWrite(t *testing.T) {
 }
 
 func TestStdoutWriteErrorHandling(t *testing.T) {
-	logsChan := make(chan *manager.ClientStreamMessage, 1)
+	eventLogChan := make(chan interface{}, 10)
 	s := &Stdout{
-		LogsChan:      logsChan,
+		EventSender: func(event interface{}) error {
+			eventLogChan <- event
+			return assert.AnError
+		},
 		ComputationId: "test-computation",
 	}
-
-	// Test with a closed channel to simulate an error condition
-	close(logsChan)
 
 	message := []byte("This should fail")
 	n, err := s.Write(message)
 
 	assert.Error(t, err)
 	assert.Equal(t, len(message), n)
-	assert.Equal(t, ErrPanicRecovered, err)
+	assert.Equal(t, assert.AnError, err)
 }
 
 func TestStderrWriteErrorHandling(t *testing.T) {
-	logsChan := make(chan *manager.ClientStreamMessage, 1)
+	eventLogChan := make(chan interface{}, 10)
 	s := &Stderr{
-		LogsChan:      logsChan,
+		EventSender: func(event interface{}) error {
+			eventLogChan <- event
+			return assert.AnError
+		},
 		ComputationId: "test-computation",
 	}
-
-	// Test with a closed channel to simulate an error condition
-	close(logsChan)
 
 	message := []byte("This should fail")
 	n, err := s.Write(message)
 
 	assert.Error(t, err)
 	assert.Equal(t, len(message), n)
-	assert.Equal(t, ErrPanicRecovered, err)
+	assert.Equal(t, assert.AnError, err)
 }

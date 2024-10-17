@@ -11,16 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 const testComputationID = "test-computation"
 
 func TestNewVM(t *testing.T) {
 	config := Config{}
-	logsChan := make(chan *manager.ClientStreamMessage)
 
-	vm := NewVM(config, logsChan, testComputationID)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID)
 
 	assert.NotNil(t, vm)
 	assert.IsType(t, &qemuVM{}, vm)
@@ -38,9 +37,8 @@ func TestStart(t *testing.T) {
 		},
 		QemuBinPath: "echo",
 	}
-	logsChan := make(chan *manager.ClientStreamMessage)
 
-	vm := NewVM(config, logsChan, testComputationID).(*qemuVM)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -62,9 +60,8 @@ func TestStartSudo(t *testing.T) {
 		QemuBinPath: "echo",
 		UseSudo:     true,
 	}
-	logsChan := make(chan *manager.ClientStreamMessage)
 
-	vm := NewVM(config, logsChan, testComputationID).(*qemuVM)
+	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -79,7 +76,7 @@ func TestStop(t *testing.T) {
 		err := cmd.Start()
 		assert.NoError(t, err)
 		sm := new(mocks.StateMachine)
-		sm.On("Transition", manager.StopComputationRun).Return(nil)
+		sm.On("Transition", pkgmanager.StopComputationRun).Return(nil)
 
 		vm := &qemuVM{
 			cmd: &exec.Cmd{
@@ -96,20 +93,18 @@ func TestStop(t *testing.T) {
 		err := cmd.Start()
 		assert.NoError(t, err)
 		sm := new(mocks.StateMachine)
-		sm.On("Transition", manager.StopComputationRun).Return(assert.AnError)
-		sm.On("State").Return(manager.Stopped.String())
+		sm.On("Transition", pkgmanager.StopComputationRun).Return(assert.AnError)
+		sm.On("State").Return(pkgmanager.Stopped.String())
 
 		vm := &qemuVM{
 			cmd: &exec.Cmd{
 				Process: cmd.Process,
 			},
 			StateMachine: sm,
-			logsChan:     make(chan *manager.ClientStreamMessage),
+			eventsLogsSender: func(event interface{}) error {
+				return nil
+			},
 		}
-
-		go func() {
-			<-vm.logsChan
-		}()
 
 		err = vm.Stop()
 		assert.NoError(t, err)
@@ -168,9 +163,12 @@ func TestGetConfig(t *testing.T) {
 }
 
 func TestCheckVMProcessPeriodically(t *testing.T) {
-	logsChan := make(chan *manager.ClientStreamMessage, 1)
-	vm := &qemuVM{
-		logsChan:      logsChan,
+	logsChan := make(chan interface{}, 1)
+	vmi := &qemuVM{
+		eventsLogsSender: func(event interface{}) error {
+			logsChan <- event
+			return nil
+		},
 		computationId: testComputationID,
 		cmd: &exec.Cmd{
 			Process: &os.Process{Pid: -1}, // Use an invalid PID to simulate a stopped process
@@ -178,14 +176,15 @@ func TestCheckVMProcessPeriodically(t *testing.T) {
 		StateMachine: vm.NewStateMachine(),
 	}
 
-	go vm.checkVMProcessPeriodically()
+	go vmi.checkVMProcessPeriodically()
 
 	select {
 	case msg := <-logsChan:
-		assert.NotNil(t, msg.GetAgentEvent())
-		assert.Equal(t, testComputationID, msg.GetAgentEvent().ComputationId)
-		assert.Equal(t, manager.VmProvision.String(), msg.GetAgentEvent().EventType)
-		assert.Equal(t, manager.Stopped.String(), msg.GetAgentEvent().Status)
+		assert.NotNil(t, msg)
+		msgE := msg.(*vm.Event)
+		assert.Equal(t, testComputationID, msgE.ComputationId)
+		assert.Equal(t, pkgmanager.VmProvision.String(), msgE.EventType)
+		assert.Equal(t, pkgmanager.Stopped.String(), msgE.Status)
 	case <-time.After(2 * interval):
 		t.Fatal("Timeout waiting for VM stopped message")
 	}

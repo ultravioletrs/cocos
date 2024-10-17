@@ -7,8 +7,6 @@ package mocks
 
 import (
 	mock "github.com/stretchr/testify/mock"
-	manager "github.com/ultravioletrs/cocos/pkg/manager"
-
 	vm "github.com/ultravioletrs/cocos/manager/vm"
 )
 
@@ -17,17 +15,17 @@ type Provider struct {
 	mock.Mock
 }
 
-// Execute provides a mock function with given fields: config, logsChan, computationId
-func (_m *Provider) Execute(config interface{}, logsChan chan *manager.ClientStreamMessage, computationId string) vm.VM {
-	ret := _m.Called(config, logsChan, computationId)
+// Execute provides a mock function with given fields: config, eventSender, computationId
+func (_m *Provider) Execute(config interface{}, eventSender vm.EventSender, computationId string) vm.VM {
+	ret := _m.Called(config, eventSender, computationId)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Execute")
 	}
 
 	var r0 vm.VM
-	if rf, ok := ret.Get(0).(func(interface{}, chan *manager.ClientStreamMessage, string) vm.VM); ok {
-		r0 = rf(config, logsChan, computationId)
+	if rf, ok := ret.Get(0).(func(interface{}, vm.EventSender, string) vm.VM); ok {
+		r0 = rf(config, eventSender, computationId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(vm.VM)
