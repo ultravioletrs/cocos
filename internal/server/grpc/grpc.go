@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"github.com/google/go-sev-guest/client"
+	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/agent/quoteprovider"
 	"github.com/ultravioletrs/cocos/internal/server"
 	atls "github.com/ultravioletrs/cocos/pkg/tls_extensions"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -46,6 +48,7 @@ const (
 	notAfterYear  = 1
 	notAfterMonth = 0
 	notAfterDay   = 0
+	nonceSize     = 32
 )
 
 type Server struct {
@@ -115,16 +118,18 @@ func (s *Server) Start() error {
 		}
 
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
-		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
-		fmt.Printf("Listening on address: %s\n", s.Address)
+
+		fetchHandle := atls.RegisterFetchARCallback(fetchAttestation)
 		listener, err = atls.Listen(
 			s.Address,
 			certificateBytes,
 			privateKeyBytes,
+			fetchHandle,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create Listener for aTLS: %w", err)
 		}
+		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
 
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
 		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
@@ -317,4 +322,26 @@ func generateCertificatesForATLS(qp client.QuoteProvider) ([]byte, []byte, error
 	})
 
 	return certBytes, keyBytes, nil
+}
+
+func fetchAttestation(reportDataSlice []byte) []byte {
+	var reportData [agent.ReportDataSize]byte
+
+	fmt.Fprintf(os.Stderr, "fetchAttestation called\n")
+	qp, err := quoteprovider.GetQuoteProvider()
+	if err != nil {
+		return []byte{}
+	}
+
+	if len(reportData) > agent.ReportDataSize {
+		return []byte{}
+	}
+	copy(reportData[:], reportDataSlice)
+
+	rawQuote, err := qp.GetRawQuote(reportData)
+	if err != nil {
+		return []byte{}
+	}
+
+	return rawQuote
 }

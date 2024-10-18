@@ -3,15 +3,24 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"path"
+	"strconv"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/google/go-sev-guest/validate"
+	"github.com/google/go-sev-guest/verify"
+	"github.com/google/go-sev-guest/verify/trust"
 	atls "github.com/ultravioletrs/cocos/pkg/tls_extensions"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -27,31 +36,31 @@ const (
 	withmTLS
 )
 
-// const (
-// 	cocosDirectory        = ".cocos"
-// 	caBundleName          = "ask_ark.pem"
-// 	productNameMilan      = "Milan"
-// 	productNameGenoa      = "Genoa"
-// 	attestationReportSize = 0x4A0
-// )
+const (
+	cocosDirectory        = ".cocos"
+	caBundleName          = "ask_ark.pem"
+	productNameMilan      = "Milan"
+	productNameGenoa      = "Genoa"
+	attestationReportSize = 0x4A0
+)
 
 var (
-	errGrpcConnect     = errors.New("failed to connect to grpc server")
-	errGrpcClose       = errors.New("failed to close grpc connection")
-	errManifestOpen    = errors.New("failed to open Manifest")
-	errManifestMissing = errors.New("failed due to missing Manifest")
-	errManifestDecode  = errors.New("failed to decode Manifest json")
+	errGrpcConnect  = errors.New("failed to connect to grpc server")
+	errGrpcClose    = errors.New("failed to close grpc connection")
+	errManifestOpen = errors.New("failed to open Manifest")
+	// errManifestMissing = errors.New("failed due to missing Manifest")
+	errManifestDecode = errors.New("failed to decode Manifest json")
 	// errCertificateParse = errors.New("failed to parse x509 certificate")
-	// errAttVerification  = errors.New("attestation verification failed")
-	// errAttValidation    = errors.New("attestation validation failed")
+	errAttVerification = errors.New("attestation verification failed")
+	errAttValidation   = errors.New("attestation validation failed")
 	// errCustomExtension  = errors.New("failed due to missing custom extension")
 )
 
 var (
 	// customSEVSNPExtensionOID = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6}
 	attestationConfiguration = AttestationConfiguration{}
-	// timeout                  = time.Minute * 2
-	// maxTryDelay              = time.Second * 30
+	timeout                  = time.Minute * 2
+	maxTryDelay              = time.Second * 30
 )
 
 type Config struct {
@@ -142,7 +151,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify:    true,
-			VerifyPeerCertificate: verifyAttestationReportTLS,
+			VerifyPeerCertificate: verifyPeerCertificateATLS,
 		}
 		tc = credentials.NewTLS(tlsConfig)
 	} else {
@@ -178,7 +187,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
-	opts = append(opts, grpc.WithContextDialer(atls.CustomDialer))
+	opts = append(opts, grpc.WithContextDialer(CustomDialer))
 
 	conn, err := grpc.NewClient(cfg.URL, opts...)
 	if err != nil {
@@ -207,8 +216,76 @@ func ReadBackendInfo(manifestPath string, attestationConfiguration *AttestationC
 	return ErrBackendInfoMissing
 }
 
-func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	fmt.Println("verifyAttestationReportTLS called!")
+func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {
+	fmt.Printf("CustomDialer - Addr is: %s\n", addr)
+	ip, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("could not create a custom dialer")
+	}
+
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, fmt.Errorf("bad format of IP address: %v", err)
+	}
+
+	vvHandle := atls.RegisterGoVVCallback(VerifyAttestationReportTLS)
+	conn, err := atls.DialTLSClient(ip, p, vvHandle)
+	if err != nil {
+		return nil, fmt.Errorf("could not create TLS connection")
+	}
+
+	return conn, nil
+}
+
+func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) int {
+	attestationConfiguration.SNPPolicy.ReportData = reportData[:]
+
+	// Attestation verification and validation
+	sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOfTrust)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", errors.Wrap(errAttVerification, err))
+		return -1
+	}
+
+	sopts.Product = attestationConfiguration.SNPPolicy.Product
+	sopts.Getter = &trust.RetryHTTPSGetter{
+		Timeout:       timeout,
+		MaxRetryDelay: maxTryDelay,
+		Getter:        &trust.SimpleHTTPSGetter{},
+	}
+
+	attestationPB, err := abi.ReportCertsToProto(attestationBytes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", errors.Wrap(errAttVerification, err))
+		return -1
+	}
+
+	if err := fillInAttestationLocal(attestationPB); err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+		return -1
+	}
+
+	if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
+		fmt.Fprintf(os.Stderr, "%v", errors.Wrap(errAttVerification, err))
+		return -1
+	}
+
+	opts, err := validate.PolicyToOptions(attestationConfiguration.SNPPolicy)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", errors.Wrap(errAttVerification, err))
+		return -1
+	}
+
+	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
+		fmt.Fprintf(os.Stderr, "%v", errors.Wrap(errAttValidation, err))
+		return -1
+	}
+
+	return 0
+}
+
+func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	fmt.Println("verifyPeerCertificateATLS called!")
 	// cert, err := x509.ParseCertificate(rawCerts[0])
 	// if err != nil {
 	// 	return errors.Wrap(errCertificateParse, err)
@@ -229,42 +306,6 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 
 	// 		expectedReportData := sha3.Sum512(publicKeyBytes)
 	// 		attestationConfiguration.SNPPolicy.ReportData = expectedReportData[:]
-
-	// 		// Attestation verification and validation
-	// 		sopts, err := verify.RootOfTrustToOptions(attestationConfiguration.RootOfTrust)
-	// 		if err != nil {
-	// 			return errors.Wrap(errAttVerification, err)
-	// 		}
-
-	// 		sopts.Product = attestationConfiguration.SNPPolicy.Product
-	// 		sopts.Getter = &trust.RetryHTTPSGetter{
-	// 			Timeout:       timeout,
-	// 			MaxRetryDelay: maxTryDelay,
-	// 			Getter:        &trust.SimpleHTTPSGetter{},
-	// 		}
-
-	// 		attestation_bytes := ext.Value[:attestationReportSize]
-	// 		attestationPB, err := abi.ReportCertsToProto(attestation_bytes)
-	// 		if err != nil {
-	// 			return errors.Wrap(errAttVerification, err)
-	// 		}
-
-	// 		if err := fillInAttestationLocal(attestationPB); err != nil {
-	// 			return err
-	// 		}
-
-	// 		if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
-	// 			return errors.Wrap(errAttVerification, err)
-	// 		}
-
-	// 		opts, err := validate.PolicyToOptions(attestationConfiguration.SNPPolicy)
-	// 		if err != nil {
-	// 			return errors.Wrap(errAttVerification, err)
-	// 		}
-
-	// 		if err = validate.SnpAttestation(attestationPB, opts); err != nil {
-	// 			return errors.Wrap(errAttValidation, err)
-	// 		}
 
 	// 		return nil
 	// 	}
@@ -290,31 +331,31 @@ func verifyAttestationReportTLS(rawCerts [][]byte, verifiedChains [][]*x509.Cert
 // 	return nil
 // }
 
-// func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
-// 	product := attestationConfiguration.RootOfTrust.ProductLine
+func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
+	product := attestationConfiguration.RootOfTrust.ProductLine
 
-// 	chain := attestation.GetCertificateChain()
-// 	if chain == nil {
-// 		chain = &sevsnp.CertificateChain{}
-// 		attestation.CertificateChain = chain
-// 	}
-// 	if len(chain.GetAskCert()) == 0 || len(chain.GetArkCert()) == 0 {
-// 		homePath, err := os.UserHomeDir()
-// 		if err != nil {
-// 			return err
-// 		}
+	chain := attestation.GetCertificateChain()
+	if chain == nil {
+		chain = &sevsnp.CertificateChain{}
+		attestation.CertificateChain = chain
+	}
+	if len(chain.GetAskCert()) == 0 || len(chain.GetArkCert()) == 0 {
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
 
-// 		bundleFilePath := path.Join(homePath, cocosDirectory, product, caBundleName)
-// 		if _, err := os.Stat(bundleFilePath); err == nil {
-// 			amdRootCerts := trust.AMDRootCerts{}
-// 			if err := amdRootCerts.FromKDSCert(bundleFilePath); err != nil {
-// 				return err
-// 			}
+		bundleFilePath := path.Join(homePath, cocosDirectory, product, caBundleName)
+		if _, err := os.Stat(bundleFilePath); err == nil {
+			amdRootCerts := trust.AMDRootCerts{}
+			if err := amdRootCerts.FromKDSCert(bundleFilePath); err != nil {
+				return err
+			}
 
-// 			chain.ArkCert = amdRootCerts.ProductCerts.Ark.Raw
-// 			chain.AskCert = amdRootCerts.ProductCerts.Ask.Raw
-// 		}
-// 	}
+			chain.ArkCert = amdRootCerts.ProductCerts.Ark.Raw
+			chain.AskCert = amdRootCerts.ProductCerts.Ask.Raw
+		}
+	}
 
-// 	return nil
-// }
+	return nil
+}
