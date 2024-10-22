@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -100,7 +101,7 @@ func main() {
 		return
 	}
 
-	agentGRPCClient, agentClient, err := agent.NewAgentClient(rootCmd.Context(), agentGRPCConfig)
+	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), agentGRPCConfig)
 	if err != nil {
 		message := color.New(color.FgRed).Sprintf("failed to create %s gRPC client : %s", svcName, err)
 		rootCmd.Println(message)
