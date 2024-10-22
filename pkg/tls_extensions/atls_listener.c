@@ -21,56 +21,57 @@ void cleanup_openssl() {
 }
 
 int load_certificates_from_memory(SSL_CTX* ctx, const char* cert, int cert_len, const char* key, int key_len) {
-    BIO* cert_bio = BIO_new_mem_buf(cert, cert_len);
+    BIO* cert_bio = NULL;
+    BIO* key_bio = NULL;
+    X509* x509_cert = NULL;
+    EVP_PKEY* pkey = NULL;
+    int success = 0;
+
+    cert_bio = BIO_new_mem_buf(cert, cert_len);
     if (cert_bio == NULL) {
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
-    BIO* key_bio = BIO_new_mem_buf(key, key_len);
+    key_bio = BIO_new_mem_buf(key, key_len);
     if (key_bio == NULL) {
-        BIO_free(cert_bio);
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
-    X509* x509_cert = PEM_read_bio_X509(cert_bio, NULL, 0, NULL);
+    x509_cert = PEM_read_bio_X509(cert_bio, NULL, 0, NULL);
     if (x509_cert == NULL) {
-        BIO_free(cert_bio);
-        BIO_free(key_bio);
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
-    EVP_PKEY* pkey = PEM_read_bio_PrivateKey(key_bio, NULL, 0, NULL);
+    pkey = PEM_read_bio_PrivateKey(key_bio, NULL, 0, NULL);
     if (pkey == NULL) {
-        X509_free(x509_cert);
-        BIO_free(cert_bio);
-        BIO_free(key_bio);
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
     if (SSL_CTX_use_certificate(ctx, x509_cert) <= 0) {
-        X509_free(x509_cert);
-        EVP_PKEY_free(pkey);
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
     if (SSL_CTX_use_PrivateKey(ctx, pkey) <= 0) {
-        X509_free(x509_cert);
-        EVP_PKEY_free(pkey);
-        ERR_print_errors_fp(stderr);
-        return 0;
+        goto cleanup;
     }
 
-    X509_free(x509_cert);
-    EVP_PKEY_free(pkey);
-    BIO_free(cert_bio);
-    BIO_free(key_bio);
+    if (SSL_CTX_check_private_key(ctx) <= 0) {
+        goto cleanup;
+    }
 
-    return 1;
+    success = 1;
+
+cleanup:
+    if (cert_bio) BIO_free(cert_bio);
+    if (key_bio) BIO_free(key_bio);
+    if (x509_cert) X509_free(x509_cert);
+    if (pkey) EVP_PKEY_free(pkey);
+    
+    if (!success) {
+        ERR_print_errors_fp(stderr);
+    }
+    
+    return success;
 }
 
 SSL_CTX *create_context(int is_server) {
@@ -90,23 +91,13 @@ SSL_CTX *create_context(int is_server) {
         return NULL;
     }
 
-    // SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
-
     return ctx;
-}
-
-// TODO: Delete
-void sprint_string_hex(char* dst, const unsigned char* s, int len){ 
-    for(int i = 0; i < len; i++){
-        sprintf(dst, "%02x", (unsigned int) *s++);
-        dst+=2;
-    }
 }
 
 int add_custom_tls_extension(SSL_CTX *ctx, tls_connection *conn) {
     uint32_t flags_nonce = SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS;
     uint32_t flags_attestation = SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_CERTIFICATE;
-    int ret = 0;
+    int ret = 1;
     void *data = NULL;
 
     if (conn != NULL) {
@@ -141,10 +132,9 @@ int add_custom_tls_extension(SSL_CTX *ctx, tls_connection *conn) {
 }
 
 // Function to start the TLS server
-tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port, uintptr_t fetch_handle) {
+tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port) {
     tls_server_connection *tls_server = (tls_server_connection*)malloc(sizeof(tls_server_connection));
 
-    fprintf(stderr, "Start TLS called on: IP (%s) and PORT (%d)\n", ip, port);
     init_openssl();
 
     tls_server->cert = (char*)malloc(cert_len*sizeof(char));
@@ -165,21 +155,6 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
     memcpy(tls_server->key, key, key_len);
     tls_server->cert_len = cert_len;
     tls_server->key_len = key_len;
-    tls_server->fetch_attestation_handler = fetch_handle;
-
-    // tls_server->ctx = create_context(TLS_SERVER_CTX);
-    // if (tls_server->ctx == NULL) {
-    //     free(tls_server);
-    //     perror("Unable to create contex");
-    //     return NULL;
-    // }
-
-    // if (!load_certificates_from_memory(tls_server->ctx, cert, cert_len, key, key_len)) {
-    //     fprintf(stderr, "Failed to load certificates\n");
-    //     free(tls_server);
-    //     return NULL;
-    // }
-    // add_custom_tls_extension(tls_server->ctx, NULL);
 
     tls_server->server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (tls_server->server_fd < 0) {
@@ -251,65 +226,83 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
 tls_connection* tls_server_accept(tls_server_connection *tls_server) {
     uint32_t len = sizeof(struct sockaddr_storage);
     tls_connection *conn = (tls_connection*)malloc(sizeof(tls_connection));
+    int client_fd = -1;
+    int ret = 0;
 
+    if (conn == NULL) {
+        perror("Unable to allocate memory for tls_connection");
+        return NULL;
+    }
+
+    // Initialize the context
     conn->ctx = create_context(TLS_SERVER_CTX);
     if (conn->ctx == NULL) {
-        free(conn);
-        perror("Unable to create contex");
-        return NULL;
+        perror("Unable to create context");
+        goto cleanup_conn;
     }
 
+    // Load certificates
     if (!load_certificates_from_memory(conn->ctx, tls_server->cert, tls_server->cert_len, tls_server->key, tls_server->key_len)) {
         fprintf(stderr, "Failed to load certificates\n");
-        free(conn);
-        return NULL;
+        goto cleanup_ctx;
     }
-    add_custom_tls_extension(conn->ctx, conn);
 
-    int client_fd = accept(tls_server->server_fd, NULL, NULL);
+    // Add custom TLS extension
+    ret = add_custom_tls_extension(conn->ctx, conn);
+    if (!ret) {
+        perror("Unable to add custom tls extensions");
+        goto cleanup_ctx;
+    }
+
+    // Accept client connection
+    client_fd = accept(tls_server->server_fd, NULL, NULL);
     if (client_fd < 0) {
-        perror("Unable to accept");
-        free(conn);
-        return NULL;
+        perror("Unable to accept connection");
+        goto cleanup_ctx;
     }
 
+    // Create SSL object
     conn->ssl = SSL_new(conn->ctx);
+    if (conn->ssl == NULL) {
+        perror("Unable to create SSL object");
+        goto cleanup_fd;
+    }
+
+    // Set file descriptor and assign handlers
     conn->socket_fd = client_fd;
-    conn->ctx = NULL;
-    conn->tls_ext_data.data = NULL;
-    conn->tls_ext_data.data_length = 0;
     conn->tls_ext_data.fetch_attestation_handler = tls_server->fetch_attestation_handler;
-    conn->tls_ext_data.verification_validation_handler = 0;
     SSL_set_fd(conn->ssl, client_fd);
 
+    // Get local address
     if (getsockname(client_fd, (struct sockaddr *)&conn->local_addr, &len) == -1) {
-        perror("getsockname failed during tls server accept");
-        SSL_free(conn->ssl);
-        SSL_CTX_free(conn->ctx);
-        close(client_fd);
-        free(conn);
-        return NULL;
+        perror("getsockname failed during TLS server accept");
+        goto cleanup_ssl;
     }
 
+    // Get remote address
     if (getpeername(client_fd, (struct sockaddr *)&conn->remote_addr, &len) == -1) {
-        perror("getpeername failed during tls server accept");
-        SSL_free(conn->ssl);
-        SSL_CTX_free(conn->ctx);
-        close(client_fd);
-        free(conn);
-        return NULL;
+        perror("getpeername failed during TLS server accept");
+        goto cleanup_ssl;
     }
 
-    if (SSL_accept(conn->ssl) <= 0) {
-        perror("unable to accept. SSL handshake failed");
-        SSL_free(conn->ssl);
-        SSL_CTX_free(conn->ctx);
-        close(client_fd);
-        free(conn);
-        return NULL;
+    // Perform SSL handshake
+    ret = SSL_accept(conn->ssl);
+    if (ret <= 0) {
+        perror("SSL handshake failed during accept");
+        goto cleanup_ssl;
     }
 
     return conn;
+
+cleanup_ssl:
+    if (conn->ssl) SSL_free(conn->ssl);
+cleanup_fd:
+    if (client_fd >= 0) close(client_fd);
+cleanup_ctx:
+    if (conn->ctx) SSL_CTX_free(conn->ctx);
+cleanup_conn:
+    free(conn);
+    return NULL;
 }
 
 // Function to close the server
@@ -336,21 +329,19 @@ int tls_write(tls_connection *conn, const void *buf, int num) {
 
 int tls_close(tls_connection *conn) {
     if (conn != NULL) {
-        
         if (conn->ssl != NULL) {
-            int ret = SSL_shutdown(conn->ssl);
+            int ret = 0;
 
-            if (ret < 0) {
-                perror("SSL did not shutdown correctly");
-                free(conn);
-                close(conn->socket_fd);
-                conn = NULL;
-                return -1;
-            } else if (ret == 1) {
-                printf("SHUTDOWN SUCCESSFULLY!\n");
-            } else if (ret == 0) {
-                printf("SHUTDOWN in PROGRESS\n");
-                return 0;
+            while (ret == 0) {
+                ret = SSL_shutdown(conn->ssl);
+
+                if (ret < 0) {
+                    fprintf(stderr, "SSL did not shutdown correctly\n");
+                    free(conn);
+                    close(conn->socket_fd);
+                    conn = NULL;
+                    return -1;
+                }
             }
             conn->ssl = NULL;
         }
@@ -363,9 +354,6 @@ int tls_close(tls_connection *conn) {
             SSL_CTX_free(conn->ctx);
             conn->ctx = NULL;
         }
-        if (conn->tls_ext_data.data != NULL) {
-            free(conn->tls_ext_data.data);
-        }
 
         free(conn);
         conn = NULL;
@@ -373,26 +361,6 @@ int tls_close(tls_connection *conn) {
     }
 
     return 0;
-}
-
-int tls_get_error(tls_connection *conn, int ret) {
-    int err = SSL_get_error(conn->ssl, ret);
-
-    switch (err) {
-        case SSL_ERROR_NONE:
-            return 0;  // No error
-        case SSL_ERROR_ZERO_RETURN:
-            return -1; // TLS connection closed
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-            return -2; // Operation not complete, retry later
-        case SSL_ERROR_SYSCALL:
-            return -3; // I/O error
-        case SSL_ERROR_SSL:
-            return -4;
-        default:
-            return -6; // Generic SSL error
-    }
 }
 
 char* tls_return_addr(struct sockaddr_storage *addr) {
@@ -435,51 +403,59 @@ int tls_return_port(struct sockaddr_storage *addr) {
     return -1;
 }
 
-void custom_free(void *ptr) {
-    free(ptr);
-}
-
-tls_connection* new_tls_connection(char *address, int port, uintptr_t vv_handle) {
-    SSL_CTX *ctx;
-    SSL *ssl;
-    int socket_fd;
+tls_connection* new_tls_connection(char *address, int port) {
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    int socket_fd = -1;
     int status;
-    struct addrinfo hints, *res, *p;
+    struct addrinfo hints, *res = NULL, *p = NULL;
     char port_str[6];
-    tls_connection *conn = (tls_connection*)malloc(sizeof(tls_connection));
+    tls_connection *conn = NULL;
     socklen_t addr_len;
+    int ret = 0;
 
-    snprintf(port_str, sizeof(port_str), "%d", port);
-
-    init_openssl();
-    ctx = create_context(TLS_CLIENT_CTX);
-    if (ctx == NULL) {
-        perror("could not create context");
-        free(conn);
-        SSL_CTX_free(ctx);
+    conn = (tls_connection*)malloc(sizeof(tls_connection));
+    if (!conn) {
+        perror("Failed to allocate memory for atls connection");
         return NULL;
     }
-    
-    conn->ctx = ctx;
-    conn->tls_ext_data.verification_validation_handler = vv_handle;
-    conn->tls_ext_data.fetch_attestation_handler = 0;
-    conn->tls_ext_data.data_length = 0;
-    conn->tls_ext_data.data = NULL;
-    add_custom_tls_extension(ctx, conn);
 
+    // Format the port string
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    // Initialize OpenSSL
+    init_openssl();
+
+    // Create SSL context
+    ctx = create_context(TLS_CLIENT_CTX);
+    if (!ctx) {
+        perror("Could not create context");
+        goto cleanup_conn;
+    }
+
+    conn->ctx = ctx;
+    // Add custom TLS extension
+    ret = add_custom_tls_extension(conn->ctx, conn);
+    if (!ret) {
+        perror("Unable to add custom tls extensions");
+        goto cleanup_ctx;
+    }
+
+    // Prepare the address info hints
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = 0;
-    hints.ai_protocol = 0; // any protocol.
+    hints.ai_protocol = 0;
 
-    if ((status = getaddrinfo(address, port_str, &hints, &res)) != 0) {
+    // Get address info
+    status = getaddrinfo(address, port_str, &hints, &res);
+    if (status != 0) {
         perror("getaddrinfo error");
-        free(conn);
-        SSL_CTX_free(ctx);
-        return NULL;
+        goto cleanup_ctx;
     }
 
+    // Iterate through the results and try to connect
     for (p = res; p != NULL; p = p->ai_next) {
         socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (socket_fd < 0) {
@@ -493,7 +469,6 @@ tls_connection* new_tls_connection(char *address, int port, uintptr_t vv_handle)
             continue;
         }
 
-        fprintf(stderr, "connected on %s\n", address);
         memcpy(&conn->local_addr, p->ai_addr, p->ai_addrlen);
         break;
     }
@@ -501,36 +476,45 @@ tls_connection* new_tls_connection(char *address, int port, uintptr_t vv_handle)
     freeaddrinfo(res);
 
     if (p == NULL) {
-        perror("failed to connect");
-        free(conn);
-        SSL_CTX_free(ctx);
-        return NULL;
+        perror("Failed to connect");
+        goto cleanup_ctx;
     }
+
     conn->socket_fd = socket_fd;
 
+    // Retrieve and store the remote address
     addr_len = sizeof(conn->remote_addr);
     if (getpeername(socket_fd, (struct sockaddr *)&conn->remote_addr, &addr_len) == -1) {
         perror("getpeername failed");
-        close(socket_fd);
-        free(conn);
-        SSL_CTX_free(ctx);
-        return NULL;
+        goto cleanup_socket;
     }
 
+    // Create the SSL structure
     ssl = SSL_new(ctx);
+    if (!ssl) {
+        perror("Failed to create SSL object");
+        goto cleanup_socket;
+    }
     SSL_set_fd(ssl, socket_fd);
     conn->ssl = ssl;
 
+    // Perform the SSL handshake
     if (SSL_connect(ssl) <= 0) {
-        perror("unable to SSL connect");
-        close(socket_fd);
-        SSL_free(ssl);
-        SSL_CTX_free(ctx);
-        free(conn);
-        return NULL;
+        perror("SSL handshake failed");
+        goto cleanup_ssl;
     }
 
     return conn;
+
+cleanup_ssl:
+    if (ssl) SSL_free(ssl);
+cleanup_socket:
+    if (socket_fd >= 0) close(socket_fd);
+cleanup_ctx:
+    if (ctx) SSL_CTX_free(ctx);
+cleanup_conn:
+    free(conn);
+    return NULL;
 }
 
 int set_socket_timeout(tls_connection* conn, int timeout_sec, int timeout_usec) {
@@ -541,6 +525,30 @@ int set_socket_timeout(tls_connection* conn, int timeout_sec, int timeout_usec) 
     if (setsockopt(conn->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         return -1;
     }
+
+    if (setsockopt(conn->socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int set_socket_read_timeout(tls_connection* conn, int timeout_sec, int timeout_usec) {
+    struct timeval timeout;
+    timeout.tv_sec = timeout_sec;
+    timeout.tv_usec = timeout_usec;
+
+    if (setsockopt(conn->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int set_socket_write_timeout(tls_connection* conn, int timeout_sec, int timeout_usec) {
+    struct timeval timeout;
+    timeout.tv_sec = timeout_sec;
+    timeout.tv_usec = timeout_usec;
 
     if (setsockopt(conn->socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
         return -1;

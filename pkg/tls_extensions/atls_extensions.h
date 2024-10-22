@@ -12,16 +12,21 @@
 #define TLS_CLIENT_CTX 0
 #define TLS_SERVER_CTX 1
 
-#define CPUID_EXTENDED_FEATURES 0x8000001F
+#define SEV_GUEST_DRIVER_PATH "/dev/sev-guest"
 #define NO_TEE 0
 #define AMD_TEE 1
 
+typedef struct evidence_request
+{
+    int tee_type;
+    char data[CLIENT_RANDOM_SIZE];
+} evidence_request;
+
 typedef struct tls_extension_data
 {
-    char *data;
-    int data_length;
     uintptr_t fetch_attestation_handler;
     uintptr_t verification_validation_handler;
+    evidence_request er;
 } tls_extension_data;
 
 typedef struct tls_server_connection
@@ -31,7 +36,6 @@ typedef struct tls_server_connection
     int cert_len;
     char* key;
     int key_len;
-    // SSL_CTX *ctx;
     struct sockaddr_storage addr;
     uintptr_t fetch_attestation_handler;
 } tls_server_connection;
@@ -46,19 +50,16 @@ typedef struct tls_connection
     tls_extension_data tls_ext_data;
 } tls_connection;
 
-void sprint_string_hex(char* dst, const unsigned char* s, int len);
-tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port, uintptr_t fetch_handle);
+tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port);
 tls_connection* tls_server_accept(tls_server_connection *tls_server);
 int tls_server_close(tls_server_connection *tls_server);
 int tls_read(tls_connection *conn, void *buf, int num);
 int tls_write(tls_connection *conn, const void *buf, int num);
 int tls_close(tls_connection *conn);
-int tls_extension_client(char *address, int port);
-void custom_free(void *ptr);
-tls_connection* new_tls_connection(char *address, int port, uintptr_t vv_handle);
-int set_socket_timeout(tls_connection* conn, int timeout_sec, int timeout_usec);
+tls_connection* new_tls_connection(char *address, int port);
+int set_socket_read_timeout(tls_connection* conn, int timeout_sec, int timeout_usec);
+int set_socket_write_timeout(tls_connection* conn, int timeout_sec, int timeout_usec);
 char* tls_return_addr(struct sockaddr_storage *addr);
-int tls_get_error(tls_connection *conn, int ret);
 int tls_return_port(struct sockaddr_storage *addr);
 int compute_sha256_of_public_key(X509 *cert, unsigned char *hash);
 

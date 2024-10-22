@@ -65,7 +65,7 @@ func main() {
 			AttestedTls: attestedTLS,
 		},
 	}
-	if err := sendAgentConfig(13, ac); err != nil {
+	if err := sendAgentConfig(3, ac); err != nil {
 		log.Fatal(err)
 	}
 

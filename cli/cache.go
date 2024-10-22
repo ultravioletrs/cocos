@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-sev-guest/kds"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
+	attest "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
@@ -26,14 +27,14 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 		Example: "ca-bundle <path_to_platform_info_json>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			attestationConfiguration := grpc.AttestationConfiguration{}
+			attestationConfiguration := attest.AttestationConfiguration{}
 			err := grpc.ReadBackendInfo(args[0], &attestationConfiguration)
 			if err != nil {
 				printError(cmd, "Error while reading manifest: %v ❌ ", err)
 				return
 			}
 
-			product := attestationConfiguration.RootOfTrust.Product
+			product := attestationConfiguration.RootOfTrust.ProductLine
 
 			getter := trust.DefaultHTTPSGetter()
 			caURL := kds.ProductCertChainURL(abi.VcekReportSigner, product)

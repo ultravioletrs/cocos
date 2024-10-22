@@ -17,36 +17,68 @@ import (
 	"unsafe"
 
 	"github.com/ultravioletrs/cocos/agent"
+	attest "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
-const inetAddrLen = 16
-
-var (
-	numberOfConnections = 0
-	mutex               sync.Mutex
+const (
+	NoTee int = iota
+	AmdSevSnp
 )
 
-type GoValidationVerificationCallback func(data1, data2 []byte) int
-type GoFetchAttestationCallback func(data1 []byte) []byte
+const (
+	NO_ERROR          = 0
+	ERROR_ZERO_RETURN = 6
+	ERROR_WANT_READ   = 2
+	ERROR_WANT_WRITE  = 3
+	ERROR_SYSCALL     = 5
+	ERROR_SSL         = 1
+)
 
-func RegisterGoVVCallback(callback GoValidationVerificationCallback) uintptr {
+type ValidationVerification func(data1, data2 []byte) int
+type FetchAttestation func(data1 []byte) []byte
+
+func registerFetchAttestation(callback FetchAttestation) uintptr {
 	handle := cgo.NewHandle(callback)
 	return uintptr(handle)
 }
 
-func RegisterFetchARCallback(callback GoFetchAttestationCallback) uintptr {
+func registerValidationVerification(callback ValidationVerification) uintptr {
 	handle := cgo.NewHandle(callback)
 	return uintptr(handle)
+}
+
+//export validationVerificationCallback
+func validationVerificationCallback(teeType C.int) uintptr {
+	switch int(teeType) {
+	case NoTee:
+		return uintptr(0)
+	case AmdSevSnp:
+		return registerValidationVerification(attest.VerifyAttestationReportTLS)
+	default:
+		return uintptr(0)
+	}
+}
+
+//export fetchAttestationCallback
+func fetchAttestationCallback(teeType C.int) uintptr {
+	switch int(teeType) {
+	case NoTee:
+		return uintptr(0)
+	case AmdSevSnp:
+		return registerFetchAttestation(attest.FetchAttestation)
+	default:
+		return uintptr(0)
+	}
 }
 
 //export callVerificationValidationCallback
 func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uchar, attReportSize C.int, repData *C.uchar) C.int {
 	handle := cgo.Handle(callbackHandle)
-	callback := handle.Value().(GoValidationVerificationCallback)
+	defer handle.Delete()
+
+	callback := handle.Value().(ValidationVerification)
 	attestationReport := C.GoBytes(unsafe.Pointer(attReport), attReportSize)
 	reportData := C.GoBytes(unsafe.Pointer(repData), agent.ReportDataSize)
-
-	fmt.Println("Verification callback")
 
 	return C.int(callback(attestationReport, reportData))
 }
@@ -54,13 +86,12 @@ func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uch
 //export callFetchAttestationCallback
 func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.uchar, outlen *C.int) *C.uchar {
 	handle := cgo.Handle(callbackHandle)
-	callback := handle.Value().(GoFetchAttestationCallback)
+	defer handle.Delete()
+
+	callback := handle.Value().(FetchAttestation)
 	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.ReportDataSize)
 
-	fmt.Println("Fetch attestation callback")
-
 	res := callback(reportData)
-
 	if res == nil {
 		fmt.Fprintf(os.Stderr, "attestation callback returned nill")
 		return nil
@@ -78,13 +109,12 @@ func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.ucha
 	return (*C.uchar)(resultC)
 }
 
-type CustomServerListener struct {
+type ATLSServerListener struct {
 	tlsListener *C.tls_server_connection
 }
 
-func Listen(addr string, cert []byte, key []byte, fetchAttestationHandler uintptr) (net.Listener, error) {
+func Listen(addr string, cert []byte, key []byte) (net.Listener, error) {
 	ip, port, err := net.SplitHostPort(addr)
-	fmt.Printf("IP, port is %s and %s\n", ip, addr)
 	if err != nil {
 		return nil, fmt.Errorf("error while creating listener: %v", err)
 	}
@@ -97,36 +127,33 @@ func Listen(addr string, cert []byte, key []byte, fetchAttestationHandler uintpt
 	cCertPEM := (*C.char)(unsafe.Pointer(&cert[0]))
 	cKeyPEM := (*C.char)(unsafe.Pointer(&key[0]))
 	cIP := C.CString(ip)
-	defer C.custom_free(unsafe.Pointer(cIP))
-
-	fmt.Printf("IP address: %s\n", addr)
+	defer C.free(unsafe.Pointer(cIP))
 
 	atlsListener := C.start_tls_server(
 		cCertPEM, C.int(len(cert)),
 		cKeyPEM, C.int(len(key)),
-		cIP, C.int(p),
-		C.uintptr_t(fetchAttestationHandler))
+		cIP, C.int(p))
 	if atlsListener == nil {
 		return nil, fmt.Errorf("could not create listener")
 	}
 
-	return &CustomServerListener{tlsListener: atlsListener}, nil
+	return &ATLSServerListener{tlsListener: atlsListener}, nil
 }
 
 // accept implements the Accept method in the [Listener] interface; it
 // waits for the next call and returns a generic [Conn].
-func (l *CustomServerListener) Accept() (net.Conn, error) {
+func (l *ATLSServerListener) Accept() (net.Conn, error) {
 	conn := C.tls_server_accept(l.tlsListener)
 	if conn == nil {
-		return nil, fmt.Errorf("could not accept connection")
+		return &ATLSConn{tlsConn: nil}, nil
 	}
 
-	return &CustomTLSConn{tlsConn: conn, shutdown: 0}, nil
+	return &ATLSConn{tlsConn: conn}, nil
 }
 
 // close stops listening on the TCP address.
 // already Accepted connections are not closed.
-func (l *CustomServerListener) Close() error {
+func (l *ATLSServerListener) Close() error {
 	ret := C.tls_server_close(l.tlsListener)
 	if ret != 0 {
 		return fmt.Errorf("could not close the TLS connection")
@@ -137,9 +164,9 @@ func (l *CustomServerListener) Close() error {
 // addr returns the listener's network address, a [*TCPAddr].
 // the Addr returned is shared by all invocations of Addr, so
 // do not modify it.
-func (l *CustomServerListener) Addr() net.Addr {
+func (l *ATLSServerListener) Addr() net.Addr {
 	cIP := C.tls_return_addr(&l.tlsListener.addr)
-	defer C.custom_free(unsafe.Pointer(cIP))
+	defer C.free(unsafe.Pointer(cIP))
 
 	ip := C.GoString(cIP)
 
@@ -150,27 +177,22 @@ func (l *CustomServerListener) Addr() net.Addr {
 
 	port := C.tls_return_port(&l.tlsListener.addr)
 
-	fmt.Printf("Server IP Address: %s:%d\n", ip, int(port))
-
 	return &net.TCPAddr{IP: parsedIP, Port: int(port)}
 }
 
-type CustomTLSConn struct {
+type ATLSConn struct {
 	tlsConn      *C.tls_connection
 	fdReadMutex  sync.Mutex
 	fdWriteMutex sync.Mutex
 	fdDelayMutex sync.Mutex
-	shutdown     int
 }
 
-func (c *CustomTLSConn) Read(b []byte) (int, error) {
+func (c *ATLSConn) Read(b []byte) (int, error) {
 	c.fdReadMutex.Lock()
 	defer c.fdReadMutex.Unlock()
 
-	fmt.Println("CustomTLSConn - Read")
-
-	if c.shutdown == 1 {
-		return 0, nil
+	if c.tlsConn == nil {
+		return 0, fmt.Errorf("tls connection is NULL")
 	}
 
 	n := int(C.tls_read(c.tlsConn, unsafe.Pointer(&b[0]), C.int(len(b))))
@@ -179,36 +201,40 @@ func (c *CustomTLSConn) Read(b []byte) (int, error) {
 		return n, nil
 	}
 
-	// call the C function tls_get_error to interpret the error.
-	errCode := int(C.tls_get_error(c.tlsConn, C.int(n)))
+	// call the C function SSL_get_error to interpret the error.
+	errCode := int(C.SSL_get_error(c.tlsConn.ssl, C.int(n)))
 
-	// handle specific error codes returned by tls_get_error.
+	// handle specific error codes returned by SSL_get_error.
 	switch errCode {
-	case 0:
+	case NO_ERROR:
 		return n, nil // no error.
-	case -1:
-		fmt.Println("Connection closed by peer")
+	case ERROR_ZERO_RETURN:
+		fmt.Fprintf(os.Stderr, "Connection closed by peer")
 		return 0, io.EOF // connection closed.
-	case -2:
-		fmt.Println("Operation incomplete, retry later")
+	case ERROR_WANT_READ:
+		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later")
 		return 0, nil // non-fatal, just retry later.
-	case -3:
-		fmt.Println("I/O error")
+	case ERROR_WANT_WRITE:
+		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later")
+		return 0, nil // non-fatal, just retry later.
+	case ERROR_SYSCALL:
+		fmt.Fprintf(os.Stderr, "I/O error")
+		return 0, syscall.ECONNRESET // return connection reset error.
+	case ERROR_SSL:
+		fmt.Fprintf(os.Stderr, "I/O error")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	default:
-		fmt.Printf("SSL error occurred: %d\n", errCode)
+		fmt.Fprintf(os.Stderr, "SSL error occurred: %d\n", errCode)
 		return 0, fmt.Errorf("SSL error")
 	}
 }
 
-func (c *CustomTLSConn) Write(b []byte) (int, error) {
+func (c *ATLSConn) Write(b []byte) (int, error) {
 	c.fdWriteMutex.Lock()
 	defer c.fdWriteMutex.Unlock()
 
-	fmt.Println("CustomTLSConn - Write")
-
-	if c.shutdown == 1 {
-		return 0, nil
+	if c.tlsConn == nil {
+		return 0, fmt.Errorf("tls connection is NULL")
 	}
 
 	n := int(C.tls_write(c.tlsConn, unsafe.Pointer(&b[0]), C.int(len(b))))
@@ -218,7 +244,7 @@ func (c *CustomTLSConn) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func (c *CustomTLSConn) Close() error {
+func (c *ATLSConn) Close() error {
 	c.fdReadMutex.Lock()
 	defer c.fdReadMutex.Unlock()
 
@@ -228,30 +254,29 @@ func (c *CustomTLSConn) Close() error {
 	c.fdDelayMutex.Lock()
 	defer c.fdDelayMutex.Unlock()
 
-	fmt.Fprintf(os.Stderr, "CustomTLSConn - Close called\n")
-
-	if c.shutdown == 1 {
+	if c.tlsConn == nil {
 		return nil
 	}
 
 	ret := C.tls_close(c.tlsConn)
 
 	if int(ret) < 0 {
-		return fmt.Errorf("TLSConn did not cose correctly")
-	} else if int(ret) == 1 {
-		fmt.Println("TLSConn closed correctly")
 		c.tlsConn = nil
-		c.shutdown = 1
-	} else {
-		fmt.Println("TLSConn in SHUTDOWN progress")
+		return fmt.Errorf("TLSConn did not close correctly")
+	} else if int(ret) == 1 {
+		c.tlsConn = nil
 	}
+
 	return nil
 }
 
-func (c *CustomTLSConn) LocalAddr() net.Addr {
+func (c *ATLSConn) LocalAddr() net.Addr {
+	if c.tlsConn == nil {
+		return nil
+	}
 	cIP := C.tls_return_addr(&c.tlsConn.local_addr)
 	ipLength := C.strlen(cIP)
-	defer C.custom_free(unsafe.Pointer(cIP))
+	defer C.free(unsafe.Pointer(cIP))
 
 	ip := C.GoStringN(cIP, C.int(ipLength))
 
@@ -263,12 +288,13 @@ func (c *CustomTLSConn) LocalAddr() net.Addr {
 
 	port := C.tls_return_port(&c.tlsConn.local_addr)
 
-	fmt.Fprintf(os.Stderr, "CustomTLSConn - LocalAddr called: %s:%d\n", ip, int(port))
-
 	return &net.TCPAddr{IP: parsedIP, Port: int(port)}
 }
 
-func (c *CustomTLSConn) RemoteAddr() net.Addr {
+func (c *ATLSConn) RemoteAddr() net.Addr {
+	if c.tlsConn == nil {
+		return nil
+	}
 	cIP := C.tls_return_addr(&c.tlsConn.remote_addr)
 	if cIP == nil {
 		fmt.Println("RemoteAddr error while fetching ip")
@@ -276,7 +302,7 @@ func (c *CustomTLSConn) RemoteAddr() net.Addr {
 	}
 
 	ipLength := C.strlen(cIP)
-	defer C.custom_free(unsafe.Pointer(cIP))
+	defer C.free(unsafe.Pointer(cIP))
 
 	ip := C.GoStringN(cIP, C.int(ipLength))
 
@@ -288,51 +314,71 @@ func (c *CustomTLSConn) RemoteAddr() net.Addr {
 
 	port := C.tls_return_port(&c.tlsConn.remote_addr)
 
-	fmt.Fprintf(os.Stderr, "CustomTLSConn - RemoteAddr called: %s:%d\n", ip, int(port))
-
 	return &net.TCPAddr{IP: parsedIP, Port: int(port)}
 }
 
-func (c *CustomTLSConn) SetDeadline(t time.Time) error {
+func (c *ATLSConn) SetDeadline(t time.Time) error {
 	c.fdDelayMutex.Lock()
 	defer c.fdDelayMutex.Unlock()
 
-	if c.shutdown == 1 {
+	if c.tlsConn == nil {
 		return nil
 	}
 
 	sec, usec := timeToTimeout(t)
-	if C.set_socket_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
-		return fmt.Errorf("could not set deadline")
+	if C.set_socket_read_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
+		return fmt.Errorf("could not set read deadline, socket timeout failed")
+	}
+
+	if C.set_socket_write_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
+		return fmt.Errorf("could not set write deadline, socket timeout failed")
 	}
 
 	return nil
 }
 
-func (c *CustomTLSConn) SetReadDeadline(t time.Time) error {
-	if c.SetDeadline(t) != nil {
-		return fmt.Errorf("could not set write deadline")
+func (c *ATLSConn) SetReadDeadline(t time.Time) error {
+	c.fdDelayMutex.Lock()
+	defer c.fdDelayMutex.Unlock()
+
+	if c.tlsConn == nil {
+		return nil
 	}
+
+	sec, usec := timeToTimeout(t)
+	if C.set_socket_read_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
+		return fmt.Errorf("could not set read deadline, socket timeout failed")
+	}
+
 	return nil
 }
 
-func (c *CustomTLSConn) SetWriteDeadline(t time.Time) error {
-	if c.SetDeadline(t) != nil {
-		return fmt.Errorf("could not set write deadline")
+func (c *ATLSConn) SetWriteDeadline(t time.Time) error {
+	c.fdDelayMutex.Lock()
+	defer c.fdDelayMutex.Unlock()
+
+	if c.tlsConn == nil {
+		return nil
 	}
+
+	sec, usec := timeToTimeout(t)
+	if C.set_socket_write_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
+		return fmt.Errorf("could not set write deadline, socket timeout failed")
+	}
+
 	return nil
 }
 
-func DialTLSClient(hostname string, port int, vvHandle uintptr) (net.Conn, error) {
+func DialTLSClient(hostname string, port int) (net.Conn, error) {
 	cHostName := C.CString(hostname)
-	defer C.custom_free(unsafe.Pointer(cHostName))
+	defer C.free(unsafe.Pointer(cHostName))
 
-	conn := C.new_tls_connection(cHostName, C.int(port), C.uintptr_t(vvHandle))
+	conn := C.new_tls_connection(cHostName, C.int(port))
 	if conn == nil {
 		return nil, fmt.Errorf("could not create connection")
 	}
 
-	return &CustomTLSConn{tlsConn: conn, shutdown: 0}, nil
+	return &ATLSConn{tlsConn: conn}, nil
 }
 
 func timeToTimeout(t time.Time) (int, int) {
@@ -341,6 +387,10 @@ func timeToTimeout(t time.Time) (int, int) {
 	}
 
 	d := time.Until(t)
+	if d <= 0 {
+		return 0, 0
+	}
+
 	seconds := int(d.Seconds())
 	microseconds := int(d.Nanoseconds()/1000) % 1_000_000
 	return seconds, microseconds
