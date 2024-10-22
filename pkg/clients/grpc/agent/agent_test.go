@@ -1,3 +1,5 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
 package agent
 
 import (
@@ -19,7 +21,6 @@ import (
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// TestServer represents our test gRPC server
 type TestServer struct {
 	agent.UnimplementedAgentServiceServer
 	server     *grpc.Server
@@ -28,18 +29,14 @@ type TestServer struct {
 	listenAddr string
 }
 
-// NewTestServer creates a new test server instance
 func NewTestServer() (*TestServer, error) {
-	// Find an available port
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %v", err)
 	}
 
-	// Get the chosen port
 	addr := listener.Addr().(*net.TCPAddr)
 
-	// Create a new gRPC server
 	server := grpc.NewServer()
 	healthServer := health.NewServer()
 
@@ -51,24 +48,20 @@ func NewTestServer() (*TestServer, error) {
 	}
 
 	svc := new(mocks.Service)
-	// Register services
 	agent.RegisterAgentServiceServer(server, agentgrpc.NewServer(svc))
 	grpchealth.RegisterHealthServer(server, healthServer)
 
-	// Start server
 	go func() {
 		if err := server.Serve(listener); err != nil {
 			fmt.Printf("Server exited with error: %v\n", err)
 		}
 	}()
 
-	// Set status to serving
 	healthServer.SetServingStatus("agent", grpchealth.HealthCheckResponse_SERVING)
 
 	return ts, nil
 }
 
-// Stop stops the test server
 func (s *TestServer) Stop() {
 	if s.server != nil {
 		s.server.GracefulStop()
