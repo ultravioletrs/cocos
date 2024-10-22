@@ -7,6 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -32,6 +33,8 @@ func decodeErros(err error) error {
 	case errors.Contains(err, auth.ErrSignatureVerificationFailed):
 		return auth.ErrSignatureVerificationFailed
 
+	case errors.Contains(err, agent.ErrAgentServiceUnavailable):
+		return agent.ErrAgentServiceUnavailable
 	default:
 		return err
 	}

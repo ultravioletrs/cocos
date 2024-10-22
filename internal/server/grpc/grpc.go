@@ -30,6 +30,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -51,6 +53,7 @@ type Server struct {
 	registerService serviceRegister
 	quoteProvider   client.QuoteProvider
 	authSvc         auth.Authenticator
+	health          *health.Server
 }
 
 type serviceRegister func(srv *grpc.Server)
@@ -165,7 +168,10 @@ func (s *Server) Start() error {
 	grpcServerOptions = append(grpcServerOptions, creds)
 
 	s.server = grpc.NewServer(grpcServerOptions...)
+	s.health = health.NewServer()
+	grpchealth.RegisterHealthServer(s.server, s.health)
 	s.registerService(s.server)
+	s.health.SetServingStatus(s.Name, grpchealth.HealthCheckResponse_SERVING)
 
 	go func() {
 		errCh <- s.server.Serve(listener)
@@ -185,6 +191,7 @@ func (s *Server) Stop() error {
 	c := make(chan bool)
 	go func() {
 		defer close(c)
+		s.health.Shutdown()
 		s.server.GracefulStop()
 	}()
 	select {

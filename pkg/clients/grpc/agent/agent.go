@@ -3,15 +3,30 @@
 package agent
 
 import (
+	"context"
+
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
 
+var ErrAgentServiceUnavailable = errors.New("agent service is unavailable")
+
 // NewAgentClient creates new agent gRPC client instance.
-func NewAgentClient(cfg grpc.Config) (grpc.Client, agent.AgentServiceClient, error) {
+func NewAgentClient(ctx context.Context, cfg grpc.Config) (grpc.Client, agent.AgentServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	health := grpchealth.NewHealthClient(client.Connection())
+	resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
+		Service: "agent",
+	})
+
+	if err != nil || resp.GetStatus() != grpchealth.HealthCheckResponse_SERVING {
+		return nil, nil, errors.Wrap(err, ErrAgentServiceUnavailable)
 	}
 
 	return client, agent.NewAgentServiceClient(client.Connection()), nil
