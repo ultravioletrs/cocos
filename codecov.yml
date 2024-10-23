@@ -4,3 +4,7 @@
 coverage:
   ignore:
     - "test/*"
+    - "**/mocks*"
+    - "logging.go"
+    - "metrics.go"
+    - "tracing.go"

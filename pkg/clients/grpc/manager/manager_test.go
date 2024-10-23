@@ -11,7 +11,6 @@ import (
 )
 
 func TestNewManagerClient(t *testing.T) {
-	// Test cases
 	tests := []struct {
 		name string
 		cfg  grpc.Config
@@ -19,11 +18,13 @@ func TestNewManagerClient(t *testing.T) {
 	}{
 		{
 			name: "Valid config",
-			cfg:  grpc.Config{},
-			err:  nil,
+			cfg: grpc.Config{
+				URL: "localhost:7001",
+			},
+			err: nil,
 		},
 		{
-			name: "Invalid config",
+			name: "missing BackendInfo",
 			cfg:  grpc.Config{AttestedTLS: true},
 			err:  grpc.ErrBackendInfoMissing,
 		},

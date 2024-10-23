@@ -376,6 +376,11 @@ func TestCheckIfCertificateSelfSigned(t *testing.T) {
 			cert: selfSignedCert,
 			err:  nil,
 		},
+		{
+			name: "missing certificate contents",
+			cert: &x509.Certificate{},
+			err:  errors.New("x509: missing ASN.1 contents; use ParseCertificate"),
+		},
 	}
 
 	for _, tt := range tests {
