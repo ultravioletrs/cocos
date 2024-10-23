@@ -207,7 +207,7 @@ func attesationToJSON(report []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return json.Marshal(attestationPB)
+	return json.MarshalIndent(attestationPB, "", "	")
 }
 
 func attesationFromJSON(reportFile []byte) ([]byte, error) {
