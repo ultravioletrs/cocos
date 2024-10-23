@@ -152,44 +152,39 @@ func TestReadBackendInfo(t *testing.T) {
 	validJSON := `{"snp_policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
 	invalidJSON := `{"invalid_json"`
 
-	tests := []struct {
+	cases := []struct {
 		name         string
 		manifestPath string
 		fileContent  string
-		wantErr      bool
 		err          error
 	}{
 		{
 			name:         "Valid manifest",
 			manifestPath: "valid_manifest.json",
 			fileContent:  validJSON,
-			wantErr:      false,
 			err:          nil,
 		},
 		{
 			name:         "Invalid JSON",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSON,
-			wantErr:      true,
 			err:          ErrBackendInfoDecode,
 		},
 		{
 			name:         "Non-existent file",
 			manifestPath: "nonexistent.json",
 			fileContent:  "",
-			wantErr:      true,
 			err:          errBackendInfoOpen,
 		},
 		{
 			name:         "Empty manifest path",
 			manifestPath: "",
 			fileContent:  "",
-			wantErr:      true,
 			err:          ErrBackendInfoMissing,
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.manifestPath != "" && tt.fileContent != "" {
 				err := os.WriteFile(tt.manifestPath, []byte(tt.fileContent), 0o644)
@@ -201,10 +196,7 @@ func TestReadBackendInfo(t *testing.T) {
 			err := ReadBackendInfo(tt.manifestPath, config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			if tt.err == nil {
 				assert.NotNil(t, config.SNPPolicy)
 				assert.NotNil(t, config.RootOfTrust)
 			}
