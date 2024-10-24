@@ -262,7 +262,8 @@ func TestAttestationFromJSON(t *testing.T) {
 						Signature:       make([]byte, 512),
 					},
 				}
-				data, _ := json.Marshal(att)
+				data, err := json.Marshal(att)
+				require.NoError(t, err)
 				return data
 			}(),
 			err: nil,
