@@ -19,8 +19,10 @@ import (
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -309,18 +311,53 @@ func TestVerifyAttestationReportTLS(t *testing.T) {
 	file, err := os.ReadFile("../../../attestation.bin")
 	require.NoError(t, err)
 
-	ar, err := abi.ReportCertsToProto(file)
+	rr, err := abi.ReportCertsToProto(file)
 	require.NoError(t, err)
-	arBytes, err := proto.Marshal(ar)
+
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	require.NoError(t, err)
+
+	expectedReportData := sha3.Sum512(publicKeyBytes)
+	rr.Report.ReportData = expectedReportData[:]
+
+	file2, err := report.Transform(rr, "bin")
+	require.NoError(t, err)
+
+	file3, err := proto.Marshal(rr)
+	require.NoError(t, err)
+
+	if len(file) < attestationReportSize {
+		file = append(file, make([]byte, attestationReportSize-len(file))...)
+	}
+
+	if len(file2) < attestationReportSize {
+		file2 = append(file2, make([]byte, attestationReportSize-len(file2))...)
+	}
+
+	if len(file3) < attestationReportSize {
+		file3 = append(file3, make([]byte, attestationReportSize-len(file3))...)
+	}
+
 	template.ExtraExtensions = []pkix.Extension{
 		{
 			Id:    customSEVSNPExtensionOID,
-			Value: append(arBytes, make([]byte, attestationReportSize-len(arBytes))...),
+			Value: file,
 		},
 	}
 
+	template2 := template
+	template2.ExtraExtensions[0].Value = file2
+
+	template3 := template
+	template3.ExtraExtensions[0].Value = file3
+
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+
+	certDERBadSig, err := x509.CreateCertificate(rand.Reader, &template2, &template2, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+
+	certDERMalformed, err := x509.CreateCertificate(rand.Reader, &template3, &template3, &privateKey.PublicKey, privateKey)
 	require.NoError(t, err)
 
 	backendinfoFile, err := os.ReadFile("../../../scripts/backend_info/backend_info.json")
@@ -333,14 +370,32 @@ func TestVerifyAttestationReportTLS(t *testing.T) {
 	err = json.Unmarshal(backendinfoFile, &attestationConfiguration)
 	require.NoError(t, err)
 
+	attestationConfiguration.SNPPolicy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
+	attestationConfiguration.SNPPolicy.FamilyId = rr.Report.FamilyId
+	attestationConfiguration.SNPPolicy.ImageId = rr.Report.ImageId
+	attestationConfiguration.SNPPolicy.Measurement = rr.Report.Measurement
+	attestationConfiguration.SNPPolicy.HostData = rr.Report.HostData
+	attestationConfiguration.SNPPolicy.ReportIdMa = rr.Report.ReportIdMa
+	attestationConfiguration.RootOfTrust.ProductLine = "Milan"
+
 	tests := []struct {
 		name     string
 		rawCerts [][]byte
 		err      error
 	}{
 		{
-			name:     "Valid certificate with attestation, malformed guest policy",
+			name:     "Valid certificate with attestation, validation fails on report data",
 			rawCerts: [][]byte{certDER},
+			err:      errAttVerification,
+		},
+		{
+			name:     "Valid certificate with attestation, distorted signature",
+			rawCerts: [][]byte{certDERBadSig},
+			err:      errAttVerification,
+		},
+		{
+			name:     "Valid certificate with attestation, malformed policy",
+			rawCerts: [][]byte{certDERMalformed},
 			err:      errAttVerification,
 		},
 		{
