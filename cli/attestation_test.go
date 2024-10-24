@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
@@ -193,38 +194,39 @@ func TestGetBase(t *testing.T) {
 }
 
 func TestAttestationToJSON(t *testing.T) {
+	validReport, err := os.ReadFile("../attestation.bin")
+	require.NoError(t, err)
 	tests := []struct {
-		name    string
-		input   []byte
-		wantErr bool
+		name  string
+		input []byte
+		err   error
 	}{
 		{
-			name:    "Valid report",
-			input:   make([]byte, abi.ReportSize),
-			wantErr: false,
+			name:  "Valid report",
+			input: validReport,
+			err:   nil,
 		},
 		{
-			name:    "Invalid report size",
-			input:   make([]byte, abi.ReportSize-1),
-			wantErr: true,
+			name:  "Invalid report size",
+			input: make([]byte, abi.ReportSize-1),
+			err:   errReportSize,
 		},
 		{
-			name:    "Nil input",
-			input:   nil,
-			wantErr: true,
+			name:  "Nil input",
+			input: nil,
+			err:   errReportSize,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := attesationToJSON(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
+			assert.True(t, errors.Contains(err, tt.err))
+			if tt.err != nil {
 				assert.Nil(t, got)
 				return
 			}
 
-			require.NoError(t, err)
 			require.NotNil(t, got)
 
 			var js map[string]interface{}
@@ -238,33 +240,48 @@ func TestAttestationFromJSON(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
-		wantErr  bool
+		err      error
 		validate func(t *testing.T, output []byte)
 	}{
 		{
 			name: "Valid JSON",
 			input: func() []byte {
-				att := &sevsnp.Attestation{}
+				att := &sevsnp.Attestation{
+					Report: &sevsnp.Report{
+						CurrentTcb:      1,
+						FamilyId:        make([]byte, 16),
+						ImageId:         make([]byte, 16),
+						ReportData:      make([]byte, 64),
+						Measurement:     make([]byte, 48),
+						HostData:        make([]byte, 32),
+						IdKeyDigest:     make([]byte, 48),
+						AuthorKeyDigest: make([]byte, 48),
+						ReportId:        make([]byte, 32),
+						ReportIdMa:      make([]byte, 32),
+						ChipId:          make([]byte, 64),
+						Signature:       make([]byte, 512),
+					},
+				}
 				data, _ := json.Marshal(att)
 				return data
 			}(),
-			wantErr: false,
+			err: nil,
 			validate: func(t *testing.T, output []byte) {
 				assert.NotEmpty(t, output)
 			},
 		},
 		{
-			name:    "Invalid JSON",
-			input:   []byte(`{"invalid": json`),
-			wantErr: true,
+			name:  "Invalid JSON",
+			input: []byte(`{"invalid": json`),
+			err:   errors.New("invalid character 'j' looking for beginning of value"),
 			validate: func(t *testing.T, output []byte) {
 				assert.Nil(t, output)
 			},
 		},
 		{
-			name:    "Empty input",
-			input:   []byte{},
-			wantErr: true,
+			name:  "Empty input",
+			input: []byte{},
+			err:   errors.New("unexpected end of JSON input"),
 			validate: func(t *testing.T, output []byte) {
 				assert.Nil(t, output)
 			},
@@ -274,11 +291,7 @@ func TestAttestationFromJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := attesationFromJSON(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.True(t, errors.Contains(err, tt.err))
 			tt.validate(t, got)
 		})
 	}

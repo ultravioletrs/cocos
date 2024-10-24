@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
@@ -119,6 +120,7 @@ var (
 	empty64             = [size64]byte{}
 	defaultReportIdMa   = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	getJsonAttestation  bool
+	errReportSize       = errors.New("attestation contents too small")
 )
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
@@ -202,6 +204,9 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 }
 
 func attesationToJSON(report []byte) ([]byte, error) {
+	if len(report) < abi.ReportSize {
+		return nil, errors.Wrap(errReportSize, fmt.Errorf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(report), abi.ReportSize))
+	}
 	attestationPB, err := abi.ReportCertsToProto(report[:abi.ReportSize])
 	if err != nil {
 		return nil, err
