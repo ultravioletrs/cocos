@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/proto/check"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	atls "github.com/ultravioletrs/cocos/pkg/tls_extensions"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -32,7 +34,7 @@ const (
 var (
 	errGrpcConnect      = errors.New("failed to connect to grpc server")
 	errGrpcClose        = errors.New("failed to close grpc connection")
-	errManifestOpen     = errors.New("failed to open Manifest")
+	errManifestRead     = errors.New("failed to read Manifest")
 	errManifestDecode   = errors.New("failed to decode Manifest json")
 	errCertificateParse = errors.New("failed to parse x509 certificate")
 	errAttVerification  = errors.New("attestation verification failed")
@@ -114,7 +116,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := ReadBackendInfo(cfg.BackendInfo, &attestationConfiguration)
+		err := ReadBackendInfo(cfg.BackendInfo, &quoteprovider.AttConfigurationSEVSNP)
 		if err != nil {
 			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Backend Info"), err)
 		}
@@ -166,13 +168,12 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func ReadBackendInfo(manifestPath string, attestationConfiguration *AttestationConfiguration) error {
+func ReadBackendInfo(manifestPath string, attestationConfiguration *check.Config) error {
 	if manifestPath != "" {
-		manifest, err := os.Open(manifestPath)
+		manifest, err := os.ReadFile(manifestPath)
 		if err != nil {
 			return errors.Wrap(errBackendInfoOpen, err)
 		}
-		defer manifest.Close()
 
 		decoder := json.NewDecoder(manifest)
 		err = decoder.Decode(attestationConfiguration)

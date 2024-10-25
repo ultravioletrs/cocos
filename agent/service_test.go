@@ -18,10 +18,10 @@ import (
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
-	"github.com/ultravioletrs/cocos/agent/quoteprovider"
-	mocks2 "github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )

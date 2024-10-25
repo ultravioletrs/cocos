@@ -24,16 +24,11 @@ struct SevProduct {
 }
 
 #[derive(Serialize)]
-struct Vmpl {
-    value: u32,
-}
-
-#[derive(Serialize)]
 struct SnpPolicy {
     policy: u64,
     family_id: Vec<u8>,
     image_id: Vec<u8>,
-    vmpl: Vmpl,
+    vmpl: u32,
     minimum_tcb: u64,
     minimum_launch_tcb: u64,
     require_author_key: bool,
@@ -58,7 +53,7 @@ struct RootOfTrust {
 
 #[derive(Serialize)]
 struct Computation {
-    snp_policy: SnpPolicy,
+    policy: SnpPolicy,
     root_of_trust: RootOfTrust,
 }
 
@@ -127,7 +122,7 @@ fn main() {
     let policy: u64 = *matches.get_one::<u64>("policy").unwrap();
     let family_id = vec![0; 16];
     let image_id = vec![0; 16];
-    let vmpl = Vmpl { value: 0 };
+    let vmpl = 0;
     let minimum_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let minimum_launch_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let require_author_key = false;
@@ -142,7 +137,7 @@ fn main() {
     let require_id_block = false;
     let product = sev_product(get_sev_snp_processor());
 
-    let snp_policy = SnpPolicy {
+    let policy = SnpPolicy {
         policy,
         family_id,
         image_id,
@@ -169,7 +164,7 @@ fn main() {
     };
 
     let computation = Computation {
-        snp_policy,
+        policy,
         root_of_trust,
     };
 

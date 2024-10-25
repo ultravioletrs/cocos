@@ -13,8 +13,6 @@ extern uintptr_t validationVerificationCallback(int teeType);
 extern uintptr_t fetchAttestationCallback(int teeType);
 
 int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char *attestationReport, int reportSize, u_char *reportData) {
-    int outlen = 0;
-
     if (attestationReport == NULL || reportData == NULL) {
         fprintf(stderr, "attestation data and report data cannot be NULL\n");
         return -1;
@@ -122,7 +120,7 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         }
 
         if (ext_data != NULL) {
-            if (RAND_bytes(ext_data->er.data, CLIENT_RANDOM_SIZE) < 0) {
+            if (RAND_bytes(ext_data->er.data, CLIENT_RANDOM_SIZE) != 1) {
                 perror("could not generate random bytes, will use SSL client random");
                 SSL_get_client_random(s, ext_data->er.data, CLIENT_RANDOM_SIZE);
             }
@@ -276,6 +274,10 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
             }
 
             attestation_report = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, hash);
+            if (attestation_report == NULL) {
+                fprintf(stderr, "attestation report is NULL\n");
+                return 0;
+            }
             free(hash);
 
             *out = attestation_report;

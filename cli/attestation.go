@@ -17,12 +17,10 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
-	"github.com/google/go-sev-guest/validate"
-	"github.com/google/go-sev-guest/verify"
-	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -269,7 +267,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				return
 			}
 
-			if err := verifyAndValidateAttestation(attestation); err != nil {
+			if err := quoteprovider.VerifyAndValidate(attestation, &cfg); err != nil {
 				printError(cmd, "Attestation validation and verification failed with error: %v ❌ ", err)
 				return
 			}
@@ -464,57 +462,6 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	return cmd
 }
 
-func verifyAndValidateAttestation(attestation []byte) error {
-	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
-	if err != nil {
-		return err
-	}
-
-	if cfg.Policy.Product == nil {
-		productName := sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
-		switch cfg.RootOfTrust.ProductLine {
-		case sevProductNameMilan:
-			productName = sevsnp.SevProduct_SEV_PRODUCT_MILAN
-		case sevProductNameGenoa:
-			productName = sevsnp.SevProduct_SEV_PRODUCT_GENOA
-		default:
-		}
-
-		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
-			return fmt.Errorf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa)
-		}
-
-		sopts.Product = &sevsnp.SevProduct{
-			Name: productName,
-		}
-	} else {
-		sopts.Product = cfg.Policy.Product
-	}
-
-	sopts.Getter = &trust.RetryHTTPSGetter{
-		Timeout:       timeout,
-		MaxRetryDelay: maxRetryDelay,
-		Getter:        &trust.SimpleHTTPSGetter{},
-	}
-
-	// Only take the attestation report and ignore everything else.
-	attestationPB, err := abi.ReportCertsToProto(attestation[:abi.ReportSize])
-	if err != nil {
-		return err
-	}
-	if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
-		return err
-	}
-	opts, err := validate.PolicyToOptions(cfg.Policy)
-	if err != nil {
-		return err
-	}
-	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
-		return err
-	}
-	return nil
-}
-
 // parseConfig decodes config passed as json for check.Config struct.
 // example
 /* {
@@ -681,7 +628,7 @@ func getBase(val string) int {
 }
 
 func validateInput() error {
-	if len(cfg.RootOfTrust.CabundlePaths) != 0 || len(cfg.RootOfTrust.Cabundles) != 0 && cfg.RootOfTrust.Product == "" {
+	if len(cfg.RootOfTrust.CabundlePaths) != 0 || len(cfg.RootOfTrust.Cabundles) != 0 && cfg.RootOfTrust.ProductLine == "" {
 		return fmt.Errorf("product name must be set if CA bundles are provided")
 	}
 

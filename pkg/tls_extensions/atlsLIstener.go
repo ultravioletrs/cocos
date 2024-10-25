@@ -16,8 +16,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
-	attest "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 )
 
 const (
@@ -34,8 +35,20 @@ const (
 	ERROR_SSL         = 1
 )
 
-type ValidationVerification func(data1, data2 []byte) int
-type FetchAttestation func(data1 []byte) []byte
+var (
+	errListener      = errors.New("listener could not be created")
+	errBadIPFormat   = errors.New("bad format of IP address")
+	errCloseTLS      = errors.New("could not close TLS connection")
+	errConnFailed    = errors.New("tls connection is nil")
+	errWrite         = errors.New("could not write to TLS")
+	errTLSConn       = errors.New("connection did not close correctly")
+	errReadDeadline  = errors.New("could not set read deadline, socket timeout failed")
+	errWriteDeadline = errors.New("could not set write deadline, socket timeout failed")
+	errConnCreate    = errors.New("could not create connection")
+)
+
+type ValidationVerification func(data1, data2 []byte) error
+type FetchAttestation func(data1 []byte) ([]byte, error)
 
 func registerFetchAttestation(callback FetchAttestation) uintptr {
 	handle := cgo.NewHandle(callback)
@@ -53,7 +66,7 @@ func validationVerificationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerValidationVerification(attest.VerifyAttestationReportTLS)
+		return registerValidationVerification(quoteprovider.VerifyAttestationReportTLS)
 	default:
 		return uintptr(0)
 	}
@@ -65,7 +78,7 @@ func fetchAttestationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerFetchAttestation(attest.FetchAttestation)
+		return registerFetchAttestation(quoteprovider.FetchAttestation)
 	default:
 		return uintptr(0)
 	}
@@ -80,7 +93,13 @@ func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uch
 	attestationReport := C.GoBytes(unsafe.Pointer(attReport), attReportSize)
 	reportData := C.GoBytes(unsafe.Pointer(repData), agent.ReportDataSize)
 
-	return C.int(callback(attestationReport, reportData))
+	err := callback(attestationReport, reportData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "callback failed %v", err)
+		return C.int(-1)
+	}
+
+	return C.int(0)
 }
 
 //export callFetchAttestationCallback
@@ -91,20 +110,20 @@ func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.ucha
 	callback := handle.Value().(FetchAttestation)
 	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.ReportDataSize)
 
-	res := callback(reportData)
-	if res == nil {
-		fmt.Fprintf(os.Stderr, "attestation callback returned nill")
+	quote, err := callback(reportData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "attestation callback returned nil")
 		return nil
 	}
 
-	*outlen = C.int(len(res))
-	resultC := C.malloc(C.size_t(len(res)))
+	*outlen = C.int(len(quote))
+	resultC := C.malloc(C.size_t(len(quote)))
 	if resultC == nil {
 		fmt.Fprintf(os.Stderr, "could not allocate memory for fetch attestation callback")
 		return nil
 	}
 
-	C.memcpy(resultC, unsafe.Pointer(&res[0]), C.size_t(len(res)))
+	C.memcpy(resultC, unsafe.Pointer(&quote[0]), C.size_t(len(quote)))
 
 	return (*C.uchar)(resultC)
 }
@@ -116,12 +135,12 @@ type ATLSServerListener struct {
 func Listen(addr string, cert []byte, key []byte) (net.Listener, error) {
 	ip, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating listener: %v", err)
+		return nil, errors.Wrap(errListener, err)
 	}
 
 	p, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, fmt.Errorf("bad format of IP address: %v", err)
+		return nil, errors.Wrap(errBadIPFormat, err)
 	}
 
 	cCertPEM := (*C.char)(unsafe.Pointer(&cert[0]))
@@ -134,7 +153,7 @@ func Listen(addr string, cert []byte, key []byte) (net.Listener, error) {
 		cKeyPEM, C.int(len(key)),
 		cIP, C.int(p))
 	if atlsListener == nil {
-		return nil, fmt.Errorf("could not create listener")
+		return nil, errors.Wrap(errListener, err)
 	}
 
 	return &ATLSServerListener{tlsListener: atlsListener}, nil
@@ -156,7 +175,7 @@ func (l *ATLSServerListener) Accept() (net.Conn, error) {
 func (l *ATLSServerListener) Close() error {
 	ret := C.tls_server_close(l.tlsListener)
 	if ret != 0 {
-		return fmt.Errorf("could not close the TLS connection")
+		return errCloseTLS
 	}
 	return nil
 }
@@ -192,7 +211,7 @@ func (c *ATLSConn) Read(b []byte) (int, error) {
 	defer c.fdReadMutex.Unlock()
 
 	if c.tlsConn == nil {
-		return 0, fmt.Errorf("tls connection is NULL")
+		return 0, errConnFailed
 	}
 
 	n := int(C.tls_read(c.tlsConn, unsafe.Pointer(&b[0]), C.int(len(b))))
@@ -234,12 +253,12 @@ func (c *ATLSConn) Write(b []byte) (int, error) {
 	defer c.fdWriteMutex.Unlock()
 
 	if c.tlsConn == nil {
-		return 0, fmt.Errorf("tls connection is NULL")
+		return 0, errConnFailed
 	}
 
 	n := int(C.tls_write(c.tlsConn, unsafe.Pointer(&b[0]), C.int(len(b))))
 	if n < 0 {
-		return 0, fmt.Errorf("could not write to TLS")
+		return 0, errWrite
 	}
 	return n, nil
 }
@@ -262,7 +281,7 @@ func (c *ATLSConn) Close() error {
 
 	if int(ret) < 0 {
 		c.tlsConn = nil
-		return fmt.Errorf("TLSConn did not close correctly")
+		return errTLSConn
 	} else if int(ret) == 1 {
 		c.tlsConn = nil
 	}
@@ -327,11 +346,11 @@ func (c *ATLSConn) SetDeadline(t time.Time) error {
 
 	sec, usec := timeToTimeout(t)
 	if C.set_socket_read_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
-		return fmt.Errorf("could not set read deadline, socket timeout failed")
+		return errReadDeadline
 	}
 
 	if C.set_socket_write_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
-		return fmt.Errorf("could not set write deadline, socket timeout failed")
+		return errWriteDeadline
 	}
 
 	return nil
@@ -347,7 +366,7 @@ func (c *ATLSConn) SetReadDeadline(t time.Time) error {
 
 	sec, usec := timeToTimeout(t)
 	if C.set_socket_read_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
-		return fmt.Errorf("could not set read deadline, socket timeout failed")
+		return errReadDeadline
 	}
 
 	return nil
@@ -363,7 +382,7 @@ func (c *ATLSConn) SetWriteDeadline(t time.Time) error {
 
 	sec, usec := timeToTimeout(t)
 	if C.set_socket_write_timeout(c.tlsConn, C.int(sec), C.int(usec)) < 0 {
-		return fmt.Errorf("could not set write deadline, socket timeout failed")
+		return errWriteDeadline
 	}
 
 	return nil
@@ -375,7 +394,7 @@ func DialTLSClient(hostname string, port int) (net.Conn, error) {
 
 	conn := C.new_tls_connection(cHostName, C.int(port))
 	if conn == nil {
-		return nil, fmt.Errorf("could not create connection")
+		return nil, errConnCreate
 	}
 
 	return &ATLSConn{tlsConn: conn}, nil
