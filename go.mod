@@ -6,7 +6,7 @@ require (
 	github.com/absmach/magistrala v0.14.1-0.20240709113739-04c359462746
 	github.com/caarlos0/env/v11 v11.2.2
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-sev-guest v0.11.1
