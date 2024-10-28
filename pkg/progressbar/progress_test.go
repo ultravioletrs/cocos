@@ -4,12 +4,15 @@ package progressbar
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/ultravioletrs/cocos/agent"
 )
 
 func TestRenderProgressBarWithMockedWidth(t *testing.T) {
@@ -129,4 +132,193 @@ func TestUpdateProgress(t *testing.T) {
 	// Ensure the progress does not exceed 100% after the error
 	assert.Equal(t, 75, pb.currentUploadedBytes)
 	assert.Equal(t, 75, pb.currentUploadPercentage)
+}
+
+type MockResultStream struct {
+	mock.Mock
+	agent.AgentService_ResultClient
+}
+
+func (m *MockResultStream) Recv() (*agent.ResultResponse, error) {
+	args := m.Called()
+	if res := args.Get(0); res != nil {
+		return res.(*agent.ResultResponse), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+type MockAttestationStream struct {
+	mock.Mock
+	agent.AgentService_AttestationClient
+}
+
+func (m *MockAttestationStream) Recv() (*agent.AttestationResponse, error) {
+	args := m.Called()
+	if res := args.Get(0); res != nil {
+		return res.(*agent.AttestationResponse), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func TestReceiveResult(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+		totalSize   int
+		chunks      [][]byte
+		setupMock   func(*MockResultStream)
+		wantResult  []byte
+		wantErr     error
+	}{
+		{
+			name:        "successful single chunk receive",
+			description: "Receiving result",
+			totalSize:   5,
+			chunks:      [][]byte{[]byte("hello")},
+			setupMock: func(m *MockResultStream) {
+				m.On("Recv").Return(&agent.ResultResponse{File: []byte("hello")}, nil).Once()
+				m.On("Recv").Return(nil, io.EOF).Once()
+			},
+			wantResult: []byte("hello"),
+			wantErr:    nil,
+		},
+		{
+			name:        "successful multi-chunk receive",
+			description: "Receiving result",
+			totalSize:   10,
+			chunks:      [][]byte{[]byte("hello"), []byte("world")},
+			setupMock: func(m *MockResultStream) {
+				m.On("Recv").Return(&agent.ResultResponse{File: []byte("hello")}, nil).Once()
+				m.On("Recv").Return(&agent.ResultResponse{File: []byte("world")}, nil).Once()
+				m.On("Recv").Return(nil, io.EOF).Once()
+			},
+			wantResult: []byte("helloworld"),
+			wantErr:    nil,
+		},
+		{
+			name:        "stream error",
+			description: "Receiving result",
+			totalSize:   5,
+			setupMock: func(m *MockResultStream) {
+				m.On("Recv").Return(nil, errors.New("stream error")).Once()
+			},
+			wantResult: nil,
+			wantErr:    errors.New("stream error"),
+		},
+		{
+			name:        "empty result",
+			description: "Receiving result",
+			totalSize:   0,
+			setupMock: func(m *MockResultStream) {
+				m.On("Recv").Return(nil, io.EOF).Once()
+			},
+			wantResult: nil,
+			wantErr:    nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStream := &MockResultStream{}
+			tt.setupMock(mockStream)
+
+			p := New(true)
+			// Disable terminal width check for tests
+			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
+
+			result, err := p.ReceiveResult(tt.description, tt.totalSize, mockStream)
+
+			if tt.wantErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult, result)
+			}
+
+			mockStream.AssertExpectations(t)
+		})
+	}
+}
+
+func TestReceiveAttestation(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+		totalSize   int
+		chunks      [][]byte
+		setupMock   func(*MockAttestationStream)
+		wantResult  []byte
+		wantErr     error
+	}{
+		{
+			name:        "successful single chunk receive",
+			description: "Receiving attestation",
+			totalSize:   5,
+			chunks:      [][]byte{[]byte("proof")},
+			setupMock: func(m *MockAttestationStream) {
+				m.On("Recv").Return(&agent.AttestationResponse{File: []byte("proof")}, nil).Once()
+				m.On("Recv").Return(nil, io.EOF).Once()
+			},
+			wantResult: []byte("proof"),
+			wantErr:    nil,
+		},
+		{
+			name:        "successful multi-chunk receive",
+			description: "Receiving attestation",
+			totalSize:   15,
+			chunks:      [][]byte{[]byte("proof"), []byte("signature")},
+			setupMock: func(m *MockAttestationStream) {
+				m.On("Recv").Return(&agent.AttestationResponse{File: []byte("proof")}, nil).Once()
+				m.On("Recv").Return(&agent.AttestationResponse{File: []byte("signature")}, nil).Once()
+				m.On("Recv").Return(nil, io.EOF).Once()
+			},
+			wantResult: []byte("proofsignature"),
+			wantErr:    nil,
+		},
+		{
+			name:        "stream error",
+			description: "Receiving attestation",
+			totalSize:   5,
+			setupMock: func(m *MockAttestationStream) {
+				m.On("Recv").Return(nil, errors.New("attestation error")).Once()
+			},
+			wantResult: nil,
+			wantErr:    errors.New("attestation error"),
+		},
+		{
+			name:        "size mismatch",
+			description: "Receiving attestation",
+			totalSize:   3,
+			chunks:      [][]byte{[]byte("toolong")},
+			setupMock: func(m *MockAttestationStream) {
+				m.On("Recv").Return(&agent.AttestationResponse{File: []byte("toolong")}, nil).Once()
+			},
+			wantResult: nil,
+			wantErr:    errors.New("progress update exceeds total bytes: attempted to add 7 bytes, but only 3 bytes remain"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStream := &MockAttestationStream{}
+			tt.setupMock(mockStream)
+
+			p := New(true)
+			// Disable terminal width check for tests
+			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
+
+			result, err := p.ReceiveAttestation(tt.description, tt.totalSize, mockStream)
+
+			if tt.wantErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult, result)
+			}
+
+			mockStream.AssertExpectations(t)
+		})
+	}
 }
