@@ -12,9 +12,9 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"strconv"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
@@ -111,7 +111,7 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
 
 	if len(fileSizeStr) == 0 {
-		return nil, errors.New("file size not found in metadata, result download failed")
+		fileSizeStr = append(fileSizeStr, "0")
 	}
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
@@ -142,7 +142,7 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
 
 	if len(fileSizeStr) == 0 {
-		return nil, errors.New("file size not found in metadata, attestation download failed")
+		fileSizeStr = append(fileSizeStr, "0")
 	}
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
