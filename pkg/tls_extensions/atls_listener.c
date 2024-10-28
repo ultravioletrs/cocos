@@ -152,18 +152,24 @@ int add_custom_tls_extension(SSL_CTX *ctx, tls_connection *conn) {
 tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port) {
     tls_server_connection *tls_server = (tls_server_connection*)malloc(sizeof(tls_server_connection));
 
+    if (tls_server == NULL) {
+        perror("memory could not be allocated");
+        return NULL;
+    }
+
     init_openssl();
 
     tls_server->cert = (char*)malloc(cert_len*sizeof(char));
     if (tls_server->cert == NULL) {
-        perror("memory not allocated");
+        perror("memory could not be allocated");
         free(tls_server);
         return NULL;
     }
 
     tls_server->key = (char*)malloc(key_len*sizeof(char));
     if (tls_server->key == NULL) {
-        perror("memory not allocated");
+        perror("memory could not be allocated");
+        free(tls_server->cert);
         free(tls_server);
         return NULL;
     }
@@ -175,8 +181,10 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
 
     tls_server->server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (tls_server->server_fd < 0) {
-        free(tls_server);
         perror("Unable to create socket");
+        free( tls_server->cert);
+        free(tls_server->key);
+        free(tls_server);
         return NULL;
     }
 
@@ -185,6 +193,8 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
     if (setsockopt(tls_server->server_fd, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) != 0) {
         perror("setsockopt(IPV6_V6ONLY) failed");
         close(tls_server->server_fd);
+        free( tls_server->cert);
+        free(tls_server->key);
         free(tls_server);
         return NULL;
     }
@@ -203,6 +213,8 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
             if (inet_pton(AF_INET6, ip, &(addr6->sin6_addr)) <= 0) {
                 perror("Invalid IPv6 address");
                 close(tls_server->server_fd);
+                free( tls_server->cert);
+                free(tls_server->key);
                 free(tls_server);
                 return NULL;
             }
@@ -212,6 +224,8 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
             if (inet_pton(AF_INET, ip, &ipv4_addr) <= 0) {
                 perror("Invalid IPv4 address");
                 close(tls_server->server_fd);
+                free( tls_server->cert);
+                free(tls_server->key);
                 free(tls_server);
                 return NULL;
             }
@@ -225,12 +239,16 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
 
     if (bind(tls_server->server_fd, (struct sockaddr*)&(tls_server->addr), sizeof(tls_server->addr)) < 0) {
         perror("Unable to bind");
+        free( tls_server->cert);
+        free(tls_server->key);
         free(tls_server);
         return NULL;
     }
 
     if (listen(tls_server->server_fd, 1) < 0) {
         perror("Unable to listen");
+        free( tls_server->cert);
+        free(tls_server->key);
         free(tls_server);
         return NULL;
     }
@@ -385,6 +403,11 @@ char* tls_return_addr(struct sockaddr_storage *addr) {
     int inet_size =addr->ss_family == AF_INET ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN;
     char *ip_str = (char*)malloc(inet_size*sizeof(char));
     void * addr_ptr;
+
+    if (ip_str == NULL) {
+        perror("memory could not be allocated");
+        return NULL;
+    }
 
     if (addr->ss_family == AF_INET) {
         struct sockaddr_in *ipv4 = (struct sockaddr_in *)addr;

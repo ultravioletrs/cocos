@@ -147,6 +147,12 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         if (ext_data != NULL) {
             int32_t *platform_type = (int32_t*)malloc(sizeof(int32_t));
 
+            if (platform_type == NULL) {
+                perror("could not allocate memory");
+                *al = SSL_AD_INTERNAL_ERROR;
+                return -1;
+            }
+
             if (check_sev_snp() > 0) {
                 *platform_type = AMD_TEE; 
             } else {
@@ -324,12 +330,15 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
 
             if (ext_data != NULL) {
                 char *attestation_report = (char*)malloc(ATTESTATION_REPORT_SIZE*sizeof(char));
-                int res = 0;
                 u_char *hash = (u_char*)malloc(REPORT_DATA_SIZE*sizeof(u_char));
+                int res = 0;
 
-                if (hash == NULL) {
+                if (hash == NULL || attestation_report == NULL) {
                     perror("could not allocate memory");
-                    free(attestation_report);
+
+                    if (hash != NULL) free(hash);
+                    if (attestation_report != NULL) free(attestation_report);
+
                     return 0;
                 }
 
