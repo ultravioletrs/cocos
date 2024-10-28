@@ -110,6 +110,10 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
 
+	if len(fileSizeStr) == 0 {
+		return nil, errors.New("file size not found in metadata, result download failed")
+	}
+
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
 		return nil, err
@@ -136,6 +140,10 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 	}
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
+
+	if len(fileSizeStr) == 0 {
+		return nil, errors.New("file size not found in metadata, attestation download failed")
+	}
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
