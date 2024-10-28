@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	authmocks "github.com/ultravioletrs/cocos/agent/mocks"
-	"github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/internal/server"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
