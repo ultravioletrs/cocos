@@ -116,7 +116,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
 
         if (er == NULL) {
             perror("could not allocate memory");
-            return 0;
+            *al = SSL_AD_INTERNAL_ERROR;
+            return -1;
         }
 
         if (ext_data != NULL) {
@@ -127,7 +128,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         } else {
             fprintf(stderr, "add_arg is NULL\n");
             free(er);
-            return 0;
+            *al = SSL_AD_INTERNAL_ERROR;
+            return -1;
         }
 
         memcpy(er->data, ext_data->er.data, CLIENT_RANDOM_SIZE);
@@ -163,7 +165,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
             *outlen = sizeof(int32_t);
         } else {
             fprintf(stderr, "add_arg is NULL\n");
-            return 0;
+            *al = SSL_AD_INTERNAL_ERROR;
+            return -1;
         }
 
         return 1;
@@ -172,7 +175,9 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         break;
     }
 
-    return 0;
+    fprintf(stderr, "bad context\n");
+    *al = SSL_AD_INTERNAL_ERROR;
+    return -1;
 }
 
 int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
@@ -257,7 +262,8 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
 
             if (hash == NULL) {
                 perror("could not allocate memory");
-                return 0;
+                *al = SSL_AD_INTERNAL_ERROR;
+                return -1;
             }
 
             if (x != NULL) {
@@ -265,18 +271,21 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
                 if (ret != 0) {
                     fprintf(stderr, "error while calculating hash\n");
                     free(hash);
-                    return 0;
+                    *al = SSL_AD_INTERNAL_ERROR;
+                    return -1;
                 }
             } else {
                 fprintf(stderr, "agent certificate must be used for aTLS\n");
                 free(hash);
-                return 0;
+                *al = SSL_AD_INTERNAL_ERROR;
+                return -1;
             }
 
             attestation_report = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, hash);
             if (attestation_report == NULL) {
                 fprintf(stderr, "attestation report is NULL\n");
-                return 0;
+                *al = SSL_AD_INTERNAL_ERROR;
+                return -1;
             }
             free(hash);
 
@@ -285,12 +294,14 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
             return 1;
         } else {
             fprintf(stderr, "add_arg is NULL\n");
-            return 0;
+            *al = SSL_AD_INTERNAL_ERROR;
+            return -1;
         }
     }
     default:
         fprintf(stderr, "bad context\n");
-        return 0;
+        *al = SSL_AD_INTERNAL_ERROR;
+        return -1;
     }
 }
 
