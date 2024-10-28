@@ -72,11 +72,13 @@ type ProgressBar struct {
 	description             string
 	maxWidth                int
 	TerminalWidthFunc       func() (int, error)
+	isDownload              bool
 }
 
-func New() *ProgressBar {
+func New(isDownload bool) *ProgressBar {
 	return &ProgressBar{
 		TerminalWidthFunc: terminalWidth,
+		isDownload:        isDownload,
 	}
 }
 
@@ -218,11 +220,14 @@ func (p *ProgressBar) renderProgressBar() error {
 		return fmt.Errorf("failed to clear progress bar: %v", err)
 	}
 
-	// Emoji to indicate progress action (📥 for datasets).
+	// Choose emoji based on operation type and content
 	emoji := "🚀 "
 	if strings.Contains(p.description, "data") {
 		emoji = "📦 "
+	} else if p.isDownload {
+		emoji = "📥 "
 	}
+
 	if _, err := builder.WriteString(color.New(color.FgYellow).Sprint(emoji)); err != nil {
 		return fmt.Errorf("failed to add emoji: %v", err)
 	}
@@ -296,4 +301,70 @@ func (p *ProgressBar) clearProgressBar() error {
 	}
 
 	return nil
+}
+
+func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream agent.AgentService_ResultClient) ([]byte, error) {
+	p.reset(description, totalSize)
+	p.isDownload = true
+
+	var result []byte
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
+				return nil, err
+			}
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		chunkSize := len(response.File)
+		err = p.updateProgress(chunkSize)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, response.File...)
+
+		if err := p.renderProgressBar(); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func (p *ProgressBar) ReceiveAttestation(description string, totalSize int, stream agent.AgentService_AttestationClient) ([]byte, error) {
+	p.reset(description, totalSize)
+	p.isDownload = true
+
+	var attestation []byte
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
+				return nil, err
+			}
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		chunkSize := len(response.File)
+		err = p.updateProgress(chunkSize)
+		if err != nil {
+			return nil, err
+		}
+
+		attestation = append(attestation, response.File...)
+
+		if err := p.renderProgressBar(); err != nil {
+			return nil, err
+		}
+	}
+
+	return attestation, nil
 }

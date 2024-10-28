@@ -69,6 +69,21 @@ func (m *MockAgentService_ResultServer) Send(resp *agent.ResultResponse) error {
 	return args.Error(0)
 }
 
+type MockAgentService_AttestationServer struct {
+	grpc.ServerStream
+	mock.Mock
+	ctx context.Context
+}
+
+func (m *MockAgentService_AttestationServer) Context() context.Context {
+	return m.ctx
+}
+
+func (m *MockAgentService_AttestationServer) Send(resp *agent.AttestationResponse) error {
+	args := m.Called(resp)
+	return args.Error(0)
+}
+
 func TestAlgo(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
@@ -124,12 +139,14 @@ func TestAttestation(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
 
+	mockStream := &MockAgentService_AttestationServer{ctx: context.Background()}
+	mockStream.On("Send", mock.AnythingOfType("*agent.AttestationResponse")).Return(nil)
+
 	reportData := [agent.ReportDataSize]byte{}
 	mockService.On("Attestation", mock.Anything, reportData).Return([]byte("attestation data"), nil)
 
-	resp, err := server.Attestation(context.Background(), &agent.AttestationRequest{ReportData: reportData[:]})
+	err := server.Attestation(&agent.AttestationRequest{ReportData: reportData[:]}, mockStream)
 	assert.NoError(t, err)
-	assert.Equal(t, []byte("attestation data"), resp.File)
 
 	mockService.AssertExpectations(t)
 }
