@@ -74,6 +74,17 @@ cleanup:
     return success;
 }
 
+int enforce_tls1_3_only(SSL_CTX *ctx) {
+    if (SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) == 0) {
+        return 0;
+    }
+    if (SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
 SSL_CTX *create_context(int is_server) {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
@@ -88,6 +99,12 @@ SSL_CTX *create_context(int is_server) {
     if (!ctx) {
         perror("Unable to create SSL context");
         ERR_print_errors_fp(stderr);
+        return NULL;
+    }
+
+    if (!enforce_tls1_3_only(ctx)) {
+        fprintf(stderr, "could not enforce TLS1.3\n");
+        SSL_CTX_free(ctx);
         return NULL;
     }
 
