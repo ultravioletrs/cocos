@@ -174,6 +174,12 @@ func (s *Server) Start() error {
 			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
 		}
 	default:
+		var err error = nil
+
+		listener, err = net.Listen("tcp", s.Address)
+		if err != nil {
+			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+		}
 		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
 	}
 

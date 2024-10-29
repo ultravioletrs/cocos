@@ -157,7 +157,7 @@ func VerifyAndValidate(attestationBytes []byte, cfg *check.Config) error {
 func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	var reportData [reportDataSize]byte
 
-	qp, err := client.GetQuoteProvider()
+	qp, err := GetQuoteProvider()
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not get quote provider")
 	}
