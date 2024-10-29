@@ -174,7 +174,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
 		}
 	default:
-		var err error = nil
+		var err error
 
 		listener, err = net.Listen("tcp", s.Address)
 		if err != nil {
