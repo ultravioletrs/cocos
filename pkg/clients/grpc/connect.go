@@ -15,8 +15,8 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	atls "github.com/ultravioletrs/cocos/pkg/tls_extensions"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

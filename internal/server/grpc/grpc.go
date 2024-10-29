@@ -24,7 +24,7 @@ import (
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
-	atls "github.com/ultravioletrs/cocos/pkg/tls_extensions"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
