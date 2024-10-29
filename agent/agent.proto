@@ -11,7 +11,7 @@ service AgentService {
   rpc Algo(stream AlgoRequest) returns (AlgoResponse) {}
   rpc Data(stream DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (stream ResultResponse) {}
-  rpc Attestation(AttestationRequest) returns (AttestationResponse) {}
+  rpc Attestation(AttestationRequest) returns (stream AttestationResponse) {}
 }
 
 message AlgoRequest {

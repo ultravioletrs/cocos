@@ -6,15 +6,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-const bufferSize = 1024 * 1024
+const (
+	bufferSize  = 1024 * 1024
+	FileSizeKey = "file-size"
+)
 
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
@@ -156,12 +161,16 @@ func (s *grpcServer) Result(req *agent.ResultRequest, stream agent.AgentService_
 	}
 	rr := res.(*agent.ResultResponse)
 
-	reusltBuffer := bytes.NewBuffer(rr.File)
+	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: fmt.Sprint(len(rr.File))})); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	resultBuffer := bytes.NewBuffer(rr.File)
 
 	buf := make([]byte, bufferSize)
 
 	for {
-		n, err := reusltBuffer.Read(buf)
+		n, err := resultBuffer.Read(buf)
 		if err == io.EOF {
 			break
 		}
@@ -177,11 +186,34 @@ func (s *grpcServer) Result(req *agent.ResultRequest, stream agent.AgentService_
 	return nil
 }
 
-func (s *grpcServer) Attestation(ctx context.Context, req *agent.AttestationRequest) (*agent.AttestationResponse, error) {
-	_, res, err := s.attestation.ServeGRPC(ctx, req)
+func (s *grpcServer) Attestation(req *agent.AttestationRequest, stream agent.AgentService_AttestationServer) error {
+	_, res, err := s.attestation.ServeGRPC(stream.Context(), req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	rr := res.(*agent.AttestationResponse)
-	return rr, nil
+
+	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: fmt.Sprint(len(rr.File))})); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	attestationBuffer := bytes.NewBuffer(rr.File)
+
+	buf := make([]byte, bufferSize)
+
+	for {
+		n, err := attestationBuffer.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		if err := stream.Send(&agent.AttestationResponse{File: buf[:n]}); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	return nil
 }

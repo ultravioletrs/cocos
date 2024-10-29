@@ -12,10 +12,11 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
-	"io"
+	"strconv"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/pkg/progressbar"
 	"google.golang.org/grpc/metadata"
@@ -30,9 +31,11 @@ type SDK interface {
 }
 
 const (
-	size64                     = 64
-	algoProgressBarDescription = "Uploading algorithm"
-	dataProgressBarDescription = "Uploading data"
+	size64                         = 64
+	algoProgressBarDescription     = "Uploading algorithm"
+	dataProgressBarDescription     = "Uploading data"
+	resultProgressDescription      = "Downloading result"
+	attestationProgressDescription = "Downloading attestation"
 )
 
 type agentSDK struct {
@@ -62,12 +65,8 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
 	reqBuffer := bytes.NewBuffer(algorithm.Requirements)
 
-	pb := progressbar.New()
-	if err := pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream); err != nil {
-		return err
-	}
-
-	return nil
+	pb := progressbar.New(false)
+	return pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream)
 }
 
 func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey any) error {
@@ -86,12 +85,8 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	}
 	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
-	pb := progressbar.New()
-	if err := pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream); err != nil {
-		return err
-	}
-
-	return nil
+	pb := progressbar.New(false)
+	return pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream)
 }
 
 func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
@@ -108,19 +103,25 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 		return nil, err
 	}
 
-	var result []byte
-	for {
-		response, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, response.File...)
+	incomingmd, err := stream.Header()
+	if err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
+
+	if len(fileSizeStr) == 0 {
+		fileSizeStr = append(fileSizeStr, "0")
+	}
+
+	fileSize, err := strconv.Atoi(fileSizeStr[0])
+	if err != nil {
+		return nil, err
+	}
+
+	pb := progressbar.New(true)
+
+	return pb.ReceiveResult(resultProgressDescription, fileSize, stream)
 }
 
 func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
@@ -128,12 +129,30 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 		ReportData: reportData[:],
 	}
 
-	response, err := sdk.client.Attestation(ctx, request)
+	stream, err := sdk.client.Attestation(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 
-	return response.File, nil
+	incomingmd, err := stream.Header()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
+
+	if len(fileSizeStr) == 0 {
+		fileSizeStr = append(fileSizeStr, "0")
+	}
+
+	fileSize, err := strconv.Atoi(fileSizeStr[0])
+	if err != nil {
+		return nil, err
+	}
+
+	pb := progressbar.New(true)
+
+	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream)
 }
 
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {
