@@ -100,6 +100,16 @@ func TestAlgo(t *testing.T) {
 			userKey: algorithmProviderKey,
 			err:     errInappropriateIoctl,
 		},
+		{
+			name: "gRPC client error",
+			algo: agent.Algorithm{
+				Algorithm: algo,
+				Hash:      algoHash,
+				UserKey:   algoProvider1PubKey,
+			},
+			userKey: algoProvider1Key,
+			err:     errors.New("gRPC client error"),
+		},
 	}
 
 	for _, tc := range cases {
@@ -369,7 +379,18 @@ func TestAttestation(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:       "invalid report data",
+			userKey:    resultConsumerKey,
+			reportData: [agent.ReportDataSize]byte{},
+			response: &agent.AttestationResponse{
+				File: nil,
+			},
+			svcRes: nil,
+			err:    errors.New("invalid report data"),
+		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Attestation", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
@@ -420,50 +441,4 @@ func generateKeys(t *testing.T, keyType string) (priv any, pub []byte) {
 		require.NoError(t, err)
 		return privKey, pubKeyBytes
 	}
-}
-
-func TestAlgoError(t *testing.T) {
-	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(bufDialer))
-	require.NoError(t, err)
-	defer conn.Close()
-
-	client := agent.NewAgentServiceClient(conn)
-	sdk := sdk.NewAgentSDK(client)
-
-	algo := []byte("test algorithm")
-	algoHash := sha3.Sum256(algo)
-	privKey, pubKey := generateKeys(t, "ed25519")
-
-	algorithm := agent.Algorithm{
-		Algorithm: algo,
-		Hash:      algoHash,
-		UserKey:   pubKey,
-	}
-
-	svcCall := svc.On("Algo", mock.Anything, mock.Anything).Return(errors.New("gRPC client error"))
-
-	err = sdk.Algo(context.Background(), algorithm, privKey)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "gRPC client error")
-
-	svcCall.Unset()
-}
-
-func TestAttestationInvalidReportData(t *testing.T) {
-	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(bufDialer))
-	require.NoError(t, err)
-	defer conn.Close()
-
-	client := agent.NewAgentServiceClient(conn)
-	sdk := sdk.NewAgentSDK(client)
-
-	invalidReportData := [64]byte{}
-
-	svcCall := svc.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("invalid report data"))
-
-	_, err = sdk.Attestation(context.Background(), invalidReportData)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid report data")
-
-	svcCall.Unset()
 }
