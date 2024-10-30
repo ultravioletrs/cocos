@@ -4,16 +4,181 @@ package progressbar
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/agent/mocks"
 )
+
+func TestNew(t *testing.T) {
+	pb := New(false)
+	assert.NotNil(t, pb)
+	assert.NotNil(t, pb.TerminalWidthFunc)
+}
+
+func TestSendAlgorithm(t *testing.T) {
+	testCases := []struct {
+		name           string
+		sendError      error
+		closeRecvError error
+		err            error
+	}{
+		{
+			name:           "successful send and close",
+			sendError:      nil,
+			closeRecvError: nil,
+			err:            nil,
+		},
+		{
+			name:           "send failure",
+			sendError:      fmt.Errorf("network error during send"),
+			closeRecvError: nil,
+			err:            fmt.Errorf("network error during send"),
+		},
+		{
+			name:           "close and receive failure",
+			sendError:      nil,
+			closeRecvError: fmt.Errorf("connection terminated"),
+			err:            fmt.Errorf("connection terminated"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pb := New(false)
+			algobuffer := bytes.NewBufferString("algorithm content")
+			reqBuffer := bytes.NewBufferString("requirements content")
+
+			algoStream := new(mocks.AgentService_AlgoClient)
+			algoStream.On("Send", mock.Anything).Return(tc.sendError)
+			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
+			mockStream := &mockAlgoStream{stream: algoStream}
+
+			oldStdout := os.Stdout
+			_, w, _ := os.Pipe()
+			os.Stdout = w
+			defer func() {
+				w.Close()
+				os.Stdout = oldStdout
+			}()
+
+			err := pb.SendAlgorithm("Test Algorithm", algobuffer, reqBuffer, &mockStream.stream)
+			assert.True(t, errors.Contains(err, tc.err))
+		})
+	}
+}
+
+func TestSendData(t *testing.T) {
+	testCases := []struct {
+		name           string
+		dataContent    string
+		sendError      error
+		closeRecvError error
+		err            error
+	}{
+		{
+			name:           "successful data send",
+			dataContent:    "test data content",
+			sendError:      nil,
+			closeRecvError: nil,
+			err:            nil,
+		},
+		{
+			name:           "send operation failure",
+			dataContent:    "test data content",
+			sendError:      fmt.Errorf("failed to send chunk"),
+			closeRecvError: nil,
+			err:            fmt.Errorf("failed to send chunk"),
+		},
+		{
+			name:           "close and receive failure",
+			dataContent:    "test data content",
+			sendError:      nil,
+			closeRecvError: fmt.Errorf("stream closed unexpectedly"),
+			err:            fmt.Errorf("stream closed unexpectedly"),
+		},
+		{
+			name:           "empty data content",
+			dataContent:    "",
+			sendError:      nil,
+			closeRecvError: nil,
+			err:            nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pb := New(false)
+			buffer := bytes.NewBufferString(tc.dataContent)
+
+			dataStream := new(mocks.AgentService_DataClient)
+			dataStream.On("Send", mock.Anything).Return(tc.sendError)
+			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
+			mockStream := &mockDataStream{stream: dataStream}
+
+			oldStdout := os.Stdout
+			_, w, _ := os.Pipe()
+			os.Stdout = w
+			defer func() {
+				w.Close()
+				os.Stdout = oldStdout
+			}()
+
+			err := pb.SendData("Test Data", "test.txt", buffer, &mockStream.stream)
+			assert.True(t, errors.Contains(err, tc.err))
+		})
+	}
+}
+
+func TestRenderProgressBarWithDifferentDescriptions(t *testing.T) {
+	testCases := []struct {
+		description   string
+		expectedEmoji string
+	}{
+		{"Uploading algorithm", "🚀"},
+		{"Uploading data", "📦"},
+		{"Processing", "🚀"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			pb := &ProgressBar{
+				numberOfBytes:        100,
+				currentUploadedBytes: 50,
+				description:          tc.description,
+				TerminalWidthFunc: func() (int, error) {
+					return 100, nil
+				},
+			}
+
+			var buf bytes.Buffer
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			err := pb.renderProgressBar()
+			assert.NoError(t, err)
+
+			w.Close()
+			os.Stdout = oldStdout
+
+			_, err = io.Copy(&buf, r)
+			assert.NoError(t, err)
+
+			renderedBar := buf.String()
+			assert.Contains(t, renderedBar, tc.expectedEmoji)
+			assert.Contains(t, renderedBar, tc.description)
+			assert.Contains(t, renderedBar, "[0%]")
+		})
+	}
+}
 
 func TestRenderProgressBarWithMockedWidth(t *testing.T) {
 	oldStdout := os.Stdout
@@ -321,4 +486,40 @@ func TestReceiveAttestation(t *testing.T) {
 			mockStream.AssertExpectations(t)
 		})
 	}
+}
+
+type mockAlgoStream struct {
+	stream             agent.AgentService_AlgoClient
+	sendCount          int
+	closeAndRecvCalled bool
+	sendError          error
+	closeRecvError     error
+}
+
+func (m *mockAlgoStream) Send(*agent.AlgoRequest) error {
+	m.sendCount++
+	return m.sendError
+}
+
+func (m *mockAlgoStream) CloseAndRecv() (*agent.AlgoResponse, error) {
+	m.closeAndRecvCalled = true
+	return &agent.AlgoResponse{}, m.closeRecvError
+}
+
+type mockDataStream struct {
+	stream             agent.AgentService_DataClient
+	sendCount          int
+	closeAndRecvCalled bool
+	sendError          error
+	closeRecvError     error
+}
+
+func (m *mockDataStream) Send(*agent.DataRequest) error {
+	m.sendCount++
+	return m.sendError
+}
+
+func (m *mockDataStream) CloseAndRecv() (*agent.DataResponse, error) {
+	m.closeAndRecvCalled = true
+	return &agent.DataResponse{}, m.closeRecvError
 }

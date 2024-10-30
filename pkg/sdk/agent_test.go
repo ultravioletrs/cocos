@@ -100,6 +100,16 @@ func TestAlgo(t *testing.T) {
 			userKey: algorithmProviderKey,
 			err:     errInappropriateIoctl,
 		},
+		{
+			name: "gRPC client error",
+			algo: agent.Algorithm{
+				Algorithm: algo,
+				Hash:      algoHash,
+				UserKey:   algoProvider1PubKey,
+			},
+			userKey: algoProvider1Key,
+			err:     errors.New("gRPC client error"),
+		},
 	}
 
 	for _, tc := range cases {
@@ -369,7 +379,18 @@ func TestAttestation(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:       "invalid report data",
+			userKey:    resultConsumerKey,
+			reportData: [agent.ReportDataSize]byte{},
+			response: &agent.AttestationResponse{
+				File: nil,
+			},
+			svcRes: nil,
+			err:    errors.New("invalid report data"),
+		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Attestation", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
