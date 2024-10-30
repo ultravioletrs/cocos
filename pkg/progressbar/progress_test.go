@@ -61,14 +61,6 @@ func TestSendAlgorithm(t *testing.T) {
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
 
-			oldStdout := os.Stdout
-			_, w, _ := os.Pipe()
-			os.Stdout = w
-			defer func() {
-				w.Close()
-				os.Stdout = oldStdout
-			}()
-
 			err := pb.SendAlgorithm("Test Algorithm", algobuffer, reqBuffer, &mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
 		})
@@ -122,14 +114,6 @@ func TestSendData(t *testing.T) {
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}
-
-			oldStdout := os.Stdout
-			_, w, _ := os.Pipe()
-			os.Stdout = w
-			defer func() {
-				w.Close()
-				os.Stdout = oldStdout
-			}()
 
 			err := pb.SendData("Test Data", "test.txt", buffer, &mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
