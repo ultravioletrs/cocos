@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/protobuf/proto"
 )
 

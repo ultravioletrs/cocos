@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,7 +36,7 @@ func TestSendEventSuccess(t *testing.T) {
 	err = svc.SendEvent("test_event", "success", details)
 	assert.NoError(t, err)
 
-	var writtenMessage manager.ClientStreamMessage
+	var writtenMessage EventsLogs
 	err = proto.Unmarshal(mockConnection.buf.Bytes(), &writtenMessage)
 	assert.NoError(t, err)
 

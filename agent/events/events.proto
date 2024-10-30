@@ -1,0 +1,33 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package events;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./events";
+
+message AgentEvent {
+  string event_type = 1;
+	google.protobuf.Timestamp timestamp = 2;
+	string	computation_id = 3;
+	bytes	details = 4;
+	string	originator = 5;
+	string	status = 6;
+}
+
+message AgentLog {
+  string message = 1;
+  string computation_id = 2;
+  string level = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message EventsLogs {
+  oneof message {
+    AgentLog agent_log = 1;
+    AgentEvent agent_event = 2;
+  }
+}

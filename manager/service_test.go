@@ -22,7 +22,6 @@ import (
 	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
-	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 func TestNew(t *testing.T) {
@@ -30,7 +29,7 @@ func TestNew(t *testing.T) {
 		HostFwdRange: "6000-6100",
 	}
 	logger := slog.Default()
-	eventsChan := make(chan *manager.ClientStreamMessage)
+	eventsChan := make(chan *ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
 	service, err := New(cfg, "", logger, eventsChan, vmf.Execute)
@@ -47,59 +46,59 @@ func TestRun(t *testing.T) {
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {
 		name          string
-		req           *manager.ComputationRunReq
+		req           *ComputationRunReq
 		vmStartError  error
 		expectedError error
 	}{
 		{
 			name: "Successful run",
-			req: &manager.ComputationRunReq{
+			req: &ComputationRunReq{
 				Id:   "test-computation",
 				Name: "Test Computation",
-				Algorithm: &manager.Algorithm{
+				Algorithm: &Algorithm{
 					Hash: make([]byte, hashLength),
 				},
-				AgentConfig: &manager.AgentConfig{},
+				AgentConfig: &AgentConfig{},
 			},
 			vmStartError:  nil,
 			expectedError: nil,
 		},
 		{
 			name: "VM start failure",
-			req: &manager.ComputationRunReq{
+			req: &ComputationRunReq{
 				Id:   "test-computation",
 				Name: "Test Computation",
-				Algorithm: &manager.Algorithm{
+				Algorithm: &Algorithm{
 					Hash: make([]byte, hashLength),
 				},
-				AgentConfig: &manager.AgentConfig{},
+				AgentConfig: &AgentConfig{},
 			},
 			vmStartError:  assert.AnError,
 			expectedError: assert.AnError,
 		},
 		{
 			name: "Invalid algorithm hash",
-			req: &manager.ComputationRunReq{
+			req: &ComputationRunReq{
 				Id:   "test-computation",
 				Name: "Test Computation",
-				Algorithm: &manager.Algorithm{
+				Algorithm: &Algorithm{
 					Hash: make([]byte, hashLength-1),
 				},
-				AgentConfig: &manager.AgentConfig{},
+				AgentConfig: &AgentConfig{},
 			},
 			vmStartError:  nil,
 			expectedError: errInvalidHashLength,
 		},
 		{
 			name: "Invalid dataset hash",
-			req: &manager.ComputationRunReq{
+			req: &ComputationRunReq{
 				Id:   "test-computation",
 				Name: "Test Computation",
-				Algorithm: &manager.Algorithm{
+				Algorithm: &Algorithm{
 					Hash: make([]byte, hashLength),
 				},
-				AgentConfig: &manager.AgentConfig{},
-				Datasets: []*manager.Dataset{
+				AgentConfig: &AgentConfig{},
+				Datasets: []*Dataset{
 					{
 						Hash: make([]byte, hashLength-1),
 					},
@@ -130,7 +129,7 @@ func TestRun(t *testing.T) {
 				},
 			}
 			logger := slog.Default()
-			eventsChan := make(chan *manager.ClientStreamMessage, 10)
+			eventsChan := make(chan *ClientStreamMessage, 10)
 
 			ms := &managerService{
 				qemuCfg:     qemuCfg,
@@ -203,7 +202,7 @@ func TestStop(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := slog.Default()
-			eventsChan := make(chan *manager.ClientStreamMessage, 10)
+			eventsChan := make(chan *ClientStreamMessage, 10)
 			ms := &managerService{
 				logger:      logger,
 				vms:         make(map[string]vm.VM),
@@ -281,7 +280,7 @@ func TestPublishEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eventsChan := make(chan *manager.ClientStreamMessage, 1)
+			eventsChan := make(chan *ClientStreamMessage, 1)
 			ms := &managerService{
 				eventsChan: eventsChan,
 			}
@@ -370,7 +369,7 @@ func TestRestoreVMs(t *testing.T) {
 	ms := &managerService{
 		persistence: mockPersistence,
 		vms:         make(map[string]vm.VM),
-		eventsChan:  make(chan *manager.ClientStreamMessage, 10),
+		eventsChan:  make(chan *ClientStreamMessage, 10),
 		vmFactory:   vmf.Execute,
 		logger:      mglog.NewMock(),
 	}

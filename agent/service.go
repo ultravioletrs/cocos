@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	sync "sync"
 
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -111,6 +112,7 @@ type Service interface {
 }
 
 type agentService struct {
+	mu              sync.Mutex
 	computation     Computation               // Holds the current computation request details.
 	algorithm       algorithm.Algorithm       // Filepath to the algorithm received for the computation.
 	result          []byte                    // Stores the result of the computation.
@@ -181,6 +183,8 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
 		return ErrStateNotReady
 	}
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if as.algorithm != nil {
 		return ErrAllManifestItemsReceived
 	}
@@ -262,6 +266,8 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if as.sm.GetState() != ReceivingData {
 		return ErrStateNotReady
 	}
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if len(as.computation.Datasets) == 0 {
 		return ErrAllManifestItemsReceived
 	}
@@ -322,6 +328,8 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 		return []byte{}, ErrUndeclaredConsumer
 	}
 
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if index < 0 || index >= len(as.computation.ResultConsumers) {
 		return []byte{}, ErrUndeclaredConsumer
 	}

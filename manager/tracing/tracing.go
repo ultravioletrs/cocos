@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/ultravioletrs/cocos/manager"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -22,7 +21,7 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Run(ctx context.Context, mc *pkgmanager.ComputationRunReq) (string, error) {
+func (tm *tracingMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
@@ -36,13 +35,13 @@ func (tm *tracingMiddleware) Stop(ctx context.Context, computationID string) err
 	return tm.svc.Stop(ctx, computationID)
 }
 
-func (tm *tracingMiddleware) RetrieveAgentEventsLogs() {
-	tm.svc.RetrieveAgentEventsLogs()
-}
-
 func (tm *tracingMiddleware) FetchBackendInfo(ctx context.Context, computationId string) ([]byte, error) {
 	_, span := tm.tracer.Start(ctx, "fetch_backend_info")
 	defer span.End()
 
 	return tm.svc.FetchBackendInfo(ctx, computationId)
+}
+
+func (tm *tracingMiddleware) ReportBrokenConnection(addr string) {
+	tm.svc.ReportBrokenConnection(addr)
 }

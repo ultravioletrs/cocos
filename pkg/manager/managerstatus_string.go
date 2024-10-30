@@ -12,11 +12,12 @@ func _() {
 	_ = x[Stopped-1]
 	_ = x[Warning-2]
 	_ = x[Disconnected-3]
+	_ = x[Failed-4]
 }
 
-const _ManagerStatus_name = "StartingStoppedWarningDisconnected"
+const _ManagerStatus_name = "StartingStoppedWarningDisconnectedFailed"
 
-var _ManagerStatus_index = [...]uint8{0, 8, 15, 22, 34}
+var _ManagerStatus_index = [...]uint8{0, 8, 15, 22, 34, 40}
 
 func (i ManagerStatus) String() string {
 	if i >= ManagerStatus(len(_ManagerStatus_index)-1) {

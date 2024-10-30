@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ultravioletrs/cocos/pkg/manager"
+	"github.com/ultravioletrs/cocos/manager"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"

@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/ultravioletrs/cocos/manager"
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
 
 var _ manager.Service = (*metricsMiddleware)(nil)
@@ -33,7 +32,7 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) Run(ctx context.Context, mc *pkgmanager.ComputationRunReq) (string, error) {
+func (ms *metricsMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())
@@ -51,10 +50,6 @@ func (ms *metricsMiddleware) Stop(ctx context.Context, computationID string) err
 	return ms.svc.Stop(ctx, computationID)
 }
 
-func (ms *metricsMiddleware) RetrieveAgentEventsLogs() {
-	ms.svc.RetrieveAgentEventsLogs()
-}
-
 func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "FetchBackendInfo").Add(1)
@@ -62,4 +57,8 @@ func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string)
 	}(time.Now())
 
 	return ms.svc.FetchBackendInfo(ctx, cmpId)
+}
+
+func (ms *metricsMiddleware) ReportBrokenConnection(addr string) {
+	ms.svc.ReportBrokenConnection(addr)
 }
