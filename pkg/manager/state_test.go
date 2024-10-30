@@ -36,7 +36,7 @@ func TestManagerStatus_String(t *testing.T) {
 		{Stopped, "Stopped"},
 		{Warning, "Warning"},
 		{Disconnected, "Disconnected"},
-		{ManagerStatus(4), "ManagerStatus(4)"},
+		{ManagerStatus(5), "ManagerStatus(5)"},
 		{ManagerStatus(100), "ManagerStatus(100)"},
 	}
 
