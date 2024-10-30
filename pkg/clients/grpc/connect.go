@@ -126,6 +126,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 			VerifyPeerCertificate: verifyPeerCertificateATLS,
 		}
 		tc = credentials.NewTLS(tlsConfig)
+		opts = append(opts, grpc.WithContextDialer(CustomDialer))
 	} else {
 		if cfg.ServerCAFile != "" {
 			tlsConfig := &tls.Config{}
@@ -159,7 +160,6 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
-	opts = append(opts, grpc.WithContextDialer(CustomDialer))
 
 	conn, err := grpc.NewClient(cfg.URL, opts...)
 	if err != nil {
