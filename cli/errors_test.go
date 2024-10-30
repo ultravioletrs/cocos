@@ -11,6 +11,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -45,6 +46,11 @@ func TestDecodeErros(t *testing.T) {
 			name:     "Other Error",
 			input:    errors.New("other error"),
 			expected: errors.New("other error"),
+		},
+		{
+			name:     "Agent Service Unavailable",
+			input:    mgerrors.Wrap(agent.ErrAgentServiceUnavailable, errors.New("wrapped error")),
+			expected: agent.ErrAgentServiceUnavailable,
 		},
 	}
 
