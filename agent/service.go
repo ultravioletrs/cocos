@@ -180,11 +180,11 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 }
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
-	as.mu.Lock()
-	defer as.mu.Unlock()
 	if as.sm.GetState() != ReceivingAlgorithm {
 		return ErrStateNotReady
 	}
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if as.algorithm != nil {
 		return ErrAllManifestItemsReceived
 	}
@@ -263,11 +263,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 }
 
 func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
-	as.mu.Lock()
-	defer as.mu.Unlock()
 	if as.sm.GetState() != ReceivingData {
 		return ErrStateNotReady
 	}
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if len(as.computation.Datasets) == 0 {
 		return ErrAllManifestItemsReceived
 	}
@@ -318,8 +318,6 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 }
 
 func (as *agentService) Result(ctx context.Context) ([]byte, error) {
-	as.mu.Lock()
-	defer as.mu.Unlock()
 	currentState := as.sm.GetState()
 	if currentState != ConsumingResults && currentState != Complete && currentState != Failed {
 		return []byte{}, ErrResultsNotReady
@@ -330,6 +328,8 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 		return []byte{}, ErrUndeclaredConsumer
 	}
 
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if index < 0 || index >= len(as.computation.ResultConsumers) {
 		return []byte{}, ErrUndeclaredConsumer
 	}
