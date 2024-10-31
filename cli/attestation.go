@@ -4,16 +4,19 @@ package cli
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/google/go-sev-guest/validate"
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
@@ -41,6 +44,7 @@ const (
 	size48                  = 48
 	size64                  = 64
 	attestationFilePath     = "attestation.bin"
+	attestationJson         = "attestation.json"
 	sevProductNameMilan     = "Milan"
 	sevProductNameGenoa     = "Genoa"
 	exampleJSONConfig       = `
@@ -115,6 +119,8 @@ var (
 	empty32             = [size32]byte{}
 	empty64             = [size64]byte{}
 	defaultReportIdMa   = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	getJsonAttestation  bool
+	errReportSize       = errors.New("attestation contents too small")
 )
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
@@ -148,7 +154,7 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 }
 
 func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "get",
 		Short:   "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.",
 		Example: "get <report_data>",
@@ -173,7 +179,17 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if err = os.WriteFile(attestationFilePath, result, 0o644); err != nil {
+			filename := attestationFilePath
+			if getJsonAttestation {
+				result, err = attesationToJSON(result)
+				if err != nil {
+					printError(cmd, "Error converting attestation to json: %v ❌ ", err)
+					return
+				}
+				filename = attestationJson
+			}
+
+			if err = os.WriteFile(filename, result, 0o644); err != nil {
 				printError(cmd, "Error saving attestation result: %v ❌ ", err)
 				return
 			}
@@ -181,6 +197,35 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			cmd.Println("Attestation result retrieved and saved successfully!")
 		},
 	}
+
+	cmd.Flags().BoolVarP(&getJsonAttestation, "json", "j", false, "Get attestation in json format")
+
+	return cmd
+}
+
+func attesationToJSON(report []byte) ([]byte, error) {
+	if len(report) < abi.ReportSize {
+		return nil, errors.Wrap(errReportSize, fmt.Errorf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(report), abi.ReportSize))
+	}
+	attestationPB, err := abi.ReportCertsToProto(report[:abi.ReportSize])
+	if err != nil {
+		return nil, err
+	}
+
+	return json.MarshalIndent(attestationPB, "", "	")
+}
+
+func attesationFromJSON(reportFile []byte) ([]byte, error) {
+	var attestationPB sevsnp.Attestation
+	if err := json.Unmarshal(reportFile, &attestationPB); err != nil {
+		return nil, err
+	}
+
+	return report.Transform(&attestationPB, "bin")
+}
+
+func isFileJSON(filename string) bool {
+	return strings.HasSuffix(filename, ".json")
 }
 
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
@@ -564,6 +609,13 @@ func parseFiles() error {
 		return err
 	}
 	attestation = file
+	if isFileJSON(attestationFile) {
+		attestation, err = attesationFromJSON(attestation)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, path := range trustedAuthorKeys {
 		file, err := os.ReadFile(path)
 		if err != nil {

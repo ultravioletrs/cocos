@@ -5,14 +5,18 @@ package cli
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
 )
@@ -187,4 +191,167 @@ func TestGetBase(t *testing.T) {
 	assert.Equal(t, 8, getBase("0o77"))
 	assert.Equal(t, 2, getBase("0b1010"))
 	assert.Equal(t, 10, getBase("123"))
+}
+
+func TestAttestationToJSON(t *testing.T) {
+	validReport, err := os.ReadFile("../attestation.bin")
+	require.NoError(t, err)
+	tests := []struct {
+		name  string
+		input []byte
+		err   error
+	}{
+		{
+			name:  "Valid report",
+			input: validReport,
+			err:   nil,
+		},
+		{
+			name:  "Invalid report size",
+			input: make([]byte, abi.ReportSize-1),
+			err:   errReportSize,
+		},
+		{
+			name:  "Nil input",
+			input: nil,
+			err:   errReportSize,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := attesationToJSON(tt.input)
+			assert.True(t, errors.Contains(err, tt.err))
+			if tt.err != nil {
+				assert.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+
+			var js map[string]interface{}
+			err = json.Unmarshal(got, &js)
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestAttestationFromJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		err      error
+		validate func(t *testing.T, output []byte)
+	}{
+		{
+			name: "Valid JSON",
+			input: func() []byte {
+				att := &sevsnp.Attestation{
+					Report: &sevsnp.Report{
+						CurrentTcb:      1,
+						FamilyId:        make([]byte, 16),
+						ImageId:         make([]byte, 16),
+						ReportData:      make([]byte, 64),
+						Measurement:     make([]byte, 48),
+						HostData:        make([]byte, 32),
+						IdKeyDigest:     make([]byte, 48),
+						AuthorKeyDigest: make([]byte, 48),
+						ReportId:        make([]byte, 32),
+						ReportIdMa:      make([]byte, 32),
+						ChipId:          make([]byte, 64),
+						Signature:       make([]byte, 512),
+					},
+				}
+				data, err := json.Marshal(att)
+				require.NoError(t, err)
+				return data
+			}(),
+			err: nil,
+			validate: func(t *testing.T, output []byte) {
+				assert.NotEmpty(t, output)
+			},
+		},
+		{
+			name:  "Invalid JSON",
+			input: []byte(`{"invalid": json`),
+			err:   errors.New("invalid character 'j' looking for beginning of value"),
+			validate: func(t *testing.T, output []byte) {
+				assert.Nil(t, output)
+			},
+		},
+		{
+			name:  "Empty input",
+			input: []byte{},
+			err:   errors.New("unexpected end of JSON input"),
+			validate: func(t *testing.T, output []byte) {
+				assert.Nil(t, output)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := attesationFromJSON(tt.input)
+			assert.True(t, errors.Contains(err, tt.err))
+			tt.validate(t, got)
+		})
+	}
+}
+
+func TestIsFileJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		want     bool
+	}{
+		{
+			name:     "Valid JSON extension",
+			filename: "test.json",
+			want:     true,
+		},
+		{
+			name:     "Valid JSON extension with path",
+			filename: "/path/to/test.json",
+			want:     true,
+		},
+		{
+			name:     "Invalid extension",
+			filename: "test.txt",
+			want:     false,
+		},
+		{
+			name:     "No extension",
+			filename: "test",
+			want:     false,
+		},
+		{
+			name:     "JSON in filename",
+			filename: "json.txt",
+			want:     false,
+		},
+		{
+			name:     "Empty string",
+			filename: "",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isFileJSON(tt.filename)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRoundTrip(t *testing.T) {
+	originalReport, err := os.ReadFile("../attestation.bin")
+	require.NoError(t, err)
+	jsonData, err := attesationToJSON(originalReport)
+	require.NoError(t, err)
+	require.NotNil(t, jsonData)
+
+	roundTripReport, err := attesationFromJSON(jsonData)
+	require.NoError(t, err)
+	require.NotNil(t, roundTripReport)
 }
