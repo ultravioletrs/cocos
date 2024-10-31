@@ -14,10 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	ManagerVsockPort     = 9997
-	messageSize      int = 1024 * 1024
-)
+const ManagerVsockPort = 9997
 
 type ReportBrokenConnectionFunc func(address string)
 
