@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,7 +51,7 @@ func TestHandleMessageFailure(t *testing.T) {
 
 	err := protohandler.Handle(context.Background(), record)
 
-	assert.NoError(t, err, "Handle should not return an error even when write fails")
+	assert.True(t, errors.Contains(err, io.ErrUnexpectedEOF), "Handle should return an error")
 }
 
 // TestEnabled tests that the handler enables logging based on level.
