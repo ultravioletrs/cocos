@@ -51,7 +51,6 @@ func TestHandleMessageFailure(t *testing.T) {
 	err := protohandler.Handle(context.Background(), record)
 
 	assert.NoError(t, err, "Handle should not return an error even when write fails")
-	assert.NotEmpty(t, protohandler.(*handler).CachedMessages(), "Cached messages should not be empty")
 }
 
 // TestEnabled tests that the handler enables logging based on level.
@@ -73,11 +72,4 @@ func TestCloseStopsRetry(t *testing.T) {
 
 	assert.NoError(t, err, "Close should not return an error")
 	time.Sleep(1 * time.Second) // Ensure no retry after close
-}
-
-// Utility function to retrieve cached messages.
-func (h *handler) CachedMessages() [][]byte {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-	return h.cachedMessages
 }

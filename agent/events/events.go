@@ -5,21 +5,16 @@ package events
 import (
 	"encoding/json"
 	"io"
-	"sync"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-const retryInterval = 5 * time.Second
 
 type service struct {
 	service        string
 	computationID  string
 	conn           io.Writer
 	cachedMessages [][]byte
-	mutex          sync.Mutex
 	stopRetry      chan struct{}
 }
 
@@ -30,17 +25,11 @@ type Service interface {
 }
 
 func New(svc, computationID string, conn io.Writer) (Service, error) {
-	s := &service{
-		service:        svc,
-		computationID:  computationID,
-		conn:           conn,
-		cachedMessages: make([][]byte, 0),
-		stopRetry:      make(chan struct{}),
-	}
-
-	go s.periodicRetry()
-
-	return s, nil
+	return &service{
+		service:       svc,
+		computationID: computationID,
+		conn:          conn,
+	}, nil
 }
 
 func (s *service) SendEvent(event, status string, details json.RawMessage) error {
@@ -56,42 +45,8 @@ func (s *service) SendEvent(event, status string, details json.RawMessage) error
 	if err != nil {
 		return err
 	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	if _, err := s.conn.Write(protoBody); err != nil {
-		s.cachedMessages = append(s.cachedMessages, protoBody)
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) periodicRetry() {
-	ticker := time.NewTicker(retryInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			s.retrySendCachedMessages()
-		case <-s.stopRetry:
-			return
-		}
-	}
-}
-
-func (s *service) retrySendCachedMessages() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	tmp := [][]byte{}
-	for _, msg := range s.cachedMessages {
-		if _, err := s.conn.Write(msg); err != nil {
-			tmp = append(tmp, msg)
-		}
-	}
-	s.cachedMessages = tmp
+	_, err = s.conn.Write(protoBody)
+	return err
 }
 
 func (s *service) Close() {

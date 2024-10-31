@@ -9,3 +9,4 @@ coverage:
     - "**/logging.go"
     - "**/metrics.go"
     - "**/tracing.go"
+    - "*.pb.go"
