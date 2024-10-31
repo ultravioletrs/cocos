@@ -151,6 +151,7 @@ int add_custom_tls_extension(SSL_CTX *ctx, tls_connection *conn) {
 // Function to start the TLS server
 tls_server_connection* start_tls_server(const char* cert, int cert_len, const char* key, int key_len, const char* ip, int port) {
     tls_server_connection *tls_server = (tls_server_connection*)malloc(sizeof(tls_server_connection));
+    int opt = 0;
 
     if (tls_server == NULL) {
         perror("memory could not be allocated");
@@ -159,19 +160,16 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
 
     init_openssl();
 
-    tls_server->cert = (char*)malloc(cert_len*sizeof(char));
+    tls_server->cert = (char*)malloc(cert_len * sizeof(char));
     if (tls_server->cert == NULL) {
         perror("memory could not be allocated");
-        free(tls_server);
-        return NULL;
+        goto cleanup_tls_server;
     }
 
-    tls_server->key = (char*)malloc(key_len*sizeof(char));
+    tls_server->key = (char*)malloc(key_len * sizeof(char));
     if (tls_server->key == NULL) {
         perror("memory could not be allocated");
-        free(tls_server->cert);
-        free(tls_server);
-        return NULL;
+        goto cleanup_cert;
     }
 
     memcpy(tls_server->cert, cert, cert_len);
@@ -182,79 +180,64 @@ tls_server_connection* start_tls_server(const char* cert, int cert_len, const ch
     tls_server->server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (tls_server->server_fd < 0) {
         perror("Unable to create socket");
-        free( tls_server->cert);
-        free(tls_server->key);
-        free(tls_server);
-        return NULL;
+        goto cleanup_key;
     }
 
-    // both IPv4-mapped and IPv6 addresses
-    int opt = 0;
+    // Enable both IPv4-mapped and IPv6 addresses
     if (setsockopt(tls_server->server_fd, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) != 0) {
         perror("setsockopt(IPV6_V6ONLY) failed");
-        close(tls_server->server_fd);
-        free( tls_server->cert);
-        free(tls_server->key);
-        free(tls_server);
-        return NULL;
+        goto cleanup_socket;
     }
 
+    // Configure address structure
     memset(&(tls_server->addr), 0, sizeof(tls_server->addr));
     struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&tls_server->addr;
     addr6->sin6_family = AF_INET6;
     addr6->sin6_port = htons(port);
 
-    // in the case that the ip is an empty string or NULL, the ip will be 0.0.0.0 
-    if (ip == NULL || ((strlen(ip) + 1) < INET_ADDRSTRLEN)) {
+    // Set the appropriate address (IPv4-mapped if needed)
+    if (ip == NULL || (strlen(ip) + 1) < INET_ADDRSTRLEN) {
         addr6->sin6_addr = in6addr_any;
-    } else {
-        if (strchr(ip, ':') != NULL) {
-            // IPv6 address
-            if (inet_pton(AF_INET6, ip, &(addr6->sin6_addr)) <= 0) {
-                perror("Invalid IPv6 address");
-                close(tls_server->server_fd);
-                free( tls_server->cert);
-                free(tls_server->key);
-                free(tls_server);
-                return NULL;
-            }
-        } else {
-            // IPv4 address (IPv4-mapped to IPv6)
-            struct in_addr ipv4_addr;
-            if (inet_pton(AF_INET, ip, &ipv4_addr) <= 0) {
-                perror("Invalid IPv4 address");
-                close(tls_server->server_fd);
-                free( tls_server->cert);
-                free(tls_server->key);
-                free(tls_server);
-                return NULL;
-            }
-            // Use IPv4-mapped IPv6 address (::ffff:IPv4)
-            memset(&addr6->sin6_addr, 0, sizeof(addr6->sin6_addr));
-            addr6->sin6_addr.s6_addr[10] = 0xff;
-            addr6->sin6_addr.s6_addr[11] = 0xff;
-            memcpy(&addr6->sin6_addr.s6_addr[12], &ipv4_addr, sizeof(ipv4_addr));
+    } else if (strchr(ip, ':') != NULL) {
+        if (inet_pton(AF_INET6, ip, &(addr6->sin6_addr)) <= 0) {
+            perror("Invalid IPv6 address");
+            goto cleanup_socket;
         }
+    } else {
+        struct in_addr ipv4_addr;
+        if (inet_pton(AF_INET, ip, &ipv4_addr) <= 0) {
+            perror("Invalid IPv4 address");
+            goto cleanup_socket;
+        }
+        memset(&addr6->sin6_addr, 0, sizeof(addr6->sin6_addr));
+        addr6->sin6_addr.s6_addr[10] = 0xff;
+        addr6->sin6_addr.s6_addr[11] = 0xff;
+        memcpy(&addr6->sin6_addr.s6_addr[12], &ipv4_addr, sizeof(ipv4_addr));
     }
 
     if (bind(tls_server->server_fd, (struct sockaddr*)&(tls_server->addr), sizeof(tls_server->addr)) < 0) {
         perror("Unable to bind");
-        free( tls_server->cert);
-        free(tls_server->key);
-        free(tls_server);
-        return NULL;
+        goto cleanup_socket;
     }
 
-    if (listen(tls_server->server_fd, 1) < 0) {
+    if (listen(tls_server->server_fd, SOMAXCONN) < 0) {
         perror("Unable to listen");
-        free( tls_server->cert);
-        free(tls_server->key);
-        free(tls_server);
-        return NULL;
+        goto cleanup_socket;
     }
 
     printf("Listening on port: %d\n", port);
     return tls_server;
+
+    // Cleanup labels
+cleanup_socket:
+    close(tls_server->server_fd);
+cleanup_key:
+    free(tls_server->key);
+cleanup_cert:
+    free(tls_server->cert);
+cleanup_tls_server:
+    free(tls_server);
+    return NULL;
 }
 
 // Function to accept a client connection
@@ -268,6 +251,9 @@ tls_connection* tls_server_accept(tls_server_connection *tls_server) {
         perror("Unable to allocate memory for tls_connection");
         return NULL;
     }
+    conn->ctx = NULL;
+    conn->ssl = NULL;
+    conn->socket_fd = -1;
 
     // Initialize the context
     conn->ctx = create_context(TLS_SERVER_CTX);
@@ -505,7 +491,6 @@ tls_connection* new_tls_connection(char *address, int port) {
 
         if (connect(socket_fd, p->ai_addr, p->ai_addrlen)) {
             close(socket_fd);
-            perror("unable to connect");
             continue;
         }
 
@@ -516,7 +501,6 @@ tls_connection* new_tls_connection(char *address, int port) {
     freeaddrinfo(res);
 
     if (p == NULL) {
-        perror("Failed to connect");
         goto cleanup_ctx;
     }
 
@@ -535,12 +519,16 @@ tls_connection* new_tls_connection(char *address, int port) {
         perror("Failed to create SSL object");
         goto cleanup_socket;
     }
-    SSL_set_fd(ssl, socket_fd);
+
+    if (!SSL_set_fd(ssl, socket_fd)) {
+        perror("Failed to set SSL file descriptor");
+        goto cleanup_ssl;
+    }
     conn->ssl = ssl;
 
     // Perform the SSL handshake
     if (SSL_connect(ssl) <= 0) {
-        perror("SSL handshake failed");
+        fprintf(stderr, "SSL handshake failed");
         goto cleanup_ssl;
     }
 
