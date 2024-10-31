@@ -11,17 +11,14 @@ import (
 )
 
 type service struct {
-	service        string
-	computationID  string
-	conn           io.Writer
-	cachedMessages [][]byte
-	stopRetry      chan struct{}
+	service       string
+	computationID string
+	conn          io.Writer
 }
 
 //go:generate mockery --name Service --output=./mocks --filename events.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
-	Close()
 }
 
 func New(svc, computationID string, conn io.Writer) (Service, error) {
@@ -47,8 +44,4 @@ func (s *service) SendEvent(event, status string, details json.RawMessage) error
 	}
 	_, err = s.conn.Write(protoBody)
 	return err
-}
-
-func (s *service) Close() {
-	close(s.stopRetry)
 }
