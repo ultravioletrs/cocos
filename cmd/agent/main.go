@@ -79,7 +79,6 @@ func main() {
 		exitCode = 1
 		return
 	}
-	defer eventSvc.Close()
 
 	qp, err := quoteprovider.GetQuoteProvider()
 	if err != nil {
