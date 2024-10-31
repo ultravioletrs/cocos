@@ -203,3 +203,115 @@ func TestAckWriter_Close(t *testing.T) {
 		t.Errorf("AckWriter.Close() did not close the connection")
 	}
 }
+
+func TestAckWriter_Write(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         []byte
+		mockBehavior  func(*MockConn)
+		expectErr     bool
+		expectedError string
+	}{
+		{
+			name:          "Message exceeds max size",
+			input:         make([]byte, maxMessageSize+1),
+			mockBehavior:  func(m *MockConn) {},
+			expectErr:     true,
+			expectedError: "message size exceeds maximum allowed size",
+		},
+		{
+			name:  "Timeout waiting for acknowledgment",
+			input: []byte("timeout message"),
+			mockBehavior: func(m *MockConn) {
+				// Don't send ACK, let it timeout
+			},
+			expectErr:     true,
+			expectedError: "timeout waiting for acknowledgment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockConn{
+				mu: sync.Mutex{},
+			}
+			if tt.mockBehavior != nil {
+				tt.mockBehavior(mockConn)
+			}
+
+			writer := NewAckWriter(mockConn)
+			defer writer.Close()
+
+			n, err := writer.Write(tt.input)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				if tt.expectedError != "" {
+					assert.Contains(t, err.Error(), tt.expectedError)
+				}
+				assert.Zero(t, n)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, len(tt.input), n)
+
+				assert.GreaterOrEqual(t, len(mockConn.WrittenData), 8+len(tt.input))
+
+				messageLen := binary.LittleEndian.Uint32(mockConn.WrittenData[4:8])
+				assert.Equal(t, uint32(len(tt.input)), messageLen)
+
+				assert.Equal(t, tt.input, mockConn.WrittenData[8:8+len(tt.input)])
+			}
+		})
+	}
+}
+
+func TestAckWriter_CleanupOldMessages(t *testing.T) {
+	mockConn := &MockConn{}
+	writer := NewAckWriter(mockConn).(*AckWriter)
+	defer writer.Close()
+
+	for i := uint32(1); i <= maxConcurrent+10; i++ {
+		msg := &Message{
+			ID:      i,
+			Content: []byte("test"),
+			Status:  StatusAcknowledged,
+		}
+		writer.messageStore.Store(i, msg)
+	}
+
+	writer.cleanupOldMessages(maxConcurrent + 11)
+
+	var count int
+	writer.messageStore.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+
+	assert.LessOrEqual(t, count, maxConcurrent)
+}
+
+func TestAckReader_LargeMessage(t *testing.T) {
+	mockConn := &MockConn{}
+	reader := NewAckReader(mockConn)
+
+	largeMessage := make([]byte, maxMessageSize-1)
+	for i := range largeMessage {
+		largeMessage[i] = byte(i % 256)
+	}
+
+	messageID := uint32(1)
+	messageLen := uint32(len(largeMessage))
+	mockData := make([]byte, 8+len(largeMessage))
+	binary.LittleEndian.PutUint32(mockData[:4], messageID)
+	binary.LittleEndian.PutUint32(mockData[4:8], messageLen)
+	copy(mockData[8:], largeMessage)
+	mockConn.ReadData = mockData
+
+	data, err := reader.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, largeMessage, data)
+
+	assert.Equal(t, 4, len(mockConn.WrittenData))
+	ackID := binary.LittleEndian.Uint32(mockConn.WrittenData)
+	assert.Equal(t, messageID, ackID)
+}
