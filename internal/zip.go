@@ -102,7 +102,6 @@ func ZipDirectoryToTempFile(sourceDir string) (*os.File, error) {
 		_, err = io.Copy(zipWriterEntry, fileToZip)
 		return err
 	})
-
 	if err != nil {
 		zipWriter.Close()
 		return nil, err
