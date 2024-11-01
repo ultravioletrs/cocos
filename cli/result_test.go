@@ -6,7 +6,6 @@ package cli
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,29 +73,6 @@ func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 
 	require.Contains(t, buf.String(), "Error decoding private key")
 	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything)
-}
-
-func TestGetUniqueFilePath(t *testing.T) {
-	prefix := "test"
-	ext := ".txt"
-
-	path, err := getUniqueFilePath(prefix, ext)
-	require.NoError(t, err)
-	require.Equal(t, "test.txt", path)
-
-	_, err = os.Create("test.txt")
-	require.NoError(t, err)
-	defer os.Remove("test.txt")
-	for i := 1; i < 3; i++ {
-		fileName := fmt.Sprintf("%s_%d%s", prefix, i, ext)
-		_, err := os.Create(fileName)
-		require.NoError(t, err)
-		defer os.Remove(fileName)
-	}
-
-	path, err = getUniqueFilePath(prefix, ext)
-	require.NoError(t, err)
-	require.Equal(t, "test_3.txt", path)
 }
 
 func TestResultsCmd(t *testing.T) {

@@ -16,11 +16,6 @@ type Service struct {
 	mock.Mock
 }
 
-// Close provides a mock function with given fields:
-func (_m *Service) Close() {
-	_m.Called()
-}
-
 // SendEvent provides a mock function with given fields: event, status, details
 func (_m *Service) SendEvent(event string, status string, details json.RawMessage) error {
 	ret := _m.Called(event, status, details)

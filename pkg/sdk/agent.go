@@ -3,7 +3,6 @@
 package sdk
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -12,6 +11,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"os"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -24,8 +24,8 @@ import (
 
 //go:generate mockery --name SDK --output=mocks --filename sdk.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type SDK interface {
-	Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error
-	Data(ctx context.Context, dataset agent.Dataset, privKey any) error
+	Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error
+	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
 	Result(ctx context.Context, privKey any) ([]byte, error)
 	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
 }
@@ -48,7 +48,7 @@ func NewAgentSDK(agentClient agent.AgentServiceClient) SDK {
 	}
 }
 
-func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error {
+func (sdk *agentSDK) Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error {
 	md, err := generateMetadata(string(auth.AlgorithmProviderRole), privKey)
 	if err != nil {
 		return err
@@ -62,14 +62,12 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	if err != nil {
 		return err
 	}
-	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
-	reqBuffer := bytes.NewBuffer(algorithm.Requirements)
 
 	pb := progressbar.New(false)
-	return pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream)
+	return pb.SendAlgorithm(algoProgressBarDescription, algorithm, requirements, &stream)
 }
 
-func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey any) error {
+func (sdk *agentSDK) Data(ctx context.Context, dataset *os.File, filename string, privKey any) error {
 	md, err := generateMetadata(string(auth.DataProviderRole), privKey)
 	if err != nil {
 		return err
@@ -83,10 +81,9 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	if err != nil {
 		return err
 	}
-	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
 	pb := progressbar.New(false)
-	return pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream)
+	return pb.SendData(dataProgressBarDescription, filename, dataset, &stream)
 }
 
 func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {

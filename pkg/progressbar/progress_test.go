@@ -53,15 +53,18 @@ func TestSendAlgorithm(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pb := New(false)
-			algobuffer := bytes.NewBufferString("algorithm content")
-			reqBuffer := bytes.NewBufferString("requirements content")
+
+			algo, err := os.CreateTemp("", "test_algo")
+			assert.NoError(t, err)
+			req, err := os.CreateTemp("", "test_req")
+			assert.NoError(t, err)
 
 			algoStream := new(mocks.AgentService_AlgoClient)
 			algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
 
-			err := pb.SendAlgorithm("Test Algorithm", algobuffer, reqBuffer, &mockStream.stream)
+			err = pb.SendAlgorithm("Test Algorithm", algo, req, &mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
 		})
 	}
@@ -108,14 +111,17 @@ func TestSendData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pb := New(false)
-			buffer := bytes.NewBufferString(tc.dataContent)
+			dataset, err := os.CreateTemp("", "test_dataset")
+			assert.NoError(t, err)
+
+			dataset.WriteString(tc.dataContent)
 
 			dataStream := new(mocks.AgentService_DataClient)
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}
 
-			err := pb.SendData("Test Data", "test.txt", buffer, &mockStream.stream)
+			err = pb.SendData("Test Data", "test.txt", dataset, &mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
 		})
 	}

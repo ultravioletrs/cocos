@@ -115,7 +115,15 @@ func TestAlgo(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Algo", mock.Anything, mock.Anything).Return(tc.err)
-			err = sdk.Algo(context.Background(), tc.algo, tc.userKey)
+
+			algo, err := os.CreateTemp("", "algo")
+			require.NoError(t, err)
+			defer os.Remove(algo.Name())
+
+			_, err = algo.Write(algorithm.Algorithm)
+			require.NoError(t, err)
+
+			err = sdk.Algo(context.Background(), algo, nil, tc.userKey)
 
 			st, _ := status.FromError(err)
 
@@ -212,7 +220,13 @@ func TestData(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dataCall := svc.On("Data", mock.Anything, mock.Anything).Return(tc.svcErr)
 
-			err = sdk.Data(context.Background(), tc.data, tc.userKey)
+			data, err := os.CreateTemp("", "data")
+			require.NoError(t, err)
+
+			_, err = data.Write(dataset.Dataset)
+			require.NoError(t, err)
+
+			err = sdk.Data(context.Background(), data, tc.data.Filename, tc.userKey)
 
 			st, _ := status.FromError(err)
 

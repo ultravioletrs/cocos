@@ -41,25 +41,20 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				return
 			}
 
-			var dataset []byte
+			var dataset *os.File
 
 			if f.IsDir() {
-				dataset, err = internal.ZipDirectoryToMemory(datasetPath)
+				dataset, err = internal.ZipDirectoryToTempFile(datasetPath)
 				if err != nil {
 					printError(cmd, "Error zipping dataset directory: %v ❌ ", err)
 					return
 				}
 			} else {
-				dataset, err = os.ReadFile(datasetPath)
+				dataset, err = os.Open(datasetPath)
 				if err != nil {
 					printError(cmd, "Error reading dataset file: %v ❌ ", err)
 					return
 				}
-			}
-
-			dataReq := agent.Dataset{
-				Dataset:  dataset,
-				Filename: path.Base(datasetPath),
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])
@@ -77,7 +72,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			}
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
-			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataReq, privKey); err != nil {
+			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataset, path.Base(datasetPath), privKey); err != nil {
 				printError(cmd, "Failed to upload dataset due to error: %v ❌ ", err)
 				return
 			}

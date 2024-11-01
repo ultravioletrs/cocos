@@ -3,7 +3,6 @@
 package progressbar
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -82,21 +81,33 @@ func New(isDownload bool) *ProgressBar {
 	}
 }
 
-func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *bytes.Buffer, stream *agent.AgentService_AlgoClient) error {
-	totalSize := algobuffer.Len() + reqBuffer.Len()
+func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stream *agent.AgentService_AlgoClient) error {
+	algoFileInfo, err := algo.Stat()
+	if err != nil {
+		return err
+	}
+
+	reqFileInfo, err := req.Stat()
+	if err != nil {
+		return err
+	}
+
+	totalSize := int(algoFileInfo.Size()) + int(reqFileInfo.Size())
 	p.reset(description, totalSize)
 
 	wrapper := &algoClientWrapper{client: stream}
 
-	// Send reqBuffer first
-	if err := p.sendBuffer(reqBuffer, wrapper, func(data []byte) interface{} {
-		return &agent.AlgoRequest{Requirements: data}
-	}); err != nil {
-		return err
+	// Send req first
+	if req != nil {
+		if err := p.sendBuffer(req, wrapper, func(data []byte) interface{} {
+			return &agent.AlgoRequest{Requirements: data}
+		}); err != nil {
+			return err
+		}
 	}
 
-	// Then send algobuffer
-	if err := p.sendBuffer(algobuffer, wrapper, func(data []byte) interface{} {
+	// Then send algo
+	if err := p.sendBuffer(algo, wrapper, func(data []byte) interface{} {
 		return &agent.AlgoRequest{Algorithm: data}
 	}); err != nil {
 		return err
@@ -106,23 +117,28 @@ func (p *ProgressBar) SendAlgorithm(description string, algobuffer, reqBuffer *b
 		return err
 	}
 
-	_, err := wrapper.CloseAndRecv()
+	_, err = wrapper.CloseAndRecv()
 	return err
 }
 
-func (p *ProgressBar) SendData(description, filename string, buffer *bytes.Buffer, stream *agent.AgentService_DataClient) error {
-	return p.sendData(description, buffer, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
+func (p *ProgressBar) SendData(description, filename string, file *os.File, stream *agent.AgentService_DataClient) error {
+	return p.sendData(description, file, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
 		return &agent.DataRequest{Dataset: data, Filename: filename}
 	})
 }
 
-func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream streamSender, createRequest func([]byte) interface{}) error {
-	p.reset(description, buffer.Len())
+func (p *ProgressBar) sendData(description string, file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
+	dataInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	p.reset(description, int(dataInfo.Size()))
 
 	buf := make([]byte, bufferSize)
 
 	for {
-		n, err := buffer.Read(buf)
+		n, err := file.Read(buf)
 		if err == io.EOF {
 			if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
 				return err
@@ -147,15 +163,15 @@ func (p *ProgressBar) sendData(description string, buffer *bytes.Buffer, stream 
 		}
 	}
 
-	_, err := stream.CloseAndRecv()
+	_, err = stream.CloseAndRecv()
 	return err
 }
 
-func (p *ProgressBar) sendBuffer(buffer *bytes.Buffer, stream streamSender, createRequest func([]byte) interface{}) error {
+func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
 	buf := make([]byte, bufferSize)
 
 	for {
-		n, err := buffer.Read(buf)
+		n, err := file.Read(buf)
 		if err == io.EOF {
 			break
 		}

@@ -9,7 +9,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"google.golang.org/grpc/metadata"
@@ -38,24 +37,19 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			cmd.Println("Uploading algorithm file:", algorithmFile)
 
-			algorithm, err := os.ReadFile(algorithmFile)
+			algorithm, err := os.Open(algorithmFile)
 			if err != nil {
 				printError(cmd, "Error reading algorithm file: %v ❌ ", err)
 				return
 			}
 
-			var req []byte
+			var req *os.File
 			if requirementsFile != "" {
-				req, err = os.ReadFile(requirementsFile)
+				req, err = os.Open(requirementsFile)
 				if err != nil {
 					printError(cmd, "Error reading requirments file: %v ❌ ", err)
 					return
 				}
-			}
-
-			algoReq := agent.Algorithm{
-				Algorithm:    algorithm,
-				Requirements: req,
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])
@@ -74,7 +68,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 
-			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algoReq, privKey); err != nil {
+			if err := cli.agentSDK.Algo(addAlgoMetadata(ctx), algorithm, req, privKey); err != nil {
 				printError(cmd, "Failed to upload algorithm due to error: %v ❌ ", err)
 				return
 			}
