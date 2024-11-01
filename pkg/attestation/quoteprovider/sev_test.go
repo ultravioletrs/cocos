@@ -76,7 +76,6 @@ func TestFillInAttestationLocal(t *testing.T) {
 }
 
 func TestVerifyAttestationReportSuccess(t *testing.T) {
-
 	file, reportData := prepareForTestVerifyAttestationReport(t)
 
 	tests := []struct {
@@ -104,7 +103,6 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
-
 	file, reportData := prepareForTestVerifyAttestationReport(t)
 
 	// Change random data so in the signature so the signature failes
@@ -133,7 +131,6 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 }
 
 func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
-
 	file, reportData := prepareForTestVerifyAttestationReport(t)
 
 	tests := []struct {
@@ -160,7 +157,6 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
-
 	file, reportData := prepareForTestVerifyAttestationReport(t)
 
 	// Change random data in the measurement so the measurement does not match

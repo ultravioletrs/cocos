@@ -1,10 +1,10 @@
+use base64::prelude::*;
 use clap::{value_parser, Arg, Command};
 use serde::Serialize;
 use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
 use std::fs::File;
 use std::io::Write;
-use base64::prelude::*;
 
 const BACKEND_INFO_JSON: &str = "backend_info.json";
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
