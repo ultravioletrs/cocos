@@ -9,22 +9,22 @@ package manager
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 
+	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchBackendInfo(_ context.Context, computationId string) ([]byte, error) {
-	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "1966081")
+	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "196608")
 
 	ms.mu.Lock()
 	vm, exists := ms.vms[computationId]
@@ -48,9 +48,9 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		return nil, err
 	}
 
-	var backendInfo grpc.AttestationConfiguration
+	var backendInfo check.Config
 
-	if err = json.Unmarshal(f, &backendInfo); err != nil {
+	if err = protojson.Unmarshal(f, &backendInfo); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		}
 	}
 	if measurement == nil {
-		backendInfo.SNPPolicy.Measurement = measurement
+		backendInfo.Policy.Measurement = measurement
 	}
 
 	if config.HostData != "" {
@@ -76,10 +76,10 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		if err != nil {
 			return nil, err
 		}
-		backendInfo.SNPPolicy.HostData = hostData
+		backendInfo.Policy.HostData = hostData
 	}
 
-	f, err = json.Marshal(backendInfo)
+	f, err = protojson.Marshal(&backendInfo)
 	if err != nil {
 		return nil, err
 	}

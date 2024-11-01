@@ -4,6 +4,7 @@ use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
 use std::fs::File;
 use std::io::Write;
+use base64::prelude::*;
 
 const BACKEND_INFO_JSON: &str = "backend_info.json";
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
@@ -26,16 +27,16 @@ struct SevProduct {
 #[derive(Serialize)]
 struct SnpPolicy {
     policy: u64,
-    family_id: Vec<u8>,
-    image_id: Vec<u8>,
+    family_id: String,
+    image_id: String,
     vmpl: u32,
     minimum_tcb: u64,
     minimum_launch_tcb: u64,
     require_author_key: bool,
-    measurement: Vec<u8>,
-    host_data: Vec<u8>,
-    report_id_ma: Vec<u8>,
-    chip_id: Vec<u8>,
+    measurement: String,
+    host_data: String,
+    report_id_ma: String,
+    chip_id: String,
     minimum_build: u32,
     minimum_version: String,
     permit_provisional_firmware: bool,
@@ -120,17 +121,17 @@ fn main() {
     let status: SnpPlatformStatus = firmware.snp_platform_status().unwrap();
 
     let policy: u64 = *matches.get_one::<u64>("policy").unwrap();
-    let family_id = vec![0; 16];
-    let image_id = vec![0; 16];
+    let family_id = BASE64_STANDARD.encode(vec![0; 16]);
+    let image_id = BASE64_STANDARD.encode(vec![0; 16]);
     let vmpl = 0;
     let minimum_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let minimum_launch_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let require_author_key = false;
-    let measurement = vec![0];
-    let host_data = vec![0];
-    let report_id_ma = vec![0xFF; 32];
+    let measurement = BASE64_STANDARD.encode(vec![0; 48]);
+    let host_data = BASE64_STANDARD.encode(vec![0; 32]);
+    let report_id_ma = BASE64_STANDARD.encode(vec![0xFF; 32]);
     let cpu_id: Identifier = firmware.get_identifier().unwrap();
-    let chip_id: Vec<u8> = cpu_id.0;
+    let chip_id: String = BASE64_STANDARD.encode(cpu_id.0);
     let minimum_build = status.build_id;
     let minimum_version = status.version.to_string();
     let permit_provisional_firmware = false;

@@ -1,101 +1,28 @@
 {
-  "snp_policy": {
-    "policy": 1966081,
-    "family_id": [
-      0
-    ],
-    "image_id": [
-      0
-    ],
-    "vmpl": {
-      "value": 0
-    },
-    "minimum_tcb": 15063977803600887811,
-    "minimum_launch_tcb": 15063977803600887811,
+  "policy": {
+    "policy": 196608,
+    "family_id": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "image_id": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "vmpl": 0,
+    "minimum_tcb": 15066229603414573059,
+    "minimum_launch_tcb": 15066229603414573059,
     "require_author_key": false,
-    "measurement": [
-      0
-    ],
-    "host_data": [
-      0
-    ],
-    "report_id_ma": [
-      0
-    ],
-    "chip_id": [
-      26,
-      177,
-      106,
-      181,
-      15,
-      165,
-      174,
-      66,
-      236,
-      140,
-      27,
-      37,
-      187,
-      218,
-      92,
-      11,
-      165,
-      234,
-      146,
-      187,
-      69,
-      89,
-      141,
-      64,
-      172,
-      132,
-      62,
-      35,
-      136,
-      46,
-      129,
-      2,
-      44,
-      188,
-      33,
-      180,
-      169,
-      233,
-      18,
-      188,
-      75,
-      68,
-      224,
-      255,
-      210,
-      45,
-      34,
-      122,
-      152,
-      115,
-      105,
-      58,
-      70,
-      52,
-      48,
-      121,
-      198,
-      166,
-      252,
-      245,
-      58,
-      69,
-      126,
-      147
-    ],
-    "minimum_build": 7,
+    "measurement": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "host_data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "report_id_ma": "//////////////////////////////////////////8=",
+    "chip_id": "GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
+    "minimum_build": 21,
     "minimum_version": "1.55",
     "permit_provisional_firmware": false,
-    "require_id_block": false
+    "require_id_block": false,
+    "product": {
+      "name": 1
+    }
   },
   "root_of_trust": {
     "product": "Milan",
     "check_crl": true,
-    "disallow_network": false
+    "disallow_network": false,
+    "product_line": "Milan"
   }
 }

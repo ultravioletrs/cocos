@@ -528,7 +528,7 @@ tls_connection* new_tls_connection(char *address, int port) {
 
     // Perform the SSL handshake
     if (SSL_connect(ssl) <= 0) {
-        fprintf(stderr, "SSL handshake failed");
+        fprintf(stderr, "SSL handshake failed\n");
         goto cleanup_ssl;
     }
 

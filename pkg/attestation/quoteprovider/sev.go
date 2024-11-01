@@ -41,6 +41,8 @@ var (
 )
 
 var (
+	errProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
+	errReportSize      = errors.New("attestation report size mismatch")
 	errAttVerification = errors.New("attestation verification failed")
 	errAttValidation   = errors.New("attestation validation failed")
 )
@@ -93,8 +95,13 @@ func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) erro
 	return VerifyAndValidate(attestationBytes, attestationConfigurationSevSnp)
 }
 
-func VerifyAndValidate(attestationBytes []byte, cfg *check.Config) error {
+func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 	logger.Init("", false, false, io.Discard)
+
+	if len(attestationReport) < attestationReportSize {
+		return errReportSize
+	}
+	attestationBytes := attestationReport[:attestationReportSize]
 
 	// Attestation verification and validation
 	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
@@ -113,7 +120,7 @@ func VerifyAndValidate(attestationBytes []byte, cfg *check.Config) error {
 		}
 
 		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
-			return fmt.Errorf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa)
+			return errProductLine
 		}
 
 		sopts.Product = &sevsnp.SevProduct{

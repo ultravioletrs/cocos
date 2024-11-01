@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type security int
@@ -29,15 +29,24 @@ const (
 	withoutTLS security = iota
 	withTLS
 	withmTLS
+	withaTLS
+)
+
+const (
+	AttestationReportSize = 0x4A0
+	WithATLS              = "with aTLS"
 )
 
 var (
-	errGrpcConnect      = errors.New("failed to connect to grpc server")
-	errGrpcClose        = errors.New("failed to close grpc connection")
-	errManifestRead     = errors.New("failed to read Manifest")
-	errManifestDecode   = errors.New("failed to decode Manifest json")
-	errCertificateParse = errors.New("failed to parse x509 certificate")
-	errAttVerification  = errors.New("attestation verification failed")
+	errGrpcConnect               = errors.New("failed to connect to grpc server")
+	errGrpcClose                 = errors.New("failed to close grpc connection")
+	errBackendInfoOpen           = errors.New("failed to open Backend Info file")
+	ErrBackendInfoMissing        = errors.New("failed due to missing backend info file")
+	ErrBackendInfoDecode         = errors.New("failed to decode backend info file")
+	errCertificateParse          = errors.New("failed to parse x509 certificate")
+	errAttVerification           = errors.New("certificat is not sefl signed")
+	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
+	errFailedToLoadRootCA        = errors.New("failed to load root ca file")
 )
 
 type Config struct {
@@ -96,6 +105,8 @@ func (c *client) Secure() string {
 		return "with TLS"
 	case withmTLS:
 		return "with mTLS"
+	case withaTLS:
+		return WithATLS
 	case withoutTLS:
 		fallthrough
 	default:
@@ -127,6 +138,7 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 		}
 		tc = credentials.NewTLS(tlsConfig)
 		opts = append(opts, grpc.WithContextDialer(CustomDialer))
+		secure = withaTLS
 	} else {
 		if cfg.ServerCAFile != "" {
 			tlsConfig := &tls.Config{}
@@ -175,9 +187,7 @@ func ReadBackendInfo(manifestPath string, attestationConfiguration *check.Config
 			return errors.Wrap(errBackendInfoOpen, err)
 		}
 
-		decoder := json.NewDecoder(manifest)
-		err = decoder.Decode(attestationConfiguration)
-		if err != nil {
+		if err := protojson.Unmarshal(manifest, attestationConfiguration); err != nil {
 			return errors.Wrap(ErrBackendInfoDecode, err)
 		}
 
