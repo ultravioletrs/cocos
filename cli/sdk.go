@@ -15,12 +15,12 @@ var Verbose bool
 
 type CLI struct {
 	agentSDK   sdk.SDK
-	config     grpc.Config
+	config     grpc.AgentClientConfig
 	client     grpc.Client
 	connectErr error
 }
 
-func New(config grpc.Config) *CLI {
+func New(config grpc.AgentClientConfig) *CLI {
 	return &CLI{
 		config: config,
 	}

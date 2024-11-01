@@ -16,14 +16,25 @@ type Server interface {
 	Stop() error
 }
 
-type Config struct {
-	Host         string `env:"HOST"               envDefault:""`
-	Port         string `env:"PORT"               envDefault:""`
+type ServerConfiguration interface {
+	GetBaseConfig() ServerConfig
+}
+
+type BaseConfig struct {
+	Host         string `env:"HOST"               envDefault:"localhost"`
+	Port         string `env:"PORT"               envDefault:"7001"`
+	ServerCAFile string `env:"SERVER_CA_CERTS" envDefault:""`
 	CertFile     string `env:"SERVER_CERT"        envDefault:""`
 	KeyFile      string `env:"SERVER_KEY"         envDefault:""`
-	ServerCAFile string `env:"SERVER_CA_CERTS"    envDefault:""`
 	ClientCAFile string `env:"CLIENT_CA_CERTS"    envDefault:""`
-	AttestedTLS  bool   `env:"ATTESTED_TLS"       envDefault:"false"`
+}
+
+type ServerConfig struct {
+	BaseConfig
+}
+type AgentConfig struct {
+	ServerConfig
+	AttestedTLS bool `env:"ATTESTED_TLS"       envDefault:"false"`
 }
 
 type BaseServer struct {
@@ -31,9 +42,17 @@ type BaseServer struct {
 	Cancel   context.CancelFunc
 	Name     string
 	Address  string
-	Config   Config
+	Config   ServerConfiguration
 	Logger   *slog.Logger
 	Protocol string
+}
+
+func (s ServerConfig) GetBaseConfig() ServerConfig {
+	return s
+}
+
+func (a AgentConfig) GetBaseConfig() ServerConfig {
+	return a.ServerConfig
 }
 
 func stopAllServer(servers ...Server) error {

@@ -50,14 +50,38 @@ var (
 	errFailedToLoadRootCA        = errors.New("failed to load root ca file")
 )
 
-type Config struct {
-	ClientCert        string        `env:"CLIENT_CERT"        envDefault:""`
-	ClientKey         string        `env:"CLIENT_KEY"         envDefault:""`
-	ServerCAFile      string        `env:"SERVER_CA_CERTS"    envDefault:""`
-	URL               string        `env:"URL"                envDefault:"localhost:7001"`
-	Timeout           time.Duration `env:"TIMEOUT"            envDefault:"60s"`
-	AttestedTLS       bool          `env:"ATTESTED_TLS"       envDefault:"false"`
-	AttestationPolicy string        `env:"ATTESTATION_POLICY" envDefault:""`
+type ClientConfiguration interface {
+	GetBaseConfig() BaseConfig
+}
+
+type BaseConfig struct {
+	URL          string        `env:"URL"             envDefault:"localhost:7001"`
+	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
+	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
+	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
+	ServerCAFile string        `env:"SERVER_CA_CERTS"    envDefault:""`
+}
+
+type AgentClientConfig struct {
+	BaseConfig
+	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
+	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
+}
+
+type ManagerClientConfig struct {
+	BaseConfig
+}
+
+func (a BaseConfig) GetBaseConfig() BaseConfig {
+	return a
+}
+
+func (a AgentClientConfig) GetBaseConfig() BaseConfig {
+	return a.BaseConfig
+}
+
+func (a ManagerClientConfig) GetBaseConfig() BaseConfig {
+	return a.BaseConfig
 }
 
 type Client interface {
@@ -73,13 +97,13 @@ type Client interface {
 
 type client struct {
 	*grpc.ClientConn
-	cfg    Config
+	cfg    ClientConfiguration
 	secure security
 }
 
 var _ Client = (*client)(nil)
 
-func NewClient(cfg Config) (Client, error) {
+func NewClient(cfg ClientConfiguration) (Client, error) {
 	conn, secure, err := connect(cfg)
 	if err != nil {
 		return nil, err
@@ -120,15 +144,15 @@ func (c *client) Connection() *grpc.ClientConn {
 }
 
 // connect creates new gRPC client and connect to gRPC server.
-func connect(cfg Config) (*grpc.ClientConn, security, error) {
+func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 	secure := withoutTLS
-	tc := insecure.NewCredentials()
+	var tc credentials.TransportCredentials
 
-	if cfg.AttestedTLS {
-		err := ReadAttestationPolicy(cfg.AttestationPolicy, &quoteprovider.AttConfigurationSEVSNP)
+	if agcfg, ok := cfg.(AgentClientConfig); ok && agcfg.AttestedTLS {
+		err := ReadAttestationPolicy(agcfg.AttestationPolicy, &quoteprovider.AttConfigurationSEVSNP)
 		if err != nil {
 			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
 		}
@@ -141,44 +165,58 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 		opts = append(opts, grpc.WithContextDialer(CustomDialer))
 		secure = withaTLS
 	} else {
-		if cfg.ServerCAFile != "" {
-			tlsConfig := &tls.Config{}
-
-			// Loading root ca certificates file
-			rootCA, err := os.ReadFile(cfg.ServerCAFile)
-			if err != nil {
-				return nil, secure, errors.Wrap(errFailedToLoadRootCA, err)
-			}
-			if len(rootCA) > 0 {
-				capool := x509.NewCertPool()
-				if !capool.AppendCertsFromPEM(rootCA) {
-					return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
-				}
-				tlsConfig.RootCAs = capool
-				secure = withTLS
-			}
-
-			// Loading mTLS certificates file
-			if cfg.ClientCert != "" || cfg.ClientKey != "" {
-				certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
-				if err != nil {
-					return nil, secure, errors.Wrap(errFailedToLoadClientCertKey, err)
-				}
-				tlsConfig.Certificates = []tls.Certificate{certificate}
-				secure = withmTLS
-			}
-
-			tc = credentials.NewTLS(tlsConfig)
+		conf := cfg.GetBaseConfig()
+		transportCreds, err, sec := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
+		if err != nil {
+			return nil, secure, err
 		}
+		tc = transportCreds
+		secure = sec
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(tc))
 
-	conn, err := grpc.NewClient(cfg.URL, opts...)
+	conn, err := grpc.NewClient(cfg.GetBaseConfig().URL, opts...)
 	if err != nil {
 		return nil, secure, errors.Wrap(errGrpcConnect, err)
 	}
 	return conn, secure, nil
+}
+
+func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, error, security) {
+	tlsConfig := &tls.Config{}
+	secure := withoutTLS
+	tc := insecure.NewCredentials()
+
+	// Load Root CA certificates
+	if serverCAFile != "" {
+		rootCA, err := os.ReadFile(serverCAFile)
+		if err != nil {
+			return nil, errors.Wrap(errFailedToLoadRootCA, err), secure
+		}
+		if len(rootCA) > 0 {
+			capool := x509.NewCertPool()
+			if !capool.AppendCertsFromPEM(rootCA) {
+				return nil, fmt.Errorf("failed to append root ca to tls.Config"), secure
+			}
+			tlsConfig.RootCAs = capool
+			secure = withTLS
+			tc = credentials.NewTLS(tlsConfig)
+		}
+	}
+
+	// Load mTLS certificates
+	if clientCert != "" || clientKey != "" {
+		certificate, err := tls.LoadX509KeyPair(clientCert, clientKey)
+		if err != nil {
+			return nil, errors.Wrap(errFailedToLoadClientCertKey, err), secure
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+		secure = withmTLS
+		tc = credentials.NewTLS(tlsConfig)
+	}
+
+	return tc, nil, secure
 }
 
 func ReadAttestationPolicy(manifestPath string, attestationConfiguration *check.Config) error {
