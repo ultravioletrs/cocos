@@ -143,13 +143,14 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 			name:              "Valid attestation, unknown product",
 			attestationReport: file,
 			reportData:        reportData,
-			err:               errAttVerification,
+			err:               errProductLine,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			AttConfigurationSEVSNP.RootOfTrust.ProductLine = ""
+			AttConfigurationSEVSNP.Policy.Product = nil
 			err := VerifyAttestationReportTLS(tt.attestationReport, tt.reportData)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
@@ -172,14 +173,12 @@ func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
 			name:              "Valid attestation, malformed policy (measurement)",
 			attestationReport: file,
 			reportData:        reportData,
-			err:               errProductLine,
+			err:               errAttVerification,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			AttConfigurationSEVSNP.RootOfTrust.ProductLine = ""
-			AttConfigurationSEVSNP.Policy.Product = nil
 			err := VerifyAttestationReportTLS(tt.attestationReport, tt.reportData)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
