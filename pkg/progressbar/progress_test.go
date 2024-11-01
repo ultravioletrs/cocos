@@ -114,7 +114,8 @@ func TestSendData(t *testing.T) {
 			dataset, err := os.CreateTemp("", "test_dataset")
 			assert.NoError(t, err)
 
-			dataset.WriteString(tc.dataContent)
+			_, err = dataset.WriteString(tc.dataContent)
+			assert.NoError(t, err)
 
 			dataStream := new(mocks.AgentService_DataClient)
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
