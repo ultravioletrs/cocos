@@ -4,7 +4,6 @@ package cli
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type fieldType int
@@ -39,10 +39,10 @@ var (
 	errBackendField           = errors.New("the specified field type does not exist in the backend information")
 )
 
-type AttestationConfiguration struct {
-	SNPPolicy   *check.Policy      `json:"snp_policy,omitempty"`
-	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
-}
+// type AttestationConfiguration struct {
+// 	Policy      *check.Policy      `json:"policy,omitempty"`
+// 	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
+// }
 
 func (cli *CLI) NewBackendCmd() *cobra.Command {
 	return &cobra.Command{
@@ -114,27 +114,27 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errDataLength
 	}
 
-	ac := AttestationConfiguration{}
+	ac := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 
 	backendInfo, err := os.ReadFile(fileName)
 	if err != nil {
 		return errors.Wrap(errReadingBackendInfoFile, err)
 	}
 
-	if err = json.Unmarshal(backendInfo, &ac); err != nil {
+	if err = protojson.Unmarshal(backendInfo, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 
 	switch field {
 	case measurementField:
-		ac.SNPPolicy.Measurement = data
+		ac.Policy.Measurement = data
 	case hostDataField:
-		ac.SNPPolicy.HostData = data
+		ac.Policy.HostData = data
 	default:
 		return errBackendField
 	}
 
-	fileJson, err := json.MarshalIndent(ac, "", " ")
+	fileJson, err := protojson.Marshal(&ac)
 	if err != nil {
 		return errors.Wrap(errMarshalJSON, err)
 	}

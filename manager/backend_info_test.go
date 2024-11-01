@@ -20,7 +20,7 @@ func createDummyBackendInfoBinary(t *testing.T, behavior string) string {
 	switch behavior {
 	case "success":
 		content = []byte(`#!/bin/sh
-echo '{"snp_policy": {"measurement": null, "host_data": null}}' > backend_info.json
+echo '{"policy": {"measurement": null, "host_data": null}}' > backend_info.json
 `)
 	case "fail":
 		content = []byte(`#!/bin/sh
