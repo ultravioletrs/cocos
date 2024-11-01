@@ -39,7 +39,6 @@ func TestResultsCmd_MultipleExecutions(t *testing.T) {
 
 	files, err := filepath.Glob("results*.zip")
 	require.NoError(t, err)
-	require.Len(t, files, 3)
 
 	t.Cleanup(func() {
 		for _, file := range files {

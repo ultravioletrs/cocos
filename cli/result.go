@@ -13,7 +13,7 @@ import (
 const (
 	resultFilePrefix = "results"
 	resultFileExt    = ".zip"
-	resultfilename   = "result.zip"
+	resultfilename   = "results.zip"
 )
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
