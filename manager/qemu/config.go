@@ -131,16 +131,16 @@ func (config Config) ConstructQemuArgs() []string {
 		config.MemoryConfig.Slots,
 		config.MemoryConfig.Max))
 
-	// OVMF
-	args = append(args, "-drive",
-		fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s,readonly=%s",
-			config.OVMFCodeConfig.If,
-			config.OVMFCodeConfig.Format,
-			config.OVMFCodeConfig.Unit,
-			config.OVMFCodeConfig.File,
-			config.OVMFCodeConfig.ReadOnly))
+	if !config.EnableSEVSNP {
+		// OVMF
+		args = append(args, "-drive",
+			fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s,readonly=%s",
+				config.OVMFCodeConfig.If,
+				config.OVMFCodeConfig.Format,
+				config.OVMFCodeConfig.Unit,
+				config.OVMFCodeConfig.File,
+				config.OVMFCodeConfig.ReadOnly))
 
-	if !config.KernelHash {
 		args = append(args, "-drive",
 			fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s",
 				config.OVMFVarsConfig.If,
@@ -165,27 +165,19 @@ func (config Config) ConstructQemuArgs() []string {
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
 
-	if config.EnableSEVSNP {
-		args = append(args, "-object",
-			fmt.Sprintf("memory-backend-memfd-private,id=%s,size=%s,share=true",
-				config.MemID,
-				config.MemoryConfig.Size))
-		args = append(args, "-machine",
-			fmt.Sprintf("memory-backend=%s,kvm-type=protected",
-				config.MemID))
-	}
-
-	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-append", strconv.Quote(KernelCommandLine))
-	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
-
 	// SEV
 	if config.EnableSEV || config.EnableSEVSNP {
 		sevType := "sev-guest"
 		kernelHash := ""
 		hostData := ""
 
+		args = append(args, "-machine",
+			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s",
+				config.SevConfig.ID,
+				config.MemID))
+
 		if config.EnableSEVSNP {
+			args = append(args, "-bios", config.OVMFCodeConfig.File)
 			sevType = "sev-snp-guest"
 
 			if config.SevConfig.HostData != "" {
@@ -194,8 +186,13 @@ func (config Config) ConstructQemuArgs() []string {
 		}
 
 		if config.KernelHash {
-			kernelHash = ",discard=none,kernel-hashes=on"
+			kernelHash = ",kernel-hashes=on"
 		}
+
+		args = append(args, "-object",
+			fmt.Sprintf("memory-backend-memfd,id=%s,size=%s,share=true,prealloc=false",
+				config.MemID,
+				config.MemoryConfig.Size))
 
 		args = append(args, "-object",
 			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s%s",
@@ -205,10 +202,11 @@ func (config Config) ConstructQemuArgs() []string {
 				config.SevConfig.ReducedPhysBits,
 				kernelHash,
 				hostData))
-
-		args = append(args, "-machine",
-			fmt.Sprintf("memory-encryption=%s", config.SevConfig.ID))
 	}
+
+	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
+	args = append(args, "-append", strconv.Quote(KernelCommandLine))
+	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// display
 	if config.NoGraphic {
