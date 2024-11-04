@@ -141,18 +141,16 @@ func TestConstructQemuArgs(t *testing.T) {
 				"-cpu", "EPYC",
 				"-smp", "4,maxcpus=64",
 				"-m", "2048M,slots=5,maxmem=30G",
-				"-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on",
-				"-drive", "if=pflash,format=raw,unit=1,file=/usr/share/OVMF/OVMF_VARS.fd",
 				"-netdev", "user,id=vmnic,hostfwd=tcp::7020-:7002",
 				"-device", "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,addr=0x2,romfile=",
 				"-device", "vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3",
-				"-object", "memory-backend-memfd-private,id=ram1,size=2048M,share=true",
-				"-machine", "memory-backend=ram1,kvm-type=protected",
+				"-machine", "confidential-guest-support=sev0,memory-backend=ram1",
+				"-bios", "/usr/share/OVMF/OVMF_CODE.fd",
+				"-object", "memory-backend-memfd,id=ram1,size=2048M,share=true,prealloc=false",
+				"-object", "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1",
 				"-kernel", "img/bzImage",
 				"-append", "\"quiet console=null rootfstype=ramfs\"",
 				"-initrd", "img/rootfs.cpio.gz",
-				"-object", "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1",
-				"-machine", "memory-encryption=sev0",
 				"-nographic",
 				"-monitor", "pty",
 			},
@@ -183,7 +181,7 @@ func TestConstructQemuArgs_KernelHash(t *testing.T) {
 	result := config.ConstructQemuArgs()
 
 	expected := "-object"
-	expectedValue := "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,discard=none,kernel-hashes=on"
+	expectedValue := "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,kernel-hashes=on"
 
 	found := false
 	for i, arg := range result {
