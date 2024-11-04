@@ -169,10 +169,13 @@ func (p *ProgressBar) sendData(description string, file *os.File, stream streamS
 
 func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
 	buf := make([]byte, bufferSize)
+	fmt.Println(1)
 
 	for {
 		n, err := file.Read(buf)
+		fmt.Println(2)
 		if err == io.EOF {
+			fmt.Println("EOF")
 			break
 		}
 		if err != nil {
@@ -184,9 +187,12 @@ func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createReque
 			return err
 		}
 
+		fmt.Println("Sending buffer")
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
+			fmt.Println("Error sending buffer")
 			return err
 		}
+		fmt.Println("no error sending buffer")
 
 		if err := p.renderProgressBar(); err != nil {
 			return err

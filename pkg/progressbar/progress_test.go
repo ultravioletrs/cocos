@@ -59,13 +59,19 @@ func TestSendAlgorithm(t *testing.T) {
 			req, err := os.CreateTemp("", "test_req")
 			assert.NoError(t, err)
 
+			_, err = algo.WriteString("test algorithm")
+			assert.NoError(t, err)
+
+			_, err = req.WriteString("test request")
+			assert.NoError(t, err)
+
 			algoStream := new(mocks.AgentService_AlgoClient)
-			algoStream.On("Send", mock.Anything).Return(tc.sendError)
+			//algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
 
 			err = pb.SendAlgorithm("Test Algorithm", algo, req, &mockStream.stream)
-			assert.True(t, errors.Contains(err, tc.err))
+			assert.True(t, errors.Contains(err, tc.err), fmt.Sprintf("expected error: %v, got: %v", tc.err, err))
 		})
 	}
 }
