@@ -81,7 +81,7 @@ func copyConfig(attConf *check.Config) (*check.Config, error) {
 	return copy, nil
 }
 
-func verifyAttestationReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
+func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
 	if err != nil {
 		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(errAttVerification, err))
@@ -125,7 +125,7 @@ func verifyAttestationReport(attestationPB *sevsnp.Attestation, cfg *check.Confi
 	return nil
 }
 
-func validateAttestationReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
+func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	opts, err := validate.PolicyToOptions(cfg.Policy)
 	if err != nil {
 		return fmt.Errorf("failed to get policy for validation %v", errors.Wrap(errAttVerification, err))
@@ -165,11 +165,11 @@ func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 		return fmt.Errorf("failed to convert attestation bytes to struct %v", errors.Wrap(errAttVerification, err))
 	}
 
-	if err = verifyAttestationReport(attestationPB, cfg); err != nil {
+	if err = verifyReport(attestationPB, cfg); err != nil {
 		return err
 	}
 
-	if err = validateAttestationReport(attestationPB, cfg); err != nil {
+	if err = validateReport(attestationPB, cfg); err != nil {
 		return err
 	}
 
