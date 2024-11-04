@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
-	qpmocks "github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
+	qpmocks "github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 )
 
 func TestSetDefaultValues(t *testing.T) {

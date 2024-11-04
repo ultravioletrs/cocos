@@ -1,7 +1,7 @@
 BUILD_DIR = build
 SERVICES = manager agent cli
 BACKEND_INFO = backend_info
-CGO_ENABLED ?= 0
+CGO_ENABLED ?= 1
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
 COMMIT ?= $(shell git rev-parse HEAD)

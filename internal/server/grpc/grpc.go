@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"log/slog"
@@ -25,8 +24,8 @@ import (
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,6 +44,7 @@ const (
 	notAfterYear  = 1
 	notAfterMonth = 0
 	notAfterDay   = 0
+	nonceSize     = 32
 )
 
 type Server struct {
@@ -89,15 +89,12 @@ func (s *Server) Start() error {
 		grpcServerOptions = append(grpcServerOptions, grpc.StreamInterceptor(stream))
 	}
 
-	listener, err := net.Listen("tcp", s.Address)
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
-	}
 	creds := grpc.Creds(insecure.NewCredentials())
+	var listener net.Listener = nil
 
 	switch {
 	case s.Config.AttestedTLS:
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.quoteProvider)
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
 		}
@@ -113,7 +110,17 @@ func (s *Server) Start() error {
 		}
 
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+
+		listener, err = atls.Listen(
+			s.Address,
+			certificateBytes,
+			privateKeyBytes,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create Listener for aTLS: %w", err)
+		}
 		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
+
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
 		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
@@ -161,7 +168,18 @@ func (s *Server) Start() error {
 		default:
 			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, s.Config.CertFile, s.Config.KeyFile))
 		}
+
+		listener, err = net.Listen("tcp", s.Address)
+		if err != nil {
+			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+		}
 	default:
+		var err error
+
+		listener, err = net.Listen("tcp", s.Address)
+		if err != nil {
+			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+		}
 		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
 	}
 
@@ -237,22 +255,11 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-func generateCertificatesForATLS(qp client.QuoteProvider) ([]byte, []byte, error) {
+func generateCertificatesForATLS() ([]byte, []byte, error) {
 	curve := elliptic.P256()
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private/public key: %w", err)
-	}
-
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal the public key: %w", err)
-	}
-
-	// The Attestation Report will be added as an X.509 certificate extension
-	attestationReport, err := qp.GetRawQuote(sha3.Sum512(publicKeyBytes))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch the attestation report: %w", err)
 	}
 
 	certTemplate := &x509.Certificate{
@@ -270,13 +277,6 @@ func generateCertificatesForATLS(qp client.QuoteProvider) ([]byte, []byte, error
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		ExtraExtensions: []pkix.Extension{
-			{
-				Id:       asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6},
-				Critical: false,
-				Value:    attestationReport,
-			},
-		},
 	}
 
 	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)

@@ -4,13 +4,13 @@ package cli
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"os"
 	"testing"
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestChangeAttestationConfiguration(t *testing.T) {
@@ -18,14 +18,9 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 
-	initialConfig := AttestationConfiguration{
-		SNPPolicy: &check.Policy{
-			Measurement: make([]byte, measurementLength),
-			HostData:    make([]byte, hostDataLength),
-		},
-	}
+	initialConfig := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 
-	initialJSON, err := json.Marshal(initialConfig)
+	initialJSON, err := protojson.Marshal(&initialConfig)
 	require.NoError(t, err)
 	err = os.WriteFile(tmpfile.Name(), initialJSON, 0o644)
 	require.NoError(t, err)
@@ -91,15 +86,15 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 				content, err := os.ReadFile(tmpfile.Name())
 				require.NoError(t, err)
 
-				var config AttestationConfiguration
-				err = json.Unmarshal(content, &config)
+				config := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+				err = protojson.Unmarshal(content, &config)
 				require.NoError(t, err)
 
 				decodedData, _ := base64.StdEncoding.DecodeString(tt.base64Data)
 				if tt.field == measurementField {
-					assert.Equal(t, decodedData, config.SNPPolicy.Measurement)
+					assert.Equal(t, decodedData, config.Policy.Measurement)
 				} else if tt.field == hostDataField {
-					assert.Equal(t, decodedData, config.SNPPolicy.HostData)
+					assert.Equal(t, decodedData, config.Policy.HostData)
 				}
 			}
 		})

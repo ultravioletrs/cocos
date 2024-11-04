@@ -20,13 +20,15 @@ func NewAgentClient(ctx context.Context, cfg grpc.Config) (grpc.Client, agent.Ag
 		return nil, nil, err
 	}
 
-	health := grpchealth.NewHealthClient(client.Connection())
-	resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
-		Service: "agent",
-	})
+	if client.Secure() != grpc.WithATLS {
+		health := grpchealth.NewHealthClient(client.Connection())
+		resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
+			Service: "agent",
+		})
 
-	if err != nil || resp.GetStatus() != grpchealth.HealthCheckResponse_SERVING {
-		return nil, nil, errors.Wrap(err, ErrAgentServiceUnavailable)
+		if err != nil || resp.GetStatus() != grpchealth.HealthCheckResponse_SERVING {
+			return nil, nil, errors.Wrap(err, ErrAgentServiceUnavailable)
+		}
 	}
 
 	return client, agent.NewAgentServiceClient(client.Connection()), nil

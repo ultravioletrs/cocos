@@ -17,7 +17,7 @@ func TestNewCABundleCmd(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	manifestContent := []byte(`{"root_of_trust": {"product": "Milan"}}`)
+	manifestContent := []byte(`{"root_of_trust": {"product_line": "Milan"}}`)
 	manifestPath := path.Join(tempDir, "manifest.json")
 	err = os.WriteFile(manifestPath, manifestContent, 0o644)
 	assert.NoError(t, err)

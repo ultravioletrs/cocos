@@ -18,10 +18,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	authmocks "github.com/ultravioletrs/cocos/agent/mocks"
-	"github.com/ultravioletrs/cocos/agent/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/internal/server"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -139,7 +138,6 @@ func TestServerStartWithAttestedTLS(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	qp := new(mocks.QuoteProvider)
 	authSvc := new(authmocks.Authenticator)
-	qp.On("GetRawQuote", mock.Anything).Return([]byte("mock-quote"), nil)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
 
@@ -158,7 +156,7 @@ func TestServerStartWithAttestedTLS(t *testing.T) {
 
 	cancel()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	logContent := logBuffer.String()
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with Attested TLS")
