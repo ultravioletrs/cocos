@@ -38,7 +38,7 @@ func TestFillInAttestationLocal(t *testing.T) {
 	err = os.WriteFile(cocosDir+"/ask_ark.pem", bundleContent, 0o644)
 	require.NoError(t, err)
 
-	AttConfigurationSEVSNP = check.Config{
+	config := check.Config{
 		RootOfTrust: &check.RootOfTrust{},
 		Policy:      &check.Policy{},
 	}
@@ -69,7 +69,7 @@ func TestFillInAttestationLocal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := fillInAttestationLocal(tt.attestation)
+			err := fillInAttestationLocal(tt.attestation, &config)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
