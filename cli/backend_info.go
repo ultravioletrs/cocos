@@ -39,11 +39,6 @@ var (
 	errBackendField           = errors.New("the specified field type does not exist in the backend information")
 )
 
-// type AttestationConfiguration struct {
-// 	Policy      *check.Policy      `json:"policy,omitempty"`
-// 	RootOfTrust *check.RootOfTrust `json:"root_of_trust,omitempty"`
-// }
-
 func (cli *CLI) NewBackendCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "backend [command]",
