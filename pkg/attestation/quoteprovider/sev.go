@@ -47,8 +47,8 @@ var (
 	errAttValidation   = errors.New("attestation validation failed")
 )
 
-func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
-	product := AttConfigurationSEVSNP.RootOfTrust.ProductLine
+func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) error {
+	product := cfg.RootOfTrust.ProductLine
 
 	chain := attestation.GetCertificateChain()
 	if chain == nil {
@@ -61,10 +61,10 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
 			return err
 		}
 
-		bundleFilePath := path.Join(homePath, cocosDirectory, product, caBundleName)
-		if _, err := os.Stat(bundleFilePath); err == nil {
+		bundlePath := path.Join(homePath, cocosDirectory, product, caBundleName)
+		if _, err := os.Stat(bundlePath); err == nil {
 			amdRootCerts := trust.AMDRootCerts{}
-			if err := amdRootCerts.FromKDSCert(bundleFilePath); err != nil {
+			if err := amdRootCerts.FromKDSCert(bundlePath); err != nil {
 				return err
 			}
 
@@ -76,34 +76,12 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation) error {
 	return nil
 }
 
-func createDeepCopyAttConfig(attConf *check.Config) (*check.Config, error) {
+func copyConfig(attConf *check.Config) (*check.Config, error) {
 	copy := proto.Clone(attConf).(*check.Config)
 	return copy, nil
 }
 
-func GetQuoteProvider() (client.QuoteProvider, error) {
-	return client.GetQuoteProvider()
-}
-
-func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
-	attestationConfigurationSevSnp, err := createDeepCopyAttConfig(&AttConfigurationSEVSNP)
-	if err != nil {
-		return fmt.Errorf("failed to create a copy of backend configuration")
-	}
-
-	attestationConfigurationSevSnp.Policy.ReportData = reportData[:]
-	return VerifyAndValidate(attestationBytes, attestationConfigurationSevSnp)
-}
-
-func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
-	logger.Init("", false, false, io.Discard)
-
-	if len(attestationReport) < attestationReportSize {
-		return errReportSize
-	}
-	attestationBytes := attestationReport[:attestationReportSize]
-
-	// Attestation verification and validation
+func verifyAttestationReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
 	if err != nil {
 		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(errAttVerification, err))
@@ -136,19 +114,18 @@ func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 		Getter:        &trust.SimpleHTTPSGetter{},
 	}
 
-	attestationPB, err := abi.ReportCertsToProto(attestationBytes)
-	if err != nil {
-		return fmt.Errorf("failed to convert attestation bytes to struct %v", errors.Wrap(errAttVerification, err))
-	}
-
-	if err := fillInAttestationLocal(attestationPB); err != nil {
+	if err := fillInAttestationLocal(attestationPB, cfg); err != nil {
 		return fmt.Errorf("failed to fill the attestation with local ARK and ASK certificates %v", err)
 	}
 
-	if err = verify.SnpAttestation(attestationPB, sopts); err != nil {
+	if err := verify.SnpAttestation(attestationPB, sopts); err != nil {
 		return errors.Wrap(errAttVerification, err)
 	}
 
+	return nil
+}
+
+func validateAttestationReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	opts, err := validate.PolicyToOptions(cfg.Policy)
 	if err != nil {
 		return fmt.Errorf("failed to get policy for validation %v", errors.Wrap(errAttVerification, err))
@@ -156,6 +133,44 @@ func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 
 	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
 		return errors.Wrap(errAttValidation, err)
+	}
+
+	return nil
+}
+
+func GetQuoteProvider() (client.QuoteProvider, error) {
+	return client.GetQuoteProvider()
+}
+
+func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
+	config, err := copyConfig(&AttConfigurationSEVSNP)
+	if err != nil {
+		return fmt.Errorf("failed to create a copy of backend configuration")
+	}
+
+	config.Policy.ReportData = reportData[:]
+	return VerifyAndValidate(attestationBytes, config)
+}
+
+func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
+	logger.Init("", false, false, io.Discard)
+
+	if len(attestationReport) < attestationReportSize {
+		return errReportSize
+	}
+	attestationBytes := attestationReport[:attestationReportSize]
+
+	attestationPB, err := abi.ReportCertsToProto(attestationBytes)
+	if err != nil {
+		return fmt.Errorf("failed to convert attestation bytes to struct %v", errors.Wrap(errAttVerification, err))
+	}
+
+	if err = verifyAttestationReport(attestationPB, cfg); err != nil {
+		return err
+	}
+
+	if err = validateAttestationReport(attestationPB, cfg); err != nil {
+		return err
 	}
 
 	return nil

@@ -55,8 +55,8 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 				return
 			}
 
-			bundleFilePath := path.Join(fileSavePath, product, caBundleName)
-			if err = saveToFile(bundleFilePath, bundle); err != nil {
+			bundlePath := path.Join(fileSavePath, product, caBundleName)
+			if err = saveToFile(bundlePath, bundle); err != nil {
 				printError(cmd, "Error while saving ARK-ASK to file: %v ❌ ", err)
 				return
 			}
