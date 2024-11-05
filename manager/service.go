@@ -153,7 +153,22 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	ms.qemuCfg.HostFwdAgent = agentPort
-	ms.qemuCfg.VSockConfig.GuestCID = qemu.BaseGuestCID + len(ms.vms)
+
+	var cid int = qemu.BaseGuestCID
+	for {
+		available := true
+		for _, vm := range ms.vms {
+			if vm.GetCID() == cid {
+				available = false
+				break
+			}
+		}
+		if available {
+			break
+		}
+		cid++
+	}
+	ms.qemuCfg.VSockConfig.GuestCID = cid
 
 	ch, err := computationHash(ac)
 	if err != nil {
