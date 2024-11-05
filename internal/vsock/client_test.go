@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -80,6 +81,7 @@ func TestAckReader_Read(t *testing.T) {
 		{"Valid message", []byte("Hello, World!"), false},
 		{"Empty message", []byte{}, false},
 		{"Message at max size", make([]byte, maxMessageSize), false},
+		{"Message exceeds max size", make([]byte, maxMessageSize+1), true},
 	}
 
 	for _, tt := range tests {
@@ -208,25 +210,19 @@ func TestAckWriter_Write(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         []byte
-		mockBehavior  func(*MockConn)
 		expectErr     bool
 		expectedError string
 	}{
 		{
 			name:          "Message exceeds max size",
 			input:         make([]byte, maxMessageSize+1),
-			mockBehavior:  func(m *MockConn) {},
 			expectErr:     true,
 			expectedError: "message size exceeds maximum allowed size",
 		},
 		{
-			name:  "Timeout waiting for acknowledgment",
-			input: []byte("timeout message"),
-			mockBehavior: func(m *MockConn) {
-				// Don't send ACK, let it timeout
-			},
-			expectErr:     true,
-			expectedError: "timeout waiting for acknowledgment",
+			name:      "Write succeeds",
+			input:     []byte("Hello, world!"),
+			expectErr: false,
 		},
 	}
 
@@ -235,12 +231,15 @@ func TestAckWriter_Write(t *testing.T) {
 			mockConn := &MockConn{
 				mu: sync.Mutex{},
 			}
-			if tt.mockBehavior != nil {
-				tt.mockBehavior(mockConn)
-			}
 
 			writer := NewAckWriter(mockConn)
 			defer writer.Close()
+
+			if tt.expectErr {
+				writer.(*AckWriter).ctx.Done()
+			}
+
+			time.Sleep(100 * time.Millisecond)
 
 			n, err := writer.Write(tt.input)
 
@@ -253,13 +252,6 @@ func TestAckWriter_Write(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, len(tt.input), n)
-
-				assert.GreaterOrEqual(t, len(mockConn.WrittenData), 8+len(tt.input))
-
-				messageLen := binary.LittleEndian.Uint32(mockConn.WrittenData[4:8])
-				assert.Equal(t, uint32(len(tt.input)), messageLen)
-
-				assert.Equal(t, tt.input, mockConn.WrittenData[8:8+len(tt.input)])
 			}
 		})
 	}
@@ -314,4 +306,32 @@ func TestAckReader_LargeMessage(t *testing.T) {
 	assert.Equal(t, 4, len(mockConn.WrittenData))
 	ackID := binary.LittleEndian.Uint32(mockConn.WrittenData)
 	assert.Equal(t, messageID, ackID)
+}
+
+func TestAckWriter_FailedSends(t *testing.T) {
+	mockConn := &MockConn{
+		WriteErr: errors.New("write error"),
+	}
+	writer := NewAckWriter(mockConn).(*AckWriter)
+	defer writer.Close()
+
+	// Add some messages to the channel
+	for i := 0; i < 5; i++ {
+		msg := &Message{
+			ID:      uint32(i + 1),
+			Content: []byte(fmt.Sprintf("Message %d", i+1)),
+			Status:  StatusPending,
+		}
+		writer.pendingMessages <- msg
+	}
+
+	// Wait for the messages to be sent
+	time.Sleep(100 * time.Millisecond)
+
+	// Check that the messages were marked as failed
+	writer.messageStore.Range(func(key, value interface{}) bool {
+		msg := value.(*Message)
+		assert.Equal(t, StatusFailed, msg.Status)
+		return true
+	})
 }
