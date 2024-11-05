@@ -80,32 +80,9 @@ func (aw *AckWriter) Write(p []byte) (int, error) {
 	copy(message.Content, p)
 
 	aw.messageStore.Store(messageID, message)
-
 	select {
 	case aw.pendingMessages <- message:
-		timer := time.NewTimer(ackTimeout)
-		defer timer.Stop()
-
-		for {
-			if msg, ok := aw.messageStore.Load(messageID); ok {
-				m := msg.(*Message)
-				if m.Status == StatusAcknowledged {
-					return len(p), nil
-				}
-				if m.Status == StatusFailed {
-					return 0, fmt.Errorf("message delivery failed after %d retries", maxRetries)
-				}
-			}
-
-			select {
-			case <-timer.C:
-				return 0, fmt.Errorf("timeout waiting for acknowledgment")
-			case <-aw.ctx.Done():
-				return 0, fmt.Errorf("writer closed while waiting for acknowledgment")
-			case <-time.After(100 * time.Millisecond):
-				continue
-			}
-		}
+		return len(p), nil
 	case <-aw.ctx.Done():
 		return 0, fmt.Errorf("writer is closed")
 	}
