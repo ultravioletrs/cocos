@@ -121,9 +121,9 @@ func main() {
 		return
 	}
 
-	eventsSvc := events.New(logger, svc.ReportBrokenConnection, eventsChan)
-	if eventsSvc == nil {
-		logger.Error("Failed to create events service")
+	eventsSvc, err := events.New(logger, svc.ReportBrokenConnection, eventsChan)
+	if err != nil {
+		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}

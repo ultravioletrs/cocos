@@ -25,17 +25,17 @@ type events struct {
 	eventsChan             chan *manager.ClientStreamMessage
 }
 
-func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc, eventsChan chan *manager.ClientStreamMessage) Listener {
+func New(logger *slog.Logger, reportBrokenConnection ReportBrokenConnectionFunc, eventsChan chan *manager.ClientStreamMessage) (Listener, error) {
 	l, err := vsock.Listen(ManagerVsockPort, nil)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	return &events{
 		lis:                    l,
 		reportBrokenConnection: reportBrokenConnection,
 		logger:                 logger,
 		eventsChan:             eventsChan,
-	}
+	}, nil
 }
 
 func (e *events) Listen(ctx context.Context) {
