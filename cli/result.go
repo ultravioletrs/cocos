@@ -43,21 +43,21 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			pemBlock, _ := pem.Decode(privKeyFile)
 
-			var result []byte
-
 			privKey, err := decodeKey(pemBlock)
 			if err != nil {
 				printError(cmd, "Error decoding private key: %v ❌ ", err)
 				return
 			}
-			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
+
+			resultFile, err := os.Create(filename)
 			if err != nil {
-				printError(cmd, "Error retrieving computation result: %v ❌ ", err)
+				printError(cmd, "Error creating result file: %v ❌ ", err)
 				return
 			}
+			defer resultFile.Close()
 
-			if err := os.WriteFile(filename, result, 0o644); err != nil {
-				printError(cmd, "Error saving computation result file: %v  ❌ ", err)
+			if err = cli.agentSDK.Result(cmd.Context(), privKey, resultFile); err != nil {
+				printError(cmd, "Error retrieving computation result: %v ❌ ", err)
 				return
 			}
 

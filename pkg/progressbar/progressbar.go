@@ -327,7 +327,7 @@ func (p *ProgressBar) clearProgressBar() error {
 	return nil
 }
 
-func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream agent.AgentService_ResultClient) ([]byte, error) {
+func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream agent.AgentService_ResultClient, resultFile *os.File) error {
 	return p.receiveStream(description, totalSize, func() ([]byte, error) {
 		response, err := stream.Recv()
 		if err != nil {
@@ -335,10 +335,10 @@ func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream ag
 		}
 
 		return response.File, nil
-	})
+	}, resultFile)
 }
 
-func (p *ProgressBar) ReceiveAttestation(description string, totalSize int, stream agent.AgentService_AttestationClient) ([]byte, error) {
+func (p *ProgressBar) ReceiveAttestation(description string, totalSize int, stream agent.AgentService_AttestationClient, attestationFile *os.File) error {
 	return p.receiveStream(description, totalSize, func() ([]byte, error) {
 		response, err := stream.Recv()
 		if err != nil {
@@ -346,37 +346,37 @@ func (p *ProgressBar) ReceiveAttestation(description string, totalSize int, stre
 		}
 
 		return response.File, nil
-	})
+	}, attestationFile)
 }
 
-func (p *ProgressBar) receiveStream(description string, totalSize int, recv func() ([]byte, error)) ([]byte, error) {
+func (p *ProgressBar) receiveStream(description string, totalSize int, recv func() ([]byte, error), file *os.File) error {
 	p.reset(description, totalSize)
 	p.isDownload = true
 
-	var result []byte
 	for {
 		chunk, err := recv()
 		if err == io.EOF {
 			if _, err := io.WriteString(os.Stdout, "\n"); err != nil {
-				return nil, err
+				return err
 			}
 			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		chunkSize := len(chunk)
 		if err = p.updateProgress(chunkSize); err != nil {
-			return nil, err
+			return err
 		}
 
-		result = append(result, chunk...)
-
+		if _, err := file.Write(chunk); err != nil {
+			return err
+		}
 		if err := p.renderProgressBar(); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return result, nil
+	return nil
 }

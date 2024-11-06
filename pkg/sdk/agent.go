@@ -26,8 +26,8 @@ import (
 type SDK interface {
 	Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error
 	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
-	Result(ctx context.Context, privKey any) ([]byte, error)
-	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
+	Result(ctx context.Context, privKey any, resultFile *os.File) error
+	Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error
 }
 
 const (
@@ -86,23 +86,23 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset *os.File, filename string
 	return pb.SendData(dataProgressBarDescription, filename, dataset, stream)
 }
 
-func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
+func (sdk *agentSDK) Result(ctx context.Context, privKey any, resultFile *os.File) error {
 	request := &agent.ResultRequest{}
 
 	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Result(ctx, request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	incomingmd, err := stream.Header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
@@ -113,27 +113,27 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pb := progressbar.New(true)
 
-	return pb.ReceiveResult(resultProgressDescription, fileSize, stream)
+	return pb.ReceiveResult(resultProgressDescription, fileSize, stream, resultFile)
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
+func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error {
 	request := &agent.AttestationRequest{
 		ReportData: reportData[:],
 	}
 
 	stream, err := sdk.client.Attestation(ctx, request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	incomingmd, err := stream.Header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
@@ -144,12 +144,12 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pb := progressbar.New(true)
 
-	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream)
+	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream, attestationFile)
 }
 
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {

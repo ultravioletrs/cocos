@@ -35,34 +35,22 @@ func (_m *SDK) Algo(ctx context.Context, algorithm *os.File, requirements *os.Fi
 	return r0
 }
 
-// Attestation provides a mock function with given fields: ctx, reportData
-func (_m *SDK) Attestation(ctx context.Context, reportData [64]byte) ([]byte, error) {
-	ret := _m.Called(ctx, reportData)
+// Attestation provides a mock function with given fields: ctx, reportData, attestationFile
+func (_m *SDK) Attestation(ctx context.Context, reportData [64]byte, attestationFile *os.File) error {
+	ret := _m.Called(ctx, reportData, attestationFile)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Attestation")
 	}
 
-	var r0 []byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte) ([]byte, error)); ok {
-		return rf(ctx, reportData)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte) []byte); ok {
-		r0 = rf(ctx, reportData)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, *os.File) error); ok {
+		r0 = rf(ctx, reportData, attestationFile)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [64]byte) error); ok {
-		r1 = rf(ctx, reportData)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // Data provides a mock function with given fields: ctx, dataset, filename, privKey
@@ -83,34 +71,22 @@ func (_m *SDK) Data(ctx context.Context, dataset *os.File, filename string, priv
 	return r0
 }
 
-// Result provides a mock function with given fields: ctx, privKey
-func (_m *SDK) Result(ctx context.Context, privKey interface{}) ([]byte, error) {
-	ret := _m.Called(ctx, privKey)
+// Result provides a mock function with given fields: ctx, privKey, resultFile
+func (_m *SDK) Result(ctx context.Context, privKey interface{}, resultFile *os.File) error {
+	ret := _m.Called(ctx, privKey, resultFile)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Result")
 	}
 
-	var r0 []byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, interface{}) ([]byte, error)); ok {
-		return rf(ctx, privKey)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, interface{}) []byte); ok {
-		r0 = rf(ctx, privKey)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, interface{}, *os.File) error); ok {
+		r0 = rf(ctx, privKey, resultFile)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, interface{}) error); ok {
-		r1 = rf(ctx, privKey)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // NewSDK creates a new instance of SDK. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

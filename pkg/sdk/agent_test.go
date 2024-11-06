@@ -326,7 +326,17 @@ func TestResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Result", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
-			res, err := sdk.Result(context.Background(), tc.userKey)
+
+			resultFile, err := os.CreateTemp("", "result")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = sdk.Result(context.Background(), tc.userKey, resultFile)
+
+			require.NoError(t, resultFile.Close())
 
 			st, ok := status.FromError(err)
 			if !ok {
@@ -338,6 +348,10 @@ func TestResult(t *testing.T) {
 					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
+
+			res, err := os.ReadFile(resultFile.Name())
+			require.NoError(t, err)
+
 			assert.Equal(t, tc.response.File, res, tc.name)
 
 			svcCall.Unset()
@@ -421,7 +435,16 @@ func TestAttestation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Attestation", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
 
-			res, err := sdk.Attestation(context.Background(), tc.reportData)
+			file, err := os.CreateTemp("", "attestation")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(file.Name())
+			})
+
+			err = sdk.Attestation(context.Background(), tc.reportData, file)
+
+			require.NoError(t, file.Close())
 
 			st, ok := status.FromError(err)
 			if !ok {
@@ -433,6 +456,9 @@ func TestAttestation(t *testing.T) {
 					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
+
+			res, err := os.ReadFile(file.Name())
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.response.File, res, tc.name)
 

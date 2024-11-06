@@ -406,13 +406,26 @@ func TestReceiveResult(t *testing.T) {
 			// Disable terminal width check for tests
 			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
 
-			result, err := p.ReceiveResult(tt.description, tt.totalSize, mockStream)
+			resultFile, err := os.CreateTemp("", "test_result")
+			assert.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = p.ReceiveResult(tt.description, tt.totalSize, mockStream, resultFile)
+
+			assert.NoError(t, resultFile.Close())
 
 			if tt.wantErr != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				assert.NoError(t, err)
+
+				result, err := os.ReadFile(resultFile.Name())
+				assert.NoError(t, err)
+
 				assert.Equal(t, tt.wantResult, result)
 			}
 
@@ -488,13 +501,26 @@ func TestReceiveAttestation(t *testing.T) {
 			// Disable terminal width check for tests
 			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
 
-			result, err := p.ReceiveAttestation(tt.description, tt.totalSize, mockStream)
+			resultFile, err := os.CreateTemp("", "test_attestation")
+			assert.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = p.ReceiveAttestation(tt.description, tt.totalSize, mockStream, resultFile)
+
+			assert.NoError(t, resultFile.Close())
 
 			if tt.wantErr != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				assert.NoError(t, err)
+
+				result, err := os.ReadFile(resultFile.Name())
+				assert.NoError(t, err)
+
 				assert.Equal(t, tt.wantResult, result)
 			}
 
