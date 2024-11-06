@@ -130,7 +130,6 @@ func TestNewGetAttestationCmdN(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, buf.String(), tc.expectedOut)
 			}
-
 		})
 	}
 }
