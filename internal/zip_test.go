@@ -3,6 +3,8 @@
 package internal
 
 import (
+	"archive/zip"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,5 +104,149 @@ func TestZipDirectoryToMemory_NonExistentDirectory(t *testing.T) {
 	_, err := ZipDirectoryToMemory(nonExistentDir)
 	if err == nil {
 		t.Error("ZipDirectoryToMemory should fail with non-existent directory")
+	}
+}
+
+func TestZipDirectoryToTempFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupFiles  map[string]string // map of relative path to content
+		expectError bool
+	}{
+		{
+			name: "single file",
+			setupFiles: map[string]string{
+				"test.txt": "hello world",
+			},
+			expectError: false,
+		},
+		{
+			name: "multiple files in root",
+			setupFiles: map[string]string{
+				"test1.txt": "content1",
+				"test2.txt": "content2",
+				"test3.txt": "content3",
+			},
+			expectError: false,
+		},
+		{
+			name: "nested directory structure",
+			setupFiles: map[string]string{
+				"file1.txt":                "root file",
+				"dir1/file2.txt":           "nested file",
+				"dir1/dir2/file3.txt":      "deeply nested file",
+				"dir1/dir2/dir3/file4.txt": "very deeply nested file",
+			},
+			expectError: false,
+		},
+		{
+			name:        "empty directory",
+			setupFiles:  map[string]string{},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sourceDir, err := os.MkdirTemp("", "source")
+			if err != nil {
+				t.Fatalf("Failed to create temp source directory: %v", err)
+			}
+			defer os.RemoveAll(sourceDir)
+
+			for relPath, content := range tt.setupFiles {
+				fullPath := filepath.Join(sourceDir, relPath)
+				dir := filepath.Dir(fullPath)
+
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatalf("Failed to create directory %s: %v", dir, err)
+				}
+
+				if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+					t.Fatalf("Failed to write file %s: %v", fullPath, err)
+				}
+			}
+
+			zipFile, err := ZipDirectoryToTempFile(sourceDir)
+			if err != nil {
+				if !tt.expectError {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				return
+			}
+			defer os.Remove(zipFile.Name())
+			defer zipFile.Close()
+
+			if tt.expectError {
+				t.Fatal("Expected error but got none")
+			}
+
+			zipReader, err := zip.OpenReader(zipFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to open zip file: %v", err)
+			}
+			defer zipReader.Close()
+
+			expectedFiles := make(map[string]string)
+			for path, content := range tt.setupFiles {
+				expectedFiles[filepath.ToSlash(path)] = content
+			}
+
+			for _, file := range zipReader.File {
+				expectedContent, exists := expectedFiles[file.Name]
+				if !exists {
+					t.Errorf("Unexpected file in zip: %s", file.Name)
+					continue
+				}
+
+				rc, err := file.Open()
+				if err != nil {
+					t.Errorf("Failed to open file in zip %s: %v", file.Name, err)
+					continue
+				}
+
+				content, err := io.ReadAll(rc)
+				rc.Close()
+				if err != nil {
+					t.Errorf("Failed to read file in zip %s: %v", file.Name, err)
+					continue
+				}
+
+				if string(content) != expectedContent {
+					t.Errorf("File %s content mismatch: got %s, want %s", file.Name, content, expectedContent)
+				}
+
+				delete(expectedFiles, file.Name)
+			}
+
+			for path := range expectedFiles {
+				t.Errorf("Missing file in zip: %s", path)
+			}
+		})
+	}
+}
+
+func TestZipDirectoryToTempFile_InvalidInput(t *testing.T) {
+	tests := []struct {
+		name      string
+		sourceDir string
+	}{
+		{
+			name:      "non-existent directory",
+			sourceDir: "/path/that/does/not/exist",
+		},
+		{
+			name:      "empty path",
+			sourceDir: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ZipDirectoryToTempFile(tt.sourceDir)
+			if err == nil {
+				t.Error("Expected error but got none")
+			}
+		})
 	}
 }
