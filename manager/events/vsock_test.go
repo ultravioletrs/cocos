@@ -95,7 +95,8 @@ func TestNew(t *testing.T) {
 	reportBrokenConnection := func(address string) {}
 	eventsChan := make(chan *manager.ClientStreamMessage)
 
-	e := New(logger, reportBrokenConnection, eventsChan)
+	e, err := New(logger, reportBrokenConnection, eventsChan)
+	assert.NoError(t, err)
 
 	assert.NotNil(t, e)
 	assert.IsType(t, &events{}, e)
