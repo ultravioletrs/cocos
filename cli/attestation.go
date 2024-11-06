@@ -210,7 +210,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 					return
 				}
 
-				if err := os.WriteFile(filename, result, 0644); err != nil {
+				if err := os.WriteFile(filename, result, 0o644); err != nil {
 					printError(cmd, "Error writing attestation file: %v ❌ ", err)
 					return
 				}
