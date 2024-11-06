@@ -299,7 +299,7 @@ func TestResult(t *testing.T) {
 			name:    "Results not ready",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrResultsNotReady,
@@ -308,7 +308,7 @@ func TestResult(t *testing.T) {
 			name:    "All manifest items received",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrAllManifestItemsReceived,
@@ -317,7 +317,7 @@ func TestResult(t *testing.T) {
 			name:    "Undeclared consumer",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrUndeclaredConsumer,
@@ -415,7 +415,7 @@ func TestAttestation(t *testing.T) {
 			userKey:    resultConsumerKey,
 			reportData: [agent.ReportDataSize]byte(reportData),
 			response: &agent.AttestationResponse{
-				File: nil,
+				File: []byte{},
 			},
 			err: nil,
 		},
@@ -424,7 +424,7 @@ func TestAttestation(t *testing.T) {
 			userKey:    resultConsumerKey,
 			reportData: [agent.ReportDataSize]byte{},
 			response: &agent.AttestationResponse{
-				File: nil,
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    errors.New("invalid report data"),
