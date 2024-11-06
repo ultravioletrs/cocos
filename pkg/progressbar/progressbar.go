@@ -31,7 +31,7 @@ type streamSender interface {
 }
 
 type algoClientWrapper struct {
-	client *agent.AgentService_AlgoClient
+	client agent.AgentService_AlgoClient
 }
 
 func (a *algoClientWrapper) Send(req interface{}) error {
@@ -40,15 +40,15 @@ func (a *algoClientWrapper) Send(req interface{}) error {
 		return fmt.Errorf("expected *AlgoRequest, got %T", req)
 	}
 
-	return (*a.client).Send(algoReq)
+	return a.client.Send(algoReq)
 }
 
 func (a *algoClientWrapper) CloseAndRecv() (interface{}, error) {
-	return (*a.client).CloseAndRecv()
+	return a.client.CloseAndRecv()
 }
 
 type dataClientWrapper struct {
-	client *agent.AgentService_DataClient
+	client agent.AgentService_DataClient
 }
 
 func (a *dataClientWrapper) Send(req interface{}) error {
@@ -57,11 +57,11 @@ func (a *dataClientWrapper) Send(req interface{}) error {
 		return fmt.Errorf("expected *DataRequest, got %T", req)
 	}
 
-	return (*a.client).Send(dataReq)
+	return a.client.Send(dataReq)
 }
 
 func (a *dataClientWrapper) CloseAndRecv() (interface{}, error) {
-	return (*a.client).CloseAndRecv()
+	return a.client.CloseAndRecv()
 }
 
 type ProgressBar struct {
@@ -81,18 +81,22 @@ func New(isDownload bool) *ProgressBar {
 	}
 }
 
-func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stream *agent.AgentService_AlgoClient) error {
+func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stream agent.AgentService_AlgoClient) error {
 	algoFileInfo, err := algo.Stat()
 	if err != nil {
 		return err
 	}
 
-	reqFileInfo, err := req.Stat()
-	if err != nil {
-		return err
+	reqSize := 0
+	if req != nil {
+		reqFileInfo, err := req.Stat()
+		if err != nil {
+			return err
+		}
+		reqSize = int(reqFileInfo.Size())
 	}
 
-	totalSize := int(algoFileInfo.Size()) + int(reqFileInfo.Size())
+	totalSize := int(algoFileInfo.Size()) + reqSize
 	p.reset(description, totalSize)
 
 	wrapper := &algoClientWrapper{client: stream}
@@ -118,10 +122,14 @@ func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stre
 	}
 
 	_, err = wrapper.CloseAndRecv()
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p *ProgressBar) SendData(description, filename string, file *os.File, stream *agent.AgentService_DataClient) error {
+func (p *ProgressBar) SendData(description, filename string, file *os.File, stream agent.AgentService_DataClient) error {
 	return p.sendData(description, file, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
 		return &agent.DataRequest{Dataset: data, Filename: filename}
 	})
@@ -169,13 +177,10 @@ func (p *ProgressBar) sendData(description string, file *os.File, stream streamS
 
 func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
 	buf := make([]byte, bufferSize)
-	fmt.Println(1)
 
 	for {
 		n, err := file.Read(buf)
-		fmt.Println(2)
 		if err == io.EOF {
-			fmt.Println("EOF")
 			break
 		}
 		if err != nil {
@@ -187,12 +192,9 @@ func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createReque
 			return err
 		}
 
-		fmt.Println("Sending buffer")
 		if err := stream.Send(createRequest(buf[:n])); err != nil {
-			fmt.Println("Error sending buffer")
 			return err
 		}
-		fmt.Println("no error sending buffer")
 
 		if err := p.renderProgressBar(); err != nil {
 			return err

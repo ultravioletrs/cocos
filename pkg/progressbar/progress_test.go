@@ -62,15 +62,27 @@ func TestSendAlgorithm(t *testing.T) {
 			_, err = algo.WriteString("test algorithm")
 			assert.NoError(t, err)
 
+			err = algo.Close()
+			assert.NoError(t, err)
+
+			algo, err = os.Open(algo.Name())
+			assert.NoError(t, err)
+
 			_, err = req.WriteString("test request")
 			assert.NoError(t, err)
 
+			err = req.Close()
+			assert.NoError(t, err)
+
+			req, err = os.Open(req.Name())
+			assert.NoError(t, err)
+
 			algoStream := new(mocks.AgentService_AlgoClient)
-			//algoStream.On("Send", mock.Anything).Return(tc.sendError)
+			algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
 
-			err = pb.SendAlgorithm("Test Algorithm", algo, req, &mockStream.stream)
+			err = pb.SendAlgorithm("Test Algorithm", algo, req, mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err), fmt.Sprintf("expected error: %v, got: %v", tc.err, err))
 		})
 	}
@@ -123,12 +135,18 @@ func TestSendData(t *testing.T) {
 			_, err = dataset.WriteString(tc.dataContent)
 			assert.NoError(t, err)
 
+			err = dataset.Close()
+			assert.NoError(t, err)
+
+			dataset, err = os.Open(dataset.Name())
+			assert.NoError(t, err)
+
 			dataStream := new(mocks.AgentService_DataClient)
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}
 
-			err = pb.SendData("Test Data", "test.txt", dataset, &mockStream.stream)
+			err = pb.SendData("Test Data", "test.txt", dataset, mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
 		})
 	}

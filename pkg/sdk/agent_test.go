@@ -123,6 +123,12 @@ func TestAlgo(t *testing.T) {
 			_, err = algo.Write(algorithm.Algorithm)
 			require.NoError(t, err)
 
+			err = algo.Close()
+			require.NoError(t, err)
+
+			algo, err = os.Open(algo.Name())
+			require.NoError(t, err)
+
 			err = sdk.Algo(context.Background(), algo, nil, tc.userKey)
 
 			st, _ := status.FromError(err)
@@ -224,6 +230,12 @@ func TestData(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = data.Write(dataset.Dataset)
+			require.NoError(t, err)
+
+			err = data.Close()
+			require.NoError(t, err)
+
+			data, err = os.Open(data.Name())
 			require.NoError(t, err)
 
 			err = sdk.Data(context.Background(), data, tc.data.Filename, tc.userKey)

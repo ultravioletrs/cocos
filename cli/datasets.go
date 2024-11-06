@@ -49,12 +49,15 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 					printError(cmd, "Error zipping dataset directory: %v ❌ ", err)
 					return
 				}
+				defer dataset.Close()
+				defer os.Remove(dataset.Name())
 			} else {
 				dataset, err = os.Open(datasetPath)
 				if err != nil {
 					printError(cmd, "Error reading dataset file: %v ❌ ", err)
 					return
 				}
+				defer dataset.Close()
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])

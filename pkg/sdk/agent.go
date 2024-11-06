@@ -64,7 +64,7 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm, requirements *os.File,
 	}
 
 	pb := progressbar.New(false)
-	return pb.SendAlgorithm(algoProgressBarDescription, algorithm, requirements, &stream)
+	return pb.SendAlgorithm(algoProgressBarDescription, algorithm, requirements, stream)
 }
 
 func (sdk *agentSDK) Data(ctx context.Context, dataset *os.File, filename string, privKey any) error {
@@ -83,7 +83,7 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset *os.File, filename string
 	}
 
 	pb := progressbar.New(false)
-	return pb.SendData(dataProgressBarDescription, filename, dataset, &stream)
+	return pb.SendData(dataProgressBarDescription, filename, dataset, stream)
 }
 
 func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {

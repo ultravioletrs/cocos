@@ -43,6 +43,8 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 				return
 			}
 
+			defer algorithm.Close()
+
 			var req *os.File
 			if requirementsFile != "" {
 				req, err = os.Open(requirementsFile)
@@ -50,6 +52,7 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 					printError(cmd, "Error reading requirments file: %v ❌ ", err)
 					return
 				}
+				defer req.Close()
 			}
 
 			privKeyFile, err := os.ReadFile(args[1])
