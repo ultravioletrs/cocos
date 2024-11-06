@@ -71,7 +71,7 @@ func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Contains(t, buf.String(), "Error decoding private key")
-	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything)
+	mockSDK.AssertNotCalled(t, "Result", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestResultsCmd(t *testing.T) {
