@@ -21,7 +21,7 @@ const compResult = "Test computation result"
 func TestResultsCmd_Success(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := generateRSAPrivateKeyFile(privateKeyFile)
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestResultsCmd_Success(t *testing.T) {
 func TestResultsCmd_MultipleExecutions(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := generateRSAPrivateKeyFile(privateKeyFile)
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestResultsCmd_MultipleExecutions(t *testing.T) {
 func TestResultsCmd_MissingPrivateKeyFile(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	cmd := testCLI.NewResultsCmd()
 	buf := new(bytes.Buffer)
@@ -101,7 +101,7 @@ func TestResultsCmd_MissingPrivateKeyFile(t *testing.T) {
 func TestResultsCmd_ResultFailure(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return(nil, errors.New("error retrieving computation result"))
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := generateRSAPrivateKeyFile(privateKeyFile)
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestResultsCmd_ResultFailure(t *testing.T) {
 func TestResultsCmd_SaveFailure(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := generateRSAPrivateKeyFile(privateKeyFile)
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestResultsCmd_SaveFailure(t *testing.T) {
 func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	invalidPrivateKey, err := os.CreateTemp("", "invalid_private_key.pem")
 	require.NoError(t, err)

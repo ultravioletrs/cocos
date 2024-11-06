@@ -30,7 +30,7 @@ func createTempDatasetFile(content string) (string, error) {
 func TestDatasetsCmd_Success(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	datasetFile, err := createTempDatasetFile("test dataset content")
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestDatasetsCmd_Success(t *testing.T) {
 func TestDatasetsCmd_MissingDatasetFile(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	cmd := testCLI.NewDatasetsCmd()
 	buf := new(bytes.Buffer)
@@ -74,7 +74,7 @@ func TestDatasetsCmd_MissingDatasetFile(t *testing.T) {
 func TestDatasetsCmd_MissingPrivateKeyFile(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	datasetFile, err := createTempDatasetFile("test dataset content")
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestDatasetsCmd_MissingPrivateKeyFile(t *testing.T) {
 func TestDatasetsCmd_UploadFailure(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	datasetFile, err := createTempDatasetFile("test dataset content")
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestDatasetsCmd_UploadFailure(t *testing.T) {
 func TestDatasetsCmd_InvalidPrivateKey(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	datasetFile, err := createTempDatasetFile("test dataset content")
 	require.NoError(t, err)

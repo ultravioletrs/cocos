@@ -47,7 +47,7 @@ func generateRSAPrivateKeyFile(fileName string) error {
 func TestAlgorithmCmd_Success(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestAlgorithmCmd_Success(t *testing.T) {
 func TestAlgorithmCmd_MissingAlgorithmFile(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	cmd := testCLI.NewAlgorithmCmd()
 	buf := new(bytes.Buffer)
@@ -88,7 +88,7 @@ func TestAlgorithmCmd_MissingAlgorithmFile(t *testing.T) {
 func TestAlgorithmCmd_MissingPrivateKeyFile(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestAlgorithmCmd_MissingPrivateKeyFile(t *testing.T) {
 func TestAlgorithmCmd_UploadFailure(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestAlgorithmCmd_UploadFailure(t *testing.T) {
 func TestAlgorithmCmd_InvalidPrivateKey(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	testCLI := New(mockSDK)
+	testCLI := CLI{agentSDK: mockSDK}
 
 	err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
 	require.NoError(t, err)
