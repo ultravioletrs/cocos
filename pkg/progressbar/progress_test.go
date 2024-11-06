@@ -392,7 +392,7 @@ func TestReceiveResult(t *testing.T) {
 			setupMock: func(m *MockResultStream) {
 				m.On("Recv").Return(nil, io.EOF).Once()
 			},
-			wantResult: nil,
+			wantResult: []byte{},
 			wantErr:    nil,
 		},
 	}
