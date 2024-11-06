@@ -126,9 +126,9 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 		Use:   "attestation [command]",
 		Short: "Get and validate attestations",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Get and validate attestations\n\n")
-			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
-			fmt.Printf("Available Commands:\n")
+			cmd.Printf("Get and validate attestations\n\n")
+			cmd.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
+			cmd.Printf("Available Commands:\n")
 
 			// Filter out "completion" command
 			availableCommands := make([]*cobra.Command, 0)
@@ -139,14 +139,14 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 			}
 
 			for _, subCmd := range availableCommands {
-				fmt.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
+				cmd.Printf("  %-15s%s\n", subCmd.Name(), subCmd.Short)
 			}
 
-			fmt.Printf("\nFlags:\n")
+			cmd.Printf("\nFlags:\n")
 			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-				fmt.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
+				cmd.Printf("  -%s, --%s %s\n", flag.Shorthand, flag.Name, flag.Usage)
 			})
-			fmt.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
+			cmd.Printf("\nUse \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
 		},
 	}
 }
