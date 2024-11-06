@@ -30,6 +30,16 @@ func TestNewAttestationCmd(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
+
+	cmd.SetOutput(&buf)
+
+	assert.Equal(t, "get", cmd.Use)
+	assert.Equal(t, "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.", cmd.Short)
+
+	reportData := bytes.Repeat([]byte{0x01}, agent.ReportDataSize)
+	mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(reportData), mock.Anything).Return(nil)
+
+	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
 	err := cmd.Execute()
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Get and validate attestations")
