@@ -4,6 +4,7 @@
 coverage:
   ignore:
     - "test/*"
+    - "cmd/*"
     - "**/mocks/**"
     - "mocks/**"
     - "**/*.pb.go"
