@@ -21,7 +21,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Use:     "result",
 		Short:   "Retrieve computation result file",
 		Example: "result <private_key_file_path> <optional_file_name.zip>",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
