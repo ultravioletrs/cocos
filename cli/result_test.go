@@ -20,7 +20,8 @@ const compResult = "Test computation result"
 func TestResultsCmd_MultipleExecutions(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		args.Get(2).(*os.File).WriteString(compResult)
+		_, err := args.Get(2).(*os.File).WriteString(compResult)
+		require.NoError(t, err)
 	})
 	testCLI := CLI{agentSDK: mockSDK}
 
@@ -53,7 +54,8 @@ func TestResultsCmd_MultipleExecutions(t *testing.T) {
 func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 	mockSDK := new(mocks.SDK)
 	mockSDK.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		args.Get(2).(*os.File).WriteString(compResult)
+		_, err := args.Get(2).(*os.File).WriteString(compResult)
+		require.NoError(t, err)
 	})
 	testCLI := CLI{agentSDK: mockSDK}
 
@@ -91,7 +93,8 @@ func TestResultsCmd(t *testing.T) {
 			name: "successful result retrieval",
 			setupMock: func(m *mocks.SDK) {
 				m.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-					args.Get(2).(*os.File).WriteString(compResult)
+					_, err := args.Get(2).(*os.File).WriteString(compResult)
+					require.NoError(t, err)
 				})
 			},
 			setupFiles: func() (string, error) {
@@ -110,7 +113,8 @@ func TestResultsCmd(t *testing.T) {
 			name: "missing private key file",
 			setupMock: func(m *mocks.SDK) {
 				m.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-					args.Get(2).(*os.File).WriteString(compResult)
+					_, err := args.Get(2).(*os.File).WriteString(compResult)
+					require.NoError(t, err)
 				})
 			},
 			setupFiles: func() (string, error) {

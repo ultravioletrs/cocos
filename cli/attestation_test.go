@@ -128,7 +128,8 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			cmd.SetOutput(&buf)
 
 			mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
-				args.Get(2).(*os.File).Write(tc.mockResponse)
+				_, err := args.Get(2).(*os.File).Write(tc.mockResponse)
+				require.NoError(t, err)
 			})
 
 			cmd.SetArgs(tc.args)
