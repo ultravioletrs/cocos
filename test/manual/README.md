@@ -63,7 +63,7 @@ cd ../..
 ./build/cocos-cli backend hostdata '<host-data>' '<backend_info.json>'
 
 # For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_MANIFEST=./scripts/backend_info/backend_info.json
+export AGENT_GRPC_BACKEND_INFO=./scripts/backend_info/backend_info.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation
