@@ -126,6 +126,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 			ServerCAFile: c.AgentConfig.ServerCaFile,
 			ClientCAFile: c.AgentConfig.ClientCaFile,
 			LogLevel:     c.AgentConfig.LogLevel,
+			AttestedTls:  c.AgentConfig.AttestedTls,
 		},
 	}
 	if len(c.Algorithm.Hash) != hashLength {
