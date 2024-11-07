@@ -57,7 +57,7 @@ func TestAlgorithmCmd(t *testing.T) {
 		{
 			name: "successful upload",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Algo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() error {
 				if err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644); err != nil {
@@ -75,7 +75,7 @@ func TestAlgorithmCmd(t *testing.T) {
 		{
 			name: "missing algorithm file",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Algo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			args:           []string{"non_existent_algo_file.py", privateKeyFile},
 			expectedOutput: "Error reading algorithm file",
@@ -83,7 +83,7 @@ func TestAlgorithmCmd(t *testing.T) {
 		{
 			name: "missing private key file",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Algo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() error {
 				return os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644)
@@ -97,7 +97,7 @@ func TestAlgorithmCmd(t *testing.T) {
 		{
 			name: "upload failure",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
+				m.On("Algo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
 			},
 			setupFiles: func() error {
 				if err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644); err != nil {
@@ -115,7 +115,7 @@ func TestAlgorithmCmd(t *testing.T) {
 		{
 			name: "invalid private key",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Algo", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Algo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() error {
 				if err := os.WriteFile(algorithmFile, []byte("test algorithm"), 0o644); err != nil {

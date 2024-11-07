@@ -19,7 +19,9 @@ const compResult = "Test computation result"
 
 func TestResultsCmd_MultipleExecutions(t *testing.T) {
 	mockSDK := new(mocks.SDK)
-	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+	mockSDK.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		args.Get(2).(*os.File).WriteString(compResult)
+	})
 	testCLI := CLI{agentSDK: mockSDK}
 
 	err := generateRSAPrivateKeyFile(privateKeyFile)
@@ -50,7 +52,9 @@ func TestResultsCmd_MultipleExecutions(t *testing.T) {
 
 func TestResultsCmd_InvalidPrivateKey(t *testing.T) {
 	mockSDK := new(mocks.SDK)
-	mockSDK.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+	mockSDK.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		args.Get(2).(*os.File).WriteString(compResult)
+	})
 	testCLI := CLI{agentSDK: mockSDK}
 
 	invalidPrivateKey, err := os.CreateTemp("", "invalid_private_key.pem")
@@ -86,7 +90,9 @@ func TestResultsCmd(t *testing.T) {
 		{
 			name: "successful result retrieval",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+				m.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					args.Get(2).(*os.File).WriteString(compResult)
+				})
 			},
 			setupFiles: func() (string, error) {
 				return privateKeyFile, generateRSAPrivateKeyFile(privateKeyFile)
@@ -103,7 +109,9 @@ func TestResultsCmd(t *testing.T) {
 		{
 			name: "missing private key file",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
+				m.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					args.Get(2).(*os.File).WriteString(compResult)
+				})
 			},
 			setupFiles: func() (string, error) {
 				return "non_existent_private_key.pem", nil
@@ -113,33 +121,13 @@ func TestResultsCmd(t *testing.T) {
 		{
 			name: "result retrieval failure",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Result", mock.Anything, mock.Anything).Return(nil, errors.New("error retrieving computation result"))
+				m.On("Result", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error retrieving computation result"))
 			},
 			setupFiles: func() (string, error) {
 				return privateKeyFile, generateRSAPrivateKeyFile(privateKeyFile)
 			},
 			expectedOutput: "error retrieving computation result",
 			cleanup: func() {
-				os.Remove(privateKeyFile)
-			},
-		},
-		{
-			name: "save failure",
-			setupMock: func(m *mocks.SDK) {
-				m.On("Result", mock.Anything, mock.Anything).Return([]byte(compResult), nil)
-			},
-			setupFiles: func() (string, error) {
-				err := generateRSAPrivateKeyFile(privateKeyFile)
-				if err != nil {
-					return "", err
-				}
-				// Simulate failure in saving the result file by making all files read-only
-				return privateKeyFile, os.Chmod(".", 0o555)
-			},
-			expectedOutput: "Error saving computation result file",
-			cleanup: func() {
-				err := os.Chmod(".", 0o755)
-				require.NoError(t, err)
 				os.Remove(privateKeyFile)
 			},
 		},
