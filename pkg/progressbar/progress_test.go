@@ -53,16 +53,37 @@ func TestSendAlgorithm(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pb := New(false)
-			algobuffer := bytes.NewBufferString("algorithm content")
-			reqBuffer := bytes.NewBufferString("requirements content")
+
+			algo, err := os.CreateTemp("", "test_algo")
+			assert.NoError(t, err)
+			req, err := os.CreateTemp("", "test_req")
+			assert.NoError(t, err)
+
+			_, err = algo.WriteString("test algorithm")
+			assert.NoError(t, err)
+
+			err = algo.Close()
+			assert.NoError(t, err)
+
+			algo, err = os.Open(algo.Name())
+			assert.NoError(t, err)
+
+			_, err = req.WriteString("test request")
+			assert.NoError(t, err)
+
+			err = req.Close()
+			assert.NoError(t, err)
+
+			req, err = os.Open(req.Name())
+			assert.NoError(t, err)
 
 			algoStream := new(mocks.AgentService_AlgoClient)
 			algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
 
-			err := pb.SendAlgorithm("Test Algorithm", algobuffer, reqBuffer, &mockStream.stream)
-			assert.True(t, errors.Contains(err, tc.err))
+			err = pb.SendAlgorithm("Test Algorithm", algo, req, mockStream.stream)
+			assert.True(t, errors.Contains(err, tc.err), fmt.Sprintf("expected error: %v, got: %v", tc.err, err))
 		})
 	}
 }
@@ -108,14 +129,24 @@ func TestSendData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pb := New(false)
-			buffer := bytes.NewBufferString(tc.dataContent)
+			dataset, err := os.CreateTemp("", "test_dataset")
+			assert.NoError(t, err)
+
+			_, err = dataset.WriteString(tc.dataContent)
+			assert.NoError(t, err)
+
+			err = dataset.Close()
+			assert.NoError(t, err)
+
+			dataset, err = os.Open(dataset.Name())
+			assert.NoError(t, err)
 
 			dataStream := new(mocks.AgentService_DataClient)
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}
 
-			err := pb.SendData("Test Data", "test.txt", buffer, &mockStream.stream)
+			err = pb.SendData("Test Data", "test.txt", dataset, mockStream.stream)
 			assert.True(t, errors.Contains(err, tc.err))
 		})
 	}
@@ -361,7 +392,7 @@ func TestReceiveResult(t *testing.T) {
 			setupMock: func(m *MockResultStream) {
 				m.On("Recv").Return(nil, io.EOF).Once()
 			},
-			wantResult: nil,
+			wantResult: []byte{},
 			wantErr:    nil,
 		},
 	}
@@ -375,13 +406,26 @@ func TestReceiveResult(t *testing.T) {
 			// Disable terminal width check for tests
 			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
 
-			result, err := p.ReceiveResult(tt.description, tt.totalSize, mockStream)
+			resultFile, err := os.CreateTemp("", "test_result")
+			assert.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = p.ReceiveResult(tt.description, tt.totalSize, mockStream, resultFile)
+
+			assert.NoError(t, resultFile.Close())
 
 			if tt.wantErr != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				assert.NoError(t, err)
+
+				result, err := os.ReadFile(resultFile.Name())
+				assert.NoError(t, err)
+
 				assert.Equal(t, tt.wantResult, result)
 			}
 
@@ -457,13 +501,26 @@ func TestReceiveAttestation(t *testing.T) {
 			// Disable terminal width check for tests
 			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
 
-			result, err := p.ReceiveAttestation(tt.description, tt.totalSize, mockStream)
+			resultFile, err := os.CreateTemp("", "test_attestation")
+			assert.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = p.ReceiveAttestation(tt.description, tt.totalSize, mockStream, resultFile)
+
+			assert.NoError(t, resultFile.Close())
 
 			if tt.wantErr != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				assert.NoError(t, err)
+
+				result, err := os.ReadFile(resultFile.Name())
+				assert.NoError(t, err)
+
 				assert.Equal(t, tt.wantResult, result)
 			}
 

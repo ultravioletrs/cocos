@@ -3,7 +3,6 @@
 package sdk
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -12,6 +11,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"os"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -24,10 +24,10 @@ import (
 
 //go:generate mockery --name SDK --output=mocks --filename sdk.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type SDK interface {
-	Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error
-	Data(ctx context.Context, dataset agent.Dataset, privKey any) error
-	Result(ctx context.Context, privKey any) ([]byte, error)
-	Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error)
+	Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error
+	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
+	Result(ctx context.Context, privKey any, resultFile *os.File) error
+	Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error
 }
 
 const (
@@ -48,7 +48,7 @@ func NewAgentSDK(agentClient agent.AgentServiceClient) SDK {
 	}
 }
 
-func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKey any) error {
+func (sdk *agentSDK) Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error {
 	md, err := generateMetadata(string(auth.AlgorithmProviderRole), privKey)
 	if err != nil {
 		return err
@@ -62,14 +62,12 @@ func (sdk *agentSDK) Algo(ctx context.Context, algorithm agent.Algorithm, privKe
 	if err != nil {
 		return err
 	}
-	algoBuffer := bytes.NewBuffer(algorithm.Algorithm)
-	reqBuffer := bytes.NewBuffer(algorithm.Requirements)
 
 	pb := progressbar.New(false)
-	return pb.SendAlgorithm(algoProgressBarDescription, algoBuffer, reqBuffer, &stream)
+	return pb.SendAlgorithm(algoProgressBarDescription, algorithm, requirements, stream)
 }
 
-func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey any) error {
+func (sdk *agentSDK) Data(ctx context.Context, dataset *os.File, filename string, privKey any) error {
 	md, err := generateMetadata(string(auth.DataProviderRole), privKey)
 	if err != nil {
 		return err
@@ -83,29 +81,28 @@ func (sdk *agentSDK) Data(ctx context.Context, dataset agent.Dataset, privKey an
 	if err != nil {
 		return err
 	}
-	dataBuffer := bytes.NewBuffer(dataset.Dataset)
 
 	pb := progressbar.New(false)
-	return pb.SendData(dataProgressBarDescription, dataset.Filename, dataBuffer, &stream)
+	return pb.SendData(dataProgressBarDescription, filename, dataset, stream)
 }
 
-func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
+func (sdk *agentSDK) Result(ctx context.Context, privKey any, resultFile *os.File) error {
 	request := &agent.ResultRequest{}
 
 	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.Result(ctx, request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	incomingmd, err := stream.Header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
@@ -116,27 +113,27 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any) ([]byte, error) {
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pb := progressbar.New(true)
 
-	return pb.ReceiveResult(resultProgressDescription, fileSize, stream)
+	return pb.ReceiveResult(resultProgressDescription, fileSize, stream, resultFile)
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) ([]byte, error) {
+func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error {
 	request := &agent.AttestationRequest{
 		ReportData: reportData[:],
 	}
 
 	stream, err := sdk.client.Attestation(ctx, request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	incomingmd, err := stream.Header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
@@ -147,12 +144,12 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte) (
 
 	fileSize, err := strconv.Atoi(fileSizeStr[0])
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pb := progressbar.New(true)
 
-	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream)
+	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream, attestationFile)
 }
 
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {

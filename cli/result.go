@@ -4,7 +4,6 @@ package cli
 
 import (
 	"encoding/pem"
-	"fmt"
 	"os"
 
 	"github.com/fatih/color"
@@ -14,13 +13,14 @@ import (
 const (
 	resultFilePrefix = "results"
 	resultFileExt    = ".zip"
+	resultfilename   = "results.zip"
 )
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "result",
 		Short:   "Retrieve computation result file",
-		Example: "result <private_key_file_path>",
+		Example: "result <private_key_file_path> <optional_file_name.zip>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -36,50 +36,32 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			pemBlock, _ := pem.Decode(privKeyFile)
+			filename := resultfilename
+			if len(args) > 1 {
+				filename = args[1]
+			}
 
-			var result []byte
+			pemBlock, _ := pem.Decode(privKeyFile)
 
 			privKey, err := decodeKey(pemBlock)
 			if err != nil {
 				printError(cmd, "Error decoding private key: %v ❌ ", err)
 				return
 			}
-			result, err = cli.agentSDK.Result(cmd.Context(), privKey)
+
+			resultFile, err := os.Create(filename)
 			if err != nil {
+				printError(cmd, "Error creating result file: %v ❌ ", err)
+				return
+			}
+			defer resultFile.Close()
+
+			if err = cli.agentSDK.Result(cmd.Context(), privKey, resultFile); err != nil {
 				printError(cmd, "Error retrieving computation result: %v ❌ ", err)
 				return
 			}
 
-			resultFilePath, err := getUniqueFilePath(resultFilePrefix, resultFileExt)
-			if err != nil {
-				printError(cmd, "Error generating unique file path: %v ❌ ", err)
-				return
-			}
-
-			if err := os.WriteFile(resultFilePath, result, 0o644); err != nil {
-				printError(cmd, "Error saving computation result file: %v  ❌ ", err)
-				return
-			}
-
-			cmd.Println(color.New(color.FgGreen).Sprintf("Computation result retrieved and saved successfully as %s! ✔ ", resultFilePath))
+			cmd.Println(color.New(color.FgGreen).Sprintf("Computation result retrieved and saved successfully as %s! ✔ ", filename))
 		},
-	}
-}
-
-func getUniqueFilePath(prefix, ext string) (string, error) {
-	for i := 0; ; i++ {
-		var filename string
-		if i == 0 {
-			filename = prefix + ext
-		} else {
-			filename = fmt.Sprintf("%s_%d%s", prefix, i, ext)
-		}
-
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			return filename, nil
-		} else if err != nil {
-			return "", err
-		}
 	}
 }

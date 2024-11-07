@@ -22,7 +22,8 @@ import (
 )
 
 func TestNewAttestationCmd(t *testing.T) {
-	cli := &CLI{}
+	mockSDK := new(mocks.SDK)
+	cli := &CLI{agentSDK: mockSDK}
 	cmd := cli.NewAttestationCmd()
 
 	assert.Equal(t, "attestation [command]", cmd.Use)
@@ -30,12 +31,19 @@ func TestNewAttestationCmd(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
+
+	cmd.SetOutput(&buf)
+
+	reportData := bytes.Repeat([]byte{0x01}, agent.ReportDataSize)
+	mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(reportData), mock.Anything).Return(nil)
+
+	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
 	err := cmd.Execute()
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Get and validate attestations")
 }
 
-func TestNewGetAttestationCmdN(t *testing.T) {
+func TestNewGetAttestationCmd(t *testing.T) {
 	validattestation, err := os.ReadFile("../attestation.bin")
 	require.NoError(t, err)
 	testCases := []struct {
@@ -119,7 +127,10 @@ func TestNewGetAttestationCmdN(t *testing.T) {
 			var buf bytes.Buffer
 			cmd.SetOutput(&buf)
 
-			mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))).Return(tc.mockResponse, tc.mockError)
+			mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+				_, err := args.Get(2).(*os.File).Write(tc.mockResponse)
+				require.NoError(t, err)
+			})
 
 			cmd.SetArgs(tc.args)
 			err := cmd.Execute()

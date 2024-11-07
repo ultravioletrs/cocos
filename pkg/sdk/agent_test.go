@@ -115,7 +115,21 @@ func TestAlgo(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Algo", mock.Anything, mock.Anything).Return(tc.err)
-			err = sdk.Algo(context.Background(), tc.algo, tc.userKey)
+
+			algo, err := os.CreateTemp("", "algo")
+			require.NoError(t, err)
+			defer os.Remove(algo.Name())
+
+			_, err = algo.Write(algorithm.Algorithm)
+			require.NoError(t, err)
+
+			err = algo.Close()
+			require.NoError(t, err)
+
+			algo, err = os.Open(algo.Name())
+			require.NoError(t, err)
+
+			err = sdk.Algo(context.Background(), algo, nil, tc.userKey)
 
 			st, _ := status.FromError(err)
 
@@ -212,7 +226,19 @@ func TestData(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dataCall := svc.On("Data", mock.Anything, mock.Anything).Return(tc.svcErr)
 
-			err = sdk.Data(context.Background(), tc.data, tc.userKey)
+			data, err := os.CreateTemp("", "data")
+			require.NoError(t, err)
+
+			_, err = data.Write(dataset.Dataset)
+			require.NoError(t, err)
+
+			err = data.Close()
+			require.NoError(t, err)
+
+			data, err = os.Open(data.Name())
+			require.NoError(t, err)
+
+			err = sdk.Data(context.Background(), data, tc.data.Filename, tc.userKey)
 
 			st, _ := status.FromError(err)
 
@@ -273,7 +299,7 @@ func TestResult(t *testing.T) {
 			name:    "Results not ready",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrResultsNotReady,
@@ -282,7 +308,7 @@ func TestResult(t *testing.T) {
 			name:    "All manifest items received",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrAllManifestItemsReceived,
@@ -291,7 +317,7 @@ func TestResult(t *testing.T) {
 			name:    "Undeclared consumer",
 			userKey: resultConsumer1Key,
 			response: &agent.ResultResponse{
-				File: []byte(nil),
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    agent.ErrUndeclaredConsumer,
@@ -300,7 +326,17 @@ func TestResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Result", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
-			res, err := sdk.Result(context.Background(), tc.userKey)
+
+			resultFile, err := os.CreateTemp("", "result")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			err = sdk.Result(context.Background(), tc.userKey, resultFile)
+
+			require.NoError(t, resultFile.Close())
 
 			st, ok := status.FromError(err)
 			if !ok {
@@ -312,6 +348,10 @@ func TestResult(t *testing.T) {
 					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
+
+			res, err := os.ReadFile(resultFile.Name())
+			require.NoError(t, err)
+
 			assert.Equal(t, tc.response.File, res, tc.name)
 
 			svcCall.Unset()
@@ -375,7 +415,7 @@ func TestAttestation(t *testing.T) {
 			userKey:    resultConsumerKey,
 			reportData: [agent.ReportDataSize]byte(reportData),
 			response: &agent.AttestationResponse{
-				File: nil,
+				File: []byte{},
 			},
 			err: nil,
 		},
@@ -384,7 +424,7 @@ func TestAttestation(t *testing.T) {
 			userKey:    resultConsumerKey,
 			reportData: [agent.ReportDataSize]byte{},
 			response: &agent.AttestationResponse{
-				File: nil,
+				File: []byte{},
 			},
 			svcRes: nil,
 			err:    errors.New("invalid report data"),
@@ -395,7 +435,16 @@ func TestAttestation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			svcCall := svc.On("Attestation", mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
 
-			res, err := sdk.Attestation(context.Background(), tc.reportData)
+			file, err := os.CreateTemp("", "attestation")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(file.Name())
+			})
+
+			err = sdk.Attestation(context.Background(), tc.reportData, file)
+
+			require.NoError(t, file.Close())
 
 			st, ok := status.FromError(err)
 			if !ok {
@@ -407,6 +456,9 @@ func TestAttestation(t *testing.T) {
 					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
 				}
 			}
+
+			res, err := os.ReadFile(file.Name())
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.response.File, res, tc.name)
 

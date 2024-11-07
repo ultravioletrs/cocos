@@ -39,7 +39,7 @@ func TestDatasetsCmd(t *testing.T) {
 		{
 			name: "successful upload",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Data", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() (string, error) {
 				datasetFile, err := createTempDatasetFile("test dataset content")
@@ -58,7 +58,7 @@ func TestDatasetsCmd(t *testing.T) {
 		{
 			name: "missing dataset file",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Data", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() (string, error) {
 				return "", nil
@@ -68,7 +68,7 @@ func TestDatasetsCmd(t *testing.T) {
 		{
 			name: "missing private key file",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Data", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() (string, error) {
 				return createTempDatasetFile("test dataset content")
@@ -81,7 +81,7 @@ func TestDatasetsCmd(t *testing.T) {
 		{
 			name: "upload failure",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
+				m.On("Data", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to upload algorithm due to error"))
 			},
 			setupFiles: func() (string, error) {
 				datasetFile, err := createTempDatasetFile("test dataset content")
@@ -100,7 +100,7 @@ func TestDatasetsCmd(t *testing.T) {
 		{
 			name: "invalid private key",
 			setupMock: func(m *mocks.SDK) {
-				m.On("Data", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("Data", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			setupFiles: func() (string, error) {
 				datasetFile, err := createTempDatasetFile("test dataset content")

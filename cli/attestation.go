@@ -176,25 +176,44 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			result, err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData))
+			filename := attestationFilePath
+			if getJsonAttestation {
+				filename = attestationJson
+			}
+
+			attestationFile, err := os.Create(filename)
 			if err != nil {
+				printError(cmd, "Error creating attestation file: %v ❌ ", err)
+				return
+			}
+
+			if err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData), attestationFile); err != nil {
 				printError(cmd, "Failed to get attestation due to error: %v ❌ ", err)
 				return
 			}
 
-			filename := attestationFilePath
+			if err := attestationFile.Close(); err != nil {
+				printError(cmd, "Error closing attestation file: %v ❌ ", err)
+				return
+			}
+
 			if getJsonAttestation {
+				result, err := os.ReadFile(filename)
+				if err != nil {
+					printError(cmd, "Error reading attestation file: %v ❌ ", err)
+					return
+				}
+
 				result, err = attesationToJSON(result)
 				if err != nil {
 					printError(cmd, "Error converting attestation to json: %v ❌ ", err)
 					return
 				}
-				filename = attestationJson
-			}
 
-			if err = os.WriteFile(filename, result, 0o644); err != nil {
-				printError(cmd, "Error saving attestation result: %v ❌ ", err)
-				return
+				if err := os.WriteFile(filename, result, 0o644); err != nil {
+					printError(cmd, "Error writing attestation file: %v ❌ ", err)
+					return
+				}
 			}
 
 			cmd.Println("Attestation result retrieved and saved successfully!")
