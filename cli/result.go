@@ -23,6 +23,11 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Example: "result <private_key_file_path>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			if cli.connectErr != nil {
+				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				return
+			}
+
 			cmd.Println("⏳ Retrieving computation result file")
 
 			privKeyFile, err := os.ReadFile(args[0])

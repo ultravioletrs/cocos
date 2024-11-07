@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,8 +15,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
-	"github.com/ultravioletrs/cocos/pkg/sdk"
 	cmd "github.com/virtee/sev-snp-measure-go/sevsnpmeasure/cmd"
 )
 
@@ -101,17 +98,11 @@ func main() {
 		return
 	}
 
-	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), agentGRPCConfig)
-	if err != nil {
-		message := color.New(color.FgRed).Sprintf("failed to create %s gRPC client : %s", svcName, err)
-		rootCmd.Println(message)
-		return
+	cliSVC := cli.New(agentGRPCConfig)
+
+	if err := cliSVC.InitializeSDK(); err == nil {
+		defer cliSVC.Close()
 	}
-	defer agentGRPCClient.Close()
-
-	agentSDK := sdk.NewAgentSDK(agentClient)
-
-	cliSVC := cli.New(agentSDK)
 
 	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
 

@@ -2,16 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 package cli
 
-import "github.com/ultravioletrs/cocos/pkg/sdk"
+import (
+	"context"
+
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
+	"github.com/ultravioletrs/cocos/pkg/sdk"
+)
 
 var Verbose bool
 
 type CLI struct {
-	agentSDK sdk.SDK
+	agentSDK   sdk.SDK
+	config     grpc.Config
+	client     grpc.Client
+	connectErr error
 }
 
-func New(agentSDK sdk.SDK) *CLI {
+func New(config grpc.Config) *CLI {
 	return &CLI{
-		agentSDK: agentSDK,
+		config: config,
 	}
+}
+
+func (c *CLI) InitializeSDK() error {
+	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), c.config)
+	if err != nil {
+		c.connectErr = err
+		return err
+	}
+	c.client = agentGRPCClient
+
+	c.agentSDK = sdk.NewAgentSDK(agentClient)
+	return nil
+}
+
+func (c *CLI) Close() {
+	c.client.Close()
 }

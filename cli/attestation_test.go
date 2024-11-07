@@ -27,29 +27,111 @@ func TestNewAttestationCmd(t *testing.T) {
 
 	assert.Equal(t, "attestation [command]", cmd.Use)
 	assert.Equal(t, "Get and validate attestations", cmd.Short)
-}
 
-func TestNewGetAttestationCmd(t *testing.T) {
-	mockSDK := new(mocks.SDK)
-	cli := &CLI{agentSDK: mockSDK}
-	cmd := cli.NewGetAttestationCmd()
 	var buf bytes.Buffer
-
-	cmd.SetOutput(&buf)
-
-	assert.Equal(t, "get", cmd.Use)
-	assert.Equal(t, "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.", cmd.Short)
-
-	reportData := bytes.Repeat([]byte{0x01}, agent.ReportDataSize)
-	mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(reportData)).Return([]byte("mock attestation"), nil)
-
-	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
+	cmd.SetOut(&buf)
 	err := cmd.Execute()
 	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "Get and validate attestations")
+}
 
-	assert.Contains(t, buf.String(), "Attestation result retrieved and saved successfully!")
+func TestNewGetAttestationCmdN(t *testing.T) {
+	validattestation, err := os.ReadFile("../attestation.bin")
+	require.NoError(t, err)
+	testCases := []struct {
+		name         string
+		args         []string
+		mockResponse []byte
+		mockError    error
+		expectedErr  string
+		expectedOut  string
+	}{
+		{
+			name:         "successful attestation retrieval",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedOut:  "Attestation result retrieved and saved successfully!",
+		},
+		{
+			name:         "invalid report data (decoding error)",
+			args:         []string{"invalid"},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "Error decoding report data",
+		},
+		{
+			name:         "invalid report data size",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, 32))},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "report data must be a hex encoded string of length 64 bytes",
+		},
+		{
+			name:         "invalid report data hex",
+			args:         []string{"invalid"},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "Error decoding report data",
+		},
+		{
+			name:         "failed to get attestation",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "Failed to get attestation due to error",
+		},
+		{
+			name:         "JSON report error",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), "--json"},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedErr:  "Error converting attestation to json",
+		},
+		{
+			name:         "successful JSON report",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), "--json"},
+			mockResponse: validattestation,
+			mockError:    nil,
+			expectedOut:  "Attestation result retrieved and saved successfully!",
+		},
+		{
+			name:         "connection error",
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			mockResponse: nil,
+			mockError:    errors.New("failed to connect to agent"),
+			expectedErr:  "Failed to connect to agent",
+		},
+	}
 
-	os.Remove(attestationFilePath)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				os.Remove(attestationFilePath)
+				os.Remove(attestationJson)
+			})
+			mockSDK := new(mocks.SDK)
+			cli := &CLI{agentSDK: mockSDK}
+			if tc.name == "connection error" {
+				cli.connectErr = errors.New("failed to connect to agent")
+			}
+			cmd := cli.NewGetAttestationCmd()
+			var buf bytes.Buffer
+			cmd.SetOutput(&buf)
+
+			mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))).Return(tc.mockResponse, tc.mockError)
+
+			cmd.SetArgs(tc.args)
+			err := cmd.Execute()
+
+			if tc.expectedErr != "" {
+				assert.Contains(t, buf.String(), tc.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, buf.String(), tc.expectedOut)
+			}
+		})
+	}
 }
 
 func TestNewValidateAttestationValidationCmd(t *testing.T) {

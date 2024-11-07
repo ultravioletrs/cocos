@@ -29,6 +29,11 @@ func (cli *CLI) NewAlgorithmCmd() *cobra.Command {
 		Example: "algo <algo_file> <private_key_file_path>",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
+			if cli.connectErr != nil {
+				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				return
+			}
+
 			algorithmFile := args[0]
 
 			cmd.Println("Uploading algorithm file:", algorithmFile)
