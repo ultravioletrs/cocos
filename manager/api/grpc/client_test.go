@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/mocks"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -203,4 +204,32 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 		mockSvc.AssertExpectations(t)
 		assert.Len(t, messageQueue, 0)
 	})
+}
+
+func TestManagerClient_handleSVMInfoReq(t *testing.T) {
+	mockStream := new(mockStream)
+	mockSvc := new(mocks.Service)
+	messageQueue := make(chan *manager.ClientStreamMessage, 10)
+	logger := mglog.NewMock()
+
+	client := NewClient(mockStream, mockSvc, messageQueue, logger)
+
+	mockSvc.On("ReturnSVMInfo", context.Background()).Return("edk2-stable202408", 4, "EPYC", "")
+
+	client.handleSVMInfoReq(context.Background())
+
+	// Wait for the goroutine to finish
+	time.Sleep(50 * time.Millisecond)
+
+	mockSvc.AssertExpectations(t)
+	assert.Len(t, messageQueue, 1)
+
+	msg := <-messageQueue
+	infoRes, ok := msg.Message.(*manager.ClientStreamMessage_SvmInfo)
+	assert.True(t, ok)
+	assert.Equal(t, "edk2-stable202408", infoRes.SvmInfo.OvmfVersion)
+	assert.Equal(t, int32(4), infoRes.SvmInfo.CpuNum)
+	assert.Equal(t, "EPYC", infoRes.SvmInfo.CpuType)
+	assert.Equal(t, "", infoRes.SvmInfo.EosVersion)
+	assert.Equal(t, qemu.KernelCommandLine, infoRes.SvmInfo.KernelCmd)
 }
