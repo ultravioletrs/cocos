@@ -10,6 +10,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/manager/qemu"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -156,6 +157,7 @@ func (client ManagerClient) handleSVMInfoReq(ctx context.Context) {
 			OvmfVersion: ovmfVersion,
 			CpuNum:      int32(cpuNum),
 			CpuType:     cpuType,
+			KernelCmd:   qemu.KernelCommandLine,
 			EosVersion:  eosVersion,
 		},
 	}

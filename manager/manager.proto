@@ -40,7 +40,8 @@ message SVMInfo{
   string ovmf_version = 1;
   int32 cpu_num = 2;
   string cpu_type = 3;
-  string eos_version = 4;
+  string kernel_cmd = 4;
+  string eos_version = 5;
 }
 
 message AgentEvent {
