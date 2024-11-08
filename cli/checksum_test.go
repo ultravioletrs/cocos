@@ -76,8 +76,10 @@ func TestNewFileHashCmdRun(t *testing.T) {
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
 
-			cmd.Flags().Set("manifest", fmt.Sprint(tc.isManifest))
-			cmd.Flags().Set("base64", fmt.Sprint(tc.toBase64))
+			err := cmd.Flags().Set("manifest", fmt.Sprint(tc.isManifest))
+			assert.Nil(t, err)
+			err = cmd.Flags().Set("base64", fmt.Sprint(tc.toBase64))
+			assert.Nil(t, err)
 
 			if tc.name == "Non-existent file" {
 				cmd.SetArgs([]string{"non_existent_file.txt"})
@@ -99,7 +101,7 @@ func TestNewFileHashCmdRun(t *testing.T) {
 				cmd.SetArgs([]string{tmpfile.Name()})
 			}
 
-			err := cmd.Execute()
+			err = cmd.Execute()
 			if err != nil {
 				t.Fatalf("Error executing command: %v", err)
 			}
@@ -147,8 +149,8 @@ func TestManifestChecksum(t *testing.T) {
 				os.Remove(f.Name())
 			})
 
-			_, err = f.Write([]byte(tc.jsonContent))
-			assert.Nil(t, err)
+			_, err = f.WriteString(tc.jsonContent)
+			assert.NoError(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
