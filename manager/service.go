@@ -49,9 +49,6 @@ var (
 
 	// ErrFailedToCalculateHash indicates that agent computation returned an error while calculating the hash of the computation.
 	ErrFailedToCalculateHash = errors.New("error while calculating the hash of the computation")
-
-	// errMissingOVMFVersion indicates that the OVMF version is missing.
-	errMissingOVMFVersion = errors.New("missing OVMF version")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -89,10 +86,6 @@ var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
 func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider, eosVersion string) (Service, error) {
-	if cfg.OVMFCodeConfig.Version == "" {
-		return nil, errMissingOVMFVersion
-	}
-
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err

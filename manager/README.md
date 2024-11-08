@@ -17,6 +17,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_SERVER_CA_CERTS              | The file path for the server CA certificate(s).                                                                  |                              |
 | MANAGER_GRPC_URL                          | The URL for the gRPC endpoint.                                                                                   | localhost:7001               |
 | MANAGER_GRPC_TIMEOUT                      | The timeout for gRPC requests.                                                                                   | 60s                          |
+| MANAGER_EOS_VERSION                       | The EOS version used for booting SVMs.                                                                           |                              |
 | MANAGER_INSTANCE_ID                       | Manager service instance ID                                                                                      |                              |
 | MANAGER_QEMU_MEMORY_SIZE                  | The total memory size for the virtual machine. Can be specified in a human-readable format like "2048M" or "4G". | 2048M                        |
 | MANAGER_QEMU_MEMORY_SLOTS                 | The number of memory slots for the virtual machine.                                                              | 5                            |
@@ -25,6 +26,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_OVMF_CODE_FORMAT             | The format of the OVMF code file.                                                                                | raw                          |
 | MANAGER_QEMU_OVMF_CODE_UNIT               | The unit number for the OVMF code.                                                                               | 0                            |
 | MANAGER_QEMU_OVMF_CODE_FILE               | The file path for the OVMF code.                                                                                 | /usr/share/OVMF/OVMF_CODE.fd |
+| MANAGER_QEMU_OVMF_VERSION                 | The version number of EDKII from which OVMF was built                                                            | edk2-stable202408            |
 | MANAGER_QEMU_OVMF_CODE_READONLY           | Whether the OVMF code should be read-only.                                                                       | on                           |
 | MANAGER_QEMU_OVMF_VARS_IF                 | The interface type for the OVMF variables.                                                                       | pflash                       |
 | MANAGER_QEMU_OVMF_VARS_FORMAT             | The format of the OVMF variables file.                                                                           | raw                          |
@@ -106,6 +108,8 @@ ls -l /dev/vsock
 
 Cocos HAL for Linux is framework for building custom in-enclave Linux distribution. Use the instructions in [Readme](https://github.com/ultravioletrs/cocos/blob/main/hal/linux/README.md).
 Once the image is built copy the kernel and rootfs image to `cmd/manager/img` from `buildroot/output/images/bzImage` and `buildroot/output/images/rootfs.cpio.gz` respectively.
+
+Another option is to use release versions of EOS that can be downloaded from the [Cocos GitHub repository](https://github.com/ultravioletrs/cocos/releases).
 
 #### Test VM creation
 
@@ -217,8 +221,6 @@ MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
 ```
 
-The kernel hash feature might not work with the current build of OVMF and QEMU. If so, build the host kernel, QEMU, and OVMF from the [AMD SEV GitHub](https://github.com/AMDESE/AMDSEV/tree/snp-latest) repository.
-
 To build the OVMF with the kernel hash capability, we must build the AmdSev package of OVMF. The result of the build should be a single `OVMF.fd` file (unlike the regular two OVFM files). The OVMF package is located at `OvmfPkg/AmdSev/AmdSevX64.dsc`.
 
 To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, start manager like this 
@@ -243,6 +245,8 @@ MANAGER_QEMU_ENABLE_SEV=false \
 MANAGER_QEMU_ENABLE_SEV_SNP=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 MANAGER_QEMU_KERNEL_HASH=true \
+MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
+MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF.fd Amd Sev built package> \
 ./build/cocos-manager
 ```
 
