@@ -80,6 +80,8 @@ func (client ManagerClient) processIncomingMessage(ctx context.Context, req *man
 		go client.handleStopComputation(ctx, mes)
 	case *manager.ServerStreamMessage_BackendInfoReq:
 		go client.handleBackendInfoReq(ctx, mes)
+	case *manager.ServerStreamMessage_SvmInfoReq:
+		go client.handleSVMInfoReq(ctx)
 	default:
 		return errors.New("unknown message type")
 	}
@@ -142,6 +144,19 @@ func (client ManagerClient) handleBackendInfoReq(ctx context.Context, mes *manag
 		BackendInfo: &manager.BackendInfo{
 			Info: res,
 			Id:   mes.BackendInfoReq.Id,
+		},
+	}
+	client.sendMessage(&manager.ClientStreamMessage{Message: info})
+}
+
+func (client ManagerClient) handleSVMInfoReq(ctx context.Context) {
+	ovmfVersion, cpuNum, cpuType, eosVersion := client.svc.ReturnSVMInfo(ctx)
+	info := &manager.ClientStreamMessage_SvmInfo{
+		SvmInfo: &manager.SVMInfo{
+			OvmfVersion: ovmfVersion,
+			CpuNum:      int32(cpuNum),
+			CpuType:     cpuType,
+			EosVersion:  eosVersion,
 		},
 	}
 	client.sendMessage(&manager.ClientStreamMessage{Message: info})

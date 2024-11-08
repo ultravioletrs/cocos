@@ -32,7 +32,7 @@ func TestNew(t *testing.T) {
 	eventsChan := make(chan *ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", logger, eventsChan, vmf.Execute)
+	service, err := New(cfg, "", logger, eventsChan, vmf.Execute, "")
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)

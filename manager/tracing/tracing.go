@@ -45,3 +45,10 @@ func (tm *tracingMiddleware) FetchBackendInfo(ctx context.Context, computationId
 func (tm *tracingMiddleware) ReportBrokenConnection(addr string) {
 	tm.svc.ReportBrokenConnection(addr)
 }
+
+func (tm *tracingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+	_, span := tm.tracer.Start(ctx, "return_svm_info")
+	defer span.End()
+
+	return tm.svc.ReturnSVMInfo(ctx)
+}
