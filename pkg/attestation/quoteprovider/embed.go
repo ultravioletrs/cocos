@@ -8,8 +8,13 @@ package quoteprovider
 
 import (
 	"github.com/google/go-sev-guest/client"
+	"github.com/google/go-sev-guest/proto/check"
 	pb "github.com/google/go-sev-guest/proto/sevsnp"
 	cocosai "github.com/ultravioletrs/cocos"
+)
+
+var (
+	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 )
 
 var _ client.QuoteProvider = (*embeddedQuoteProvider)(nil)
@@ -35,4 +40,12 @@ func (e *embeddedQuoteProvider) IsSupported() bool {
 // unimplemented since it is deprecated and not used.
 func (e *embeddedQuoteProvider) Product() *pb.SevProduct {
 	panic("unimplemented")
+}
+
+func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
+	return cocosai.EmbeddedAttestation, nil
+}
+
+func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
+	return nil
 }
