@@ -65,6 +65,7 @@ const (
 	Completed
 	Terminated
 	Warning
+	Starting
 )
 
 const (
@@ -352,7 +353,7 @@ func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataS
 }
 
 func (as *agentService) runComputation(state statemachine.State) {
-	as.publishEvent(InProgress.String())(state)
+	as.publishEvent(Starting.String())(state)
 	as.logger.Debug("computation run started")
 	defer func() {
 		if as.runError != nil {

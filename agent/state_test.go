@@ -183,3 +183,70 @@ func TestConcurrency(t *testing.T) {
 		t.Errorf("Unexpected final state: %v", finalState)
 	}
 }
+
+func TestAgentEventString(t *testing.T) {
+	tests := []struct {
+		event AgentEvent
+		want  string
+	}{
+		{Start, "Start"},
+		{ManifestReceived, "ManifestReceived"},
+		{AlgorithmReceived, "AlgorithmReceived"},
+		{DataReceived, "DataReceived"},
+		{RunComplete, "RunComplete"},
+		{ResultsConsumed, "ResultsConsumed"},
+		{RunFailed, "RunFailed"},
+		{AgentEvent(-1), "AgentEvent(-1)"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.event.String(); got != tt.want {
+			t.Errorf("AgentEvent.String() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func TestAgentStateString(t *testing.T) {
+	tests := []struct {
+		state AgentState
+		want  string
+	}{
+		{Idle, "Idle"},
+		{ReceivingManifest, "ReceivingManifest"},
+		{ReceivingAlgorithm, "ReceivingAlgorithm"},
+		{ReceivingData, "ReceivingData"},
+		{Running, "Running"},
+		{ConsumingResults, "ConsumingResults"},
+		{Complete, "Complete"},
+		{Failed, "Failed"},
+		{AgentState(-1), "AgentState(-1)"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.state.String(); got != tt.want {
+			t.Errorf("AgentState.String() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func TestStatusString(t *testing.T) {
+	tests := []struct {
+		status Status
+		want   string
+	}{
+		{IdleState, "IdleState"},
+		{InProgress, "InProgress"},
+		{Ready, "Ready"},
+		{Completed, "Completed"},
+		{Terminated, "Terminated"},
+		{Warning, "Warning"},
+		{Starting, "Starting"},
+		{Status(uint8(8)), "Status(8)"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.status.String(); got != tt.want {
+			t.Errorf("Status.String() = %v, want %v", got, tt.want)
+		}
+	}
+}
