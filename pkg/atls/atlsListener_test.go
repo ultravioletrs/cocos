@@ -4,6 +4,7 @@ package atls
 
 import (
 	"testing"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -55,5 +56,45 @@ func TestATLSServerListener_Accept(t *testing.T) {
 		conn, err := listener.Accept()
 		assert.NoError(t, err)
 		assert.NotNil(t, conn)
+	})
+}
+func TestATLSConn_Read(t *testing.T) {
+	buffer := make([]byte, 1024)
+
+	t.Run("Read with nil connection", func(t *testing.T) {
+		conn := &ATLSConn{tlsConn: nil}
+		_, err := conn.Read(buffer)
+		assert.Error(t, err)
+		assert.Equal(t, err, errConnFailed)
+	})
+}
+
+func TestATLSConn_Write(t *testing.T) {
+	data := []byte("test data")
+
+	t.Run("Write with nil connection", func(t *testing.T) {
+		conn := &ATLSConn{tlsConn: nil}
+		_, err := conn.Write(data)
+		assert.Error(t, err)
+		assert.Equal(t, err, errConnFailed)
+	})
+}
+
+func TestATLSConn_DeadlineFunctions(t *testing.T) {
+	conn := &ATLSConn{}
+
+	t.Run("SetDeadline - valid time", func(t *testing.T) {
+		err := conn.SetDeadline(time.Now().Add(1 * time.Minute))
+		assert.NoError(t, err)
+	})
+
+	t.Run("SetReadDeadline - past time", func(t *testing.T) {
+		err := conn.SetReadDeadline(time.Now().Add(-1 * time.Minute))
+		assert.NoError(t, err)
+	})
+
+	t.Run("SetWriteDeadline - zero time", func(t *testing.T) {
+		err := conn.SetWriteDeadline(time.Time{})
+		assert.NoError(t, err)
 	})
 }
