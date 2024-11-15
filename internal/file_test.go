@@ -38,6 +38,13 @@ func TestCopyFile(t *testing.T) {
 	}
 }
 
+func TestCopyFile_NonExistentSource(t *testing.T) {
+	err := CopyFile("nonexistent.txt", "destination.txt")
+	if err == nil {
+		t.Error("CopyFile did not return an error for a nonexistent source file")
+	}
+}
+
 func TestDeleteFilesInDir(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "deletefiles_test")
 	if err != nil {
@@ -111,6 +118,13 @@ func TestChecksum(t *testing.T) {
 	}
 }
 
+func TestChecksum_NonExistentFile(t *testing.T) {
+	_, err := Checksum("nonexistent.txt")
+	if err == nil {
+		t.Error("Checksum did not return an error for a nonexistent file")
+	}
+}
+
 func TestChecksumHex(t *testing.T) {
 	tempFile, err := os.CreateTemp("", "checksumhex_test")
 	if err != nil {
@@ -132,5 +146,12 @@ func TestChecksumHex(t *testing.T) {
 	expectedChecksumHex := "1af17a664e3fa8e419b8ba05c2a173169df76162a5a286e0c405b460d478f7ef"
 	if checksumHex != expectedChecksumHex {
 		t.Errorf("ChecksumHex mismatch. Got %s, want %s", checksumHex, expectedChecksumHex)
+	}
+}
+
+func TestChecksumHex_NonExistentFile(t *testing.T) {
+	_, err := ChecksumHex("nonexistent.txt")
+	if err == nil {
+		t.Error("ChecksumHex did not return an error for a nonexistent file")
 	}
 }
