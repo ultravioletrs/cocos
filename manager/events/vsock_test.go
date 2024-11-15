@@ -87,19 +87,20 @@ func (m *MockConn) SetWriteDeadline(t time.Time) error {
 }
 
 func TestNew(t *testing.T) {
-	if !vsockDeviceExists() {
-		t.Skip("Skipping test: vsock device not available")
-	}
-
 	logger := &slog.Logger{}
 	reportBrokenConnection := func(address string) {}
 	eventsChan := make(chan *manager.ClientStreamMessage)
 
 	e, err := New(logger, reportBrokenConnection, eventsChan)
-	assert.NoError(t, err)
 
-	assert.NotNil(t, e)
-	assert.IsType(t, &events{}, e)
+	if vsockDeviceExists() {
+		assert.NoError(t, err)
+
+		assert.NotNil(t, e)
+		assert.IsType(t, &events{}, e)
+	} else {
+		assert.Error(t, err)
+	}
 }
 
 func TestListen(t *testing.T) {
@@ -121,6 +122,25 @@ func TestListen(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	mockListener.AssertExpectations(t)
+}
+
+func TestListenContextDone(t *testing.T) {
+	mockListener := new(MockVsockListener)
+	mockConn := new(MockConn)
+
+	e := &events{
+		lis:    mockListener,
+		logger: mglog.NewMock(),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	mockListener.On("Accept").Return(mockConn, nil)
+
+	e.Listen(ctx)
+
+	time.Sleep(100 * time.Millisecond)
 }
 
 func vsockDeviceExists() bool {
@@ -180,73 +200,96 @@ func (m *MockConnWithBuffer) SetWriteDeadline(t time.Time) error {
 }
 
 func TestHandleConnection(t *testing.T) {
-	mockConn := NewMockConnWithBuffer()
-	eventsChan := make(chan *manager.ClientStreamMessage, 1)
-
-	e := &events{
-		logger:                 mglog.NewMock(),
-		eventsChan:             eventsChan,
-		reportBrokenConnection: func(address string) {},
-	}
-
-	message := &manager.ClientStreamMessage{
-		Message: &manager.ClientStreamMessage_AgentEvent{
-			AgentEvent: &manager.AgentEvent{
-				EventType:     "test_event",
-				ComputationId: "test_computation",
-				Status:        "test_status",
-				Originator:    "test_originator",
-				Timestamp:     timestamppb.Now(),
-				Details:       []byte("test_details"),
+	tests := []struct {
+		name    string
+		message *manager.ClientStreamMessage
+	}{
+		{
+			name: "handle agent event",
+			message: &manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentEvent{
+					AgentEvent: &manager.AgentEvent{
+						EventType:     "test_event",
+						ComputationId: "test_computation",
+						Status:        "test_status",
+						Originator:    "test_originator",
+						Timestamp:     timestamppb.Now(),
+						Details:       []byte("test_details"),
+					},
+				},
+			},
+		},
+		{
+			name: "handle agent log",
+			message: &manager.ClientStreamMessage{
+				Message: &manager.ClientStreamMessage_AgentLog{
+					AgentLog: &manager.AgentLog{
+						ComputationId: "test_computation",
+						Timestamp:     timestamppb.Now(),
+					},
+				},
 			},
 		},
 	}
 
-	data, err := proto.Marshal(message)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := NewMockConnWithBuffer()
+			eventsChan := make(chan *manager.ClientStreamMessage, 1)
 
-	messageID := uint32(1)
-	err = binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
-	assert.NoError(t, err)
-	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(len(data)))
-	assert.NoError(t, err)
-	_, err = mockConn.readBuf.Write(data)
-	assert.NoError(t, err)
+			e := &events{
+				logger:                 mglog.NewMock(),
+				eventsChan:             eventsChan,
+				reportBrokenConnection: func(address string) {},
+			}
 
-	// Add EOF to signal end of stream
-	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
-	assert.NoError(t, err)
-	err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
-	assert.NoError(t, err)
+			data, err := proto.Marshal(tt.message)
+			assert.NoError(t, err)
 
-	done := make(chan struct{})
-	go func() {
-		e.handleConnection(mockConn)
-		close(done)
-	}()
+			messageID := uint32(1)
+			err = binary.Write(mockConn.readBuf, binary.LittleEndian, messageID)
+			assert.NoError(t, err)
+			err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(len(data)))
+			assert.NoError(t, err)
+			_, err = mockConn.readBuf.Write(data)
+			assert.NoError(t, err)
 
-	var receivedMessage *manager.ClientStreamMessage
-	select {
-	case receivedMessage = <-eventsChan:
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout waiting for message in eventsChan")
+			// Add EOF to signal end of stream
+			err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
+			assert.NoError(t, err)
+			err = binary.Write(mockConn.readBuf, binary.LittleEndian, uint32(0))
+			assert.NoError(t, err)
+
+			done := make(chan struct{})
+			go func() {
+				e.handleConnection(mockConn)
+				close(done)
+			}()
+
+			var receivedMessage *manager.ClientStreamMessage
+			select {
+			case receivedMessage = <-eventsChan:
+			case <-time.After(2 * time.Second):
+				t.Fatal("Timeout waiting for message in eventsChan")
+			}
+
+			assert.NotNil(t, receivedMessage)
+
+			select {
+			case <-done:
+				// handleConnection has exited
+			case <-time.After(2 * time.Second):
+				t.Fatal("Timeout waiting for handleConnection to exit")
+			}
+
+			// Check if ack was written
+			var receivedAck uint32
+			err = binary.Read(mockConn.writeBuf, binary.LittleEndian, &receivedAck)
+			assert.NoError(t, err)
+			assert.Equal(t, messageID, receivedAck)
+
+			// Ensure no unexpected calls were made on the mock
+			mockConn.AssertExpectations(t)
+		})
 	}
-
-	assert.NotNil(t, receivedMessage)
-
-	select {
-	case <-done:
-		// handleConnection has exited
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout waiting for handleConnection to exit")
-	}
-
-	// Check if ack was written
-	var receivedAck uint32
-	err = binary.Read(mockConn.writeBuf, binary.LittleEndian, &receivedAck)
-	assert.NoError(t, err)
-	assert.Equal(t, messageID, receivedAck)
-
-	// Ensure no unexpected calls were made on the mock
-	mockConn.AssertExpectations(t)
 }

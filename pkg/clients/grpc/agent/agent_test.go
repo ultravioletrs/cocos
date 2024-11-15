@@ -78,17 +78,35 @@ func TestAgentClientIntegration(t *testing.T) {
 	tests := []struct {
 		name          string
 		serverRunning bool
+		config        pkggrpc.Config
 		err           error
 	}{
 		{
 			name:          "successful connection",
 			serverRunning: true,
-			err:           nil,
+			config: pkggrpc.Config{
+				URL:     testServer.listenAddr,
+				Timeout: 1,
+			},
+			err: nil,
 		},
 		{
 			name:          "server not healthy",
 			serverRunning: false,
-			err:           ErrAgentServiceUnavailable,
+			config: pkggrpc.Config{
+				URL:     "",
+				Timeout: 1,
+			},
+			err: ErrAgentServiceUnavailable,
+		},
+		{
+			name: "invalid config, missing BackendInfo with aTLS",
+			config: pkggrpc.Config{
+				URL:         testServer.listenAddr,
+				Timeout:     1,
+				AttestedTLS: true,
+			},
+			err: pkggrpc.ErrBackendInfoMissing,
 		},
 	}
 
@@ -102,16 +120,7 @@ func TestAgentClientIntegration(t *testing.T) {
 				testServer.health.SetServingStatus("agent", grpchealth.HealthCheckResponse_SERVING)
 			}
 
-			cfg := pkggrpc.Config{
-				URL:     testServer.listenAddr,
-				Timeout: 1,
-			}
-
-			if !tt.serverRunning {
-				cfg.URL = ""
-			}
-
-			client, agentClient, err := NewAgentClient(ctx, cfg)
+			client, agentClient, err := NewAgentClient(ctx, tt.config)
 			assert.True(t, errors.Contains(err, tt.err))
 			if err != nil {
 				assert.Nil(t, client)

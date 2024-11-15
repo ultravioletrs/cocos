@@ -33,26 +33,100 @@ func (m *mockStream) Send(msg *manager.ClientStreamMessage) error {
 	return args.Error(0)
 }
 
-func TestManagerClient_Process(t *testing.T) {
-	mockStream := new(mockStream)
-	mockSvc := new(mocks.Service)
-	messageQueue := make(chan *manager.ClientStreamMessage, 10)
-	logger := mglog.NewMock()
+func TestManagerClient_Process1(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service)
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "Stop computation",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+				mockStream.On("Recv").Return(&manager.ServerStreamMessage{
+					Message: &manager.ServerStreamMessage_StopComputation{
+						StopComputation: &manager.StopComputation{},
+					},
+				}, nil)
+				mockStream.On("Send", mock.Anything).Return(nil)
+				mockSvc.On("Stop", mock.Anything, mock.Anything).Return(nil)
+			},
+			expectError: true,
+			errorMsg:    "context deadline exceeded",
+		},
+		{
+			name: "Terminate request",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+				mockStream.On("Recv").Return(&manager.ServerStreamMessage{
+					Message: &manager.ServerStreamMessage_TerminateReq{
+						TerminateReq: &manager.Terminate{},
+					},
+				}, nil)
+			},
+			expectError: true,
+			errorMsg:    errTerminationFromServer.Error(),
+		},
+		{
+			name: "Backend info request",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+				mockStream.On("Recv").Return(&manager.ServerStreamMessage{
+					Message: &manager.ServerStreamMessage_BackendInfoReq{
+						BackendInfoReq: &manager.BackendInfoReq{},
+					},
+				}, nil)
+				mockStream.On("Send", mock.Anything).Return(nil).Once()
+				mockSvc.On("FetchBackendInfo", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			expectError: true,
+		},
+		{
+			name: "Run request chunks",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+				mockStream.On("Recv").Return(&manager.ServerStreamMessage{
+					Message: &manager.ServerStreamMessage_RunReqChunks{
+						RunReqChunks: &manager.RunReqChunks{},
+					},
+				}, nil)
+				mockStream.On("Send", mock.Anything).Return(nil).Once()
+				mockSvc.On("Run", mock.Anything, mock.Anything).Return("", assert.AnError).Once()
+			},
+			expectError: true,
+		},
+		{
+			name: "Receive error",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+				mockStream.On("Recv").Return(&manager.ServerStreamMessage{}, assert.AnError)
+			},
+			expectError: true,
+		},
+	}
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockStream := new(mockStream)
+			mockSvc := new(mocks.Service)
+			messageQueue := make(chan *manager.ClientStreamMessage, 10)
+			logger := mglog.NewMock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
+			client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-	mockStream.On("Recv").Return(&manager.ServerStreamMessage{Message: &manager.ServerStreamMessage_StopComputation{StopComputation: &manager.StopComputation{}}}, nil).Maybe()
-	mockStream.On("Send", mock.Anything).Return(nil).Maybe()
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
 
-	mockSvc.On("Stop", mock.Anything, mock.Anything).Return(nil).Maybe()
+			tc.setupMocks(mockStream, mockSvc)
 
-	err := client.Process(ctx, cancel)
+			err := client.Process(ctx, cancel)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "context deadline exceeded")
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorMsg != "" {
+					assert.Contains(t, err.Error(), tc.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestManagerClient_handleRunReqChunks(t *testing.T) {
@@ -232,4 +306,17 @@ func TestManagerClient_handleSVMInfoReq(t *testing.T) {
 	assert.Equal(t, "EPYC", infoRes.SvmInfo.CpuType)
 	assert.Equal(t, "", infoRes.SvmInfo.EosVersion)
 	assert.Equal(t, qemu.KernelCommandLine, infoRes.SvmInfo.KernelCmd)
+}
+
+func TestManagerClient_timeoutRequest(t *testing.T) {
+	rm := newRunRequestManager()
+	rm.requests["test-id"] = &runRequest{
+		timer:     time.NewTimer(100 * time.Millisecond),
+		buffer:    []byte("test-data"),
+		lastChunk: time.Now(),
+	}
+
+	rm.timeoutRequest("test-id")
+
+	assert.Len(t, rm.requests, 0)
 }
