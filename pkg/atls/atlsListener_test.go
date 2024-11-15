@@ -58,6 +58,7 @@ func TestATLSServerListener_Accept(t *testing.T) {
 		assert.NotNil(t, conn)
 	})
 }
+
 func TestATLSConn_Read(t *testing.T) {
 	buffer := make([]byte, 1024)
 
