@@ -10,6 +10,8 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/manager"
 )
 
+const numGoroutines = 10
+
 func TestNewStateMachine(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -139,7 +141,6 @@ func TestStateMachineConcurrency(t *testing.T) {
 
 			sm := NewStateMachine()
 			var wg sync.WaitGroup
-			const numGoroutines = 10
 
 			wg.Add(numGoroutines)
 			for i := 0; i < numGoroutines; i++ {
