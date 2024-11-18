@@ -24,6 +24,7 @@ type OVMFCodeConfig struct {
 	Unit     int    `env:"OVMF_CODE_UNIT"     envDefault:"0"`
 	File     string `env:"OVMF_CODE_FILE"     envDefault:"/usr/share/OVMF/OVMF_CODE.fd"`
 	ReadOnly string `env:"OVMF_CODE_READONLY" envDefault:"on"`
+	Version  string `env:"OVMF_VERSION"       envDefault:""`
 }
 
 type OVMFVarsConfig struct {

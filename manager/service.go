@@ -64,6 +64,8 @@ type Service interface {
 	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
 	// ReportBrokenConnection reports a broken connection.
 	ReportBrokenConnection(addr string)
+	// ReturnSVMInfo returns SVM information needed for attestation verification and validation.
+	ReturnSVMInfo(ctx context.Context) (string, int, string, string)
 }
 
 type managerService struct {
@@ -77,12 +79,13 @@ type managerService struct {
 	portRangeMin                 int
 	portRangeMax                 int
 	persistence                  qemu.Persistence
+	eosVersion                   string
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider) (Service, error) {
+func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -103,6 +106,7 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 		portRangeMin:                 start,
 		portRangeMax:                 end,
 		persistence:                  persistence,
+		eosVersion:                   eosVersion,
 	}
 
 	if err := ms.restoreVMs(); err != nil {
@@ -236,6 +240,10 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 
 	defer ms.publishEvent(manager.StopComputationRun.String(), computationID, agent.Completed.String(), json.RawMessage{})
 	return nil
+}
+
+func (ms *managerService) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+	return ms.qemuCfg.OVMFCodeConfig.Version, ms.qemuCfg.SMPCount, ms.qemuCfg.CPU, ms.eosVersion
 }
 
 func getFreePort(minPort, maxPort int) (int, error) {

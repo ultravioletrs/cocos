@@ -62,3 +62,12 @@ func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string)
 func (ms *metricsMiddleware) ReportBrokenConnection(addr string) {
 	ms.svc.ReportBrokenConnection(addr)
 }
+
+func (ms *metricsMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "ReturnSVMInfo").Add(1)
+		ms.latency.With("method", "ReturnSVMInfo").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.ReturnSVMInfo(ctx)
+}

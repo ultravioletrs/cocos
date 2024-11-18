@@ -70,3 +70,12 @@ func (lm *loggingMiddleware) FetchBackendInfo(ctx context.Context, cmpId string)
 func (lm *loggingMiddleware) ReportBrokenConnection(addr string) {
 	lm.svc.ReportBrokenConnection(addr)
 }
+
+func (lm *loggingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method ReturnSVMInfo for computation took %s to complete", time.Since(begin))
+		lm.logger.Info(message)
+	}(time.Now())
+
+	return lm.svc.ReturnSVMInfo(ctx)
+}

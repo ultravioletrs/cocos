@@ -52,6 +52,48 @@ func (_m *Service) ReportBrokenConnection(addr string) {
 	_m.Called(addr)
 }
 
+// ReturnSVMInfo provides a mock function with given fields: ctx
+func (_m *Service) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReturnSVMInfo")
+	}
+
+	var r0 string
+	var r1 int
+	var r2 string
+	var r3 string
+	if rf, ok := ret.Get(0).(func(context.Context) (string, int, string, string)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) int); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context) string); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	if rf, ok := ret.Get(3).(func(context.Context) string); ok {
+		r3 = rf(ctx)
+	} else {
+		r3 = ret.Get(3).(string)
+	}
+
+	return r0, r1, r2, r3
+}
+
 // Run provides a mock function with given fields: ctx, c
 func (_m *Service) Run(ctx context.Context, c *manager.ComputationRunReq) (string, error) {
 	ret := _m.Called(ctx, c)

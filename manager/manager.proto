@@ -36,6 +36,14 @@ message BackendInfo{
   string id = 2;
 }
 
+message SVMInfo{
+  string ovmf_version = 1;
+  int32 cpu_num = 2;
+  string cpu_type = 3;
+  string kernel_cmd = 4;
+  string eos_version = 5;
+}
+
 message AgentEvent {
   string event_type = 1;
 	google.protobuf.Timestamp timestamp = 2;
@@ -59,6 +67,7 @@ message ClientStreamMessage {
     RunResponse run_res = 3;
     BackendInfo backendInfo = 4;
     StopComputationResponse stopComputationRes = 5;
+    SVMInfo svm_info = 6;
   }
 }
 
@@ -69,6 +78,7 @@ message ServerStreamMessage {
     Terminate terminateReq = 3;
     StopComputation stopComputation = 4;
     BackendInfoReq backendInfoReq = 5;
+    SVMInfoReq svmInfoReq = 6;
   }
 }
 
@@ -90,6 +100,9 @@ message ComputationRunReq {
 
 message BackendInfoReq {
   string id = 1;
+}
+
+message SVMInfoReq {
 }
 
 message ResultConsumer {

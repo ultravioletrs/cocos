@@ -44,6 +44,7 @@ type config struct {
 	TraceRatio               float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
 	InstanceID               string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
 	BackendMeasurementBinary string  `env:"MANAGER_BACKEND_MEASUREMENT_BINARY" envDefault:"../../build"`
+	EosVersion               string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
 }
 
 func main() {
@@ -114,7 +115,7 @@ func main() {
 	}
 
 	eventsChan := make(chan *manager.ClientStreamMessage, clientBufferSize)
-	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary)
+	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -156,8 +157,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, backendMeasurementPath string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, backendMeasurementPath string, eosVersion string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM, eosVersion)
 	if err != nil {
 		return nil, err
 	}
