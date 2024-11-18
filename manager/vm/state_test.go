@@ -107,25 +107,55 @@ func TestStateMachineTransitions(t *testing.T) {
 }
 
 func TestStateMachineConcurrency(t *testing.T) {
-	sm := NewStateMachine()
-	var wg sync.WaitGroup
-	const numGoroutines = 10
-
-	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			_ = sm.Transition(manager.VmRunning)
-			_ = sm.State()
-		}()
+	testCases := []struct {
+		name            string
+		initialState    manager.ManagerState
+		transitionState manager.ManagerState
+		expectedStates  []string
+	}{
+		{
+			name:            "Transition from VmProvision to VmRunning",
+			initialState:    manager.VmProvision,
+			transitionState: manager.VmRunning,
+			expectedStates:  []string{manager.VmProvision.String(), manager.VmRunning.String()},
+		},
+		{
+			name:            "Transition from VmRunning to StopComputationRun",
+			initialState:    manager.VmRunning,
+			transitionState: manager.StopComputationRun,
+			expectedStates:  []string{manager.VmRunning.String(), manager.StopComputationRun.String()},
+		},
+		{
+			name:            "Transition from StopComputationRun back to VmRunning",
+			initialState:    manager.StopComputationRun,
+			transitionState: manager.VmRunning,
+			expectedStates:  []string{manager.StopComputationRun.String(), manager.VmRunning.String()},
+		},
 	}
-	wg.Wait()
 
-	finalState := sm.State()
-	assert.Contains(t, []string{
-		manager.VmProvision.String(),
-		manager.VmRunning.String(),
-	}, finalState, "Final state should be either VmProvision or VmRunning")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			sm := NewStateMachine()
+			var wg sync.WaitGroup
+			const numGoroutines = 10
+
+			wg.Add(numGoroutines)
+			for i := 0; i < numGoroutines; i++ {
+				go func() {
+					defer wg.Done()
+					_ = sm.Transition(tc.transitionState)
+					_ = sm.State()
+				}()
+			}
+			wg.Wait()
+
+			finalState := sm.State()
+			assert.Contains(t, tc.expectedStates, finalState,
+				"Final state should be one of the expected states")
+		})
+	}
 }
 
 func TestStateRetrieval(t *testing.T) {
