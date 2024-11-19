@@ -134,6 +134,11 @@ func TestClientSecure(t *testing.T) {
 			secure:   withmTLS,
 			expected: "with mTLS",
 		},
+		{
+			name:     "With aTLS",
+			secure:   withaTLS,
+			expected: WithATLS,
+		},
 	}
 
 	for _, tt := range tests {

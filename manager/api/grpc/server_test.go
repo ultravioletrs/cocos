@@ -54,34 +54,60 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestGrpcServer_Process(t *testing.T) {
-	incoming := make(chan *manager.ClientStreamMessage, 1)
-	mockSvc := new(mockService)
-	server := NewServer(incoming, mockSvc).(*grpcServer)
+	tests := []struct {
+		name          string
+		recvReturn    *manager.ClientStreamMessage
+		recvError     error
+		expectedError string
+	}{
+		{
+			name:          "Process with context deadline exceeded",
+			recvReturn:    &manager.ClientStreamMessage{},
+			recvError:     nil,
+			expectedError: "context deadline exceeded",
+		},
+		{
+			name:          "Process with Recv error",
+			recvReturn:    &manager.ClientStreamMessage{},
+			recvError:     errors.New("recv error"),
+			expectedError: "recv error",
+		},
+	}
 
-	mockStream := new(mockServerStream)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			incoming := make(chan *manager.ClientStreamMessage, 1)
+			mockSvc := new(mockService)
+			server := NewServer(incoming, mockSvc).(*grpcServer)
 
-	mockStream.On("Context").Return(peer.NewContext(ctx, &peer.Peer{
-		Addr:     mockAddr{},
-		AuthInfo: mockAuthInfo{},
-	}))
+			mockStream := new(mockServerStream)
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
 
-	go func() {
-		for mes := range incoming {
-			assert.NotNil(t, mes)
-		}
-	}()
+			mockStream.On("Context").Return(peer.NewContext(ctx, &peer.Peer{
+				Addr:     mockAddr{},
+				AuthInfo: mockAuthInfo{},
+			}))
 
-	mockStream.On("Recv").Return(&manager.ClientStreamMessage{}, nil)
-	mockSvc.On("Run", mock.Anything, "test", mock.Anything, mock.AnythingOfType("mockAuthInfo")).Return()
+			if tt.recvError == nil {
+				go func() {
+					for mes := range incoming {
+						assert.NotNil(t, mes)
+					}
+				}()
+			}
 
-	err := server.Process(mockStream)
+			mockStream.On("Recv").Return(tt.recvReturn, tt.recvError)
+			mockSvc.On("Run", mock.Anything, "test", mock.Anything, mock.AnythingOfType("mockAuthInfo")).Return()
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "context deadline exceeded")
-	mockStream.AssertExpectations(t)
-	mockSvc.AssertExpectations(t)
+			err := server.Process(mockStream)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+			mockStream.AssertExpectations(t)
+			mockSvc.AssertExpectations(t)
+		})
+	}
 }
 
 func TestGrpcServer_sendRunReqInChunks(t *testing.T) {
@@ -138,58 +164,90 @@ type mockAuthInfo struct{}
 func (mockAuthInfo) AuthType() string { return "test auth" }
 
 func TestGrpcServer_ProcessWithMockService(t *testing.T) {
-	incoming := make(chan *manager.ClientStreamMessage, 10)
-	mockSvc := new(mockService)
-	server := NewServer(incoming, mockSvc).(*grpcServer)
+	tests := []struct {
+		name        string
+		setupMockFn func(*mockService, *mockServerStream)
+	}{
+		{
+			name: "Run Request Test",
+			setupMockFn: func(mockSvc *mockService, mockStream *mockServerStream) {
+				mockSvc.On("Run", mock.Anything, "test", mock.Anything, mock.AnythingOfType("mockAuthInfo")).
+					Run(func(args mock.Arguments) {
+						sendFunc := args.Get(2).(SendFunc)
+						runReq := &manager.ComputationRunReq{Id: "test-run-id"}
+						err := sendFunc(&manager.ServerStreamMessage{
+							Message: &manager.ServerStreamMessage_RunReq{
+								RunReq: runReq,
+							},
+						})
+						assert.NoError(t, err)
+					}).
+					Return()
 
-	go func() {
-		for mes := range incoming {
-			assert.NotNil(t, mes)
-		}
-	}()
+				mockStream.On("Send", mock.MatchedBy(func(msg *manager.ServerStreamMessage) bool {
+					chunks := msg.GetRunReqChunks()
+					return chunks != nil && chunks.Id == "test-run-id"
+				})).Return(nil)
+			},
+		},
+		{
+			name: "Terminate Request Test",
+			setupMockFn: func(mockSvc *mockService, mockStream *mockServerStream) {
+				mockSvc.On("Run", mock.Anything, "test", mock.Anything, mock.AnythingOfType("mockAuthInfo")).
+					Run(func(args mock.Arguments) {
+						sendFunc := args.Get(2).(SendFunc)
+						err := sendFunc(&manager.ServerStreamMessage{
+							Message: &manager.ServerStreamMessage_TerminateReq{
+								TerminateReq: &manager.Terminate{},
+							},
+						})
+						assert.NoError(t, err)
+					}).Return()
 
-	mockStream := new(mockServerStream)
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
+				mockStream.On("Send", mock.AnythingOfType("*manager.ServerStreamMessage")).Return(nil)
+			},
+		},
+	}
 
-	peerCtx := peer.NewContext(ctx, &peer.Peer{
-		Addr:     mockAddr{},
-		AuthInfo: mockAuthInfo{},
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			incoming := make(chan *manager.ClientStreamMessage, 10)
+			mockSvc := new(mockService)
+			server := NewServer(incoming, mockSvc).(*grpcServer)
 
-	mockStream.On("Context").Return(peerCtx)
-	mockStream.On("Recv").Return(&manager.ClientStreamMessage{}, nil).Maybe()
+			go func() {
+				for mes := range incoming {
+					assert.NotNil(t, mes)
+				}
+			}()
 
-	mockSvc.On("Run", mock.Anything, "test", mock.Anything, mock.AnythingOfType("mockAuthInfo")).
-		Run(func(args mock.Arguments) {
-			sendFunc := args.Get(2).(SendFunc)
-			// Simulate sending a RunReq
-			runReq := &manager.ComputationRunReq{Id: "test-run-id"}
-			err := sendFunc(&manager.ServerStreamMessage{
-				Message: &manager.ServerStreamMessage_RunReq{
-					RunReq: runReq,
-				},
+			mockStream := new(mockServerStream)
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+
+			peerCtx := peer.NewContext(ctx, &peer.Peer{
+				Addr:     mockAddr{},
+				AuthInfo: mockAuthInfo{},
 			})
-			assert.NoError(t, err)
-		}).
-		Return()
 
-	mockStream.On("Send", mock.MatchedBy(func(msg *manager.ServerStreamMessage) bool {
-		chunks := msg.GetRunReqChunks()
-		return chunks != nil && chunks.Id == "test-run-id"
-	})).Return(nil)
+			mockStream.On("Context").Return(peerCtx)
+			mockStream.On("Recv").Return(&manager.ClientStreamMessage{}, nil).Maybe()
 
-	go func() {
-		time.Sleep(150 * time.Millisecond)
-		cancel()
-	}()
+			tt.setupMockFn(mockSvc, mockStream)
 
-	err := server.Process(mockStream)
+			go func() {
+				time.Sleep(150 * time.Millisecond)
+				cancel()
+			}()
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "context canceled")
-	mockStream.AssertExpectations(t)
-	mockSvc.AssertExpectations(t)
+			err := server.Process(mockStream)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "context canceled")
+			mockStream.AssertExpectations(t)
+			mockSvc.AssertExpectations(t)
+		})
+	}
 }
 
 func TestGrpcServer_sendRunReqInChunksError(t *testing.T) {

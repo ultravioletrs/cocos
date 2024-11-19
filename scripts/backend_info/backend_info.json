@@ -1,25 +1,28 @@
 {
-    "rootOfTrust":{
-        "product":"Milan",
-        "checkCrl":true,
-        "productLine":"Milan"
-    },
-    "policy":{
-        "policy":"196608",
-        "permit_provisional_firmware":true,
-        "familyId":"AAAAAAAAAAAAAAAAAAAAAA==",
-        "imageId":"AAAAAAAAAAAAAAAAAAAAAA==",
-        "vmpl":0,
-        "minimumTcb":"15352208179752599555",
-        "minimumLaunchTcb":"15352208179752599555",
-        "measurement":"TsWRmg8efWUW9XHZIomxBKrv4iCYeMO3ZlUPr+OhU5/QAPjCr96w0Dq9gJ7EaaP/",
-        "hostData":"HE5X+yGlBfpKlg4z9TTdV6ATs7MUr4Y+EhN+reuG+zY=",
-        "reportIdMa":"//////////////////////////////////////////8=",
-        "chipId":"GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
-        "minimumBuild":7,
-        "minimumVersion":"1.55",
-        "product":{
-            "name":"SEV_PRODUCT_MILAN"
-        }
+  "policy": {
+    "policy": 196608,
+    "family_id": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "image_id": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "vmpl": 0,
+    "minimum_tcb": 15352208179752599555,
+    "minimum_launch_tcb": 15352208179752599555,
+    "require_author_key": false,
+    "measurement": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "host_data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "report_id_ma": "//////////////////////////////////////////8=",
+    "chip_id": "GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
+    "minimum_build": 8,
+    "minimum_version": "1.55",
+    "permit_provisional_firmware": true,
+    "require_id_block": false,
+    "product": {
+      "name": 1
     }
+  },
+  "root_of_trust": {
+    "product": "Milan",
+    "check_crl": true,
+    "disallow_network": false,
+    "product_line": "Milan"
+  }
 }

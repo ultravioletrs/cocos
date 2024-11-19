@@ -42,8 +42,4 @@ type Log struct {
 	Timestamp     *timestamppb.Timestamp
 }
 
-func (l *Log) IsEventLog() bool {
-	return true
-}
-
 type EventSender func(event interface{}) error
