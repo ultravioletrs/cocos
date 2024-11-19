@@ -106,7 +106,7 @@ func TestNewAttestationPolicyCmd(t *testing.T) {
 	cmd := cli.NewAttestationPolicyCmd()
 
 	assert.Equal(t, "policy [command]", cmd.Use)
-	assert.Equal(t, "Change attestation policy information", cmd.Short)
+	assert.Equal(t, "Change attestation policy", cmd.Short)
 	assert.NotNil(t, cmd.Run)
 }
 

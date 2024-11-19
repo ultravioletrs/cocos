@@ -174,5 +174,7 @@ fn main() {
     file.write_all(json.as_bytes())
         .expect("Failed to write to file");
 
-    println!("Computation JSON has been written to {}", ATTESTATION_POLICY_JSON);
+    println!("AttestationPolicy JSON has been written to {}",
+    ATTESTATION_POLICY_JSON
+);
 }
