@@ -198,10 +198,10 @@ func prepareForTestVerifyAttestationReport(t *testing.T) ([]byte, []byte) {
 
 	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 
-	backendinfoFile, err := os.ReadFile("../../../scripts/backend_info/backend_info.json")
+	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/attestation_policy.json")
 	require.NoError(t, err)
 
-	err = protojson.Unmarshal(backendinfoFile, &AttConfigurationSEVSNP)
+	err = protojson.Unmarshal(attestationPolicyFile, &AttConfigurationSEVSNP)
 	require.NoError(t, err)
 
 	AttConfigurationSEVSNP.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}

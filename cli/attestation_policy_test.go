@@ -14,7 +14,7 @@ import (
 )
 
 func TestChangeAttestationConfiguration(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "backend_info.json")
+	tmpfile, err := os.CreateTemp("", "attestation_policy.json")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 
@@ -69,7 +69,7 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 			expectedLength: measurementLength,
 			field:          fieldType(999),
 			expectError:    true,
-			errorType:      errBackendField,
+			errorType:      errAttestationPolicyField,
 		},
 	}
 
@@ -101,12 +101,12 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 	}
 }
 
-func TestNewBackendCmd(t *testing.T) {
+func TestNewAttestationPolicyCmd(t *testing.T) {
 	cli := &CLI{}
-	cmd := cli.NewBackendCmd()
+	cmd := cli.NewAttestationPolicyCmd()
 
-	assert.Equal(t, "backend [command]", cmd.Use)
-	assert.Equal(t, "Change backend information", cmd.Short)
+	assert.Equal(t, "policy [command]", cmd.Use)
+	assert.Equal(t, "Change attestation policy information", cmd.Short)
 	assert.NotNil(t, cmd.Run)
 }
 
@@ -115,8 +115,8 @@ func TestNewAddMeasurementCmd(t *testing.T) {
 	cmd := cli.NewAddMeasurementCmd()
 
 	assert.Equal(t, "measurement", cmd.Use)
-	assert.Equal(t, "Add measurement to the backend info file. The value should be in base64. The second parameter is backend_info.json file", cmd.Short)
-	assert.Equal(t, "measurement <measurement> <backend_info.json>", cmd.Example)
+	assert.Equal(t, "Add measurement to the attestation policy file. The value should be in base64. The second parameter is attestation_policy.json file", cmd.Short)
+	assert.Equal(t, "measurement <measurement> <attestation_policy.json>", cmd.Example)
 	assert.NotNil(t, cmd.Run)
 }
 
@@ -125,7 +125,7 @@ func TestNewAddHostDataCmd(t *testing.T) {
 	cmd := cli.NewAddHostDataCmd()
 
 	assert.Equal(t, "hostdata", cmd.Use)
-	assert.Equal(t, "Add host data to the backend info file. The value should be in base64. The second parameter is backend_info.json file", cmd.Short)
-	assert.Equal(t, "hostdata <host-data> <backend_info.json>", cmd.Example)
+	assert.Equal(t, "Add host data to the attestation policy file. The value should be in base64. The second parameter is attestation_policy.json file", cmd.Short)
+	assert.Equal(t, "hostdata <host-data> <attestation_policy.json>", cmd.Example)
 	assert.NotNil(t, cmd.Run)
 }

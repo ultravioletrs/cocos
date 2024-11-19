@@ -4,11 +4,11 @@
 //go:build embed
 // +build embed
 
-package backendinfo
+package attestationpolicy
 
 import (
 	_ "embed"
 )
 
-//go:embed backend_info.json
-var BackendInfo []byte
+//go:embed attestation_policy.json
+var AttestationPolicy []byte

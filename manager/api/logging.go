@@ -53,9 +53,9 @@ func (lm *loggingMiddleware) Stop(ctx context.Context, computationID string) (er
 	return lm.svc.Stop(ctx, computationID)
 }
 
-func (lm *loggingMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) (body []byte, err error) {
+func (lm *loggingMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId string) (body []byte, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method FetchBackendInfo  for computation %s took %s to complete", cmpId, time.Since(begin))
+		message := fmt.Sprintf("Method FetchAttestation  for computation %s took %s to complete", cmpId, time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
@@ -64,7 +64,7 @@ func (lm *loggingMiddleware) FetchBackendInfo(ctx context.Context, cmpId string)
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.FetchBackendInfo(ctx, cmpId)
+	return lm.svc.FetchAttestationPolicy(ctx, cmpId)
 }
 
 func (lm *loggingMiddleware) ReportBrokenConnection(addr string) {

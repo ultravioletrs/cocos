@@ -23,8 +23,8 @@ import (
 
 const defGuestFeatures = 0x1
 
-func (ms *managerService) FetchBackendInfo(_ context.Context, computationId string) ([]byte, error) {
-	cmd := exec.Command("sudo", fmt.Sprintf("%s/backend_info", ms.backendMeasurementBinaryPath), "--policy", "196608")
+func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
+	cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
 
 	ms.mu.Lock()
 	vm, exists := ms.vms[computationId]
@@ -43,14 +43,14 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		return nil, err
 	}
 
-	f, err := os.ReadFile("./backend_info.json")
+	f, err := os.ReadFile("./attestation_policy.json")
 	if err != nil {
 		return nil, err
 	}
 
-	var backendInfo check.Config
+	var attestationPolicy check.Config
 
-	if err = protojson.Unmarshal(f, &backendInfo); err != nil {
+	if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		}
 	}
 	if measurement == nil {
-		backendInfo.Policy.Measurement = measurement
+		attestationPolicy.Policy.Measurement = measurement
 	}
 
 	if config.HostData != "" {
@@ -76,10 +76,10 @@ func (ms *managerService) FetchBackendInfo(_ context.Context, computationId stri
 		if err != nil {
 			return nil, err
 		}
-		backendInfo.Policy.HostData = hostData
+		attestationPolicy.Policy.HostData = hostData
 	}
 
-	f, err = protojson.Marshal(&backendInfo)
+	f, err = protojson.Marshal(&attestationPolicy)
 	if err != nil {
 		return nil, err
 	}

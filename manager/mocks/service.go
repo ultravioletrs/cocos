@@ -17,12 +17,12 @@ type Service struct {
 	mock.Mock
 }
 
-// FetchBackendInfo provides a mock function with given fields: ctx, computationID
-func (_m *Service) FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error) {
+// FetchAttestationPolicy provides a mock function with given fields: ctx, computationID
+func (_m *Service) FetchAttestationPolicy(ctx context.Context, computationID string) ([]byte, error) {
 	ret := _m.Called(ctx, computationID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FetchBackendInfo")
+		panic("no return value specified for FetchAttestationPolicy")
 	}
 
 	var r0 []byte

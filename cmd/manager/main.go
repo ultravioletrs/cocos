@@ -39,12 +39,12 @@ const (
 )
 
 type config struct {
-	LogLevel                 string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
-	JaegerURL                url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
-	TraceRatio               float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
-	InstanceID               string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
-	BackendMeasurementBinary string  `env:"MANAGER_BACKEND_MEASUREMENT_BINARY" envDefault:"../../build"`
-	EosVersion               string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
+	LogLevel                string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
+	JaegerURL               url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
+	TraceRatio              float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
+	InstanceID              string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
+	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build"`
+	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
 }
 
 func main() {
@@ -115,7 +115,7 @@ func main() {
 	}
 
 	eventsChan := make(chan *manager.ClientStreamMessage, clientBufferSize)
-	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.BackendMeasurementBinary, cfg.EosVersion)
+	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.AttestationPolicyBinary, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -157,8 +157,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, backendMeasurementPath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, backendMeasurementPath, logger, eventsChan, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, attestationPolicyPath string, eosVersion string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, logger, eventsChan, qemu.NewVM, eosVersion)
 	if err != nil {
 		return nil, err
 	}

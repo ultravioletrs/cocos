@@ -67,15 +67,15 @@ func TestManagerClient_Process1(t *testing.T) {
 			errorMsg:    errTerminationFromServer.Error(),
 		},
 		{
-			name: "Backend info request",
+			name: "Attestation Policy request",
 			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
 				mockStream.On("Recv").Return(&manager.ServerStreamMessage{
-					Message: &manager.ServerStreamMessage_BackendInfoReq{
-						BackendInfoReq: &manager.BackendInfoReq{},
+					Message: &manager.ServerStreamMessage_AttestationPolicyReq{
+						AttestationPolicyReq: &manager.AttestationPolicyReq{},
 					},
 				}, nil)
 				mockStream.On("Send", mock.Anything).Return(nil).Once()
-				mockSvc.On("FetchBackendInfo", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+				mockSvc.On("FetchAttestationPolicy", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 			},
 			expectError: true,
 		},
@@ -224,7 +224,7 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 	assert.Empty(t, stopRes.StopComputationRes.Message)
 }
 
-func TestManagerClient_handleBackendInfoReq(t *testing.T) {
+func TestManagerClient_handleAttestationPolicyReq(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockStream := new(mockStream)
 		mockSvc := new(mocks.Service)
@@ -233,15 +233,15 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 
 		client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-		infoReq := &manager.ServerStreamMessage_BackendInfoReq{
-			BackendInfoReq: &manager.BackendInfoReq{
+		infoReq := &manager.ServerStreamMessage_AttestationPolicyReq{
+			AttestationPolicyReq: &manager.AttestationPolicyReq{
 				Id: "test-info-id",
 			},
 		}
 
-		mockSvc.On("FetchBackendInfo", context.Background(), infoReq.BackendInfoReq.Id).Return([]byte("test-backend-info"), nil)
+		mockSvc.On("FetchAttestationPolicy", context.Background(), infoReq.AttestationPolicyReq.Id).Return([]byte("test-attestation-policy"), nil)
 
-		client.handleBackendInfoReq(context.Background(), infoReq)
+		client.handleAttestationPolicyReq(context.Background(), infoReq)
 
 		// Wait for the goroutine to finish
 		time.Sleep(50 * time.Millisecond)
@@ -250,10 +250,10 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 		assert.Len(t, messageQueue, 1)
 
 		msg := <-messageQueue
-		infoRes, ok := msg.Message.(*manager.ClientStreamMessage_BackendInfo)
+		infoRes, ok := msg.Message.(*manager.ClientStreamMessage_AttestationPolicy)
 		assert.True(t, ok)
-		assert.Equal(t, "test-info-id", infoRes.BackendInfo.Id)
-		assert.Equal(t, []byte("test-backend-info"), infoRes.BackendInfo.Info)
+		assert.Equal(t, "test-info-id", infoRes.AttestationPolicy.Id)
+		assert.Equal(t, []byte("test-attestation-policy"), infoRes.AttestationPolicy.Info)
 	})
 	t.Run("error", func(t *testing.T) {
 		mockStream := new(mockStream)
@@ -263,15 +263,15 @@ func TestManagerClient_handleBackendInfoReq(t *testing.T) {
 
 		client := NewClient(mockStream, mockSvc, messageQueue, logger)
 
-		infoReq := &manager.ServerStreamMessage_BackendInfoReq{
-			BackendInfoReq: &manager.BackendInfoReq{
+		infoReq := &manager.ServerStreamMessage_AttestationPolicyReq{
+			AttestationPolicyReq: &manager.AttestationPolicyReq{
 				Id: "test-info-id",
 			},
 		}
 
-		mockSvc.On("FetchBackendInfo", context.Background(), infoReq.BackendInfoReq.Id).Return(nil, assert.AnError)
+		mockSvc.On("FetchAttestationPolicy", context.Background(), infoReq.AttestationPolicyReq.Id).Return(nil, assert.AnError)
 
-		client.handleBackendInfoReq(context.Background(), infoReq)
+		client.handleAttestationPolicyReq(context.Background(), infoReq)
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -290,7 +290,7 @@ func TestManagerClient_handleSVMInfoReq(t *testing.T) {
 
 	mockSvc.On("ReturnSVMInfo", context.Background()).Return("edk2-stable202408", 4, "EPYC", "")
 
-	client.handleSVMInfoReq(context.Background())
+	client.handleSVMInfoReq(context.Background(), &manager.ServerStreamMessage_SvmInfoReq{SvmInfoReq: &manager.SVMInfoReq{Id: "test-svm-info-id"}})
 
 	// Wait for the goroutine to finish
 	time.Sleep(50 * time.Millisecond)

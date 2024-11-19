@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/scripts/backend_info"
+    directory: "/scripts/attestation_policy"
     schedule:
       interval: "weekly"
       day: "monday"

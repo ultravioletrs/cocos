@@ -28,7 +28,7 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			attestationConfiguration := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-			err := grpc.ReadBackendInfo(args[0], &attestationConfiguration)
+			err := grpc.ReadAttestationPolicy(args[0], &attestationConfiguration)
 			if err != nil {
 				printError(cmd, "Error while reading manifest: %v ❌ ", err)
 				return
