@@ -122,16 +122,6 @@ func main() {
 
 	go func() {
 		for incoming := range incomingChan {
-			switch incoming.Message.(type) {
-			case *manager.ClientStreamMessage_RunRes:
-				fmt.Println("received runRes")
-			case *manager.ClientStreamMessage_AgentEvent:
-				fmt.Println("received agent event")
-			case *manager.ClientStreamMessage_AgentLog:
-				fmt.Println("received agent log")
-			case *manager.ClientStreamMessage_BackendInfo:
-				fmt.Println("received backend info measurement request")
-			}
 			fmt.Println(incoming.Message)
 		}
 	}()

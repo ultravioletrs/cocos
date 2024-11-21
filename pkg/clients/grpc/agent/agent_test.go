@@ -100,13 +100,13 @@ func TestAgentClientIntegration(t *testing.T) {
 			err: ErrAgentServiceUnavailable,
 		},
 		{
-			name: "invalid config, missing BackendInfo with aTLS",
+			name: "invalid config, missing AttestationPolicy with aTLS",
 			config: pkggrpc.Config{
 				URL:         testServer.listenAddr,
 				Timeout:     1,
 				AttestedTLS: true,
 			},
-			err: pkggrpc.ErrBackendInfoMissing,
+			err: pkggrpc.ErrAttestationPolicyMissing,
 		},
 	}
 

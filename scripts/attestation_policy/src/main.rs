@@ -6,7 +6,7 @@ use std::arch::x86_64::__cpuid;
 use std::fs::File;
 use std::io::Write;
 
-const BACKEND_INFO_JSON: &str = "backend_info.json";
+const ATTESTATION_POLICY_JSON: &str = "attestation_policy.json";
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
 const EXTENDED_MODEL_SHIFT: u32 = 16;
 const FAMILY_SHIFT: u32 = 8;
@@ -103,7 +103,7 @@ fn sev_product(eax: u32) -> SevProduct {
 }
 
 fn main() {
-    let matches = Command::new("Backend info")
+    let matches = Command::new("Attestation Policy")
         .about(
             "Processes command line options and outputs a JSON file for Attestation verification",
         )
@@ -170,9 +170,12 @@ fn main() {
     };
 
     let json = serde_json::to_string_pretty(&computation).expect("Failed to serialize to JSON");
-    let mut file = File::create(BACKEND_INFO_JSON).expect("Failed to create file");
+    let mut file = File::create(ATTESTATION_POLICY_JSON).expect("Failed to create file");
     file.write_all(json.as_bytes())
         .expect("Failed to write to file");
 
-    println!("Computation JSON has been written to {}", BACKEND_INFO_JSON);
+    println!(
+        "AttestationPolicy JSON has been written to {}",
+        ATTESTATION_POLICY_JSON
+    );
 }

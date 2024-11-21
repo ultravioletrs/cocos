@@ -19,7 +19,7 @@ All assets/datasets the algorithm uses are stored in the `datasets` directory. T
 
 Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
 
-For attested TLS, you will have to calculate the VM's measurement, which can be done using cli. This information is also contained in the backend info file.
+For attested TLS, you will have to calculate the VM's measurement, which can be done using cli. This information is also contained in the Attestation Policy file.
 
 ```bash
 # Define the path to the OVMF, KERNEL, INITRD and CMD Kernel line arguments.
@@ -44,26 +44,26 @@ export AGENT_GRPC_URL=localhost:7002
 # For attested TLS, the CLI needs a file containing the necessary information 
 # about the SEV-SNP capable backend. This information will be used to verify 
 # the attestation report received from the agent.
-# The backend_info.json file can be generated using Rust by running:
-cd scripts/backend_info
+# The attestation_policy.json file can be generated using Rust by running:
+cd scripts/attestation_policy
 make
-sudo ./target/release/backend_info --policy 196608 # Default value of the policy should be 196608
-# The output file backend_info.json will be generated in the directory from which the executable has been called.
+sudo ./target/release/attestation_policy --policy 196608 # Default value of the policy should be 196608
+# The output file attestation_policy.json will be generated in the directory from which the executable has been called.
 cd ../..
 
 # The CLI should also be aware of the VM measurement. To add the measurement 
 # to the .json file that contains the information about the platform, run CLI 
-# with the measurement in base64 format and the path of the backend_info.json file.:
-./build/cocos-cli backend measurement '<measurement>' '<backend_info.json>'
+# with the measurement in base64 format and the path of the attestation_policy.json file.:
+./build/cocos-cli policy measurement '<measurement>' '<attestation_policy.json>'
 
 # If the VM is booted with the QEMU host data option, the CLI should also know 
 # the host data information. To add the host data to the .json file that contains 
 # the information about the platform, run CLI with the host data in base64 format 
-# and the path of the backend_info.json file.:
-./build/cocos-cli backend hostdata '<host-data>' '<backend_info.json>'
+# and the path of the attestation_policy.json file.:
+./build/cocos-cli policy hostdata '<host-data>' '<attestation_policy.json>'
 
-# For attested TLS, also define the path to the backend_info.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_BACKEND_INFO=./scripts/backend_info/backend_info.json
+# For attested TLS, also define the path to the attestation_policy.json that contains reference values for the fields of the attestation report
+export AGENT_GRPC_ATTESTATION_POLICY=./scripts/attestation_policy/attestation_policy.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retieve Attestation

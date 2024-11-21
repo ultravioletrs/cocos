@@ -40,9 +40,9 @@ const (
 var (
 	errGrpcConnect               = errors.New("failed to connect to grpc server")
 	errGrpcClose                 = errors.New("failed to close grpc connection")
-	errBackendInfoOpen           = errors.New("failed to open Backend Info file")
-	ErrBackendInfoMissing        = errors.New("failed due to missing backend info file")
-	ErrBackendInfoDecode         = errors.New("failed to decode backend info file")
+	errAttestationPolicyOpen     = errors.New("failed to open Attestation Policy file")
+	ErrAttestationPolicyMissing  = errors.New("failed due to missing Attestation Policy file")
+	ErrAttestationPolicyDecode   = errors.New("failed to decode Attestation Policy file")
 	errCertificateParse          = errors.New("failed to parse x509 certificate")
 	errAttVerification           = errors.New("certificat is not sefl signed")
 	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
@@ -50,13 +50,13 @@ var (
 )
 
 type Config struct {
-	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
-	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
-	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
-	URL          string        `env:"URL"             envDefault:"localhost:7001"`
-	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	AttestedTLS  bool          `env:"ATTESTED_TLS"    envDefault:"false"`
-	BackendInfo  string        `env:"BACKEND_INFO"    envDefault:""`
+	ClientCert        string        `env:"CLIENT_CERT"        envDefault:""`
+	ClientKey         string        `env:"CLIENT_KEY"         envDefault:""`
+	ServerCAFile      string        `env:"SERVER_CA_CERTS"    envDefault:""`
+	URL               string        `env:"URL"                envDefault:"localhost:7001"`
+	Timeout           time.Duration `env:"TIMEOUT"            envDefault:"60s"`
+	AttestedTLS       bool          `env:"ATTESTED_TLS"       envDefault:"false"`
+	AttestationPolicy string        `env:"ATTESTATION_POLICY" envDefault:""`
 }
 
 type Client interface {
@@ -127,9 +127,9 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	tc := insecure.NewCredentials()
 
 	if cfg.AttestedTLS {
-		err := ReadBackendInfo(cfg.BackendInfo, &quoteprovider.AttConfigurationSEVSNP)
+		err := ReadAttestationPolicy(cfg.AttestationPolicy, &quoteprovider.AttConfigurationSEVSNP)
 		if err != nil {
-			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Backend Info"), err)
+			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
 		}
 
 		tlsConfig := &tls.Config{
@@ -180,21 +180,21 @@ func connect(cfg Config) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func ReadBackendInfo(manifestPath string, attestationConfiguration *check.Config) error {
+func ReadAttestationPolicy(manifestPath string, attestationConfiguration *check.Config) error {
 	if manifestPath != "" {
 		manifest, err := os.ReadFile(manifestPath)
 		if err != nil {
-			return errors.Wrap(errBackendInfoOpen, err)
+			return errors.Wrap(errAttestationPolicyOpen, err)
 		}
 
 		if err := protojson.Unmarshal(manifest, attestationConfiguration); err != nil {
-			return errors.Wrap(ErrBackendInfoDecode, err)
+			return errors.Wrap(ErrAttestationPolicyDecode, err)
 		}
 
 		return nil
 	}
 
-	return ErrBackendInfoMissing
+	return ErrAttestationPolicyMissing
 }
 
 func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {

@@ -60,8 +60,8 @@ type Service interface {
 	Run(ctx context.Context, c *ComputationRunReq) (string, error)
 	// Stop stops a computation.
 	Stop(ctx context.Context, computationID string) error
-	// FetchBackendInfo measures and fetches the backend information.
-	FetchBackendInfo(ctx context.Context, computationID string) ([]byte, error)
+	// FetchAttestationPolicy measures and fetches the attestation policy.
+	FetchAttestationPolicy(ctx context.Context, computationID string) ([]byte, error)
 	// ReportBrokenConnection reports a broken connection.
 	ReportBrokenConnection(addr string)
 	// ReturnSVMInfo returns SVM information needed for attestation verification and validation.
@@ -69,23 +69,23 @@ type Service interface {
 }
 
 type managerService struct {
-	mu                           sync.Mutex
-	qemuCfg                      qemu.Config
-	backendMeasurementBinaryPath string
-	logger                       *slog.Logger
-	eventsChan                   chan *ClientStreamMessage
-	vms                          map[string]vm.VM
-	vmFactory                    vm.Provider
-	portRangeMin                 int
-	portRangeMax                 int
-	persistence                  qemu.Persistence
-	eosVersion                   string
+	mu                          sync.Mutex
+	qemuCfg                     qemu.Config
+	attestationPolicyBinaryPath string
+	logger                      *slog.Logger
+	eventsChan                  chan *ClientStreamMessage
+	vms                         map[string]vm.VM
+	vmFactory                   vm.Provider
+	portRangeMin                int
+	portRangeMax                int
+	persistence                 qemu.Persistence
+	eosVersion                  string
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -97,16 +97,16 @@ func New(cfg qemu.Config, backendMeasurementBinPath string, logger *slog.Logger,
 	}
 
 	ms := &managerService{
-		qemuCfg:                      cfg,
-		logger:                       logger,
-		vms:                          make(map[string]vm.VM),
-		eventsChan:                   eventsChan,
-		vmFactory:                    vmFactory,
-		backendMeasurementBinaryPath: backendMeasurementBinPath,
-		portRangeMin:                 start,
-		portRangeMax:                 end,
-		persistence:                  persistence,
-		eosVersion:                   eosVersion,
+		qemuCfg:                     cfg,
+		logger:                      logger,
+		vms:                         make(map[string]vm.VM),
+		eventsChan:                  eventsChan,
+		vmFactory:                   vmFactory,
+		attestationPolicyBinaryPath: attestationPolicyBinPath,
+		portRangeMin:                start,
+		portRangeMax:                end,
+		persistence:                 persistence,
+		eosVersion:                  eosVersion,
 	}
 
 	if err := ms.restoreVMs(); err != nil {

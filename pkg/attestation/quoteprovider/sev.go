@@ -145,7 +145,7 @@ func GetQuoteProvider() (client.QuoteProvider, error) {
 func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
 	config, err := copyConfig(&AttConfigurationSEVSNP)
 	if err != nil {
-		return fmt.Errorf("failed to create a copy of backend configuration")
+		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}
 
 	config.Policy.ReportData = reportData[:]

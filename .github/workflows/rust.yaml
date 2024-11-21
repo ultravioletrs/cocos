@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - "scripts/backend_info/**"
+      - "scripts/attestation_policy/**"
       - ".github/workflows/rust.yaml"
   pull_request:
     branches:
       - main
     paths:
-      - "scripts/backend_info/**"
+      - "scripts/attestation_policy/**"
       - ".github/workflows/rust.yaml"
 
 env:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./scripts/backend_info
+        working-directory: ./scripts/attestation_policy
 
     steps:
       - name: Checkout Code

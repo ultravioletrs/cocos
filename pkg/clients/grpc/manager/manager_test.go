@@ -24,9 +24,9 @@ func TestNewManagerClient(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "invalid config, missing BackendInfo with aTLS",
+			name: "invalid config, missing AttestationPolicy with aTLS",
 			cfg:  grpc.Config{AttestedTLS: true},
-			err:  grpc.ErrBackendInfoMissing,
+			err:  grpc.ErrAttestationPolicyMissing,
 		},
 	}
 

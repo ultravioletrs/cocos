@@ -108,7 +108,7 @@ func main() {
 
 	keysCmd := cliSVC.NewKeysCmd()
 	attestationCmd := cliSVC.NewAttestationCmd()
-	backendCmd := cliSVC.NewBackendCmd()
+	attestationPolicyCmd := cliSVC.NewAttestationPolicyCmd()
 
 	// Agent Commands
 	rootCmd.AddCommand(cliSVC.NewAlgorithmCmd())
@@ -116,7 +116,7 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewResultsCmd())
 	rootCmd.AddCommand(attestationCmd)
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
-	rootCmd.AddCommand(backendCmd)
+	rootCmd.AddCommand(attestationPolicyCmd)
 	rootCmd.AddCommand(keysCmd)
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 
@@ -136,9 +136,9 @@ func main() {
 		"User Key type",
 	)
 
-	// Backend information commands
-	backendCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
-	backendCmd.AddCommand(cliSVC.NewAddHostDataCmd())
+	// Attestation Policy commands
+	attestationPolicyCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logErrorCmd(*rootCmd, err)

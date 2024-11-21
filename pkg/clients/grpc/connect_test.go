@@ -149,7 +149,7 @@ func TestClientSecure(t *testing.T) {
 	}
 }
 
-func TestReadBackendInfo(t *testing.T) {
+func TestReadAttestationPolicy(t *testing.T) {
 	validJSON := `{"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
 	invalidJSON := `{"invalid_json"`
 
@@ -169,19 +169,19 @@ func TestReadBackendInfo(t *testing.T) {
 			name:         "Invalid JSON",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSON,
-			err:          ErrBackendInfoDecode,
+			err:          ErrAttestationPolicyDecode,
 		},
 		{
 			name:         "Non-existent file",
 			manifestPath: "nonexistent.json",
 			fileContent:  "",
-			err:          errBackendInfoOpen,
+			err:          errAttestationPolicyOpen,
 		},
 		{
 			name:         "Empty manifest path",
 			manifestPath: "",
 			fileContent:  "",
-			err:          ErrBackendInfoMissing,
+			err:          ErrAttestationPolicyMissing,
 		},
 	}
 
@@ -194,7 +194,7 @@ func TestReadBackendInfo(t *testing.T) {
 			}
 
 			config := check.Config{}
-			err := ReadBackendInfo(tt.manifestPath, &config)
+			err := ReadAttestationPolicy(tt.manifestPath, &config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.err == nil {

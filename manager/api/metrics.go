@@ -50,13 +50,13 @@ func (ms *metricsMiddleware) Stop(ctx context.Context, computationID string) err
 	return ms.svc.Stop(ctx, computationID)
 }
 
-func (ms *metricsMiddleware) FetchBackendInfo(ctx context.Context, cmpId string) ([]byte, error) {
+func (ms *metricsMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId string) ([]byte, error) {
 	defer func(begin time.Time) {
-		ms.counter.With("method", "FetchBackendInfo").Add(1)
-		ms.latency.With("method", "FetchBackendInfo").Observe(time.Since(begin).Seconds())
+		ms.counter.With("method", "FetchAttestationPolicy").Add(1)
+		ms.latency.With("method", "FetchAttestationPolicy").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.FetchBackendInfo(ctx, cmpId)
+	return ms.svc.FetchAttestationPolicy(ctx, cmpId)
 }
 
 func (ms *metricsMiddleware) ReportBrokenConnection(addr string) {

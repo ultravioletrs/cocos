@@ -79,10 +79,10 @@ func (client ManagerClient) processIncomingMessage(ctx context.Context, req *man
 		return client.handleTerminateReq(mes)
 	case *manager.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
-	case *manager.ServerStreamMessage_BackendInfoReq:
-		go client.handleBackendInfoReq(ctx, mes)
+	case *manager.ServerStreamMessage_AttestationPolicyReq:
+		go client.handleAttestationPolicyReq(ctx, mes)
 	case *manager.ServerStreamMessage_SvmInfoReq:
-		go client.handleSVMInfoReq(ctx)
+		go client.handleSVMInfoReq(ctx, mes)
 	default:
 		return errors.New("unknown message type")
 	}
@@ -135,22 +135,22 @@ func (client ManagerClient) handleStopComputation(ctx context.Context, mes *mana
 	client.sendMessage(&manager.ClientStreamMessage{Message: msg})
 }
 
-func (client ManagerClient) handleBackendInfoReq(ctx context.Context, mes *manager.ServerStreamMessage_BackendInfoReq) {
-	res, err := client.svc.FetchBackendInfo(ctx, mes.BackendInfoReq.Id)
+func (client ManagerClient) handleAttestationPolicyReq(ctx context.Context, mes *manager.ServerStreamMessage_AttestationPolicyReq) {
+	res, err := client.svc.FetchAttestationPolicy(ctx, mes.AttestationPolicyReq.Id)
 	if err != nil {
 		client.logger.Warn(err.Error())
 		return
 	}
-	info := &manager.ClientStreamMessage_BackendInfo{
-		BackendInfo: &manager.BackendInfo{
+	info := &manager.ClientStreamMessage_AttestationPolicy{
+		AttestationPolicy: &manager.AttestationPolicy{
 			Info: res,
-			Id:   mes.BackendInfoReq.Id,
+			Id:   mes.AttestationPolicyReq.Id,
 		},
 	}
 	client.sendMessage(&manager.ClientStreamMessage{Message: info})
 }
 
-func (client ManagerClient) handleSVMInfoReq(ctx context.Context) {
+func (client ManagerClient) handleSVMInfoReq(ctx context.Context, mes *manager.ServerStreamMessage_SvmInfoReq) {
 	ovmfVersion, cpuNum, cpuType, eosVersion := client.svc.ReturnSVMInfo(ctx)
 	info := &manager.ClientStreamMessage_SvmInfo{
 		SvmInfo: &manager.SVMInfo{
@@ -159,6 +159,7 @@ func (client ManagerClient) handleSVMInfoReq(ctx context.Context) {
 			CpuType:     cpuType,
 			KernelCmd:   qemu.KernelCommandLine,
 			EosVersion:  eosVersion,
+			Id:          mes.SvmInfoReq.Id,
 		},
 	}
 	client.sendMessage(&manager.ClientStreamMessage{Message: info})

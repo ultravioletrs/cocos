@@ -35,11 +35,11 @@ func (tm *tracingMiddleware) Stop(ctx context.Context, computationID string) err
 	return tm.svc.Stop(ctx, computationID)
 }
 
-func (tm *tracingMiddleware) FetchBackendInfo(ctx context.Context, computationId string) ([]byte, error) {
-	_, span := tm.tracer.Start(ctx, "fetch_backend_info")
+func (tm *tracingMiddleware) FetchAttestationPolicy(ctx context.Context, computationId string) ([]byte, error) {
+	_, span := tm.tracer.Start(ctx, "fetch_attestation_policy")
 	defer span.End()
 
-	return tm.svc.FetchBackendInfo(ctx, computationId)
+	return tm.svc.FetchAttestationPolicy(ctx, computationId)
 }
 
 func (tm *tracingMiddleware) ReportBrokenConnection(addr string) {

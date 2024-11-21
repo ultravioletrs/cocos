@@ -15,16 +15,16 @@ import (
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 )
 
-func createDummyBackendInfoBinary(t *testing.T, behavior string) string {
+func createDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	var content []byte
 	switch behavior {
 	case "success":
 		content = []byte(`#!/bin/sh
-echo '{"policy": {"measurement": null, "host_data": null}}' > backend_info.json
+echo '{"policy": {"measurement": null, "host_data": null}}' > attestation_policy.json
 `)
 	case "fail":
 		content = []byte(`#!/bin/sh
-echo "Error: Failed to execute backend_info" >&2
+echo "Error: Failed to execute attestation policy" >&2
 exit 1
 `)
 	case "no_json":
@@ -36,13 +36,13 @@ echo 'No JSON file created'
 	}
 
 	tempDir := t.TempDir()
-	binaryPath := filepath.Join(tempDir, "backend_info")
+	binaryPath := filepath.Join(tempDir, "attestation_policy")
 	err := os.WriteFile(binaryPath, content, 0o755)
 	assert.NoError(t, err)
 	return tempDir
 }
 
-func TestFetchBackendInfo(t *testing.T) {
+func TestFetchAttestationPolicy(t *testing.T) {
 	testCases := []struct {
 		name           string
 		computationId  string
@@ -115,12 +115,12 @@ func TestFetchBackendInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := createDummyBackendInfoBinary(t, tc.binaryBehavior)
+			tempDir := createDummyAttestationPolicyBinary(t, tc.binaryBehavior)
 			defer os.RemoveAll(tempDir)
 
 			ms := &managerService{
-				vms:                          make(map[string]vm.VM),
-				backendMeasurementBinaryPath: tempDir,
+				vms:                         make(map[string]vm.VM),
+				attestationPolicyBinaryPath: tempDir,
 				qemuCfg: qemu.Config{
 					CPU: "EPYC",
 				},
@@ -133,7 +133,7 @@ func TestFetchBackendInfo(t *testing.T) {
 				ms.vms[tc.computationId] = mockVM
 			}
 
-			result, err := ms.FetchBackendInfo(context.Background(), tc.computationId)
+			result, err := ms.FetchAttestationPolicy(context.Background(), tc.computationId)
 
 			if tc.expectedError != "" {
 				assert.Error(t, err)
@@ -142,15 +142,15 @@ func TestFetchBackendInfo(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 
-				var backendInfo map[string]interface{}
-				err = json.Unmarshal(result, &backendInfo)
+				var attestationPolicy map[string]interface{}
+				err = json.Unmarshal(result, &attestationPolicy)
 				assert.NoError(t, err)
 
-				assert.Equal(t, tc.expectedResult, backendInfo)
+				assert.Equal(t, tc.expectedResult, attestationPolicy)
 			}
 
 			if tc.binaryBehavior == "success" {
-				os.Remove("backend_info.json")
+				os.Remove("attestation_policy.json")
 			}
 		})
 	}

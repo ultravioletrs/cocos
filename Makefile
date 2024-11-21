@@ -1,6 +1,6 @@
 BUILD_DIR = build
 SERVICES = manager agent cli
-BACKEND_INFO = backend_info
+ATTESTATION_POLICY = attestation_policy
 CGO_ENABLED ?= 1
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
@@ -23,15 +23,15 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
-.PHONY: all $(SERVICES) $(BACKEND_INFO) install clean
+.PHONY: all $(SERVICES) $(ATTESTATION_POLICY) install clean
 
 all: $(SERVICES)
 
 $(SERVICES):
 	$(call compile_service,$@)
 
-$(BACKEND_INFO):
-	$(MAKE) -C ./scripts/backend_info
+$(ATTESTATION_POLICY):
+	$(MAKE) -C ./scripts/attestation_policy
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto

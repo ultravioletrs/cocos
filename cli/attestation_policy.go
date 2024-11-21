@@ -30,21 +30,21 @@ const (
 )
 
 var (
-	errDecode                 = errors.New("base64 string could not be decoded")
-	errDataLength             = errors.New("data does not have an adequate length")
-	errReadingBackendInfoFile = errors.New("error while reading the backend information file")
-	errUnmarshalJSON          = errors.New("failed to unmarshal json")
-	errMarshalJSON            = errors.New("failed to marshal json")
-	errWriteFile              = errors.New("failed to write to file")
-	errBackendField           = errors.New("the specified field type does not exist in the backend information")
+	errDecode                       = errors.New("base64 string could not be decoded")
+	errDataLength                   = errors.New("data does not have an adequate length")
+	errReadingAttestationPolicyFile = errors.New("error while reading the attestation policy file")
+	errUnmarshalJSON                = errors.New("failed to unmarshal json")
+	errMarshalJSON                  = errors.New("failed to marshal json")
+	errWriteFile                    = errors.New("failed to write to file")
+	errAttestationPolicyField       = errors.New("the specified field type does not exist in the attestation policy")
 )
 
-func (cli *CLI) NewBackendCmd() *cobra.Command {
+func (cli *CLI) NewAttestationPolicyCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "backend [command]",
-		Short: "Change backend information",
+		Use:   "policy [command]",
+		Short: "Change attestation policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Change backend information\n\n")
+			fmt.Printf("Change attestation policy\n\n")
 			fmt.Printf("Usage:\n  %s [command]\n\n", cmd.CommandPath())
 			fmt.Printf("Available Commands:\n")
 
@@ -72,8 +72,8 @@ func (cli *CLI) NewBackendCmd() *cobra.Command {
 func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "measurement",
-		Short:   "Add measurement to the backend info file. The value should be in base64. The second parameter is backend_info.json file",
-		Example: "measurement <measurement> <backend_info.json>",
+		Short:   "Add measurement to the attestation policy file. The value should be in base64. The second parameter is attestation_policy.json file",
+		Example: "measurement <measurement> <attestation_policy.json>",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := changeAttestationConfiguration(args[1], args[0], measurementLength, measurementField); err != nil {
@@ -87,8 +87,8 @@ func (cli *CLI) NewAddMeasurementCmd() *cobra.Command {
 func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "hostdata",
-		Short:   "Add host data to the backend info file. The value should be in base64. The second parameter is backend_info.json file",
-		Example: "hostdata <host-data> <backend_info.json>",
+		Short:   "Add host data to the attestation policy file. The value should be in base64. The second parameter is attestation_policy.json file",
+		Example: "hostdata <host-data> <attestation_policy.json>",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := changeAttestationConfiguration(args[1], args[0], hostDataLength, hostDataField); err != nil {
@@ -111,12 +111,12 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 
 	ac := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 
-	backendInfo, err := os.ReadFile(fileName)
+	attestationPolicy, err := os.ReadFile(fileName)
 	if err != nil {
-		return errors.Wrap(errReadingBackendInfoFile, err)
+		return errors.Wrap(errReadingAttestationPolicyFile, err)
 	}
 
-	if err = protojson.Unmarshal(backendInfo, &ac); err != nil {
+	if err = protojson.Unmarshal(attestationPolicy, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 
@@ -126,7 +126,7 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 	case hostDataField:
 		ac.Policy.HostData = data
 	default:
-		return errBackendField
+		return errAttestationPolicyField
 	}
 
 	fileJson, err := protojson.Marshal(&ac)

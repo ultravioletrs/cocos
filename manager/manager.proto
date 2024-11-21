@@ -31,17 +31,18 @@ message RunResponse{
   string computation_id = 2;
 }
 
-message BackendInfo{
+message AttestationPolicy{
   bytes info = 1;
   string id = 2;
 }
 
 message SVMInfo{
-  string ovmf_version = 1;
-  int32 cpu_num = 2;
-  string cpu_type = 3;
-  string kernel_cmd = 4;
-  string eos_version = 5;
+  string id = 1;
+  string ovmf_version = 2;
+  int32 cpu_num = 3;
+  string cpu_type = 4;
+  string kernel_cmd = 5;
+  string eos_version = 6;
 }
 
 message AgentEvent {
@@ -65,7 +66,7 @@ message ClientStreamMessage {
     AgentLog agent_log = 1;
     AgentEvent agent_event = 2;
     RunResponse run_res = 3;
-    BackendInfo backendInfo = 4;
+    AttestationPolicy attestationPolicy = 4;
     StopComputationResponse stopComputationRes = 5;
     SVMInfo svm_info = 6;
   }
@@ -77,7 +78,7 @@ message ServerStreamMessage {
     ComputationRunReq runReq = 2;
     Terminate terminateReq = 3;
     StopComputation stopComputation = 4;
-    BackendInfoReq backendInfoReq = 5;
+    AttestationPolicyReq attestationPolicyReq = 5;
     SVMInfoReq svmInfoReq = 6;
   }
 }
@@ -98,11 +99,12 @@ message ComputationRunReq {
   AgentConfig agent_config = 7;
 }
 
-message BackendInfoReq {
+message AttestationPolicyReq {
   string id = 1;
 }
 
 message SVMInfoReq {
+  string id = 1;
 }
 
 message ResultConsumer {
