@@ -117,6 +117,8 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 }
 
 func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
+	cfg := ms.qemuCfg
+
 	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
 	ac := agent.Computation{
 		ID:          c.Id,
@@ -157,7 +159,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
-	ms.qemuCfg.HostFwdAgent = agentPort
+	cfg.HostFwdAgent = agentPort
 
 	var cid int = qemu.BaseGuestCID
 	for {
@@ -173,7 +175,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		}
 		cid++
 	}
-	ms.qemuCfg.VSockConfig.GuestCID = cid
+	cfg.VSockConfig.GuestCID = cid
 
 	ch, err := computationHash(ac)
 	if err != nil {
@@ -182,9 +184,9 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	}
 
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-	ms.qemuCfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+	cfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
 
-	cvm := ms.vmFactory(ms.qemuCfg, ms.eventsLogsSender, c.Id)
+	cvm := ms.vmFactory(cfg, ms.eventsLogsSender, c.Id)
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
 	if err = cvm.Start(); err != nil {
 		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
@@ -198,7 +200,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 
 	state := qemu.VMState{
 		ID:     c.Id,
-		Config: ms.qemuCfg,
+		Config: cfg,
 		PID:    pid,
 	}
 	if err := ms.persistence.SaveVM(state); err != nil {
@@ -212,9 +214,11 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		return "", err
 	}
 
+	ms.mu.Lock()
 	if err := ms.vms[c.Id].Transition(manager.VmRunning); err != nil {
 		ms.logger.Warn("Failed to transition VM state", "computation", c.Id, "error", err)
 	}
+	ms.mu.Unlock()
 
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Completed.String(), json.RawMessage{})
 
