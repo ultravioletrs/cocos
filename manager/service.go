@@ -117,7 +117,9 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 }
 
 func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
+	ms.mu.Lock()
 	cfg := ms.qemuCfg
+	ms.mu.Unlock()
 
 	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
 	ac := agent.Computation{
