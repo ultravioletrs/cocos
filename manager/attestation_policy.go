@@ -67,7 +67,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	}
-	if measurement == nil {
+	if measurement != nil {
 		attestationPolicy.Policy.Measurement = measurement
 	}
 
