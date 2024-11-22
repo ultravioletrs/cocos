@@ -217,7 +217,8 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	}
 
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Completed.String(), json.RawMessage{})
-	return fmt.Sprint(ms.qemuCfg.HostFwdAgent), nil
+
+	return fmt.Sprint(agentPort), nil
 }
 
 func (ms *managerService) Stop(ctx context.Context, computationID string) error {
