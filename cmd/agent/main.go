@@ -135,8 +135,6 @@ func main() {
 		}
 	})
 
-	fmt.Println("starting grpc")
-
 	g.Go(func() error {
 		return gs.Start()
 	})
