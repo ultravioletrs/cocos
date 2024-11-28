@@ -54,15 +54,34 @@ func main() {
 		log.Fatalf("failed to calculate checksum: %s", err)
 	}
 
+	key, err := os.ReadFile("/home/sammyk/Downloads/certificates/key.pem")
+	if err != nil {
+		log.Fatalf("failed to read key file: %s", err)
+	}
+
+	cert, err := os.ReadFile("/home/sammyk/Downloads/certificates/cert.pem")
+	if err != nil {
+		log.Fatalf("failed to read cert file: %s", err)
+	}
+
+	ca, err := os.ReadFile("/home/sammyk/Downloads/certificates/ca.pem")
+	if err != nil {
+		log.Fatalf("failed to read ca file: %s", err)
+	}
+
 	ac := agent.Computation{
 		ID:              "123",
 		Datasets:        agent.Datasets{agent.Dataset{Hash: [32]byte(dataHash), UserKey: pubPem.Bytes}},
 		Algorithm:       agent.Algorithm{Hash: [32]byte(algoHash), UserKey: pubPem.Bytes},
 		ResultConsumers: []agent.ResultConsumer{{UserKey: pubPem.Bytes}},
 		AgentConfig: agent.AgentConfig{
-			LogLevel:    "debug",
-			Port:        "7002",
-			AttestedTls: attestedTLS,
+			LogLevel:     "debug",
+			Port:         "7002",
+			AttestedTls:  attestedTLS,
+			KeyFile:      string(key),
+			CertFile:     string(cert),
+			ServerCAFile: string(ca),
+			ClientCAFile: string(ca),
 		},
 	}
 	if err := sendAgentConfig(3, ac); err != nil {

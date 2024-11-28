@@ -124,6 +124,7 @@ func (s *Server) Start() error {
 	case s.Config.CertFile != "" || s.Config.KeyFile != "":
 		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
+			fmt.Println("failed to load auth certificates: %w", err)
 			return fmt.Errorf("failed to load auth certificates: %w", err)
 		}
 		tlsConfig := &tls.Config{
@@ -135,6 +136,7 @@ func (s *Server) Start() error {
 		// Loading Server CA file
 		rootCA, err := loadCertFile(s.Config.ServerCAFile)
 		if err != nil {
+			fmt.Println("failed to load root ca file: %w", err)
 			return fmt.Errorf("failed to load root ca file: %w", err)
 		}
 		if len(rootCA) > 0 {
@@ -142,6 +144,7 @@ func (s *Server) Start() error {
 				tlsConfig.RootCAs = x509.NewCertPool()
 			}
 			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
+				fmt.Println("failed to append root ca to tls.Config")
 				return fmt.Errorf("failed to append root ca to tls.Config")
 			}
 			mtlsCA = fmt.Sprintf("root ca %s", s.Config.ServerCAFile)
@@ -150,6 +153,7 @@ func (s *Server) Start() error {
 		// Loading Client CA File
 		clientCA, err := loadCertFile(s.Config.ClientCAFile)
 		if err != nil {
+			fmt.Println("failed to load client ca file: %w", err)
 			return fmt.Errorf("failed to load client ca file: %w", err)
 		}
 		if len(clientCA) > 0 {
@@ -157,6 +161,7 @@ func (s *Server) Start() error {
 				tlsConfig.ClientCAs = x509.NewCertPool()
 			}
 			if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
+				fmt.Println("failed to append client ca to tls.Config")
 				return fmt.Errorf("failed to append client ca to tls.Config")
 			}
 			mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, s.Config.ClientCAFile)
@@ -171,6 +176,7 @@ func (s *Server) Start() error {
 
 		listener, err = net.Listen("tcp", s.Address)
 		if err != nil {
+			fmt.Println("failed to listen on port %s: %w", s.Address, err)
 			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
 		}
 	default:
@@ -199,6 +205,7 @@ func (s *Server) Start() error {
 	case <-s.Ctx.Done():
 		return s.Stop()
 	case err := <-errCh:
+		fmt.Println("err chan", err)
 		s.Cancel()
 		return err
 	}
