@@ -1,0 +1,95 @@
+with-expecter: true
+filename: "{{.InterfaceName}}.go"
+outpkg: "mocks"
+boilerplate-file: "./boilerplate.txt"
+packages:
+  github.com/ultravioletrs/cocos/agent:
+    interfaces:
+      Service:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "agent.go"
+          mockname: "{{.InterfaceName}}"
+      AgentService_DataClient:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "agent_grpc_data.go"
+          mockname: "{{.InterfaceName}}"
+      AgentService_AlgoClient:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "agent_grpc_algo.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/auth:
+    interfaces:
+      Authenticator:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "auth.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/events:
+    interfaces:
+      Service:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "events.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/statemachine:
+    interfaces:
+      StateMachine:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "state.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/internal/logger:
+    interfaces:
+      io.Writer:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "io_writer.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/internal/server:
+    interfaces:
+      Server:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "server.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/manager:
+    interfaces:
+      Service:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "service.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/manager/qemu:
+    interfaces:
+      Persistence:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "persistence.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/manager/vm:
+    interfaces:
+      StateMachine:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "state_machine.go"
+          mockname: "{{.InterfaceName}}"
+      VM:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "vm.go"
+          mockname: "{{.InterfaceName}}"
+      Provider:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "provider.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/pkg/sdk:
+    interfaces:
+      SDK:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "sdk.go"
+          mockname: "{{.InterfaceName}}"

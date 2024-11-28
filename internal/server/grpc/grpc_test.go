@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	authmocks "github.com/ultravioletrs/cocos/agent/mocks"
+	authmocks "github.com/ultravioletrs/cocos/agent/auth/mocks"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"google.golang.org/grpc"

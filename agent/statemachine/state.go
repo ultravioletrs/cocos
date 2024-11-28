@@ -24,7 +24,6 @@ type Transition struct {
 	To    State
 }
 
-//go:generate mockery --name StateMachine --output=mocks --filename state.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type StateMachine interface {
 	AddTransition(t Transition)
 	SetAction(state State, action Action)

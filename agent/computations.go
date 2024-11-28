@@ -86,6 +86,3 @@ func DecompressFromContext(ctx context.Context) bool {
 func DecompressToContext(ctx context.Context, decompress bool) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, DecompressKey, fmt.Sprintf("%t", decompress))
 }
-
-//go:generate mockery --name=AgentService_AlgoClient --output=mocks --filename agent_grpc_algo.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
-//go:generate mockery --name=AgentService_DataClient --output=mocks --filename agent_grpc_data.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"

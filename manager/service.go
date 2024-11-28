@@ -53,8 +53,6 @@ var (
 
 // Service specifies an API that must be fulfilled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
-//
-//go:generate mockery --name Service --output=./mocks --filename service.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	// Run create a computation.
 	Run(ctx context.Context, c *ComputationRunReq) (string, error)

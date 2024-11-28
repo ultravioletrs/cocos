@@ -16,7 +16,6 @@ type service struct {
 	conn          io.Writer
 }
 
-//go:generate mockery --name Service --output=./mocks --filename events.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Service interface {
 	SendEvent(event, status string, details json.RawMessage) error
 }

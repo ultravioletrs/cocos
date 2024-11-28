@@ -20,8 +20,6 @@ type handler struct {
 	cmpID string
 }
 
-//go:generate mockery --name io.Writer --output ./mocks --filename io_writer.go
-
 func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, cmpID string) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}

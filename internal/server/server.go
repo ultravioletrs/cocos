@@ -11,7 +11,6 @@ import (
 	"syscall"
 )
 
-//go:generate mockery --name Server --output ./mocks --filename server.go
 type Server interface {
 	Start() error
 	Stop() error
