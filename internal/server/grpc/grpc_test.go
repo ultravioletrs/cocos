@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -125,6 +126,106 @@ func TestServerStartWithTLS(t *testing.T) {
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
 }
 
+func TestServerStartWithTLSInvalidCerts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	config := server.Config{
+		Host:     "localhost",
+		Port:     "0",
+		CertFile: string("invalid"),
+		KeyFile:  string("invalid"),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to load auth certificates")
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+}
+
+func TestServerStartWithTLSFile(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	certFile, err := os.CreateTemp("", "cert*.pem")
+	assert.NoError(t, err)
+
+	keyFile, err := os.CreateTemp("", "key*.pem")
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(certFile.Name())
+		os.Remove(keyFile.Name())
+	})
+
+	_, err = certFile.Write(cert)
+	assert.NoError(t, err)
+
+	_, err = keyFile.Write(key)
+	assert.NoError(t, err)
+
+	err = certFile.Close()
+	assert.NoError(t, err)
+	err = keyFile.Close()
+	assert.NoError(t, err)
+
+	config := server.Config{
+		Host:     "localhost",
+		Port:     "0",
+		CertFile: certFile.Name(),
+		KeyFile:  keyFile.Name(),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.NoError(t, err)
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+
+	logContent := logBuffer.String()
+	fmt.Println(logContent)
+	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
+}
+
 func TestServerStartWithmTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -138,6 +239,154 @@ func TestServerStartWithmTLS(t *testing.T) {
 		KeyFile:      string(key),
 		ServerCAFile: string(cert),
 		ClientCAFile: string(cert),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.NoError(t, err)
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+
+	logContent := logBuffer.String()
+	fmt.Println(logContent)
+	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
+}
+
+func TestServerStartWithmTLSIvalidRootCA(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config := server.Config{
+		Host:         "localhost",
+		Port:         "0",
+		CertFile:     string(cert),
+		KeyFile:      string(key),
+		ServerCAFile: string("invalid"),
+		ClientCAFile: string(cert),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to append root ca to tls.Config")
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+}
+
+func TestServerStartWithmTLSClientCA(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config := server.Config{
+		Host:         "localhost",
+		Port:         "0",
+		CertFile:     string(cert),
+		KeyFile:      string(key),
+		ServerCAFile: string(cert),
+		ClientCAFile: string("invalid"),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to append client ca to tls.Config")
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+}
+
+func TestServerStartWithmTLSFile(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	certFile, err := os.CreateTemp("", "cert*.pem")
+	assert.NoError(t, err)
+
+	keyFile, err := os.CreateTemp("", "key*.pem")
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(certFile.Name())
+		os.Remove(keyFile.Name())
+	})
+
+	_, err = certFile.Write(cert)
+	assert.NoError(t, err)
+
+	_, err = keyFile.Write(key)
+	assert.NoError(t, err)
+
+	err = certFile.Close()
+	assert.NoError(t, err)
+	err = keyFile.Close()
+	assert.NoError(t, err)
+
+	config := server.Config{
+		Host:         "localhost",
+		Port:         "0",
+		CertFile:     certFile.Name(),
+		KeyFile:      keyFile.Name(),
+		ServerCAFile: certFile.Name(),
+		ClientCAFile: certFile.Name(),
 	}
 
 	logBuffer := &ThreadSafeBuffer{}
