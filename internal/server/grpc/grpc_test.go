@@ -125,6 +125,50 @@ func TestServerStartWithTLS(t *testing.T) {
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
 }
 
+func TestServerStartWithmTLS(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config := server.Config{
+		Host:         "localhost",
+		Port:         "0",
+		CertFile:     string(cert),
+		KeyFile:      string(key),
+		ServerCAFile: string(cert),
+		ClientCAFile: string(cert),
+	}
+
+	logBuffer := &ThreadSafeBuffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	qp := new(mocks.QuoteProvider)
+	authSvc := new(authmocks.Authenticator)
+
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		wg.Done()
+		err := srv.Start()
+		assert.NoError(t, err)
+	}()
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+
+	cancel()
+
+	time.Sleep(200 * time.Millisecond)
+
+	logContent := logBuffer.String()
+	fmt.Println(logContent)
+	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
+}
+
 func TestServerStartWithAttestedTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
