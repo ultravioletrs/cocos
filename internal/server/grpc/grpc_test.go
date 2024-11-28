@@ -52,116 +52,6 @@ func TestNew(t *testing.T) {
 	assert.IsType(t, &Server{}, srv)
 }
 
-func TestServerStart(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	config := server.Config{
-		Host: "localhost",
-		Port: "0",
-	}
-	buf := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.NoError(t, err)
-	}()
-
-	wg.Wait()
-
-	time.Sleep(100 * time.Millisecond)
-
-	cancel()
-
-	assert.Contains(t, buf.String(), "TestServer service gRPC server listening at localhost:0 without TLS")
-}
-
-func TestServerStartWithTLS(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cert, key, err := generateSelfSignedCert()
-	assert.NoError(t, err)
-
-	config := server.Config{
-		Host:     "localhost",
-		Port:     "0",
-		CertFile: string(cert),
-		KeyFile:  string(key),
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.NoError(t, err)
-	}()
-
-	wg.Wait()
-
-	time.Sleep(200 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(200 * time.Millisecond)
-
-	logContent := logBuffer.String()
-	fmt.Println(logContent)
-	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
-}
-
-func TestServerStartWithTLSInvalidCerts(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	config := server.Config{
-		Host:     "localhost",
-		Port:     "0",
-		CertFile: string("invalid"),
-		KeyFile:  string("invalid"),
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to load auth certificates")
-	}()
-
-	wg.Wait()
-
-	time.Sleep(200 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(200 * time.Millisecond)
-}
-
 func TestServerStartWithTLSFile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -224,132 +114,6 @@ func TestServerStartWithTLSFile(t *testing.T) {
 	logContent := logBuffer.String()
 	fmt.Println(logContent)
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
-}
-
-func TestServerStartWithmTLS(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cert, key, err := generateSelfSignedCert()
-	assert.NoError(t, err)
-
-	config := server.Config{
-		Host:         "localhost",
-		Port:         "0",
-		CertFile:     string(cert),
-		KeyFile:      string(key),
-		ServerCAFile: string(cert),
-		ClientCAFile: string(cert),
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.NoError(t, err)
-	}()
-
-	wg.Wait()
-
-	time.Sleep(200 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(200 * time.Millisecond)
-
-	logContent := logBuffer.String()
-	fmt.Println(logContent)
-	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
-}
-
-func TestServerStartWithmTLSIvalidRootCA(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cert, key, err := generateSelfSignedCert()
-	assert.NoError(t, err)
-
-	config := server.Config{
-		Host:         "localhost",
-		Port:         "0",
-		CertFile:     string(cert),
-		KeyFile:      string(key),
-		ServerCAFile: string("invalid"),
-		ClientCAFile: string(cert),
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to append root ca to tls.Config")
-	}()
-
-	wg.Wait()
-
-	time.Sleep(200 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(200 * time.Millisecond)
-}
-
-func TestServerStartWithmTLSClientCA(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cert, key, err := generateSelfSignedCert()
-	assert.NoError(t, err)
-
-	config := server.Config{
-		Host:         "localhost",
-		Port:         "0",
-		CertFile:     string(cert),
-		KeyFile:      string(key),
-		ServerCAFile: string(cert),
-		ClientCAFile: string("invalid"),
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to append client ca to tls.Config")
-	}()
-
-	wg.Wait()
-
-	time.Sleep(200 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(200 * time.Millisecond)
 }
 
 func TestServerStartWithmTLSFile(t *testing.T) {
@@ -416,45 +180,6 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 	logContent := logBuffer.String()
 	fmt.Println(logContent)
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
-}
-
-func TestServerStartWithAttestedTLS(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	config := server.Config{
-		Host:        "localhost",
-		Port:        "0",
-		AttestedTLS: true,
-	}
-
-	logBuffer := &ThreadSafeBuffer{}
-	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
-	authSvc := new(authmocks.Authenticator)
-
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		wg.Done()
-		err := srv.Start()
-		assert.NoError(t, err)
-	}()
-
-	wg.Wait()
-
-	time.Sleep(100 * time.Millisecond)
-
-	cancel()
-
-	time.Sleep(1000 * time.Millisecond)
-
-	logContent := logBuffer.String()
-	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with Attested TLS")
-
-	qp.AssertExpectations(t)
 }
 
 func TestServerStop(t *testing.T) {
@@ -538,4 +263,167 @@ func (b *ThreadSafeBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buffer.String()
+}
+
+func TestServerInitializationAndStartup(t *testing.T) {
+	testCases := []struct {
+		name          string
+		config        server.Config
+		expectedLog   string
+		expectError   bool
+		setupCallback func(*testing.T, *server.Config, *ThreadSafeBuffer)
+	}{
+		{
+			name: "Non-TLS Server Startup",
+			config: server.Config{
+				Host: "localhost",
+				Port: "0",
+			},
+			expectedLog: "TestServer service gRPC server listening at localhost:0 without TLS",
+		},
+		{
+			name: "TLS Server Startup with Self-Signed Certificate",
+			config: server.Config{
+				Host: "localhost",
+				Port: "0",
+			},
+			setupCallback: setupTLSConfig,
+			expectedLog:   "TestServer service gRPC server listening at localhost:0 with TLS",
+		},
+		{
+			name: "TLS Server Startup with Invalid Certificates",
+			config: server.Config{
+				Host:     "localhost",
+				Port:     "0",
+				CertFile: "invalid",
+				KeyFile:  "invalid",
+			},
+			expectError: true,
+			expectedLog: "failed to load auth certificates",
+		},
+		{
+			name: "mTLS Server Startup",
+			config: server.Config{
+				Host: "localhost",
+				Port: "0",
+			},
+			setupCallback: setupMTLSConfig,
+			expectedLog:   "TestServer service gRPC server listening at localhost:0 with TLS",
+		},
+		{
+			name: "mTLS Server Startup with Invalid Root CA",
+			config: server.Config{
+				Host:         "localhost",
+				Port:         "0",
+				ServerCAFile: "invalid",
+			},
+			setupCallback: setupInvalidRootCAConfig,
+			expectError:   true,
+			expectedLog:   "failed to append root ca to tls.Config",
+		},
+		{
+			name: "mTLS Server Startup with Invalid Client CA",
+			config: server.Config{
+				Host:         "localhost",
+				Port:         "0",
+				ServerCAFile: "invalid",
+			},
+			setupCallback: setupInvalidClientCAConfig,
+			expectError:   true,
+			expectedLog:   "failed to append client ca to tls.Config",
+		},
+		{
+			name: "Attested TLS Server Startup",
+			config: server.Config{
+				Host:        "localhost",
+				Port:        "0",
+				AttestedTLS: true,
+			},
+			expectedLog: "TestServer service gRPC server listening at localhost:0 with Attested TLS",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tc.setupCallback != nil {
+				tc.setupCallback(t, &tc.config, nil)
+			}
+
+			logBuffer := &ThreadSafeBuffer{}
+			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			qp := new(mocks.QuoteProvider)
+			authSvc := new(authmocks.Authenticator)
+
+			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+
+			go func() {
+				wg.Done()
+				err := srv.Start()
+				if tc.expectError {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tc.expectedLog)
+				} else {
+					assert.NoError(t, err)
+				}
+			}()
+
+			wg.Wait()
+
+			time.Sleep(200 * time.Millisecond)
+
+			cancel()
+
+			time.Sleep(200 * time.Millisecond)
+
+			if !tc.expectError {
+				logContent := logBuffer.String()
+				fmt.Println(logContent)
+				assert.Contains(t, logContent, tc.expectedLog)
+			}
+		})
+	}
+}
+
+func setupTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config.CertFile = string(cert)
+	config.KeyFile = string(key)
+}
+
+func setupMTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config.CertFile = string(cert)
+	config.KeyFile = string(key)
+	config.ServerCAFile = string(cert)
+	config.ClientCAFile = string(cert)
+}
+
+func setupInvalidRootCAConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config.CertFile = string(cert)
+	config.KeyFile = string(key)
+	config.ServerCAFile = "invalid"
+	config.ClientCAFile = string(cert)
+}
+
+func setupInvalidClientCAConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+	cert, key, err := generateSelfSignedCert()
+	assert.NoError(t, err)
+
+	config.CertFile = string(cert)
+	config.KeyFile = string(key)
+	config.ClientCAFile = "invalid"
+	config.ServerCAFile = string(cert)
 }
