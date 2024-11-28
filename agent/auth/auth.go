@@ -36,7 +36,6 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
-//go:generate mockery --name Authenticator --output=../mocks --filename auth.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Authenticator interface {
 	AuthenticateUser(ctx context.Context, role UserRole) (context.Context, error)
 }

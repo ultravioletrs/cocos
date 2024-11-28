@@ -9,8 +9,6 @@ import (
 )
 
 // VM represents a virtual machine.
-//
-//go:generate mockery --name VM --output=./mocks --filename vm.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type VM interface {
 	Start() error
 	Stop() error
@@ -23,7 +21,6 @@ type VM interface {
 	GetConfig() interface{}
 }
 
-//go:generate mockery --name Provider --output=./mocks --filename provider.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Provider func(config interface{}, eventSender EventSender, computationId string) VM
 
 type Event struct {

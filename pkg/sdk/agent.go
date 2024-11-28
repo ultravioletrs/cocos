@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-//go:generate mockery --name SDK --output=mocks --filename sdk.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type SDK interface {
 	Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error
 	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error

@@ -14,7 +14,6 @@ type sm struct {
 	state manager.ManagerState
 }
 
-//go:generate mockery --name StateMachine --output=./mocks --filename state_machine.go --quiet
 type StateMachine interface {
 	Transition(newState manager.ManagerState) error
 	State() string

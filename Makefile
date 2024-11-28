@@ -39,7 +39,7 @@ protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/events/events.proto
 
 mocks:
-	go generate ./...
+	mockery --config ./mockery.yml
 
 install: $(SERVICES)
 	install -d $(INSTALL_DIR)

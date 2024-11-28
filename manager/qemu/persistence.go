@@ -23,8 +23,6 @@ type FilePersistence struct {
 }
 
 // Persistence is an interface for saving and loading VM states.
-//
-//go:generate mockery --name Persistence --output=./mocks --filename persistence.go --quiet --note "Copyright (c) Ultraviolet \n // SPDX-License-Identifier: Apache-2.0"
 type Persistence interface {
 	SaveVM(state VMState) error
 	LoadVMs() ([]VMState, error)
