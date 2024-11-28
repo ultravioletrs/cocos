@@ -230,31 +230,28 @@ func (s *Server) Stop() error {
 
 func loadCertFile(certFile string) ([]byte, error) {
 	if certFile != "" {
-		return os.ReadFile(certFile)
+		return readFileOrData(certFile)
 	}
 	return []byte{}, nil
 }
 
-func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
-	var cert, key []byte
-	var err error
-
-	readFileOrData := func(input string) ([]byte, error) {
-		if len(input) < 1000 && !strings.Contains(input, "\n") {
-			data, err := os.ReadFile(input)
-			if err == nil {
-				return data, nil
-			}
+func readFileOrData(input string) ([]byte, error) {
+	if len(input) < 1000 && !strings.Contains(input, "\n") {
+		data, err := os.ReadFile(input)
+		if err == nil {
+			return data, nil
 		}
-		return []byte(input), nil
 	}
+	return []byte(input), nil
+}
 
-	cert, err = readFileOrData(certfile)
+func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
+	cert, err := readFileOrData(certfile)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to read cert: %v", err)
 	}
 
-	key, err = readFileOrData(keyfile)
+	key, err := readFileOrData(keyfile)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to read key: %v", err)
 	}
