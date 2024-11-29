@@ -127,7 +127,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("failed to load auth certificates: %w", err)
 		}
 		tlsConfig := &tls.Config{
-			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientAuth:   tls.NoClientCert,
 			Certificates: []tls.Certificate{certificate},
 		}
 
@@ -161,6 +161,11 @@ func (s *Server) Start() error {
 			}
 			mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, s.Config.ClientCAFile)
 		}
+
+		if mtlsCA != "" {
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 		switch {
 		case mtlsCA != "":
