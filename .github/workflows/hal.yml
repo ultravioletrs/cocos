@@ -56,6 +56,7 @@ jobs:
         with:
           repository: 'buildroot/buildroot'
           path: buildroot
+          ref: 2024.11-rc2
 
       - name: Build
         run: |
