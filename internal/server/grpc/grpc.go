@@ -169,9 +169,9 @@ func (s *Server) Start() error {
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 		switch {
 		case mtlsCA != "":
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS %s", s.Name, s.Address, tlsConfig.ClientAuth.String()))
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS", s.Name, s.Address))
 		default:
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS %s", s.Name, s.Address, tlsConfig.ClientAuth.String()))
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS", s.Name, s.Address))
 		}
 
 		listener, err = net.Listen("tcp", s.Address)
