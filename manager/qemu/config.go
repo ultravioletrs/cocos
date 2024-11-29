@@ -9,7 +9,7 @@ import (
 
 const (
 	BaseGuestCID      = 3
-	KernelCommandLine = "quiet console=null rootfstype=ramfs"
+	KernelCommandLine = "quiet console=null"
 )
 
 type MemoryConfig struct {

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MOUNT_POINT="/cocos"
+WORK_DIR="/cocos"
 
 # IFACES are all network interfaces excluding lo (LOOPBACK) and sit interfaces 
 IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')
@@ -18,8 +18,9 @@ for IFACE in $IFACES; do
     fi
 done
 
-if [ ! -d "$MOUNT_POINT" ]; then
-    mkdir -p $MOUNT_POINT
+if [ ! -d "$WORK_DIR" ]; then
+    mkdir -p $WORK_DIR
 fi
 
-mount -t ramfs ramfs $MOUNT_POINT
+# Resize the root file system to 100%
+mount -o remount,size=100% /
