@@ -56,7 +56,7 @@ func TestNew(t *testing.T) {
 	assert.IsType(t, &Server{}, srv)
 }
 
-func TestServerStartWithTLS(t *testing.T) {
+func TestServerStartWithTLSFile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cert, key, err := generateSelfSignedCert()
@@ -124,7 +124,7 @@ func TestServerStartWithTLS(t *testing.T) {
 	assert.Contains(t, logContent, "TestServer service gRPC server listening at localhost:0 with TLS")
 }
 
-func TestServerStartWithMTLS(t *testing.T) {
+func TestServerStartWithmTLSFile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	caCertFile, clientCertFile, clientKeyFile, err := createCertificatesFiles()
