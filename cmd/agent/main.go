@@ -97,14 +97,18 @@ func main() {
 
 	svc := newService(ctx, logger, eventSvc, cfg, qp)
 
-	grpcServerConfig := server.Config{
-		Port:         cfg.AgentConfig.Port,
-		Host:         cfg.AgentConfig.Host,
-		CertFile:     cfg.AgentConfig.CertFile,
-		KeyFile:      cfg.AgentConfig.KeyFile,
-		ServerCAFile: cfg.AgentConfig.ServerCAFile,
-		ClientCAFile: cfg.AgentConfig.ClientCAFile,
-		AttestedTLS:  cfg.AgentConfig.AttestedTls,
+	agentGrpcServerConfig := server.AgentConfig{
+		ServerConfig: server.ServerConfig{
+			BaseConfig: server.BaseConfig{
+				Host:         cfg.AgentConfig.Host,
+				Port:         cfg.AgentConfig.Port,
+				CertFile:     cfg.AgentConfig.CertFile,
+				KeyFile:      cfg.AgentConfig.KeyFile,
+				ServerCAFile: cfg.AgentConfig.ServerCAFile,
+				ClientCAFile: cfg.AgentConfig.ClientCAFile,
+			},
+		},
+		AttestedTLS: cfg.AgentConfig.AttestedTls,
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
@@ -119,7 +123,7 @@ func main() {
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, qp, authSvc)
+	gs := grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, logger, qp, authSvc)
 
 	g.Go(func() error {
 		for {

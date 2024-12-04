@@ -78,32 +78,38 @@ func TestAgentClientIntegration(t *testing.T) {
 	tests := []struct {
 		name          string
 		serverRunning bool
-		config        pkggrpc.Config
+		config        pkggrpc.AgentClientConfig
 		err           error
 	}{
 		{
 			name:          "successful connection",
 			serverRunning: true,
-			config: pkggrpc.Config{
-				URL:     testServer.listenAddr,
-				Timeout: 1,
+			config: pkggrpc.AgentClientConfig{
+				BaseConfig: pkggrpc.BaseConfig{
+					URL:     testServer.listenAddr,
+					Timeout: 1,
+				},
 			},
 			err: nil,
 		},
 		{
 			name:          "server not healthy",
 			serverRunning: false,
-			config: pkggrpc.Config{
-				URL:     "",
-				Timeout: 1,
+			config: pkggrpc.AgentClientConfig{
+				BaseConfig: pkggrpc.BaseConfig{
+					URL:     "",
+					Timeout: 1,
+				},
 			},
 			err: ErrAgentServiceUnavailable,
 		},
 		{
 			name: "invalid config, missing AttestationPolicy with aTLS",
-			config: pkggrpc.Config{
-				URL:         testServer.listenAddr,
-				Timeout:     1,
+			config: pkggrpc.AgentClientConfig{
+				BaseConfig: pkggrpc.BaseConfig{
+					URL:     testServer.listenAddr,
+					Timeout: 1,
+				},
 				AttestedTLS: true,
 			},
 			err: pkggrpc.ErrAttestationPolicyMissing,

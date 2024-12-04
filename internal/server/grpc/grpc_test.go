@@ -38,9 +38,13 @@ func TestNew(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	config := server.Config{
-		Host: "localhost",
-		Port: "50051",
+	config := server.AgentConfig{
+		ServerConfig: server.ServerConfig{
+			BaseConfig: server.BaseConfig{
+				Host: "localhost",
+				Port: "50051",
+			},
+		},
 	}
 	logger := slog.Default()
 	qp := new(mocks.QuoteProvider)
@@ -80,11 +84,15 @@ func TestServerStartWithTLSFile(t *testing.T) {
 	err = keyFile.Close()
 	assert.NoError(t, err)
 
-	config := server.Config{
-		Host:     "localhost",
-		Port:     "0",
-		CertFile: certFile.Name(),
-		KeyFile:  keyFile.Name(),
+	config := server.AgentConfig{
+		ServerConfig: server.ServerConfig{
+			BaseConfig: server.BaseConfig{
+				Host:     "localhost",
+				Port:     "0",
+				CertFile: certFile.Name(),
+				KeyFile:  keyFile.Name(),
+			},
+		},
 	}
 
 	logBuffer := &ThreadSafeBuffer{}
@@ -119,38 +127,19 @@ func TestServerStartWithTLSFile(t *testing.T) {
 func TestServerStartWithmTLSFile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cert, key, err := generateSelfSignedCert()
+	caCertFile, clientCertFile, clientKeyFile, err := createCertificatesFiles()
 	assert.NoError(t, err)
 
-	certFile, err := os.CreateTemp("", "cert*.pem")
-	assert.NoError(t, err)
-
-	keyFile, err := os.CreateTemp("", "key*.pem")
-	assert.NoError(t, err)
-
-	t.Cleanup(func() {
-		os.Remove(certFile.Name())
-		os.Remove(keyFile.Name())
-	})
-
-	_, err = certFile.Write(cert)
-	assert.NoError(t, err)
-
-	_, err = keyFile.Write(key)
-	assert.NoError(t, err)
-
-	err = certFile.Close()
-	assert.NoError(t, err)
-	err = keyFile.Close()
-	assert.NoError(t, err)
-
-	config := server.Config{
-		Host:         "localhost",
-		Port:         "0",
-		CertFile:     certFile.Name(),
-		KeyFile:      keyFile.Name(),
-		ServerCAFile: certFile.Name(),
-		ClientCAFile: certFile.Name(),
+	config := server.AgentConfig{
+		ServerConfig: server.ServerConfig{
+			BaseConfig: server.BaseConfig{
+				Host:         "localhost",
+				Port:         "0",
+				CertFile:     string(clientCertFile),
+				KeyFile:      string(clientKeyFile),
+				ServerCAFile: caCertFile,
+			},
+		},
 	}
 
 	logBuffer := &ThreadSafeBuffer{}
@@ -185,9 +174,13 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 func TestServerStop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	config := server.Config{
-		Host: "localhost",
-		Port: "0",
+	config := server.AgentConfig{
+		ServerConfig: server.ServerConfig{
+			BaseConfig: server.BaseConfig{
+				Host: "localhost",
+				Port: "0",
+			},
+		},
 	}
 	buf := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -268,54 +261,74 @@ func (b *ThreadSafeBuffer) String() string {
 func TestServerInitializationAndStartup(t *testing.T) {
 	testCases := []struct {
 		name          string
-		config        server.Config
+		config        server.AgentConfig
 		expectedLog   string
 		expectError   bool
-		setupCallback func(*testing.T, *server.Config, *ThreadSafeBuffer)
+		setupCallback func(*testing.T, *server.AgentConfig, *ThreadSafeBuffer)
 	}{
 		{
 			name: "Non-TLS Server Startup",
-			config: server.Config{
-				Host: "localhost",
-				Port: "0",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host: "localhost",
+						Port: "0",
+					},
+				},
 			},
 			expectedLog: "TestServer service gRPC server listening at localhost:0 without TLS",
 		},
 		{
 			name: "TLS Server Startup with Self-Signed Certificate",
-			config: server.Config{
-				Host: "localhost",
-				Port: "0",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host: "localhost",
+						Port: "0",
+					},
+				},
 			},
 			setupCallback: setupTLSConfig,
 			expectedLog:   "TestServer service gRPC server listening at localhost:0 with TLS",
 		},
 		{
 			name: "TLS Server Startup with Invalid Certificates",
-			config: server.Config{
-				Host:     "localhost",
-				Port:     "0",
-				CertFile: "invalid",
-				KeyFile:  "invalid",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host:     "localhost",
+						Port:     "0",
+						CertFile: "invalid",
+						KeyFile:  "invalid",
+					},
+				},
 			},
 			expectError: true,
 			expectedLog: "failed to load auth certificates",
 		},
 		{
 			name: "mTLS Server Startup",
-			config: server.Config{
-				Host: "localhost",
-				Port: "0",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host: "localhost",
+						Port: "0",
+					},
+				},
 			},
 			setupCallback: setupMTLSConfig,
 			expectedLog:   "TestServer service gRPC server listening at localhost:0 with TLS",
 		},
 		{
 			name: "mTLS Server Startup with Invalid Root CA",
-			config: server.Config{
-				Host:         "localhost",
-				Port:         "0",
-				ServerCAFile: "invalid",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host:         "localhost",
+						Port:         "0",
+						ServerCAFile: "invalid",
+					},
+				},
 			},
 			setupCallback: setupInvalidRootCAConfig,
 			expectError:   true,
@@ -323,10 +336,14 @@ func TestServerInitializationAndStartup(t *testing.T) {
 		},
 		{
 			name: "mTLS Server Startup with Invalid Client CA",
-			config: server.Config{
-				Host:         "localhost",
-				Port:         "0",
-				ServerCAFile: "invalid",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host:         "localhost",
+						Port:         "0",
+						ServerCAFile: "invalid",
+					},
+				},
 			},
 			setupCallback: setupInvalidClientCAConfig,
 			expectError:   true,
@@ -334,9 +351,13 @@ func TestServerInitializationAndStartup(t *testing.T) {
 		},
 		{
 			name: "Attested TLS Server Startup",
-			config: server.Config{
-				Host:        "localhost",
-				Port:        "0",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host: "localhost",
+						Port: "0",
+					},
+				},
 				AttestedTLS: true,
 			},
 			expectedLog: "TestServer service gRPC server listening at localhost:0 with Attested TLS",
@@ -347,7 +368,6 @@ func TestServerInitializationAndStartup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-
 			if tc.setupCallback != nil {
 				tc.setupCallback(t, &tc.config, nil)
 			}
@@ -358,7 +378,6 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			authSvc := new(authmocks.Authenticator)
 
 			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc)
-
 			var wg sync.WaitGroup
 			wg.Add(1)
 
@@ -390,7 +409,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 	}
 }
 
-func setupTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+func setupTLSConfig(t *testing.T, config *server.AgentConfig, _ *ThreadSafeBuffer) {
 	cert, key, err := generateSelfSignedCert()
 	assert.NoError(t, err)
 
@@ -398,7 +417,7 @@ func setupTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
 	config.KeyFile = string(key)
 }
 
-func setupMTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+func setupMTLSConfig(t *testing.T, config *server.AgentConfig, _ *ThreadSafeBuffer) {
 	cert, key, err := generateSelfSignedCert()
 	assert.NoError(t, err)
 
@@ -408,7 +427,7 @@ func setupMTLSConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
 	config.ClientCAFile = string(cert)
 }
 
-func setupInvalidRootCAConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+func setupInvalidRootCAConfig(t *testing.T, config *server.AgentConfig, _ *ThreadSafeBuffer) {
 	cert, key, err := generateSelfSignedCert()
 	assert.NoError(t, err)
 
@@ -418,7 +437,7 @@ func setupInvalidRootCAConfig(t *testing.T, config *server.Config, _ *ThreadSafe
 	config.ClientCAFile = string(cert)
 }
 
-func setupInvalidClientCAConfig(t *testing.T, config *server.Config, _ *ThreadSafeBuffer) {
+func setupInvalidClientCAConfig(t *testing.T, config *server.AgentConfig, _ *ThreadSafeBuffer) {
 	cert, key, err := generateSelfSignedCert()
 	assert.NoError(t, err)
 
@@ -426,4 +445,90 @@ func setupInvalidClientCAConfig(t *testing.T, config *server.Config, _ *ThreadSa
 	config.KeyFile = string(key)
 	config.ClientCAFile = "invalid"
 	config.ServerCAFile = string(cert)
+}
+
+func createCertificatesFiles() (string, string, string, error) {
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	caTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	caCertFile, err := createTempFile(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCertDER}))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+	}
+
+	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, &clientKey.PublicKey, caKey)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientCertFile, err := createTempFile(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCertDER}))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientKeyFile, err := createTempFile(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(clientKey)}))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return caCertFile, clientCertFile, clientKeyFile, nil
+}
+
+func createTempFile(data []byte) (string, error) {
+	file, err := createTempFileHandle()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	err = file.Close()
+	if err != nil {
+		return "", err
+	}
+
+	return file.Name(), nil
+}
+
+func createTempFileHandle() (*os.File, error) {
+	return os.CreateTemp("", "test")
 }

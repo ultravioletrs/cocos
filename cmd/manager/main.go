@@ -25,7 +25,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/events"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -92,7 +92,7 @@ func main() {
 	args := qemuCfg.ConstructQemuArgs()
 	logger.Info(strings.Join(args, " "))
 
-	managerGRPCConfig := grpc.Config{}
+	managerGRPCConfig := pkggrpc.ManagerClientConfig{}
 	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		exitCode = 1

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,14 +32,15 @@ func TestNewClient(t *testing.T) {
 	})
 
 	tests := []struct {
-		name    string
-		cfg     Config
-		wantErr bool
-		err     error
+		name     string
+		cfg      BaseConfig
+		agentCfg AgentClientConfig
+		wantErr  bool
+		err      error
 	}{
 		{
 			name: "Success without TLS",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL: "localhost:7001",
 			},
 			wantErr: false,
@@ -46,7 +48,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with TLS",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 			},
@@ -55,7 +57,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with mTLS",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -65,8 +67,51 @@ func TestNewClient(t *testing.T) {
 			err:     nil,
 		},
 		{
+			name: "Success agent client with mTLS",
+			agentCfg: AgentClientConfig{
+				BaseConfig: BaseConfig{
+					URL:          "localhost:7001",
+					ServerCAFile: caCertFile,
+					ClientCert:   clientCertFile,
+					ClientKey:    clientKeyFile,
+				},
+			},
+			wantErr: false,
+			err:     nil,
+		},
+		{
+			name: "Success agent client with aTLS",
+			agentCfg: AgentClientConfig{
+				BaseConfig: BaseConfig{
+					URL:          "localhost:7001",
+					ServerCAFile: caCertFile,
+					ClientCert:   clientCertFile,
+					ClientKey:    clientKeyFile,
+				},
+				AttestedTLS:       true,
+				AttestationPolicy: "../../../scripts/attestation_policy/attestation_policy.json",
+			},
+			wantErr: false,
+			err:     nil,
+		},
+		{
+			name: "Failed agent client with aTLS",
+			agentCfg: AgentClientConfig{
+				BaseConfig: BaseConfig{
+					URL:          "localhost:7001",
+					ServerCAFile: caCertFile,
+					ClientCert:   clientCertFile,
+					ClientKey:    clientKeyFile,
+				},
+				AttestedTLS:       true,
+				AttestationPolicy: "no such file",
+			},
+			wantErr: true,
+			err:     fmt.Errorf("failed to read Attestation Policy"),
+		},
+		{
 			name: "Fail with invalid ServerCAFile",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: "nonexistent.pem",
 			},
@@ -75,7 +120,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientCert",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   "nonexistent.pem",
@@ -86,7 +131,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientKey",
-			cfg: Config{
+			cfg: BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -99,7 +144,12 @@ func TestNewClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := NewClient(tt.cfg)
+			var client Client
+			if strings.Contains(tt.name, "agent client") {
+				client, err = NewClient(tt.agentCfg)
+			} else {
+				client, err = NewClient(tt.cfg)
+			}
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.wantErr {
 				assert.Error(t, err)

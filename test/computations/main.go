@@ -130,7 +130,11 @@ func main() {
 		reflection.Register(srv)
 		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
-	grpcServerConfig := server.Config{Port: defaultPort}
+	grpcServerConfig := server.ServerConfig{
+		BaseConfig: server.BaseConfig{
+			Port: defaultPort,
+		},
+	}
 	if err := env.ParseWithOptions(&grpcServerConfig, env.Options{}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return

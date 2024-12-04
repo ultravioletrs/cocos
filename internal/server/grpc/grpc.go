@@ -60,8 +60,9 @@ type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.Config, registerService serviceRegister, logger *slog.Logger, qp client.QuoteProvider, authSvc auth.Authenticator) server.Server {
-	listenFullAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.QuoteProvider, authSvc auth.Authenticator) server.Server {
+	base := config.GetBaseConfig()
+	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 	return &Server{
 		BaseServer: server.BaseServer{
 			Ctx:     ctx,
@@ -91,101 +92,98 @@ func (s *Server) Start() error {
 
 	creds := grpc.Creds(insecure.NewCredentials())
 	var listener net.Listener = nil
-
-	switch {
-	case s.Config.AttestedTLS:
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
-		if err != nil {
-			return fmt.Errorf("failed to create certificate: %w", err)
-		}
-
-		certificate, err := tls.X509KeyPair(certificateBytes, privateKeyBytes)
-		if err != nil {
-			return fmt.Errorf("falied due to invalid key pair: %w", err)
-		}
-
-		tlsConfig := &tls.Config{
-			ClientAuth:   tls.NoClientCert,
-			Certificates: []tls.Certificate{certificate},
-		}
-
-		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
-
-		listener, err = atls.Listen(
-			s.Address,
-			certificateBytes,
-			privateKeyBytes,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create Listener for aTLS: %w", err)
-		}
-		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
-
-	case s.Config.CertFile != "" || s.Config.KeyFile != "":
-		certificate, err := loadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to load auth certificates: %w", err)
-		}
-		tlsConfig := &tls.Config{
-			ClientAuth:   tls.NoClientCert,
-			Certificates: []tls.Certificate{certificate},
-		}
-
-		var mtlsCA string
-		// Loading Server CA file
-		rootCA, err := loadCertFile(s.Config.ServerCAFile)
-		if err != nil {
-			return fmt.Errorf("failed to load root ca file: %w", err)
-		}
-		if len(rootCA) > 0 {
-			if tlsConfig.RootCAs == nil {
-				tlsConfig.RootCAs = x509.NewCertPool()
-			}
-			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
-				return fmt.Errorf("failed to append root ca to tls.Config")
-			}
-			mtlsCA = fmt.Sprintf("root ca %s", s.Config.ServerCAFile)
-		}
-
-		// Loading Client CA File
-		clientCA, err := loadCertFile(s.Config.ClientCAFile)
-		if err != nil {
-			return fmt.Errorf("failed to load client ca file: %w", err)
-		}
-		if len(clientCA) > 0 {
-			if tlsConfig.ClientCAs == nil {
-				tlsConfig.ClientCAs = x509.NewCertPool()
-			}
-			if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
-				return fmt.Errorf("failed to append client ca to tls.Config")
-			}
-			mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, s.Config.ClientCAFile)
-		}
-
-		if mtlsCA != "" {
-			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-
-		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+	switch c := s.Config.(type) {
+	case server.AgentConfig:
 		switch {
-		case mtlsCA != "":
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS", s.Name, s.Address))
+		case c.AttestedTLS:
+			certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
+			if err != nil {
+				return fmt.Errorf("failed to create certificate: %w", err)
+			}
+
+			certificate, err := tls.X509KeyPair(certificateBytes, privateKeyBytes)
+			if err != nil {
+				return fmt.Errorf("falied due to invalid key pair: %w", err)
+			}
+
+			tlsConfig := &tls.Config{
+				ClientAuth:   tls.NoClientCert,
+				Certificates: []tls.Certificate{certificate},
+			}
+
+			creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+
+			listener, err = atls.Listen(
+				s.Address,
+				certificateBytes,
+				privateKeyBytes,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create Listener for aTLS: %w", err)
+			}
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
+
+		case c.CertFile != "" || c.KeyFile != "":
+			certificate, err := loadX509KeyPair(c.CertFile, c.KeyFile)
+			if err != nil {
+				return fmt.Errorf("failed to load auth certificates: %w", err)
+			}
+			tlsConfig := &tls.Config{
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				Certificates: []tls.Certificate{certificate},
+			}
+
+			var mtlsCA string
+			// Loading Server CA file
+			rootCA, err := loadCertFile(c.ServerCAFile)
+			if err != nil {
+				return fmt.Errorf("failed to load root ca file: %w", err)
+			}
+			if len(rootCA) > 0 {
+				if tlsConfig.RootCAs == nil {
+					tlsConfig.RootCAs = x509.NewCertPool()
+				}
+				if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
+					return fmt.Errorf("failed to append root ca to tls.Config")
+				}
+				mtlsCA = fmt.Sprintf("root ca %s", c.ServerCAFile)
+			}
+
+			// Loading Client CA File
+			clientCA, err := loadCertFile(c.ClientCAFile)
+			if err != nil {
+				return fmt.Errorf("failed to load client ca file: %w", err)
+			}
+			if len(clientCA) > 0 {
+				if tlsConfig.ClientCAs == nil {
+					tlsConfig.ClientCAs = x509.NewCertPool()
+				}
+				if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
+					return fmt.Errorf("failed to append client ca to tls.Config")
+				}
+				mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, c.ClientCAFile)
+			}
+			creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+			switch {
+			case mtlsCA != "":
+				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS cert %s , key %s and %s", s.Name, s.Address, c.CertFile, c.KeyFile, mtlsCA))
+			default:
+				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, c.CertFile, c.KeyFile))
+			}
+
+			listener, err = net.Listen("tcp", s.Address)
+			if err != nil {
+				return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+			}
 		default:
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS", s.Name, s.Address))
-		}
+			var err error
 
-		listener, err = net.Listen("tcp", s.Address)
-		if err != nil {
-			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+			listener, err = net.Listen("tcp", s.Address)
+			if err != nil {
+				return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+			}
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
 		}
-	default:
-		var err error
-
-		listener, err = net.Listen("tcp", s.Address)
-		if err != nil {
-			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
-		}
-		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
 	}
 
 	grpcServerOptions = append(grpcServerOptions, creds)
