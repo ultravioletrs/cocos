@@ -35,6 +35,7 @@ const (
 const (
 	AttestationReportSize = 0x4A0
 	WithATLS              = "with aTLS"
+	WithTLS               = "with TLS"
 )
 
 var (
@@ -102,7 +103,7 @@ func (c *client) Close() error {
 func (c *client) Secure() string {
 	switch c.secure {
 	case withTLS:
-		return "with TLS"
+		return WithTLS
 	case withmTLS:
 		return "with mTLS"
 	case withaTLS:

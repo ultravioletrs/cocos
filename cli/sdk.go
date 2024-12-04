@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 
+	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
@@ -25,12 +26,13 @@ func New(config grpc.Config) *CLI {
 	}
 }
 
-func (c *CLI) InitializeSDK() error {
+func (c *CLI) InitializeSDK(cmd *cobra.Command) error {
 	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), c.config)
 	if err != nil {
 		c.connectErr = err
 		return err
 	}
+	cmd.Println("🔗 Connected to agent using ", agentGRPCClient.Secure())
 	c.client = agentGRPCClient
 
 	c.agentSDK = sdk.NewAgentSDK(agentClient)

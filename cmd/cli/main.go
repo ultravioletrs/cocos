@@ -100,7 +100,7 @@ func main() {
 
 	cliSVC := cli.New(agentGRPCConfig)
 
-	if err := cliSVC.InitializeSDK(); err == nil {
+	if err := cliSVC.InitializeSDK(rootCmd); err == nil {
 		defer cliSVC.Close()
 	}
 

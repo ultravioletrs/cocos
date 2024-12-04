@@ -127,7 +127,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("failed to load auth certificates: %w", err)
 		}
 		tlsConfig := &tls.Config{
-			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientAuth:   tls.NoClientCert,
 			Certificates: []tls.Certificate{certificate},
 		}
 
@@ -161,12 +161,17 @@ func (s *Server) Start() error {
 			}
 			mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, s.Config.ClientCAFile)
 		}
+
+		if mtlsCA != "" {
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 		switch {
 		case mtlsCA != "":
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS cert %s , key %s and %s", s.Name, s.Address, s.Config.CertFile, s.Config.KeyFile, mtlsCA))
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS", s.Name, s.Address))
 		default:
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, s.Config.CertFile, s.Config.KeyFile))
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS", s.Name, s.Address))
 		}
 
 		listener, err = net.Listen("tcp", s.Address)
@@ -223,31 +228,28 @@ func (s *Server) Stop() error {
 
 func loadCertFile(certFile string) ([]byte, error) {
 	if certFile != "" {
-		return os.ReadFile(certFile)
+		return readFileOrData(certFile)
 	}
 	return []byte{}, nil
 }
 
-func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
-	var cert, key []byte
-	var err error
-
-	readFileOrData := func(input string) ([]byte, error) {
-		if len(input) < 1000 && !strings.Contains(input, "\n") {
-			data, err := os.ReadFile(input)
-			if err == nil {
-				return data, nil
-			}
+func readFileOrData(input string) ([]byte, error) {
+	if len(input) < 1000 && !strings.Contains(input, "\n") {
+		data, err := os.ReadFile(input)
+		if err == nil {
+			return data, nil
 		}
-		return []byte(input), nil
 	}
+	return []byte(input), nil
+}
 
-	cert, err = readFileOrData(certfile)
+func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
+	cert, err := readFileOrData(certfile)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to read cert: %v", err)
 	}
 
-	key, err = readFileOrData(keyfile)
+	key, err := readFileOrData(keyfile)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to read key: %v", err)
 	}
