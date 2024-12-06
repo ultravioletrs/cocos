@@ -91,45 +91,45 @@ func (s *Server) Start() error {
 	}
 
 	creds := grpc.Creds(insecure.NewCredentials())
-	var listener net.Listener = nil
-	switch c := s.Config.(type) {
-	case server.AgentConfig:
+	var listener net.Listener
+
+	if agCfg, ok := s.Config.(server.AgentConfig); ok && agCfg.AttestedTLS {
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
+		if err != nil {
+			return fmt.Errorf("failed to create certificate: %w", err)
+		}
+
+		certificate, err := tls.X509KeyPair(certificateBytes, privateKeyBytes)
+		if err != nil {
+			return fmt.Errorf("falied due to invalid key pair: %w", err)
+		}
+
+		tlsConfig := &tls.Config{
+			ClientAuth:   tls.NoClientCert,
+			Certificates: []tls.Certificate{certificate},
+		}
+
+		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+
+		listener, err = atls.Listen(
+			s.Address,
+			certificateBytes,
+			privateKeyBytes,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create Listener for aTLS: %w", err)
+		}
+		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
+	} else {
+		c := s.Config.GetBaseConfig()
 		switch {
-		case c.AttestedTLS:
-			certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
-			if err != nil {
-				return fmt.Errorf("failed to create certificate: %w", err)
-			}
-
-			certificate, err := tls.X509KeyPair(certificateBytes, privateKeyBytes)
-			if err != nil {
-				return fmt.Errorf("falied due to invalid key pair: %w", err)
-			}
-
-			tlsConfig := &tls.Config{
-				ClientAuth:   tls.NoClientCert,
-				Certificates: []tls.Certificate{certificate},
-			}
-
-			creds = grpc.Creds(credentials.NewTLS(tlsConfig))
-
-			listener, err = atls.Listen(
-				s.Address,
-				certificateBytes,
-				privateKeyBytes,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to create Listener for aTLS: %w", err)
-			}
-			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
-
 		case c.CertFile != "" || c.KeyFile != "":
 			certificate, err := loadX509KeyPair(c.CertFile, c.KeyFile)
 			if err != nil {
 				return fmt.Errorf("failed to load auth certificates: %w", err)
 			}
 			tlsConfig := &tls.Config{
-				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientAuth:   tls.NoClientCert,
 				Certificates: []tls.Certificate{certificate},
 			}
 
@@ -166,6 +166,8 @@ func (s *Server) Start() error {
 			creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 			switch {
 			case mtlsCA != "":
+				tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+				creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS cert %s , key %s and %s", s.Name, s.Address, c.CertFile, c.KeyFile, mtlsCA))
 			default:
 				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, c.CertFile, c.KeyFile))
