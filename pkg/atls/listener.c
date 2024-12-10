@@ -353,16 +353,38 @@ int tls_close(tls_connection *conn) {
         if (conn->ssl != NULL) {
             int ret = 0;
 
-            while (ret == 0) {
-                ret = SSL_shutdown(conn->ssl);
+            if (SSL_has_pending(conn->ssl) == 1 || (SSL_get_shutdown(conn->ssl) & SSL_SENT_SHUTDOWN)) {
+                int num = SSL_pending(conn->ssl);
+                char c[num];
+                int res = 0;
+                int end = 0;
 
-                if (ret < 0) {
-                    fprintf(stderr, "SSL did not shutdown correctly\n");
-                    free(conn);
-                    close(conn->socket_fd);
-                    conn = NULL;
-                    return -1;
+                res = SSL_read(conn->ssl, (void*)c, num);
+                res = SSL_get_error(conn->ssl, res);
+
+                if (res == SSL_ERROR_ZERO_RETURN) {
+                    end = 1;
+                } else if (res != SSL_ERROR_NONE) {
+                    fprintf(stderr, "SSL_read failed in TLS close call\n");
+                    end = 1;
                 }
+
+                if ((SSL_get_shutdown(conn->ssl) & SSL_RECEIVED_SHUTDOWN) || end == 1) {
+                    ret = SSL_shutdown(conn->ssl);
+                }
+            } else {
+                ret = SSL_shutdown(conn->ssl);
+            }
+
+            if (ret < 0) {
+                ret = SSL_get_error(conn->ssl, ret);
+                fprintf(stderr, "SSL did not shutdown correctly, error code: %d\n", ret);
+                free(conn);
+                close(conn->socket_fd);
+                conn = NULL;
+                return -1;
+            } else if (ret == 0) {
+                return 0;
             }
             conn->ssl = NULL;
         }
@@ -381,7 +403,7 @@ int tls_close(tls_connection *conn) {
         return 1;
     }
 
-    return 0;
+    return 1;
 }
 
 char* tls_return_addr(struct sockaddr_storage *addr) {
