@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"sync"
@@ -17,11 +18,13 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -49,6 +52,15 @@ var (
 
 	// ErrFailedToCalculateHash indicates that agent computation returned an error while calculating the hash of the computation.
 	ErrFailedToCalculateHash = errors.New("error while calculating the hash of the computation")
+
+	// ErrFailedToCreateAttestationPolicy indicates that the script to create the attestation policy failed to execute.
+	ErrFailedToCreateAttestationPolicy = errors.New("error while creating attestation policy")
+
+	// ErrFailedToReadPolicy indicates that the file for attestation policy could not be opened.
+	ErrFailedToReadPolicy = errors.New("error while opening file attestation policy")
+
+	// ErrUnmarshalFailed indicates that the file for the attestation policy could not be unmarshaled.
+	ErrUnmarshalFailed = errors.New("error while unmarshaling the attestation policy")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -68,6 +80,7 @@ type Service interface {
 
 type managerService struct {
 	mu                          sync.Mutex
+	ap                          sync.Mutex
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
 	logger                      *slog.Logger
@@ -116,8 +129,31 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 
 func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
 	ms.mu.Lock()
-	cfg := ms.qemuCfg
+	cfg := qemu.VMInfo{
+		Config:    ms.qemuCfg,
+		LaunchTCB: 0,
+	}
 	ms.mu.Unlock()
+
+	cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+
+	ms.ap.Lock()
+	_, err := cmd.Output()
+	ms.ap.Unlock()
+	if err != nil {
+		return "", errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
+	}
+
+	f, err := os.ReadFile("./attestation_policy.json")
+	if err != nil {
+		return "", errors.Wrap(ErrFailedToReadPolicy, err)
+	}
+
+	var attestationPolicy check.Config
+
+	if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
+		return "", errors.Wrap(ErrUnmarshalFailed, err)
+	}
 
 	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
 	ac := agent.Computation{
@@ -159,7 +195,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
 		return "", errors.Wrap(ErrFailedToAllocatePort, err)
 	}
-	cfg.HostFwdAgent = agentPort
+	cfg.Config.HostFwdAgent = agentPort
 
 	var cid int = qemu.BaseGuestCID
 	for {
@@ -175,7 +211,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		}
 		cid++
 	}
-	cfg.VSockConfig.GuestCID = cid
+	cfg.Config.VSockConfig.GuestCID = cid
 
 	ch, err := computationHash(ac)
 	if err != nil {
@@ -184,7 +220,9 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	}
 
 	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-	cfg.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+	cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+	// Define the TCB that was present at launch of the VM.
+	cfg.LaunchTCB = attestationPolicy.Policy.MinimumLaunchTcb
 
 	cvm := ms.vmFactory(cfg, ms.eventsLogsSender, c.Id)
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
@@ -200,7 +238,7 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 
 	state := qemu.VMState{
 		ID:     c.Id,
-		Config: cfg,
+		VMinfo: cfg,
 		PID:    pid,
 	}
 	if err := ms.persistence.SaveVM(state); err != nil {
@@ -358,7 +396,7 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm := ms.vmFactory(state.Config, ms.eventsLogsSender, state.ID)
+		cvm := ms.vmFactory(state.VMinfo, ms.eventsLogsSender, state.ID)
 
 		if err = cvm.SetProcess(state.PID); err != nil {
 			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)

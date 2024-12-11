@@ -14,8 +14,8 @@ import (
 func TestComputationIDFromAddress(t *testing.T) {
 	ms := &managerService{
 		vms: map[string]vm.VM{
-			"comp1": qemu.NewVM(qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 3}}, func(event interface{}) error { return nil }, "comp1"),
-			"comp2": qemu.NewVM(qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 5}}, func(event interface{}) error { return nil }, "comp2"),
+			"comp1": qemu.NewVM(qemu.VMInfo{Config: qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 3}}}, func(event interface{}) error { return nil }, "comp1"),
+			"comp2": qemu.NewVM(qemu.VMInfo{Config: qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 5}}}, func(event interface{}) error { return nil }, "comp2"),
 		},
 	}
 
@@ -47,7 +47,7 @@ func TestReportBrokenConnection(t *testing.T) {
 	ms := &managerService{
 		eventsChan: make(chan *ClientStreamMessage, 1),
 		vms: map[string]vm.VM{
-			"comp1": qemu.NewVM(qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 3}}, func(event interface{}) error { return nil }, "comp1"),
+			"comp1": qemu.NewVM(qemu.VMInfo{Config: qemu.Config{VSockConfig: qemu.VSockConfig{GuestCID: 3}}}, func(event interface{}) error { return nil }, "comp1"),
 		},
 	}
 

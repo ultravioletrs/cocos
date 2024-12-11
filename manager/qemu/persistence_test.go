@@ -29,7 +29,7 @@ func TestSaveVM(t *testing.T) {
 
 	state := VMState{
 		ID:     "test-vm",
-		Config: Config{},
+		VMinfo: VMInfo{Config: Config{}},
 		PID:    1234,
 	}
 
@@ -50,8 +50,8 @@ func TestLoadVMs(t *testing.T) {
 
 	// Save two VMs
 	states := []VMState{
-		{ID: "vm1", Config: Config{}, PID: 1234},
-		{ID: "vm2", Config: Config{}, PID: 5678},
+		{ID: "vm1", VMinfo: VMInfo{Config: Config{}}, PID: 1234},
+		{ID: "vm2", VMinfo: VMInfo{Config: Config{}}, PID: 5678},
 	}
 
 	for _, state := range states {
@@ -82,7 +82,7 @@ func TestDeleteVM(t *testing.T) {
 	tempDir := t.TempDir()
 	fp, _ := NewFilePersistence(tempDir)
 
-	state := VMState{ID: "test-vm", Config: Config{}, PID: 1234}
+	state := VMState{ID: "test-vm", VMinfo: VMInfo{Config: Config{}}, PID: 1234}
 
 	// Save VM
 	if err := fp.SaveVM(state); err != nil {
@@ -126,7 +126,7 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
 			defer wg.Done()
-			state := VMState{ID: fmt.Sprintf("vm-%d", id), Config: Config{}, PID: id}
+			state := VMState{ID: fmt.Sprintf("vm-%d", id), VMinfo: VMInfo{Config: Config{}}, PID: id}
 			if err := fp.SaveVM(state); err != nil {
 				t.Errorf("Concurrent SaveVM failed: %v", err)
 			}

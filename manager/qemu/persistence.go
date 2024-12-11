@@ -13,7 +13,7 @@ const jsonExt = ".json"
 
 type VMState struct {
 	ID     string
-	Config Config
+	VMinfo VMInfo
 	PID    int
 }
 

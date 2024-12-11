@@ -12,7 +12,7 @@ import (
 const VsockConfigPort uint32 = 9999
 
 func (v *qemuVM) SendAgentConfig(ac agent.Computation) error {
-	conn, err := vsock.Dial(uint32(v.config.GuestCID), VsockConfigPort, nil)
+	conn, err := vsock.Dial(uint32(v.vmi.Config.GuestCID), VsockConfigPort, nil)
 	if err != nil {
 		return err
 	}

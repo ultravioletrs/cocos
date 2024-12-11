@@ -34,12 +34,14 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, fmt.Errorf("computationId %s not found", computationId)
 	}
 
-	config, ok := vm.GetConfig().(qemu.Config)
+	vmi, ok := vm.GetConfig().(qemu.VMInfo)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast config to qemu.Config")
+		return nil, fmt.Errorf("failed to cast config to qemu.VMInfo")
 	}
 
+	ms.ap.Lock()
 	_, err := cmd.Output()
+	ms.ap.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +59,13 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 
 	var measurement []byte
 	switch {
-	case config.EnableSEV:
-		measurement, err = guest.CalcLaunchDigest(guest.SEV, config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+	case vmi.Config.EnableSEV:
+		measurement, err = guest.CalcLaunchDigest(guest.SEV, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
 		}
-	case config.EnableSEVSNP:
-		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, config.SMPCount, uint64(cpuid.CpuSigs[config.CPU]), config.OVMFCodeConfig.File, config.KernelFile, config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+	case vmi.Config.EnableSEVSNP:
+		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[vmi.Config.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -72,13 +74,15 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		attestationPolicy.Policy.Measurement = measurement
 	}
 
-	if config.HostData != "" {
-		hostData, err := base64.StdEncoding.DecodeString(config.HostData)
+	if vmi.Config.HostData != "" {
+		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.HostData)
 		if err != nil {
 			return nil, err
 		}
 		attestationPolicy.Policy.HostData = hostData
 	}
+
+	attestationPolicy.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
 	f, err = protojson.Marshal(&attestationPolicy)
 	if err != nil {
