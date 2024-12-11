@@ -143,6 +143,7 @@ func TestRun(t *testing.T) {
 			persistence.On("SaveVM", mock.Anything).Return(nil)
 
 			qemuCfg := qemu.Config{
+				EnableSEVSNP: true,
 				VSockConfig: qemu.VSockConfig{
 					GuestCID: 3,
 				},

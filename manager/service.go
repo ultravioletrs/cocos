@@ -135,28 +135,32 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	}
 	ms.mu.Unlock()
 
-	cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
+		cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
 
-	ms.ap.Lock()
-	_, err := cmd.Output()
-	ms.ap.Unlock()
-	if err != nil {
-		return "", errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
+		ms.ap.Lock()
+		_, err := cmd.Output()
+		ms.ap.Unlock()
+		if err != nil {
+			return "", errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
+		}
+
+		ms.ap.Lock()
+		f, err := os.ReadFile("./attestation_policy.json")
+		ms.ap.Unlock()
+		if err != nil {
+			return "", errors.Wrap(ErrFailedToReadPolicy, err)
+		}
+
+		var attestationPolicy check.Config
+
+		if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
+			return "", errors.Wrap(ErrUnmarshalFailed, err)
+		}
+
+		// Define the TCB that was present at launch of the VM.
+		cfg.LaunchTCB = attestationPolicy.Policy.MinimumLaunchTcb
 	}
-
-	ms.ap.Lock()
-	f, err := os.ReadFile("./attestation_policy.json")
-	ms.ap.Unlock()
-	if err != nil {
-		return "", errors.Wrap(ErrFailedToReadPolicy, err)
-	}
-
-	var attestationPolicy check.Config
-
-	if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
-		return "", errors.Wrap(ErrUnmarshalFailed, err)
-	}
-
 	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
 	ac := agent.Computation{
 		ID:          c.Id,
@@ -215,16 +219,16 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	}
 	cfg.Config.VSockConfig.GuestCID = cid
 
-	ch, err := computationHash(ac)
-	if err != nil {
-		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-		return "", errors.Wrap(ErrFailedToCalculateHash, err)
-	}
+	if cfg.Config.EnableSEVSNP {
+		ch, err := computationHash(ac)
+		if err != nil {
+			ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
+			return "", errors.Wrap(ErrFailedToCalculateHash, err)
+		}
 
-	// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-	cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
-	// Define the TCB that was present at launch of the VM.
-	cfg.LaunchTCB = attestationPolicy.Policy.MinimumLaunchTcb
+		// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
+		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+	}
 
 	cvm := ms.vmFactory(cfg, ms.eventsLogsSender, c.Id)
 	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
