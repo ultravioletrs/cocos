@@ -45,10 +45,11 @@ func TestRun(t *testing.T) {
 	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {
-		name          string
-		req           *ComputationRunReq
-		vmStartError  error
-		expectedError error
+		name           string
+		req            *ComputationRunReq
+		binaryBehavior string
+		vmStartError   error
+		expectedError  error
 	}{
 		{
 			name: "Successful run",
@@ -60,8 +61,9 @@ func TestRun(t *testing.T) {
 				},
 				AgentConfig: &AgentConfig{},
 			},
-			vmStartError:  nil,
-			expectedError: nil,
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  nil,
 		},
 		{
 			name: "VM start failure",
@@ -73,8 +75,9 @@ func TestRun(t *testing.T) {
 				},
 				AgentConfig: &AgentConfig{},
 			},
-			vmStartError:  assert.AnError,
-			expectedError: assert.AnError,
+			binaryBehavior: "success",
+			vmStartError:   assert.AnError,
+			expectedError:  assert.AnError,
 		},
 		{
 			name: "Invalid algorithm hash",
@@ -86,8 +89,9 @@ func TestRun(t *testing.T) {
 				},
 				AgentConfig: &AgentConfig{},
 			},
-			vmStartError:  nil,
-			expectedError: errInvalidHashLength,
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  errInvalidHashLength,
 		},
 		{
 			name: "Invalid dataset hash",
@@ -104,8 +108,23 @@ func TestRun(t *testing.T) {
 					},
 				},
 			},
-			vmStartError:  nil,
-			expectedError: errInvalidHashLength,
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  errInvalidHashLength,
+		},
+		{
+			name: "Invalid attestation policy",
+			req: &ComputationRunReq{
+				Id:   "test-computation",
+				Name: "Test Computation",
+				Algorithm: &Algorithm{
+					Hash: make([]byte, hashLength),
+				},
+				AgentConfig: &AgentConfig{},
+			},
+			binaryBehavior: "fail",
+			vmStartError:   nil,
+			expectedError:  ErrFailedToCreateAttestationPolicy,
 		},
 	}
 
@@ -124,6 +143,7 @@ func TestRun(t *testing.T) {
 			persistence.On("SaveVM", mock.Anything).Return(nil)
 
 			qemuCfg := qemu.Config{
+				EnableSEVSNP: true,
 				VSockConfig: qemu.VSockConfig{
 					GuestCID: 3,
 				},
@@ -131,13 +151,17 @@ func TestRun(t *testing.T) {
 			logger := slog.Default()
 			eventsChan := make(chan *ClientStreamMessage, 10)
 
+			tempDir := CreateDummyAttestationPolicyBinary(t, tt.binaryBehavior)
+			defer os.RemoveAll(tempDir)
+
 			ms := &managerService{
-				qemuCfg:     qemuCfg,
-				logger:      logger,
-				vms:         make(map[string]vm.VM),
-				eventsChan:  eventsChan,
-				vmFactory:   vmf.Execute,
-				persistence: persistence,
+				qemuCfg:                     qemuCfg,
+				attestationPolicyBinaryPath: tempDir,
+				logger:                      logger,
+				vms:                         make(map[string]vm.VM),
+				eventsChan:                  eventsChan,
+				vmFactory:                   vmf.Execute,
+				persistence:                 persistence,
 			}
 
 			ctx := context.Background()
@@ -146,7 +170,7 @@ func TestRun(t *testing.T) {
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
-				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Contains(t, err.Error(), tt.expectedError.Error())
 				assert.Empty(t, port)
 			} else {
 				assert.NoError(t, err)

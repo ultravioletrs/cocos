@@ -15,7 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 )
 
-func createDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
+func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	var content []byte
 	switch behavior {
 	case "success":
@@ -55,13 +55,16 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			name:           "Valid SEV configuration",
 			computationId:  "sev-computation",
 			binaryBehavior: "success",
-			vmConfig: qemu.Config{
-				EnableSEV: true,
-				SMPCount:  2,
-				CPU:       "EPYC",
-				OVMFCodeConfig: qemu.OVMFCodeConfig{
-					File: "/path/to/OVMF_CODE.fd",
+			vmConfig: qemu.VMInfo{
+				Config: qemu.Config{
+					EnableSEV: true,
+					SMPCount:  2,
+					CPU:       "EPYC",
+					OVMFCodeConfig: qemu.OVMFCodeConfig{
+						File: "/path/to/OVMF_CODE.fd",
+					},
 				},
+				LaunchTCB: 0,
 			},
 			expectedError: "open /path/to/OVMF_CODE.fd: no such file or directory",
 		},
@@ -69,13 +72,16 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			name:           "Valid SEV-SNP configuration",
 			computationId:  "sev-snp-computation",
 			binaryBehavior: "success",
-			vmConfig: qemu.Config{
-				EnableSEVSNP: true,
-				SMPCount:     4,
-				CPU:          "EPYC-v2",
-				OVMFCodeConfig: qemu.OVMFCodeConfig{
-					File: "/path/to/OVMF_CODE_SNP.fd",
+			vmConfig: qemu.VMInfo{
+				Config: qemu.Config{
+					EnableSEVSNP: true,
+					SMPCount:     4,
+					CPU:          "EPYC-v2",
+					OVMFCodeConfig: qemu.OVMFCodeConfig{
+						File: "/path/to/OVMF_CODE_SNP.fd",
+					},
 				},
+				LaunchTCB: 0,
 			},
 			expectedError: "open /path/to/OVMF_CODE_SNP.fd: no such file or director",
 		},
@@ -83,7 +89,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			name:           "Invalid computation ID",
 			computationId:  "non-existent",
 			binaryBehavior: "success",
-			vmConfig:       qemu.Config{},
+			vmConfig:       qemu.VMInfo{Config: qemu.Config{}, LaunchTCB: 0},
 			expectedError:  "computationId non-existent not found",
 		},
 		{
@@ -91,14 +97,17 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			computationId:  "invalid-config",
 			binaryBehavior: "success",
 			vmConfig:       struct{}{},
-			expectedError:  "failed to cast config to qemu.Config",
+			expectedError:  "failed to cast config to qemu.VMInfo",
 		},
 		{
 			name:           "Binary execution failure",
 			computationId:  "binary-fail",
 			binaryBehavior: "fail",
-			vmConfig: qemu.Config{
-				EnableSEV: true,
+			vmConfig: qemu.VMInfo{
+				Config: qemu.Config{
+					EnableSEV: true,
+				},
+				LaunchTCB: 0,
 			},
 			expectedError: "exit status 1",
 		},
@@ -106,8 +115,11 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			name:           "JSON file not created",
 			computationId:  "no-json",
 			binaryBehavior: "no_json",
-			vmConfig: qemu.Config{
-				EnableSEV: true,
+			vmConfig: qemu.VMInfo{
+				Config: qemu.Config{
+					EnableSEV: true,
+				},
+				LaunchTCB: 0,
 			},
 			expectedError: "no such file or directory",
 		},
@@ -115,7 +127,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := createDummyAttestationPolicyBinary(t, tc.binaryBehavior)
+			tempDir := CreateDummyAttestationPolicyBinary(t, tc.binaryBehavior)
 			defer os.RemoveAll(tempDir)
 
 			ms := &managerService{

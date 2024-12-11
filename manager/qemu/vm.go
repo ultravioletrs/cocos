@@ -25,8 +25,13 @@ const (
 	shutdownTimeout = 30 * time.Second
 )
 
+type VMInfo struct {
+	Config    Config
+	LaunchTCB uint64 `env:"LAUNCH_TCB" envDefault:"0"`
+}
+
 type qemuVM struct {
-	config           Config
+	vmi              VMInfo
 	cmd              *exec.Cmd
 	eventsLogsSender vm.EventSender
 	computationId    string
@@ -35,7 +40,7 @@ type qemuVM struct {
 
 func NewVM(config interface{}, eventsLogsSender vm.EventSender, computationId string) vm.VM {
 	return &qemuVM{
-		config:           config.(Config),
+		vmi:              config.(VMInfo),
 		eventsLogsSender: eventsLogsSender,
 		computationId:    computationId,
 		StateMachine:     vm.NewStateMachine(),
@@ -54,18 +59,18 @@ func (v *qemuVM) Start() (err error) {
 		return err
 	}
 
-	v.config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.config.NetDevConfig.ID, id)
-	v.config.SevConfig.ID = fmt.Sprintf("%s-%s", v.config.SevConfig.ID, id)
+	v.vmi.Config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.NetDevConfig.ID, id)
+	v.vmi.Config.SevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SevConfig.ID, id)
 
-	if !v.config.KernelHash {
+	if !v.vmi.Config.KernelHash {
 		// Copy firmware vars file.
-		srcFile := v.config.OVMFVarsConfig.File
+		srcFile := v.vmi.Config.OVMFVarsConfig.File
 		dstFile := fmt.Sprintf("%s/%s-%s.fd", tmpDir, firmwareVars, id)
 		err = internal.CopyFile(srcFile, dstFile)
 		if err != nil {
 			return err
 		}
-		v.config.OVMFVarsConfig.File = dstFile
+		v.vmi.Config.OVMFVarsConfig.File = dstFile
 	}
 
 	exe, args, err := v.executableAndArgs()
@@ -140,14 +145,14 @@ func (v *qemuVM) GetProcess() int {
 }
 
 func (v *qemuVM) executableAndArgs() (string, []string, error) {
-	exe, err := exec.LookPath(v.config.QemuBinPath)
+	exe, err := exec.LookPath(v.vmi.Config.QemuBinPath)
 	if err != nil {
 		return "", nil, err
 	}
 
-	args := v.config.ConstructQemuArgs()
+	args := v.vmi.Config.ConstructQemuArgs()
 
-	if v.config.UseSudo {
+	if v.vmi.Config.UseSudo {
 		args = append([]string{exe}, args...)
 		exe = "sudo"
 	}
@@ -191,9 +196,9 @@ func processExists(pid int) bool {
 }
 
 func (v *qemuVM) GetCID() int {
-	return v.config.GuestCID
+	return v.vmi.Config.GuestCID
 }
 
 func (v *qemuVM) GetConfig() interface{} {
-	return v.config
+	return v.vmi.Config
 }

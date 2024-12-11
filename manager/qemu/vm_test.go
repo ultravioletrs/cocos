@@ -17,7 +17,7 @@ import (
 const testComputationID = "test-computation"
 
 func TestNewVM(t *testing.T) {
-	config := Config{}
+	config := VMInfo{Config: Config{}}
 
 	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID)
 
@@ -31,12 +31,12 @@ func TestStart(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	config := Config{
+	config := VMInfo{Config: Config{
 		OVMFVarsConfig: OVMFVarsConfig{
 			File: tmpFile.Name(),
 		},
 		QemuBinPath: "echo",
-	}
+	}}
 
 	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
@@ -53,13 +53,13 @@ func TestStartSudo(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	config := Config{
+	config := VMInfo{Config: Config{
 		OVMFVarsConfig: OVMFVarsConfig{
 			File: tmpFile.Name(),
 		},
 		QemuBinPath: "echo",
 		UseSudo:     true,
-	}
+	}}
 
 	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
 
@@ -113,8 +113,8 @@ func TestStop(t *testing.T) {
 
 func TestSetProcess(t *testing.T) {
 	vm := &qemuVM{
-		config: Config{
-			QemuBinPath: "echo", // Use 'echo' as a dummy QEMU binary
+		vmi: VMInfo{
+			Config: Config{QemuBinPath: "echo"}, // Use 'echo' as a dummy QEMU binary
 		},
 	}
 
@@ -139,9 +139,11 @@ func TestGetProcess(t *testing.T) {
 func TestGetCID(t *testing.T) {
 	expectedCID := 42
 	vm := &qemuVM{
-		config: Config{
-			VSockConfig: VSockConfig{
-				GuestCID: expectedCID,
+		vmi: VMInfo{
+			Config: Config{
+				VSockConfig: VSockConfig{
+					GuestCID: expectedCID,
+				},
 			},
 		},
 	}
@@ -155,7 +157,9 @@ func TestGetConfig(t *testing.T) {
 		QemuBinPath: "echo",
 	}
 	vm := &qemuVM{
-		config: expectedConfig,
+		vmi: VMInfo{
+			Config: expectedConfig,
+		},
 	}
 
 	config := vm.GetConfig()
