@@ -144,7 +144,9 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		return "", errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 	}
 
+	ms.ap.Lock()
 	f, err := os.ReadFile("./attestation_policy.json")
+	ms.ap.Unlock()
 	if err != nil {
 		return "", errors.Wrap(ErrFailedToReadPolicy, err)
 	}

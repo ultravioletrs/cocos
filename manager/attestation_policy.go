@@ -46,7 +46,9 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, err
 	}
 
+	ms.ap.Lock()
 	f, err := os.ReadFile("./attestation_policy.json")
+	ms.ap.Unlock()
 	if err != nil {
 		return nil, err
 	}
