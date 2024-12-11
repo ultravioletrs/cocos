@@ -30,12 +30,13 @@ const (
 )
 
 const (
-	NO_ERROR          = 0
-	ERROR_ZERO_RETURN = 6
-	ERROR_WANT_READ   = 2
-	ERROR_WANT_WRITE  = 3
-	ERROR_SYSCALL     = 5
-	ERROR_SSL         = 1
+	noError         = 0
+	errorZeroReturn = 6
+	errorWantRead   = 2
+	errorWantWrite  = 3
+	errorSyscall    = 5
+	errorSsl        = 1
+	waitTime        = 2
 )
 
 var (
@@ -228,21 +229,21 @@ func (c *ATLSConn) Read(b []byte) (int, error) {
 
 	// handle specific error codes returned by SSL_get_error.
 	switch errCode {
-	case NO_ERROR:
+	case noError:
 		return n, nil // no error.
-	case ERROR_ZERO_RETURN:
-		fmt.Fprintf(os.Stderr, "Connection closed by peer")
+	case errorZeroReturn:
+		fmt.Fprintf(os.Stdout, "Connection closed by peer")
 		return 0, io.EOF // connection closed.
-	case ERROR_WANT_READ:
+	case errorWantRead:
 		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later")
 		return 0, nil // non-fatal, just retry later.
-	case ERROR_WANT_WRITE:
+	case errorWantWrite:
 		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later")
 		return 0, nil // non-fatal, just retry later.
-	case ERROR_SYSCALL:
+	case errorSyscall:
 		fmt.Fprintf(os.Stderr, "I/O error")
 		return 0, syscall.ECONNRESET // return connection reset error.
-	case ERROR_SSL:
+	case errorSsl:
 		fmt.Fprintf(os.Stderr, "I/O error")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	default:
@@ -280,13 +281,24 @@ func (c *ATLSConn) Close() error {
 		return nil
 	}
 
-	ret := C.tls_close(c.tlsConn)
+	for {
+		ret := C.tls_close(c.tlsConn)
 
-	if int(ret) < 0 {
-		c.tlsConn = nil
-		return errTLSConn
-	} else if int(ret) == 1 {
-		c.tlsConn = nil
+		if int(ret) == 0 {
+			c.fdDelayMutex.Unlock()
+			c.fdWriteMutex.Unlock()
+			c.fdReadMutex.Unlock()
+			time.Sleep(waitTime * time.Millisecond)
+			c.fdDelayMutex.Lock()
+			c.fdWriteMutex.Lock()
+			c.fdReadMutex.Lock()
+		} else if int(ret) < 0 {
+			c.tlsConn = nil
+			return errTLSConn
+		} else if int(ret) == 1 {
+			c.tlsConn = nil
+			break;
+		}
 	}
 
 	return nil
