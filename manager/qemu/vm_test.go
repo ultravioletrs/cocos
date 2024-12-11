@@ -153,13 +153,13 @@ func TestGetCID(t *testing.T) {
 }
 
 func TestGetConfig(t *testing.T) {
-	expectedConfig := Config{
-		QemuBinPath: "echo",
+	expectedConfig := VMInfo{
+		Config: Config{
+			QemuBinPath: "echo",
+		},
 	}
 	vm := &qemuVM{
-		vmi: VMInfo{
-			Config: expectedConfig,
-		},
+		vmi: expectedConfig,
 	}
 
 	config := vm.GetConfig()
