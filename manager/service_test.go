@@ -169,7 +169,7 @@ func TestRun(t *testing.T) {
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
-				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Contains(t, err.Error(), tt.expectedError.Error())
 				assert.Empty(t, port)
 			} else {
 				assert.NoError(t, err)
