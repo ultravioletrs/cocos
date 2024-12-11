@@ -200,5 +200,5 @@ func (v *qemuVM) GetCID() int {
 }
 
 func (v *qemuVM) GetConfig() interface{} {
-	return v.vmi.Config
+	return v.vmi
 }
