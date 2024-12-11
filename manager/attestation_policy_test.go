@@ -15,7 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 )
 
-func createDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
+func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	var content []byte
 	switch behavior {
 	case "success":
@@ -127,7 +127,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := createDummyAttestationPolicyBinary(t, tc.binaryBehavior)
+			tempDir := CreateDummyAttestationPolicyBinary(t, tc.binaryBehavior)
 			defer os.RemoveAll(tempDir)
 
 			ms := &managerService{
