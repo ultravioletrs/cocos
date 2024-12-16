@@ -34,7 +34,7 @@ LINE="earlyprintk=serial console=ttyS0"
 
 To speed up the verification process of attested TLS, download the ARK and ASK certificates using the CLI tool. The CLI tool will download the certificates under your home directory in the `.cocos` directory.
 ```bash
-./build/cocos-cli ca-bundle <path/to/platfrom_info.json>
+./build/cocos-cli ca-bundle <path/to/attestation_policy.json>
 ```
 
 In the following text, we can see an example of how the CLI tool is used.
@@ -66,7 +66,7 @@ cd ../..
 export AGENT_GRPC_ATTESTATION_POLICY=./scripts/attestation_policy/attestation_policy.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
-# Retieve Attestation
+# Retrieve Attestation
 ./build/cocos-cli attestation get '<report_data>'
 
 # Validate Attestation
