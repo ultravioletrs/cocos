@@ -18,7 +18,7 @@ func TestNewAlgorithm(t *testing.T) {
 	eventsSvc := new(mocks.Service)
 	algoFile := "/path/to/algo.tar"
 
-	algo := NewAlgorithm(logger, eventsSvc, algoFile)
+	algo := NewAlgorithm(logger, eventsSvc, algoFile, "")
 
 	d, ok := algo.(*docker)
 	assert.True(t, ok, "NewAlgorithm should return a *docker")

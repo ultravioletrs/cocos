@@ -7,8 +7,9 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/ultravioletrs/cocos/agent/cvm"
 	"github.com/ultravioletrs/cocos/agent/events"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -18,16 +19,17 @@ type handler struct {
 	opts  slog.HandlerOptions
 	w     io.Writer
 	cmpID string
+	queue chan *cvm.ClientStreamMessage
 }
 
-func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, cmpID string) slog.Handler {
+func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, queue chan *cvm.ClientStreamMessage) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
 	h := &handler{
 		opts:  *opts,
 		w:     conn,
-		cmpID: cmpID,
+		queue: queue,
 	}
 
 	return h
@@ -69,7 +71,18 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 			},
 		}
 
-		b, err := proto.Marshal(&agentLog)
+		h.queue <- &cvm.ClientStreamMessage{
+			Message: &cvm.ClientStreamMessage_AgentLog{
+				AgentLog: &cvm.AgentLog{
+					Timestamp:     timestamp,
+					Message:       chunk,
+					Level:         level,
+					ComputationId: h.cmpID,
+				},
+			},
+		}
+
+		b, err := protojson.Marshal(&agentLog)
 		if err != nil {
 			return err
 		}
@@ -78,6 +91,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		if err != nil {
 			return err
 		}
+
 	}
 
 	return nil
@@ -88,7 +102,8 @@ func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
-	panic("unimplemented")
+	h.cmpID = name
+	return h
 }
 
 func (h *handler) Close() error {

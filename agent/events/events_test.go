@@ -3,62 +3,37 @@
 package events
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
+	"github.com/ultravioletrs/cocos/agent/cvm"
 )
 
-type mockConn struct {
-	writeErr error
-	buf      bytes.Buffer
-}
-
-func (m *mockConn) Write(p []byte) (n int, err error) {
-	if m.writeErr != nil {
-		return 0, m.writeErr
-	}
-	return m.buf.Write(p)
-}
-
 func TestSendEventSuccess(t *testing.T) {
-	mockConnection := &mockConn{}
-
-	svc, err := New("test_service", "12345", mockConnection)
+	queue := make(chan *cvm.ClientStreamMessage, 1)
+	svc, err := New("test_service", queue)
 	assert.NoError(t, err)
 
 	details := json.RawMessage(`{"key": "value"}`)
 
-	err = svc.SendEvent("test_event", "success", details)
-	assert.NoError(t, err)
+	go func() {
+		msg := <-queue
+		assert.NotNil(t, msg)
+		assert.NotNil(t, msg.GetAgentEvent())
+		assert.Equal(t, "test_event", msg.GetAgentEvent().EventType)
+		assert.Equal(t, "12345", msg.GetAgentEvent().ComputationId)
+		assert.Equal(t, "test_service", msg.GetAgentEvent().Originator)
+		assert.Equal(t, "success", msg.GetAgentEvent().Status)
+		assert.Equal(t, details, msg.GetAgentEvent().Details)
 
-	var writtenMessage EventsLogs
-	err = proto.Unmarshal(mockConnection.buf.Bytes(), &writtenMessage)
-	assert.NoError(t, err)
+		now := time.Now()
+		eventTimestamp := msg.GetAgentEvent().GetTimestamp().AsTime()
+		assert.WithinDuration(t, now, eventTimestamp, 1*time.Second)
+	}()
 
-	assert.Equal(t, "test_event", writtenMessage.GetAgentEvent().EventType)
-	assert.Equal(t, "12345", writtenMessage.GetAgentEvent().ComputationId)
-	assert.Equal(t, "test_service", writtenMessage.GetAgentEvent().Originator)
-	assert.Equal(t, "success", writtenMessage.GetAgentEvent().Status)
+	svc.SendEvent("testid", "test_event", "success", details)
 
-	now := time.Now()
-	eventTimestamp := writtenMessage.GetAgentEvent().GetTimestamp().AsTime()
-	assert.WithinDuration(t, now, eventTimestamp, 1*time.Second)
-}
-
-func TestSendEventFailure(t *testing.T) {
-	mockConnection := &mockConn{writeErr: errors.New("write error")}
-
-	svc, err := New("test_service", "12345", mockConnection)
-	assert.NoError(t, err)
-
-	details := json.RawMessage(`{"key": "value"}`)
-
-	err = svc.SendEvent("test_event", "failure", details)
-	assert.Error(t, err)
-	assert.Equal(t, "write error", err.Error())
+	time.Sleep(1 * time.Second)
 }

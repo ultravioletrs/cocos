@@ -32,6 +32,26 @@ func MetricsMiddleware(svc agent.Service, counter metrics.Counter, latency metri
 	}
 }
 
+// InitComputation implements agent.Service.
+func (ms *metricsMiddleware) InitComputation(ctx context.Context, cmp agent.Computation) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "init_computation").Add(1)
+		ms.latency.With("method", "init_computation").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.InitComputation(ctx, cmp)
+}
+
+// StopComputation implements agent.Service.
+func (ms *metricsMiddleware) StopComputation(ctx context.Context) error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "stop_computation").Add(1)
+		ms.latency.With("method", "stop_computation").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.StopComputation(ctx)
+}
+
 func (ms *metricsMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) error {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "algo").Add(1)

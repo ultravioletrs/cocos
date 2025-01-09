@@ -18,7 +18,7 @@ func TestNewAlgorithm(t *testing.T) {
 	algoFile := "/path/to/algo"
 	args := []string{"arg1", "arg2"}
 
-	algo := NewAlgorithm(logger, eventsSvc, algoFile, args)
+	algo := NewAlgorithm(logger, eventsSvc, algoFile, args, "")
 
 	b, ok := algo.(*binary)
 	if !ok {
@@ -74,7 +74,7 @@ func TestBinaryRun(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 			eventsSvc := new(mocks.Service)
 
-			b := NewAlgorithm(logger, eventsSvc, tt.algoFile, tt.args).(*binary)
+			b := NewAlgorithm(logger, eventsSvc, tt.algoFile, tt.args, "").(*binary)
 
 			var stdout, stderr bytes.Buffer
 			b.stdout = &stdout

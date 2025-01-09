@@ -50,6 +50,7 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 type Stderr struct {
 	Logger   *slog.Logger
 	EventSvc events.Service
+	CmpID    string
 }
 
 // Write implements io.Writer.
@@ -70,9 +71,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 		s.Logger.Error(string(buf[:n]))
 	}
 
-	if err := s.EventSvc.SendEvent(algorithmRun, warningStatus, json.RawMessage{}); err != nil {
-		return len(p), err
-	}
+	s.EventSvc.SendEvent(s.CmpID, algorithmRun, warningStatus, json.RawMessage{})
 
 	return len(p), nil
 }

@@ -104,6 +104,8 @@ var (
 // Service specifies an API that must be fullfiled by the domain service
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
+	InitComputation(ctx context.Context, cmp Computation) error
+	StopComputation(ctx context.Context) error
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
@@ -121,31 +123,26 @@ type agentService struct {
 	quoteProvider   client.QuoteProvider      // Provider for generating attestation quotes.
 	logger          *slog.Logger              // Logger for the agent service.
 	resultsConsumed bool                      // Indicates if the results have been consumed.
+	cancel          context.CancelFunc        // Cancels the computation context.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp Computation, quoteProvider client.QuoteProvider) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.QuoteProvider) Service {
 	sm := statemachine.NewStateMachine(Idle)
+	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
 		sm:            sm,
 		eventSvc:      eventSvc,
 		quoteProvider: quoteProvider,
 		logger:        logger,
-		computation:   cmp,
+		cancel:        cancel,
 	}
 
 	transitions := []statemachine.Transition{
 		{From: Idle, Event: Start, To: ReceivingManifest},
 		{From: ReceivingManifest, Event: ManifestReceived, To: ReceivingAlgorithm},
-	}
-
-	if len(cmp.Datasets) == 0 {
-		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: Running})
-	} else {
-		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: ReceivingData})
-		transitions = append(transitions, statemachine.Transition{From: ReceivingData, Event: DataReceived, To: Running})
 	}
 
 	transitions = append(transitions, []statemachine.Transition{
@@ -158,8 +155,6 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 		sm.AddTransition(t)
 	}
 
-	sm.SetAction(Idle, svc.publishEvent(IdleState.String()))
-	sm.SetAction(ReceivingManifest, svc.publishEvent(InProgress.String()))
 	sm.SetAction(ReceivingAlgorithm, svc.publishEvent(InProgress.String()))
 	sm.SetAction(ReceivingData, svc.publishEvent(InProgress.String()))
 	sm.SetAction(Running, svc.runComputation)
@@ -173,9 +168,65 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp 
 		}
 	}()
 	sm.SendEvent(Start)
-	defer sm.SendEvent(ManifestReceived)
 
 	return svc
+}
+
+func (as *agentService) InitComputation(ctx context.Context, cmp Computation) error {
+	defer as.sm.SendEvent(ManifestReceived)
+	if as.sm.GetState() != ReceivingManifest {
+		return ErrStateNotReady
+	}
+
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	as.computation = cmp
+
+	transitions := []statemachine.Transition{}
+
+	if len(cmp.Datasets) == 0 {
+		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: Running})
+	} else {
+		transitions = append(transitions, statemachine.Transition{From: ReceivingAlgorithm, Event: AlgorithmReceived, To: ReceivingData})
+		transitions = append(transitions, statemachine.Transition{From: ReceivingData, Event: DataReceived, To: Running})
+	}
+
+	for _, t := range transitions {
+		as.sm.AddTransition(t)
+	}
+
+	return nil
+}
+
+func (as *agentService) StopComputation(ctx context.Context) error {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	as.cancel()
+
+	if err := as.algorithm.Stop(); err != nil {
+		return fmt.Errorf("error stopping computation: %v", err)
+	}
+
+	sm := statemachine.NewStateMachine(Idle)
+
+	if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
+		return fmt.Errorf("error removing datasets directory: %v", err)
+	}
+
+	if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
+		return fmt.Errorf("error removing results directory: %v", err)
+	}
+
+	as.sm = sm
+	as.computation = Computation{}
+	as.algorithm = nil
+	as.result = nil
+	as.runError = nil
+	as.resultsConsumed = false
+
+	return nil
 }
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
@@ -225,7 +276,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	switch algoType {
 	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = binary.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args, as.computation.ID)
 	case string(algorithm.AlgoTypePython):
 		var requirementsFile string
 		if len(algo.Requirements) > 0 {
@@ -243,11 +294,11 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 			requirementsFile = fr.Name()
 		}
 		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args)
+		as.algorithm = python.NewAlgorithm(as.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args, as.computation.ID)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args)
+		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args, as.computation.ID)
 	case string(algorithm.AlgoTypeDocker):
-		as.algorithm = docker.NewAlgorithm(as.logger, as.eventSvc, f.Name())
+		as.algorithm = docker.NewAlgorithm(as.logger, as.eventSvc, f.Name(), as.computation.ID)
 	}
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
@@ -400,8 +451,6 @@ func (as *agentService) runComputation(state statemachine.State) {
 
 func (as *agentService) publishEvent(status string) statemachine.Action {
 	return func(state statemachine.State) {
-		if err := as.eventSvc.SendEvent(state.String(), status, json.RawMessage{}); err != nil {
-			as.logger.Warn(err.Error())
-		}
+		as.eventSvc.SendEvent(as.computation.ID, state.String(), status, json.RawMessage{})
 	}
 }

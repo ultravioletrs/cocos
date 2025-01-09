@@ -122,7 +122,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, qp)
 
 			time.Sleep(300 * time.Millisecond)
 
@@ -216,9 +216,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			comp := testComputation(t)
-
-			svc := New(ctx, mglog.NewMock(), events, comp, qp)
+			svc := New(ctx, mglog.NewMock(), events, qp)
 			time.Sleep(300 * time.Millisecond)
 
 			if tc.err != ErrStateNotReady {
@@ -362,7 +360,7 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, qp)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -397,10 +395,5 @@ func testComputation(t *testing.T) Computation {
 		Datasets:        []Dataset{{Hash: dataHash, UserKey: []byte("key"), Dataset: data, Filename: datasetFile}},
 		Algorithm:       Algorithm{Hash: algoHash, UserKey: []byte("key"), Algorithm: algo},
 		ResultConsumers: []ResultConsumer{{UserKey: []byte("key")}},
-		AgentConfig: AgentConfig{
-			Port:        "7002",
-			LogLevel:    "debug",
-			AttestedTls: false,
-		},
 	}
 }

@@ -27,6 +27,34 @@ func LoggingMiddleware(svc agent.Service, logger *slog.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
+// InitComputation implements agent.Service.
+func (lm *loggingMiddleware) InitComputation(ctx context.Context, cmp agent.Computation) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method InitComputation for computation id %s took %s to complete", cmp.ID, time.Since(begin))
+		if err != nil {
+			lm.logger.WithGroup(cmp.ID).Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.WithGroup(cmp.ID).Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.InitComputation(ctx, cmp)
+}
+
+// StopComputation implements agent.Service.
+func (lm *loggingMiddleware) StopComputation(ctx context.Context) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method StopComputation took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.StopComputation(ctx)
+}
+
 func (lm *loggingMiddleware) Algo(ctx context.Context, algorithm agent.Algorithm) (err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Algo took %s to complete", time.Since(begin))

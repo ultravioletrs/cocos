@@ -24,12 +24,13 @@ type wasm struct {
 	stderr   io.Writer
 	stdout   io.Writer
 	args     []string
+	cmd      *exec.Cmd
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string, cmpID string) algorithm.Algorithm {
 	return &wasm{
 		algoFile: algoFile,
-		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc, CmpID: cmpID},
 		stdout:   &logging.Stdout{Logger: logger},
 		args:     args,
 	}
@@ -38,16 +39,28 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 func (w *wasm) Run() error {
 	args := append(mapDirOption, w.algoFile)
 	args = append(args, w.args...)
-	cmd := exec.Command(wasmRuntime, args...)
-	cmd.Stderr = w.stderr
-	cmd.Stdout = w.stdout
+	w.cmd = exec.Command(wasmRuntime, args...)
+	w.cmd.Stderr = w.stderr
+	w.cmd.Stdout = w.stdout
 
-	if err := cmd.Start(); err != nil {
+	if err := w.cmd.Start(); err != nil {
 		return fmt.Errorf("error starting algorithm: %v", err)
 	}
 
-	if err := cmd.Wait(); err != nil {
+	if err := w.cmd.Wait(); err != nil {
 		return fmt.Errorf("algorithm execution error: %v", err)
+	}
+
+	return nil
+}
+
+func (w *wasm) Stop() error {
+	if w.cmd == nil {
+		return nil
+	}
+
+	if err := w.cmd.Process.Kill(); err != nil {
+		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
 
 	return nil

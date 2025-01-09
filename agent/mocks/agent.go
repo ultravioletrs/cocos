@@ -179,6 +179,53 @@ func (_c *Service_Data_Call) RunAndReturn(run func(context.Context, agent.Datase
 	return _c
 }
 
+// InitComputation provides a mock function with given fields: ctx, cmp
+func (_m *Service) InitComputation(ctx context.Context, cmp agent.Computation) error {
+	ret := _m.Called(ctx, cmp)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InitComputation")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, agent.Computation) error); ok {
+		r0 = rf(ctx, cmp)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Service_InitComputation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InitComputation'
+type Service_InitComputation_Call struct {
+	*mock.Call
+}
+
+// InitComputation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cmp agent.Computation
+func (_e *Service_Expecter) InitComputation(ctx interface{}, cmp interface{}) *Service_InitComputation_Call {
+	return &Service_InitComputation_Call{Call: _e.mock.On("InitComputation", ctx, cmp)}
+}
+
+func (_c *Service_InitComputation_Call) Run(run func(ctx context.Context, cmp agent.Computation)) *Service_InitComputation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(agent.Computation))
+	})
+	return _c
+}
+
+func (_c *Service_InitComputation_Call) Return(_a0 error) *Service_InitComputation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Service_InitComputation_Call) RunAndReturn(run func(context.Context, agent.Computation) error) *Service_InitComputation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Result provides a mock function with given fields: ctx
 func (_m *Service) Result(ctx context.Context) ([]byte, error) {
 	ret := _m.Called(ctx)
@@ -233,6 +280,52 @@ func (_c *Service_Result_Call) Return(_a0 []byte, _a1 error) *Service_Result_Cal
 }
 
 func (_c *Service_Result_Call) RunAndReturn(run func(context.Context) ([]byte, error)) *Service_Result_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StopComputation provides a mock function with given fields: ctx
+func (_m *Service) StopComputation(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopComputation")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Service_StopComputation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopComputation'
+type Service_StopComputation_Call struct {
+	*mock.Call
+}
+
+// StopComputation is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Service_Expecter) StopComputation(ctx interface{}) *Service_StopComputation_Call {
+	return &Service_StopComputation_Call{Call: _e.mock.On("StopComputation", ctx)}
+}
+
+func (_c *Service_StopComputation_Call) Run(run func(ctx context.Context)) *Service_StopComputation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Service_StopComputation_Call) Return(_a0 error) *Service_StopComputation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Service_StopComputation_Call) RunAndReturn(run func(context.Context) error) *Service_StopComputation_Call {
 	_c.Call.Return(run)
 	return _c
 }

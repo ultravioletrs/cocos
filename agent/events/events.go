@@ -4,43 +4,38 @@ package events
 
 import (
 	"encoding/json"
-	"io"
 
-	"google.golang.org/protobuf/proto"
+	"github.com/ultravioletrs/cocos/agent/cvm"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type service struct {
-	service       string
-	computationID string
-	conn          io.Writer
+	service string
+	queue   chan *cvm.ClientStreamMessage
 }
 
 type Service interface {
-	SendEvent(event, status string, details json.RawMessage) error
+	SendEvent(cmpID, event, status string, details json.RawMessage)
 }
 
-func New(svc, computationID string, conn io.Writer) (Service, error) {
+func New(svc string, queue chan *cvm.ClientStreamMessage) (Service, error) {
 	return &service{
-		service:       svc,
-		computationID: computationID,
-		conn:          conn,
+		service: svc,
+		queue:   queue,
 	}, nil
 }
 
-func (s *service) SendEvent(event, status string, details json.RawMessage) error {
-	body := EventsLogs{Message: &EventsLogs_AgentEvent{AgentEvent: &AgentEvent{
-		EventType:     event,
-		Timestamp:     timestamppb.Now(),
-		ComputationId: s.computationID,
-		Originator:    s.service,
-		Status:        status,
-		Details:       details,
-	}}}
-	protoBody, err := proto.Marshal(&body)
-	if err != nil {
-		return err
+func (s *service) SendEvent(cmpID, event, status string, details json.RawMessage) {
+	s.queue <- &cvm.ClientStreamMessage{
+		Message: &cvm.ClientStreamMessage_AgentEvent{
+			AgentEvent: &cvm.AgentEvent{
+				EventType:     event,
+				Timestamp:     timestamppb.Now(),
+				ComputationId: cmpID,
+				Originator:    s.service,
+				Status:        status,
+				Details:       details,
+			},
+		},
 	}
-	_, err = s.conn.Write(protoBody)
-	return err
 }

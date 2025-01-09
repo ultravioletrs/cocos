@@ -13,12 +13,12 @@ import (
 func TestNewManagerClient(t *testing.T) {
 	tests := []struct {
 		name string
-		cfg  grpc.ManagerClientConfig
+		cfg  grpc.CVMClientConfig
 		err  error
 	}{
 		{
 			name: "Valid config",
-			cfg: grpc.ManagerClientConfig{
+			cfg: grpc.CVMClientConfig{
 				BaseConfig: grpc.BaseConfig{
 					URL: "localhost:7001",
 				},
