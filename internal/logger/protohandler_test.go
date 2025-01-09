@@ -43,7 +43,6 @@ func TestHandleMessageSuccess(t *testing.T) {
 
 // TestHandleMessageFailure tests the caching mechanism when the write fails.
 func TestHandleMessageFailure(t *testing.T) {
-
 	protohandler := NewProtoHandler(&failedWriter{}, nil, make(chan *cvm.ClientStreamMessage, 1))
 	record := slog.Record{
 		Time:    time.Now(),

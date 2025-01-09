@@ -44,13 +44,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
-	var exitCode int
-	defer mglog.ExitWithError(&exitCode)
-
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
+
+	var exitCode int
+	defer mglog.ExitWithError(&exitCode)
 
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {

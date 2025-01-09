@@ -96,7 +96,6 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
