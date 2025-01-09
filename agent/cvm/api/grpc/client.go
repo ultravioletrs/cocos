@@ -133,7 +133,7 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
-	err := client.sp.Start(agent.AgentConfig{
+	err := client.sp.Start(ctx, agent.AgentConfig{
 		Port:         runReq.AgentConfig.Port,
 		Host:         runReq.AgentConfig.Host,
 		CertFile:     runReq.AgentConfig.CertFile,
