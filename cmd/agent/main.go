@@ -52,6 +52,11 @@ func main() {
 	var exitCode int
 	defer mglog.ExitWithError(&exitCode)
 
+	var cfg config
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
+	}
+
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
 		log.Println(err)
