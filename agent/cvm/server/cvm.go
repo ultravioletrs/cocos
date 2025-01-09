@@ -36,7 +36,7 @@ func NewServerProvider(logger *slog.Logger, svc agent.Service) *AgentServer {
 	}
 }
 
-func (as *AgentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error {
+func (as *AgentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error {
 	if cfg.Port == "" {
 		cfg.Port = defSvcGRPCPort
 	}
@@ -72,7 +72,7 @@ func (as *AgentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, qp, authSvc)
 
