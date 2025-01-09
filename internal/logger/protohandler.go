@@ -92,6 +92,11 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 			return err
 		}
 
+		_, err = h.w.Write([]byte("\n"))
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil

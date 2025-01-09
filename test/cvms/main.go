@@ -13,18 +13,18 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
+	"github.com/ultravioletrs/cocos/agent/cvm"
+	cvmgrpc "github.com/ultravioletrs/cocos/agent/cvm/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
-	"github.com/ultravioletrs/cocos/manager"
-	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
-var _ managergrpc.Service = (*svc)(nil)
+var _ cvmgrpc.Service = (*svc)(nil)
 
 const (
 	svcName     = "computations_test_server"
@@ -42,7 +42,7 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc.SendFunc, authInfo credentials.AuthInfo) {
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.SendFunc, authInfo credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAddress))
 
 	pubKey, err := os.ReadFile(pubKeyFile)
@@ -52,7 +52,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc
 	}
 	pubPem, _ := pem.Decode(pubKey)
 
-	var datasets []*manager.Dataset
+	var datasets []*cvm.Dataset
 	for _, dataPath := range dataPaths {
 		if _, err := os.Stat(dataPath); os.IsNotExist(err) {
 			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
@@ -64,7 +64,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc
 			return
 		}
 
-		datasets = append(datasets, &manager.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+		datasets = append(datasets, &cvm.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
 	}
 
 	algoHash, err := internal.Checksum(algoPath)
@@ -73,16 +73,16 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage managergrpc
 		return
 	}
 
-	if err := sendMessage(&manager.ServerStreamMessage{
-		Message: &manager.ServerStreamMessage_RunReq{
-			RunReq: &manager.ComputationRunReq{
+	if err := sendMessage(&cvm.ServerStreamMessage{
+		Message: &cvm.ServerStreamMessage_RunReq{
+			RunReq: &cvm.ComputationRunReq{
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
 				Datasets:        datasets,
-				Algorithm:       &manager.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
-				ResultConsumers: []*manager.ResultConsumer{{UserKey: pubPem.Bytes}},
-				AgentConfig: &manager.AgentConfig{
+				Algorithm:       &cvm.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
+				ResultConsumers: []*cvm.ResultConsumer{{UserKey: pubPem.Bytes}},
+				AgentConfig: &cvm.AgentConfig{
 					Port:        "7002",
 					LogLevel:    "debug",
 					AttestedTls: attestedTLS,
@@ -113,7 +113,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	incomingChan := make(chan *manager.ClientStreamMessage)
+	incomingChan := make(chan *cvm.ClientStreamMessage)
 
 	logger, err := mglog.New(os.Stdout, "debug")
 	if err != nil {
@@ -128,7 +128,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(incomingChan, &svc{logger: logger}))
+		cvm.RegisterCVMServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
 		BaseConfig: server.BaseConfig{
