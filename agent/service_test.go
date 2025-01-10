@@ -224,6 +224,8 @@ func TestData(t *testing.T) {
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
 
+			time.Sleep(300 * time.Millisecond)
+
 			if tc.err != ErrStateNotReady {
 				err = svc.Algo(ctx, alg)
 				require.NoError(t, err)
