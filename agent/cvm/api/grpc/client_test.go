@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent/cvm"
-	"github.com/ultravioletrs/cocos/agent/cvm/server"
+	servermocks "github.com/ultravioletrs/cocos/agent/cvm/server/mocks"
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -35,27 +35,28 @@ func (m *mockStream) Send(msg *cvm.ClientStreamMessage) error {
 func TestManagerClient_Process1(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service)
+		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServerProvider)
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "Stop computation",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServerProvider) {
 				mockStream.On("Recv").Return(&cvm.ServerStreamMessage{
 					Message: &cvm.ServerStreamMessage_StopComputation{
 						StopComputation: &cvm.StopComputation{},
 					},
 				}, nil)
 				mockStream.On("Send", mock.Anything).Return(nil)
-				mockSvc.On("Stop", mock.Anything, mock.Anything).Return(nil)
+				mockSvc.On("StopComputation", mock.Anything).Return(nil)
+				mockServerSvc.On("Stop").Return(nil)
 			},
 			expectError: true,
 			errorMsg:    "context deadline exceeded",
 		},
 		{
 			name: "Run request chunks",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServerProvider) {
 				mockStream.On("Recv").Return(&cvm.ServerStreamMessage{
 					Message: &cvm.ServerStreamMessage_RunReqChunks{
 						RunReqChunks: &cvm.RunReqChunks{},
@@ -68,7 +69,7 @@ func TestManagerClient_Process1(t *testing.T) {
 		},
 		{
 			name: "Receive error",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServerProvider) {
 				mockStream.On("Recv").Return(&cvm.ServerStreamMessage{}, assert.AnError)
 			},
 			expectError: true,
@@ -79,15 +80,16 @@ func TestManagerClient_Process1(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockStream := new(mockStream)
 			mockSvc := new(mocks.Service)
+			mockServerSvc := new(servermocks.AgentServerProvider)
 			messageQueue := make(chan *cvm.ClientStreamMessage, 10)
 			logger := mglog.NewMock()
 
-			client := NewClient(mockStream, mockSvc, messageQueue, logger, &server.AgentServer{})
+			client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
-			tc.setupMocks(mockStream, mockSvc)
+			tc.setupMocks(mockStream, mockSvc, mockServerSvc)
 
 			err := client.Process(ctx, cancel)
 
@@ -106,10 +108,11 @@ func TestManagerClient_Process1(t *testing.T) {
 func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	mockStream := new(mockStream)
 	mockSvc := new(mocks.Service)
+	mockServerSvc := new(servermocks.AgentServerProvider)
 	messageQueue := make(chan *cvm.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger, &server.AgentServer{})
+	client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc)
 
 	runReq := &cvm.ComputationRunReq{
 		Id: "test-id",
@@ -131,7 +134,8 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 		},
 	}
 
-	mockSvc.On("Run", mock.Anything, mock.AnythingOfType("*cvm.ComputationRunReq")).Return("8080", nil)
+	mockSvc.On("InitComputation", mock.Anything, mock.Anything).Return(nil)
+	mockServerSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	err := client.handleRunReqChunks(context.Background(), chunk1)
 	assert.NoError(t, err)
@@ -154,10 +158,11 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 func TestManagerClient_handleStopComputation(t *testing.T) {
 	mockStream := new(mockStream)
 	mockSvc := new(mocks.Service)
+	mockServerSvc := new(servermocks.AgentServerProvider)
 	messageQueue := make(chan *cvm.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger, &server.AgentServer{})
+	client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc)
 
 	stopReq := &cvm.ServerStreamMessage_StopComputation{
 		StopComputation: &cvm.StopComputation{
@@ -165,7 +170,8 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 		},
 	}
 
-	mockSvc.On("Stop", mock.Anything, "test-comp-id").Return(nil)
+	mockSvc.On("StopComputation", mock.Anything).Return(nil)
+	mockServerSvc.On("Stop").Return(nil)
 
 	client.handleStopComputation(context.Background(), stopReq)
 

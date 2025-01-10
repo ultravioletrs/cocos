@@ -23,20 +23,25 @@ const (
 	defSvcGRPCPort = "7002"
 )
 
-type AgentServer struct {
+type AgentServerProvider interface {
+	Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error
+	Stop() error
+}
+
+type agentServer struct {
 	gs     server.Server
 	logger *slog.Logger
 	svc    agent.Service
 }
 
-func NewServerProvider(logger *slog.Logger, svc agent.Service) *AgentServer {
-	return &AgentServer{
+func NewServerProvider(logger *slog.Logger, svc agent.Service) AgentServerProvider {
+	return &agentServer{
 		logger: logger,
 		svc:    svc,
 	}
 }
 
-func (as *AgentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error {
+func (as *agentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error {
 	if cfg.Port == "" {
 		cfg.Port = defSvcGRPCPort
 	}
@@ -79,6 +84,6 @@ func (as *AgentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp age
 	return as.gs.Start()
 }
 
-func (as *AgentServer) Stop() error {
+func (as *agentServer) Stop() error {
 	return as.gs.Stop()
 }
