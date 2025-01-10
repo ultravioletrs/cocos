@@ -68,6 +68,10 @@ type AgentClientConfig struct {
 	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
 }
 
+type ManagerClientConfig struct {
+	BaseConfig
+}
+
 type CVMClientConfig struct {
 	BaseConfig
 }

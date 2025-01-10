@@ -6,28 +6,33 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
+	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
 var Verbose bool
 
 type CLI struct {
-	agentSDK   sdk.SDK
-	config     grpc.AgentClientConfig
-	client     grpc.Client
-	connectErr error
+	agentSDK      sdk.SDK
+	agentConfig   grpc.AgentClientConfig
+	managerConfig grpc.ManagerClientConfig
+	client        grpc.Client
+	managerClient manager.ManagerServiceClient
+	connectErr    error
 }
 
-func New(config grpc.AgentClientConfig) *CLI {
+func New(agentConfig grpc.AgentClientConfig, managerConfig grpc.ManagerClientConfig) *CLI {
 	return &CLI{
-		config: config,
+		agentConfig:   agentConfig,
+		managerConfig: managerConfig,
 	}
 }
 
-func (c *CLI) InitializeSDK(cmd *cobra.Command) error {
-	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), c.config)
+func (c *CLI) InitializeAgentSDK(cmd *cobra.Command) error {
+	agentGRPCClient, agentClient, err := agent.NewAgentClient(context.Background(), c.agentConfig)
 	if err != nil {
 		c.connectErr = err
 		return err
@@ -36,6 +41,20 @@ func (c *CLI) InitializeSDK(cmd *cobra.Command) error {
 	c.client = agentGRPCClient
 
 	c.agentSDK = sdk.NewAgentSDK(agentClient)
+	return nil
+}
+
+func (c *CLI) InitializeManagerClient(cmd *cobra.Command) error {
+	managerGRPCClient, managerClient, err := managergrpc.NewManagerClient(c.managerConfig)
+	if err != nil {
+		c.connectErr = err
+		return err
+	}
+
+	cmd.Println("🔗 Connected to manager using ", managerGRPCClient.Secure())
+	c.client = managerGRPCClient
+
+	c.managerClient = managerClient
 	return nil
 }
 

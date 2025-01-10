@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	svcName            = "cli"
-	envPrefixAgentGRPC = "AGENT_GRPC_"
-	completion         = "completion"
-	filePermision      = 0o755
-	cocosDirectory     = ".cocos"
+	svcName              = "cli"
+	envPrefixAgentGRPC   = "AGENT_GRPC_"
+	envPrefixManagerGRPC = "MANAGER_GRPC_"
+	completion           = "completion"
+	filePermision        = 0o755
+	cocosDirectory       = ".cocos"
 )
 
 type config struct {
@@ -98,11 +99,14 @@ func main() {
 		return
 	}
 
-	cliSVC := cli.New(agentGRPCConfig)
-
-	if err := cliSVC.InitializeSDK(rootCmd); err == nil {
-		defer cliSVC.Close()
+	managerGRPCConfig := grpc.ManagerClientConfig{}
+	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixManagerGRPC}); err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to load %s gRPC client configuration : %s", svcName, err)
+		rootCmd.Println(message)
+		return
 	}
+
+	cliSVC := cli.New(agentGRPCConfig, managerGRPCConfig)
 
 	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
 
@@ -119,6 +123,8 @@ func main() {
 	rootCmd.AddCommand(attestationPolicyCmd)
 	rootCmd.AddCommand(keysCmd)
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
+	rootCmd.AddCommand(cliSVC.NewCreateVMCmd())
+	rootCmd.AddCommand(cliSVC.NewRemoveVMCmd())
 
 	// Attestation commands
 	attestationCmd.AddCommand(cliSVC.NewGetAttestationCmd())
