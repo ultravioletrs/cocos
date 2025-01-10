@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent/cvm"
-	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 )
@@ -140,7 +139,7 @@ func TestGrpcServer_sendRunReqInChunks(t *testing.T) {
 	assert.Equal(t, 4, len(calls))
 
 	for i, call := range calls {
-		msg := call.Arguments[0].(*manager.ServerStreamMessage)
+		msg := call.Arguments[0].(*cvm.ServerStreamMessage)
 		chunk := msg.GetRunReqChunks()
 
 		assert.NotNil(t, chunk)
@@ -185,7 +184,7 @@ func TestGrpcServer_ProcessWithMockService(t *testing.T) {
 					}).
 					Return()
 
-				mockStream.On("Send", mock.MatchedBy(func(msg *manager.ServerStreamMessage) bool {
+				mockStream.On("Send", mock.MatchedBy(func(msg *cvm.ServerStreamMessage) bool {
 					chunks := msg.GetRunReqChunks()
 					return chunks != nil && chunks.Id == "test-run-id"
 				})).Return(nil)
@@ -215,7 +214,7 @@ func TestGrpcServer_ProcessWithMockService(t *testing.T) {
 			})
 
 			mockStream.On("Context").Return(peerCtx)
-			mockStream.On("Recv").Return(&manager.ClientStreamMessage{}, nil).Maybe()
+			mockStream.On("Recv").Return(&cvm.ClientStreamMessage{}, nil).Maybe()
 
 			tt.setupMockFn(mockSvc, mockStream)
 

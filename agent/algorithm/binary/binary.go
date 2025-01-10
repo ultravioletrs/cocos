@@ -53,6 +53,10 @@ func (b *binary) Stop() error {
 		return nil
 	}
 
+	if b.cmd.ProcessState != nil && b.cmd.ProcessState.Exited() {
+		return nil
+	}
+
 	if err := b.cmd.Process.Kill(); err != nil {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
