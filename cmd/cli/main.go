@@ -108,6 +108,10 @@ func main() {
 
 	cliSVC := cli.New(agentGRPCConfig, managerGRPCConfig)
 
+	if err := cliSVC.InitializeAgentSDK(rootCmd); err == nil {
+		defer cliSVC.Close()
+	}
+
 	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	keysCmd := cliSVC.NewKeysCmd()
