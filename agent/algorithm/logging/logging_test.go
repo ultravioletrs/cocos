@@ -73,7 +73,7 @@ func TestStderrWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockEventService := mocks.NewService(t)
-			mockEventService.On("SendEvent", "AlgorithmRun", manager.Warning.String(), mock.Anything).Return(nil)
+			mockEventService.On("SendEvent", mock.Anything, "AlgorithmRun", manager.Warning.String(), mock.Anything).Return(nil)
 
 			stderr := &Stderr{Logger: mglog.NewMock(), EventSvc: mockEventService}
 			n, err := stderr.Write([]byte(tt.input))

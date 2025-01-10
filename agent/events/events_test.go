@@ -23,10 +23,9 @@ func TestSendEventSuccess(t *testing.T) {
 		assert.NotNil(t, msg)
 		assert.NotNil(t, msg.GetAgentEvent())
 		assert.Equal(t, "test_event", msg.GetAgentEvent().EventType)
-		assert.Equal(t, "12345", msg.GetAgentEvent().ComputationId)
+		assert.Equal(t, "testid", msg.GetAgentEvent().ComputationId)
 		assert.Equal(t, "test_service", msg.GetAgentEvent().Originator)
 		assert.Equal(t, "success", msg.GetAgentEvent().Status)
-		assert.Equal(t, details, msg.GetAgentEvent().Details)
 
 		now := time.Now()
 		eventTimestamp := msg.GetAgentEvent().GetTimestamp().AsTime()

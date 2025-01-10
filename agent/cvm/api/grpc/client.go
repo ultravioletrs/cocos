@@ -28,11 +28,11 @@ type CVMClient struct {
 	messageQueue  chan *cvm.ClientStreamMessage
 	logger        *slog.Logger
 	runReqManager *runRequestManager
-	sp            *server.AgentServer
+	sp            server.AgentServerProvider
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvm.CVMService_ProcessClient, svc agent.Service, messageQueue chan *cvm.ClientStreamMessage, logger *slog.Logger, sp *server.AgentServer) CVMClient {
+func NewClient(stream cvm.CVMService_ProcessClient, svc agent.Service, messageQueue chan *cvm.ClientStreamMessage, logger *slog.Logger, sp server.AgentServerProvider) CVMClient {
 	return CVMClient{
 		stream:        stream,
 		svc:           svc,
@@ -106,10 +106,13 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 		ID:          runReq.Id,
 		Name:        runReq.Name,
 		Description: runReq.Description,
-		Algorithm: agent.Algorithm{
+	}
+
+	if runReq.Algorithm != nil {
+		ac.Algorithm = agent.Algorithm{
 			Hash:    [32]byte(runReq.Algorithm.Hash),
 			UserKey: runReq.Algorithm.UserKey,
-		},
+		}
 	}
 
 	for _, ds := range runReq.Datasets {
@@ -133,6 +136,16 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
+	if runReq.AgentConfig == nil {
+		runReq.AgentConfig = &cvm.AgentConfig{}
+	}
+
+	runRes := &cvm.ClientStreamMessage_RunRes{
+		RunRes: &cvm.RunResponse{
+			ComputationId: runReq.Id,
+		},
+	}
+
 	err := client.sp.Start(ctx, agent.AgentConfig{
 		Port:         runReq.AgentConfig.Port,
 		Host:         runReq.AgentConfig.Host,
@@ -144,14 +157,9 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 	}, ac)
 	if err != nil {
 		client.logger.Warn(err.Error())
+		runRes.RunRes.Error = err.Error()
 	}
 
-	runRes := &cvm.ClientStreamMessage_RunRes{
-		RunRes: &cvm.RunResponse{
-			ComputationId: runReq.Id,
-			Error:         err.Error(),
-		},
-	}
 	client.sendMessage(&cvm.ClientStreamMessage{Message: runRes})
 }
 

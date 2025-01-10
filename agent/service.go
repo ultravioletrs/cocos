@@ -231,6 +231,7 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
+		fmt.Println("state", as.sm.GetState())
 		return ErrStateNotReady
 	}
 	as.mu.Lock()

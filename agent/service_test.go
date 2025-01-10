@@ -37,7 +37,7 @@ const datasetFile = "iris.csv"
 func TestAlgo(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	qp, err := quoteprovider.GetQuoteProvider()
@@ -124,6 +124,9 @@ func TestAlgo(t *testing.T) {
 			defer cancel()
 			svc := New(ctx, mglog.NewMock(), events, qp)
 
+			err := svc.InitComputation(ctx, testComputation(t))
+			require.NoError(t, err)
+
 			time.Sleep(300 * time.Millisecond)
 
 			err = svc.Algo(ctx, tc.algo)
@@ -140,7 +143,7 @@ func TestAlgo(t *testing.T) {
 func TestData(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	qp, err := quoteprovider.GetQuoteProvider()
@@ -217,10 +220,13 @@ func TestData(t *testing.T) {
 			defer cancel()
 
 			svc := New(ctx, mglog.NewMock(), events, qp)
-			time.Sleep(300 * time.Millisecond)
+
+			err := svc.InitComputation(ctx, testComputation(t))
+			require.NoError(t, err)
 
 			if tc.err != ErrStateNotReady {
-				_ = svc.Algo(ctx, alg)
+				err = svc.Algo(ctx, alg)
+				require.NoError(t, err)
 				time.Sleep(300 * time.Millisecond)
 			}
 			err = svc.Data(ctx, tc.data)
