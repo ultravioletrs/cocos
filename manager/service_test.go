@@ -4,7 +4,6 @@ package manager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -17,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
@@ -29,10 +27,9 @@ func TestNew(t *testing.T) {
 		HostFwdRange: "6000-6100",
 	}
 	logger := slog.Default()
-	eventsChan := make(chan *ClientStreamMessage)
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", logger, eventsChan, vmf.Execute, "")
+	service, err := New(cfg, "", logger, vmf.Execute, "")
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
@@ -46,82 +43,24 @@ func TestRun(t *testing.T) {
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {
 		name           string
-		req            *ComputationRunReq
 		binaryBehavior string
 		vmStartError   error
 		expectedError  error
 	}{
 		{
-			name: "Successful run",
-			req: &ComputationRunReq{
-				Id:   "test-computation",
-				Name: "Test Computation",
-				Algorithm: &Algorithm{
-					Hash: make([]byte, hashLength),
-				},
-				AgentConfig: &AgentConfig{},
-			},
+			name:           "Successful run",
 			binaryBehavior: "success",
 			vmStartError:   nil,
 			expectedError:  nil,
 		},
 		{
-			name: "VM start failure",
-			req: &ComputationRunReq{
-				Id:   "test-computation",
-				Name: "Test Computation",
-				Algorithm: &Algorithm{
-					Hash: make([]byte, hashLength),
-				},
-				AgentConfig: &AgentConfig{},
-			},
+			name:           "VM start failure",
 			binaryBehavior: "success",
 			vmStartError:   assert.AnError,
 			expectedError:  assert.AnError,
 		},
 		{
-			name: "Invalid algorithm hash",
-			req: &ComputationRunReq{
-				Id:   "test-computation",
-				Name: "Test Computation",
-				Algorithm: &Algorithm{
-					Hash: make([]byte, hashLength-1),
-				},
-				AgentConfig: &AgentConfig{},
-			},
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  errInvalidHashLength,
-		},
-		{
-			name: "Invalid dataset hash",
-			req: &ComputationRunReq{
-				Id:   "test-computation",
-				Name: "Test Computation",
-				Algorithm: &Algorithm{
-					Hash: make([]byte, hashLength),
-				},
-				AgentConfig: &AgentConfig{},
-				Datasets: []*Dataset{
-					{
-						Hash: make([]byte, hashLength-1),
-					},
-				},
-			},
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  errInvalidHashLength,
-		},
-		{
-			name: "Invalid attestation policy",
-			req: &ComputationRunReq{
-				Id:   "test-computation",
-				Name: "Test Computation",
-				Algorithm: &Algorithm{
-					Hash: make([]byte, hashLength),
-				},
-				AgentConfig: &AgentConfig{},
-			},
+			name:           "Invalid attestation policy",
 			binaryBehavior: "fail",
 			vmStartError:   nil,
 			expectedError:  ErrFailedToCreateAttestationPolicy,
@@ -149,7 +88,6 @@ func TestRun(t *testing.T) {
 				},
 			}
 			logger := slog.Default()
-			eventsChan := make(chan *ClientStreamMessage, 10)
 
 			tempDir := CreateDummyAttestationPolicyBinary(t, tt.binaryBehavior)
 			defer os.RemoveAll(tempDir)
@@ -159,14 +97,13 @@ func TestRun(t *testing.T) {
 				attestationPolicyBinaryPath: tempDir,
 				logger:                      logger,
 				vms:                         make(map[string]vm.VM),
-				eventsChan:                  eventsChan,
 				vmFactory:                   vmf.Execute,
 				persistence:                 persistence,
 			}
 
 			ctx := context.Background()
 
-			port, err := ms.Run(ctx, tt.req)
+			port, _, err := ms.CreateVM(ctx)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -179,10 +116,6 @@ func TestRun(t *testing.T) {
 			}
 
 			vmf.AssertExpectations(t)
-
-			for len(eventsChan) > 0 {
-				<-eventsChan
-			}
 		})
 	}
 }
@@ -226,11 +159,9 @@ func TestStop(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := slog.Default()
-			eventsChan := make(chan *ClientStreamMessage, 10)
 			ms := &managerService{
 				logger:      logger,
 				vms:         make(map[string]vm.VM),
-				eventsChan:  eventsChan,
 				persistence: persistence,
 			}
 			vmMock := new(mocks.VM)
@@ -247,7 +178,7 @@ func TestStop(t *testing.T) {
 				ms.vms[tt.computationID] = vmMock
 			}
 
-			err := ms.Stop(context.Background(), tt.computationID)
+			err := ms.RemoveVM(context.Background(), tt.computationID)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -255,10 +186,6 @@ func TestStop(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, ms.vms, 0)
-			}
-
-			for len(eventsChan) > 0 {
-				<-eventsChan
 			}
 		})
 	}
@@ -276,82 +203,6 @@ func TestGetFreePort(t *testing.T) {
 	port, err = getFreePort(6000, 6100)
 	assert.NoError(t, err)
 	assert.Greater(t, port, 6000)
-}
-
-func TestPublishEvent(t *testing.T) {
-	tests := []struct {
-		name          string
-		event         string
-		computationID string
-		status        string
-		details       json.RawMessage
-	}{
-		{
-			name:          "Standard event",
-			event:         "test-event",
-			computationID: "test-computation",
-			status:        "test-status",
-			details:       nil,
-		},
-		{
-			name:          "Event with details",
-			event:         "detailed-event",
-			computationID: "detailed-computation",
-			status:        "detailed-status",
-			details:       json.RawMessage(`{"key": "value"}`),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			eventsChan := make(chan *ClientStreamMessage, 1)
-			ms := &managerService{
-				eventsChan: eventsChan,
-			}
-
-			ms.publishEvent(tt.event, tt.computationID, tt.status, tt.details)
-
-			assert.Len(t, eventsChan, 1)
-			event := <-eventsChan
-			assert.Equal(t, tt.event, event.GetAgentEvent().EventType)
-			assert.Equal(t, tt.computationID, event.GetAgentEvent().ComputationId)
-			assert.Equal(t, tt.status, event.GetAgentEvent().Status)
-			assert.Equal(t, "manager", event.GetAgentEvent().Originator)
-			assert.Equal(t, tt.details, json.RawMessage(event.GetAgentEvent().Details))
-		})
-	}
-}
-
-func TestComputationHash(t *testing.T) {
-	tests := []struct {
-		name        string
-		computation agent.Computation
-		wantErr     bool
-	}{
-		{
-			name: "Valid computation",
-			computation: agent.Computation{
-				ID:   "test-id",
-				Name: "test-name",
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hash, err := computationHash(tt.computation)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.NotEmpty(t, hash)
-
-				hash2, _ := computationHash(tt.computation)
-				assert.Equal(t, hash, hash2)
-			}
-		})
-	}
 }
 
 func TestDecodeRange(t *testing.T) {
@@ -393,7 +244,6 @@ func TestRestoreVMs(t *testing.T) {
 	ms := &managerService{
 		persistence: mockPersistence,
 		vms:         make(map[string]vm.VM),
-		eventsChan:  make(chan *ClientStreamMessage, 10),
 		vmFactory:   vmf.Execute,
 		logger:      mglog.NewMock(),
 	}

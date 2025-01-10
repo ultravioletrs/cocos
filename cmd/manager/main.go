@@ -10,25 +10,24 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/jaeger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/absmach/magistrala/pkg/uuid"
 	"github.com/caarlos0/env/v11"
+	"github.com/ultravioletrs/cocos/internal/server"
+	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
-	managerapi "github.com/ultravioletrs/cocos/manager/api/grpc"
-	"github.com/ultravioletrs/cocos/manager/events"
+	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
-	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
-	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -92,64 +91,33 @@ func main() {
 	args := qemuCfg.ConstructQemuArgs()
 	logger.Info(strings.Join(args, " "))
 
-	managerGRPCConfig := pkggrpc.CVMClientConfig{}
+	managerGRPCConfig := server.ServerConfig{}
 	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		exitCode = 1
 		return
 	}
 
-	managerGRPCClient, managerClient, err := managergrpc.NewManagerClient(managerGRPCConfig)
-	if err != nil {
-		logger.Error(err.Error())
-		exitCode = 1
-		return
-	}
-	defer managerGRPCClient.Close()
-
-	pc, err := managerClient.Process(ctx)
+	svc, err := newService(logger, tracer, qemuCfg, cfg.AttestationPolicyBinary, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}
 
-	eventsChan := make(chan *manager.ClientStreamMessage, clientBufferSize)
-	svc, err := newService(logger, tracer, qemuCfg, eventsChan, cfg.AttestationPolicyBinary, cfg.EosVersion)
-	if err != nil {
-		logger.Error(err.Error())
-		exitCode = 1
-		return
+	registerManagerServiceServer := func(srv *grpc.Server) {
+		reflection.Register(srv)
+		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(svc))
 	}
 
-	eventsSvc, err := events.New(logger, svc.ReportBrokenConnection, eventsChan)
-	if err != nil {
-		logger.Error(err.Error())
-		exitCode = 1
-		return
-	}
-
-	go eventsSvc.Listen(ctx)
-
-	mc := managerapi.NewClient(pc, svc, eventsChan, logger)
+	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, nil)
 
 	g.Go(func() error {
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(ch)
-
-		select {
-		case <-ch:
-			logger.Info("Received signal, shutting down...")
-			cancel()
-			return nil
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+		return gs.Start()
 	})
 
 	g.Go(func() error {
-		return mc.Process(ctx, cancel)
+		return server.StopHandler(ctx, cancel, logger, svcName, gs)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -157,8 +125,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, eventsChan chan *manager.ClientStreamMessage, attestationPolicyPath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, logger, eventsChan, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, eosVersion string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, logger, qemu.NewVM, eosVersion)
 	if err != nil {
 		return nil, err
 	}

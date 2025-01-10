@@ -14,6 +14,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -22,14 +23,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ManagerService_Process_FullMethodName = "/manager.ManagerService/Process"
+	ManagerService_CreateVm_FullMethodName          = "/manager.ManagerService/CreateVm"
+	ManagerService_RemoveVm_FullMethodName          = "/manager.ManagerService/RemoveVm"
+	ManagerService_SVMInfo_FullMethodName           = "/manager.ManagerService/SVMInfo"
+	ManagerService_AttestationPolicy_FullMethodName = "/manager.ManagerService/AttestationPolicy"
 )
 
 // ManagerServiceClient is the client API for ManagerService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManagerServiceClient interface {
-	Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage], error)
+	CreateVm(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateRes, error)
+	RemoveVm(ctx context.Context, in *RemoveReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SVMInfo(ctx context.Context, in *SVMInfoReq, opts ...grpc.CallOption) (*SVMInfoRes, error)
+	AttestationPolicy(ctx context.Context, in *AttestationPolicyReq, opts ...grpc.CallOption) (*AttestationPolicyRes, error)
 }
 
 type managerServiceClient struct {
@@ -40,24 +47,54 @@ func NewManagerServiceClient(cc grpc.ClientConnInterface) ManagerServiceClient {
 	return &managerServiceClient{cc}
 }
 
-func (c *managerServiceClient) Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage], error) {
+func (c *managerServiceClient) CreateVm(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateRes, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ManagerService_ServiceDesc.Streams[0], ManagerService_Process_FullMethodName, cOpts...)
+	out := new(CreateRes)
+	err := c.cc.Invoke(ctx, ManagerService_CreateVm_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[ClientStreamMessage, ServerStreamMessage]{ClientStream: stream}
-	return x, nil
+	return out, nil
 }
 
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ManagerService_ProcessClient = grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage]
+func (c *managerServiceClient) RemoveVm(ctx context.Context, in *RemoveReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ManagerService_RemoveVm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *managerServiceClient) SVMInfo(ctx context.Context, in *SVMInfoReq, opts ...grpc.CallOption) (*SVMInfoRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SVMInfoRes)
+	err := c.cc.Invoke(ctx, ManagerService_SVMInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *managerServiceClient) AttestationPolicy(ctx context.Context, in *AttestationPolicyReq, opts ...grpc.CallOption) (*AttestationPolicyRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AttestationPolicyRes)
+	err := c.cc.Invoke(ctx, ManagerService_AttestationPolicy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
 
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility.
 type ManagerServiceServer interface {
-	Process(grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]) error
+	CreateVm(context.Context, *emptypb.Empty) (*CreateRes, error)
+	RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error)
+	SVMInfo(context.Context, *SVMInfoReq) (*SVMInfoRes, error)
+	AttestationPolicy(context.Context, *AttestationPolicyReq) (*AttestationPolicyRes, error)
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -68,8 +105,17 @@ type ManagerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedManagerServiceServer struct{}
 
-func (UnimplementedManagerServiceServer) Process(grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]) error {
-	return status.Errorf(codes.Unimplemented, "method Process not implemented")
+func (UnimplementedManagerServiceServer) CreateVm(context.Context, *emptypb.Empty) (*CreateRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
+}
+func (UnimplementedManagerServiceServer) RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveVm not implemented")
+}
+func (UnimplementedManagerServiceServer) SVMInfo(context.Context, *SVMInfoReq) (*SVMInfoRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SVMInfo not implemented")
+}
+func (UnimplementedManagerServiceServer) AttestationPolicy(context.Context, *AttestationPolicyReq) (*AttestationPolicyRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttestationPolicy not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 func (UnimplementedManagerServiceServer) testEmbeddedByValue()                        {}
@@ -92,12 +138,77 @@ func RegisterManagerServiceServer(s grpc.ServiceRegistrar, srv ManagerServiceSer
 	s.RegisterService(&ManagerService_ServiceDesc, srv)
 }
 
-func _ManagerService_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ManagerServiceServer).Process(&grpc.GenericServerStream[ClientStreamMessage, ServerStreamMessage]{ServerStream: stream})
+func _ManagerService_CreateVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).CreateVm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_CreateVm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).CreateVm(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ManagerService_ProcessServer = grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]
+func _ManagerService_RemoveVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).RemoveVm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_RemoveVm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).RemoveVm(ctx, req.(*RemoveReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ManagerService_SVMInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SVMInfoReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).SVMInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_SVMInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).SVMInfo(ctx, req.(*SVMInfoReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ManagerService_AttestationPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttestationPolicyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).AttestationPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_AttestationPolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).AttestationPolicy(ctx, req.(*AttestationPolicyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
 
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -105,14 +216,24 @@ type ManagerService_ProcessServer = grpc.BidiStreamingServer[ClientStreamMessage
 var ManagerService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "manager.ManagerService",
 	HandlerType: (*ManagerServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "Process",
-			Handler:       _ManagerService_Process_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "CreateVm",
+			Handler:    _ManagerService_CreateVm_Handler,
+		},
+		{
+			MethodName: "RemoveVm",
+			Handler:    _ManagerService_RemoveVm_Handler,
+		},
+		{
+			MethodName: "SVMInfo",
+			Handler:    _ManagerService_SVMInfo_Handler,
+		},
+		{
+			MethodName: "AttestationPolicy",
+			Handler:    _ManagerService_AttestationPolicy_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "manager/manager.proto",
 }

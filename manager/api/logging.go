@@ -27,9 +27,9 @@ func LoggingMiddleware(svc manager.Service, logger *slog.Logger) manager.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (agentAddr string, err error) {
+func (lm *loggingMiddleware) CreateVM(ctx context.Context) (agentAddr string, id string, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Run for computation took %s to complete", time.Since(begin))
+		message := fmt.Sprintf("Method CreateVM for id %s on port %s took %s to complete", id, agentAddr, time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
@@ -37,12 +37,12 @@ func (lm *loggingMiddleware) Run(ctx context.Context, mc *manager.ComputationRun
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.Run(ctx, mc)
+	return lm.svc.CreateVM(ctx)
 }
 
-func (lm *loggingMiddleware) Stop(ctx context.Context, computationID string) (err error) {
+func (lm *loggingMiddleware) RemoveVM(ctx context.Context, id string) (err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Stop for computation took %s to complete", time.Since(begin))
+		message := fmt.Sprintf("Method RemoveVM for vm %s took %s to complete", id, time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
 			return
@@ -50,7 +50,7 @@ func (lm *loggingMiddleware) Stop(ctx context.Context, computationID string) (er
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.Stop(ctx, computationID)
+	return lm.svc.RemoveVM(ctx, id)
 }
 
 func (lm *loggingMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId string) (body []byte, err error) {
@@ -65,10 +65,6 @@ func (lm *loggingMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId s
 	}(time.Now())
 
 	return lm.svc.FetchAttestationPolicy(ctx, cmpId)
-}
-
-func (lm *loggingMiddleware) ReportBrokenConnection(addr string) {
-	lm.svc.ReportBrokenConnection(addr)
 }
 
 func (lm *loggingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {

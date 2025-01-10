@@ -38,10 +38,6 @@ func TestStdoutWrite(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eventLogChan := make(chan interface{}, 10)
 			s := &Stdout{
-				EventSender: func(event interface{}) error {
-					eventLogChan <- event
-					return nil
-				},
 				ComputationId: "test-computation",
 			}
 
@@ -98,10 +94,6 @@ func TestStderrWrite(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eventLogChan := make(chan interface{}, 10)
 			s := &Stderr{
-				EventSender: func(event interface{}) error {
-					eventLogChan <- event
-					return nil
-				},
 				ComputationId: "test-computation",
 				StateMachine:  NewStateMachine(),
 			}
@@ -144,12 +136,7 @@ func TestStderrWrite(t *testing.T) {
 }
 
 func TestStdoutWriteErrorHandling(t *testing.T) {
-	eventLogChan := make(chan interface{}, 10)
 	s := &Stdout{
-		EventSender: func(event interface{}) error {
-			eventLogChan <- event
-			return assert.AnError
-		},
 		ComputationId: "test-computation",
 	}
 
@@ -162,12 +149,7 @@ func TestStdoutWriteErrorHandling(t *testing.T) {
 }
 
 func TestStderrWriteErrorHandling(t *testing.T) {
-	eventLogChan := make(chan interface{}, 10)
 	s := &Stderr{
-		EventSender: func(event interface{}) error {
-			eventLogChan <- event
-			return assert.AnError
-		},
 		ComputationId: "test-computation",
 	}
 

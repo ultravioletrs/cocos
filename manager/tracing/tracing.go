@@ -21,18 +21,18 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (string, error) {
+func (tm *tracingMiddleware) CreateVM(ctx context.Context) (string, string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
-	return tm.svc.Run(ctx, mc)
+	return tm.svc.CreateVM(ctx)
 }
 
-func (tm *tracingMiddleware) Stop(ctx context.Context, computationID string) error {
+func (tm *tracingMiddleware) RemoveVM(ctx context.Context, id string) error {
 	ctx, span := tm.tracer.Start(ctx, "stop")
 	defer span.End()
 
-	return tm.svc.Stop(ctx, computationID)
+	return tm.svc.RemoveVM(ctx, id)
 }
 
 func (tm *tracingMiddleware) FetchAttestationPolicy(ctx context.Context, computationId string) ([]byte, error) {
@@ -40,10 +40,6 @@ func (tm *tracingMiddleware) FetchAttestationPolicy(ctx context.Context, computa
 	defer span.End()
 
 	return tm.svc.FetchAttestationPolicy(ctx, computationId)
-}
-
-func (tm *tracingMiddleware) ReportBrokenConnection(addr string) {
-	tm.svc.ReportBrokenConnection(addr)
 }
 
 func (tm *tracingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {

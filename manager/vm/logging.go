@@ -5,11 +5,6 @@ package vm
 import (
 	"bytes"
 	"io"
-	"log/slog"
-	"strings"
-
-	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -20,7 +15,6 @@ var (
 const bufSize = 1024
 
 type Stdout struct {
-	EventSender   EventSender
 	ComputationId string
 }
 
@@ -31,7 +25,7 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 	buf := make([]byte, bufSize)
 
 	for {
-		n, err := inBuf.Read(buf)
+		_, err := inBuf.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -39,16 +33,12 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 			return len(p) - inBuf.Len(), err
 		}
 
-		if err := sendLog(s.EventSender, s.ComputationId, string(buf[:n]), slog.LevelDebug.String()); err != nil {
-			return len(p) - inBuf.Len(), err
-		}
 	}
 
 	return len(p), nil
 }
 
 type Stderr struct {
-	EventSender   EventSender
 	ComputationId string
 	StateMachine  StateMachine
 }
@@ -60,7 +50,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 	buf := make([]byte, bufSize)
 
 	for {
-		n, err := inBuf.Read(buf)
+		_, err := inBuf.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -68,41 +58,7 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 			return len(p) - inBuf.Len(), err
 		}
 
-		if err := sendLog(s.EventSender, s.ComputationId, string(buf[:n]), ""); err != nil {
-			return len(p) - inBuf.Len(), err
-		}
 	}
 
-	eventMsg := &Event{
-		ComputationId: s.ComputationId,
-		EventType:     s.StateMachine.State(),
-		Timestamp:     timestamppb.Now(),
-		Originator:    "manager",
-		Status:        pkgmanager.Warning.String(),
-	}
-
-	return len(p), s.EventSender(eventMsg)
-}
-
-func sendLog(eventSender EventSender, computationID, message, level string) error {
-	if len(message) < 3 {
-		return nil
-	}
-
-	if level == "" {
-		if strings.Contains(strings.ToLower(message), "warning") {
-			level = slog.LevelWarn.String()
-		} else {
-			level = slog.LevelError.String()
-		}
-	}
-
-	msg := Log{
-		Message:       message,
-		ComputationId: computationID,
-		Level:         level,
-		Timestamp:     timestamppb.Now(),
-	}
-
-	return eventSender(&msg)
+	return len(p), nil
 }

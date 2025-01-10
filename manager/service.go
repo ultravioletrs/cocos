@@ -5,7 +5,6 @@ package manager
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -17,15 +16,13 @@ import (
 	"syscall"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-sev-guest/proto/check"
-	"github.com/ultravioletrs/cocos/agent"
+	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -48,8 +45,6 @@ var (
 	// ErrFailedToAllocatePort indicates no free port was found on host.
 	ErrFailedToAllocatePort = errors.New("failed to allocate free port on host")
 
-	errInvalidHashLength = errors.New("hash must be of byte length 32")
-
 	// ErrFailedToCalculateHash indicates that agent computation returned an error while calculating the hash of the computation.
 	ErrFailedToCalculateHash = errors.New("error while calculating the hash of the computation")
 
@@ -67,13 +62,11 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	// Run create a computation.
-	Run(ctx context.Context, c *ComputationRunReq) (string, error)
+	CreateVM(ctx context.Context) (string, string, error)
 	// Stop stops a computation.
-	Stop(ctx context.Context, computationID string) error
+	RemoveVM(ctx context.Context, computationID string) error
 	// FetchAttestationPolicy measures and fetches the attestation policy.
 	FetchAttestationPolicy(ctx context.Context, computationID string) ([]byte, error)
-	// ReportBrokenConnection reports a broken connection.
-	ReportBrokenConnection(addr string)
 	// ReturnSVMInfo returns SVM information needed for attestation verification and validation.
 	ReturnSVMInfo(ctx context.Context) (string, int, string, string)
 }
@@ -84,7 +77,6 @@ type managerService struct {
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
 	logger                      *slog.Logger
-	eventsChan                  chan *ClientStreamMessage
 	vms                         map[string]vm.VM
 	vmFactory                   vm.Provider
 	portRangeMin                int
@@ -96,7 +88,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, eventsChan chan *ClientStreamMessage, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -111,7 +103,6 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 		qemuCfg:                     cfg,
 		logger:                      logger,
 		vms:                         make(map[string]vm.VM),
-		eventsChan:                  eventsChan,
 		vmFactory:                   vmFactory,
 		attestationPolicyBinaryPath: attestationPolicyBinPath,
 		portRangeMin:                start,
@@ -127,7 +118,8 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 	return ms, nil
 }
 
-func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string, error) {
+func (ms *managerService) CreateVM(ctx context.Context) (string, string, error) {
+	id := uuid.New().String()
 	ms.mu.Lock()
 	cfg := qemu.VMInfo{
 		Config:    ms.qemuCfg,
@@ -142,54 +134,29 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		_, err := cmd.Output()
 		ms.ap.Unlock()
 		if err != nil {
-			return "", errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
+			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 		}
 
 		ms.ap.Lock()
 		f, err := os.ReadFile("./attestation_policy.json")
 		ms.ap.Unlock()
 		if err != nil {
-			return "", errors.Wrap(ErrFailedToReadPolicy, err)
+			return "", id, errors.Wrap(ErrFailedToReadPolicy, err)
 		}
 
 		var attestationPolicy check.Config
 
 		if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
-			return "", errors.Wrap(ErrUnmarshalFailed, err)
+			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 
 		// Define the TCB that was present at launch of the VM.
 		cfg.LaunchTCB = attestationPolicy.Policy.MinimumLaunchTcb
 	}
-	ms.publishEvent(manager.VmProvision.String(), c.Id, manager.Starting.String(), json.RawMessage{})
-	ac := agent.Computation{
-		ID:          c.Id,
-		Name:        c.Name,
-		Description: c.Description,
-	}
-	if len(c.Algorithm.Hash) != hashLength {
-		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-		return "", errInvalidHashLength
-	}
-
-	ac.Algorithm = agent.Algorithm{Hash: [hashLength]byte(c.Algorithm.Hash), UserKey: c.Algorithm.UserKey}
-
-	for _, data := range c.Datasets {
-		if len(data.Hash) != hashLength {
-			ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-			return "", errInvalidHashLength
-		}
-		ac.Datasets = append(ac.Datasets, agent.Dataset{Hash: [hashLength]byte(data.Hash), UserKey: data.UserKey, Filename: data.Filename})
-	}
-
-	for _, rc := range c.ResultConsumers {
-		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{UserKey: rc.UserKey})
-	}
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)
 	if err != nil {
-		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-		return "", errors.Wrap(ErrFailedToAllocatePort, err)
+		return "", id, errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	cfg.Config.HostFwdAgent = agentPort
 
@@ -210,30 +177,23 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 	cfg.Config.VSockConfig.GuestCID = cid
 
 	if cfg.Config.EnableSEVSNP {
-		ch, err := computationHash(ac)
-		if err != nil {
-			ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-			return "", errors.Wrap(ErrFailedToCalculateHash, err)
-		}
-
+		todo := sha3.Sum256([]byte("TODO"))
 		// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(ch[:])
+		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
 	}
 
-	cvm := ms.vmFactory(cfg, ms.eventsLogsSender, c.Id)
-	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.InProgress.String(), json.RawMessage{})
+	cvm := ms.vmFactory(cfg, id)
 	if err = cvm.Start(); err != nil {
-		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
-		return "", err
+		return "", id, err
 	}
 	ms.mu.Lock()
-	ms.vms[c.Id] = cvm
+	ms.vms[id] = cvm
 	ms.mu.Unlock()
 
 	pid := cvm.GetProcess()
 
 	state := qemu.VMState{
-		ID:     c.Id,
+		ID:     id,
 		VMinfo: cfg,
 		PID:    pid,
 	}
@@ -241,34 +201,23 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		ms.logger.Error("Failed to persist VM state", "error", err)
 	}
 
-	err = backoff.Retry(func() error {
-		return cvm.SendAgentConfig(ac)
-	}, backoff.NewExponentialBackOff())
-	if err != nil {
-		return "", err
-	}
-
 	ms.mu.Lock()
-	if err := ms.vms[c.Id].Transition(manager.VmRunning); err != nil {
-		ms.logger.Warn("Failed to transition VM state", "computation", c.Id, "error", err)
+	if err := ms.vms[id].Transition(manager.VmRunning); err != nil {
+		ms.logger.Warn("Failed to transition VM state", "cvm", id, "error", err)
 	}
 	ms.mu.Unlock()
 
-	ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Completed.String(), json.RawMessage{})
-
-	return fmt.Sprint(agentPort), nil
+	return fmt.Sprint(agentPort), id, nil
 }
 
-func (ms *managerService) Stop(ctx context.Context, computationID string) error {
+func (ms *managerService) RemoveVM(ctx context.Context, computationID string) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	cvm, ok := ms.vms[computationID]
 	if !ok {
-		defer ms.publishEvent(manager.StopComputationRun.String(), computationID, agent.Failed.String(), json.RawMessage{})
 		return ErrNotFound
 	}
 	if err := cvm.Stop(); err != nil {
-		defer ms.publishEvent(manager.StopComputationRun.String(), computationID, agent.Failed.String(), json.RawMessage{})
 		return err
 	}
 	delete(ms.vms, computationID)
@@ -277,7 +226,6 @@ func (ms *managerService) Stop(ctx context.Context, computationID string) error 
 		ms.logger.Error("Failed to delete persisted VM state", "error", err)
 	}
 
-	defer ms.publishEvent(manager.StopComputationRun.String(), computationID, agent.Completed.String(), json.RawMessage{})
 	return nil
 }
 
@@ -329,30 +277,6 @@ func checkPortisFree(port int) bool {
 	return true
 }
 
-func (ms *managerService) publishEvent(event, cmpID, status string, details json.RawMessage) {
-	ms.eventsChan <- &ClientStreamMessage{
-		Message: &ClientStreamMessage_AgentEvent{
-			AgentEvent: &AgentEvent{
-				EventType:     event,
-				ComputationId: cmpID,
-				Status:        status,
-				Details:       details,
-				Timestamp:     timestamppb.Now(),
-				Originator:    "manager",
-			},
-		},
-	}
-}
-
-func computationHash(ac agent.Computation) ([32]byte, error) {
-	jsonData, err := json.Marshal(ac)
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return sha3.Sum256(jsonData), nil
-}
-
 func decodeRange(input string) (int, int, error) {
 	re := regexp.MustCompile(`(\d+)-(\d+)`)
 	matches := re.FindStringSubmatch(input)
@@ -392,7 +316,7 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm := ms.vmFactory(state.VMinfo, ms.eventsLogsSender, state.ID)
+		cvm := ms.vmFactory(state.VMinfo, state.ID)
 
 		if err = cvm.SetProcess(state.PID); err != nil {
 			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)
@@ -424,34 +348,4 @@ func (ms *managerService) processExists(pid int) bool {
 		return false
 	}
 	return false
-}
-
-func (ms *managerService) eventsLogsSender(e interface{}) error {
-	switch msg := e.(type) {
-	case *vm.Event:
-		ms.eventsChan <- &ClientStreamMessage{
-			Message: &ClientStreamMessage_AgentEvent{
-				AgentEvent: &AgentEvent{
-					EventType:     msg.EventType,
-					Timestamp:     msg.Timestamp,
-					ComputationId: msg.ComputationId,
-					Originator:    msg.Originator,
-					Status:        msg.Status,
-					Details:       msg.Details,
-				},
-			},
-		}
-	case *vm.Log:
-		ms.eventsChan <- &ClientStreamMessage{
-			Message: &ClientStreamMessage_AgentLog{
-				AgentLog: &AgentLog{
-					ComputationId: msg.ComputationId,
-					Level:         msg.Level,
-					Timestamp:     msg.Timestamp,
-					Message:       msg.Message,
-				},
-			},
-		}
-	}
-	return nil
 }
