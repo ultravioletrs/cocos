@@ -158,10 +158,6 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 		Example: "get <report_data>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := cli.InitializeAgentSDK(cmd); err == nil {
-				defer cli.Close()
-			}
-
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
