@@ -32,7 +32,6 @@ func (s *Stdout) Write(p []byte) (n int, err error) {
 			}
 			return len(p) - inBuf.Len(), err
 		}
-
 	}
 
 	return len(p), nil
@@ -57,7 +56,6 @@ func (s *Stderr) Write(p []byte) (n int, err error) {
 			}
 			return len(p) - inBuf.Len(), err
 		}
-
 	}
 
 	return len(p), nil

@@ -5,7 +5,6 @@ package grpc
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/ultravioletrs/cocos/manager"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -14,11 +13,6 @@ import (
 var (
 	_                manager.ManagerServiceServer = (*grpcServer)(nil)
 	ErrUnexpectedMsg                              = errors.New("unknown message type")
-)
-
-const (
-	bufferSize    = 1024 * 1024 // 1 MB
-	runReqTimeout = 30 * time.Second
 )
 
 type grpcServer struct {
@@ -44,6 +38,7 @@ func (s *grpcServer) CreateVm(ctx context.Context, _ *emptypb.Empty) (*manager.C
 		SvmId:         id,
 	}, nil
 }
+
 func (s *grpcServer) RemoveVm(ctx context.Context, req *manager.RemoveReq) (*emptypb.Empty, error) {
 	if err := s.svc.RemoveVM(ctx, req.SvmId); err != nil {
 		return nil, err
@@ -51,6 +46,7 @@ func (s *grpcServer) RemoveVm(ctx context.Context, req *manager.RemoveReq) (*emp
 
 	return &emptypb.Empty{}, nil
 }
+
 func (s *grpcServer) SVMInfo(ctx context.Context, req *manager.SVMInfoReq) (*manager.SVMInfoRes, error) {
 	ovmf, cpunum, cputype, eosversion := s.svc.ReturnSVMInfo(ctx)
 
@@ -62,6 +58,7 @@ func (s *grpcServer) SVMInfo(ctx context.Context, req *manager.SVMInfoReq) (*man
 		Id:          req.Id,
 	}, nil
 }
+
 func (s *grpcServer) AttestationPolicy(ctx context.Context, req *manager.AttestationPolicyReq) (*manager.AttestationPolicyRes, error) {
 	policy, err := s.svc.FetchAttestationPolicy(ctx, req.Id)
 	if err != nil {
