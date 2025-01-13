@@ -24,3 +24,46 @@ fi
 
 # Resize the root file system to 100%
 mount -o remount,size=100% /
+
+SYSTEMD_SERVICE="/usr/lib/systemd/system/cocos-agent.service"
+ENV_FILE="/mnt/env/environment"
+
+# Function to setup environment variables
+setup_environment() {
+
+    # Check if systemd service file exists
+    if [ ! -f "$SYSTEMD_SERVICE" ]; then
+        exit 1
+    fi
+
+    if [ ! -f "$ENV_FILE" ]; then
+        exit 1
+    fi
+
+    # Backup the original file if not already backed up
+    if [ ! -f "$SYSTEMD_SERVICE.bak" ]; then
+        cp "$SYSTEMD_SERVICE" "$SYSTEMD_SERVICE.bak" || exit 1
+    fi
+
+    # Create a temporary file
+    TEMP_FILE=$(mktemp) || exit 1
+
+    # Process the service file
+    if ! sed -n '1,/^\[Service\]/p' "$SYSTEMD_SERVICE" > "$TEMP_FILE" && \
+       while IFS= read -r line; do
+           escaped_line=$(echo "$line" | sed 's/=/\\=/g')
+           echo "Environment=$escaped_line" >> "$TEMP_FILE"
+       done < "$ENV_FILE" && \
+       sed -n '/^\[Service\]/,$p' "$SYSTEMD_SERVICE" | sed '/^Environment=/d' | tail -n +2 >> "$TEMP_FILE"; then
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
+
+    # Replace original file with new content
+    if ! mv "$TEMP_FILE" "$SYSTEMD_SERVICE"; then
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
+}
+
+setup_environment
