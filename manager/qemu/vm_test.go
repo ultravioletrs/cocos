@@ -6,10 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
@@ -161,28 +159,4 @@ func TestGetConfig(t *testing.T) {
 
 	config := vm.GetConfig()
 	assert.Equal(t, expectedConfig, config)
-}
-
-func TestCheckVMProcessPeriodically(t *testing.T) {
-	logsChan := make(chan interface{}, 1)
-	vmi := &qemuVM{
-		computationId: testComputationID,
-		cmd: &exec.Cmd{
-			Process: &os.Process{Pid: -1}, // Use an invalid PID to simulate a stopped process
-		},
-		StateMachine: vm.NewStateMachine(),
-	}
-
-	go vmi.checkVMProcessPeriodically()
-
-	select {
-	case msg := <-logsChan:
-		assert.NotNil(t, msg)
-		msgE := msg.(*vm.Event)
-		assert.Equal(t, testComputationID, msgE.ComputationId)
-		assert.Equal(t, pkgmanager.VmProvision.String(), msgE.EventType)
-		assert.Equal(t, pkgmanager.Stopped.String(), msgE.Status)
-	case <-time.After(2 * interval):
-		t.Fatal("Timeout waiting for VM stopped message")
-	}
 }

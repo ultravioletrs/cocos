@@ -76,8 +76,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.cmd = exec.Command(exe, args...)
-	v.cmd.Stdout = &vm.Stdout{ComputationId: v.computationId}
-	v.cmd.Stderr = &vm.Stderr{ComputationId: v.computationId, StateMachine: v.StateMachine}
+	v.cmd.Stdout = os.Stdout
+	v.cmd.Stderr = os.Stderr
 
 	return v.cmd.Start()
 }
