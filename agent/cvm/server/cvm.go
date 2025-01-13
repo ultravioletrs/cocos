@@ -23,7 +23,7 @@ const (
 	defSvcGRPCPort = "7002"
 )
 
-type AgentServerProvider interface {
+type AgentServer interface {
 	Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error
 	Stop() error
 }
@@ -34,7 +34,7 @@ type agentServer struct {
 	svc    agent.Service
 }
 
-func NewServerProvider(logger *slog.Logger, svc agent.Service) AgentServerProvider {
+func NewServer(logger *slog.Logger, svc agent.Service) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,

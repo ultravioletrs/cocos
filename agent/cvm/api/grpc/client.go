@@ -28,11 +28,11 @@ type CVMClient struct {
 	messageQueue  chan *cvm.ClientStreamMessage
 	logger        *slog.Logger
 	runReqManager *runRequestManager
-	sp            server.AgentServerProvider
+	sp            server.AgentServer
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvm.CVMService_ProcessClient, svc agent.Service, messageQueue chan *cvm.ClientStreamMessage, logger *slog.Logger, sp server.AgentServerProvider) CVMClient {
+func NewClient(stream cvm.CVMService_ProcessClient, svc agent.Service, messageQueue chan *cvm.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMClient {
 	return CVMClient{
 		stream:        stream,
 		svc:           svc,

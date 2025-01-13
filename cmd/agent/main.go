@@ -102,7 +102,7 @@ func main() {
 
 	svc := newService(ctx, logger, eventSvc, qp)
 
-	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServerProvider(logger, svc))
+	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc))
 
 	g.Go(func() error {
 		ch := make(chan os.Signal, 1)
