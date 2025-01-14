@@ -24,5 +24,5 @@ fi
 grep -q "certs_share /etc/certs" ${TARGET_DIR}/etc/fstab || \
 echo "certs_share /etc/certs 9p trans=virtio,version=9p2000.L,cache=mmap 0 0" >> "${TARGET_DIR}/etc/fstab"
 
-grep -q "env_share /mnt/env" ${TARGET_DIR}/etc/fstab || \
-echo "env_share /mnt/env 9p trans=virtio,version=9p2000.L,cache=mmap 0 0" >> "${TARGET_DIR}/etc/fstab"
+grep -q "env_share /etc/cocos" ${TARGET_DIR}/etc/fstab || \
+echo "env_share /etc/cocos 9p trans=virtio,version=9p2000.L,cache=mmap 0 0" >> "${TARGET_DIR}/etc/fstab"
