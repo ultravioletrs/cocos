@@ -13,7 +13,7 @@ fi
 # Create the mount points
 # Create the mount points
 mkdir -p ${TARGET_DIR}/etc/certs
-mkdir -p ${TARGET_DIR}/mnt/env
+mkdir -p ${TARGET_DIR}/etc/cocos
 
 # Ensure /etc/fstab exists
 if [ ! -f "${TARGET_DIR}/etc/fstab" ]; then
