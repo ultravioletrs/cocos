@@ -33,7 +33,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManagerServiceClient interface {
-	CreateVm(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateRes, error)
+	CreateVm(ctx context.Context, in *CreateReq, opts ...grpc.CallOption) (*CreateRes, error)
 	RemoveVm(ctx context.Context, in *RemoveReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SVMInfo(ctx context.Context, in *SVMInfoReq, opts ...grpc.CallOption) (*SVMInfoRes, error)
 	AttestationPolicy(ctx context.Context, in *AttestationPolicyReq, opts ...grpc.CallOption) (*AttestationPolicyRes, error)
@@ -47,7 +47,7 @@ func NewManagerServiceClient(cc grpc.ClientConnInterface) ManagerServiceClient {
 	return &managerServiceClient{cc}
 }
 
-func (c *managerServiceClient) CreateVm(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CreateRes, error) {
+func (c *managerServiceClient) CreateVm(ctx context.Context, in *CreateReq, opts ...grpc.CallOption) (*CreateRes, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateRes)
 	err := c.cc.Invoke(ctx, ManagerService_CreateVm_FullMethodName, in, out, cOpts...)
@@ -91,7 +91,7 @@ func (c *managerServiceClient) AttestationPolicy(ctx context.Context, in *Attest
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility.
 type ManagerServiceServer interface {
-	CreateVm(context.Context, *emptypb.Empty) (*CreateRes, error)
+	CreateVm(context.Context, *CreateReq) (*CreateRes, error)
 	RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error)
 	SVMInfo(context.Context, *SVMInfoReq) (*SVMInfoRes, error)
 	AttestationPolicy(context.Context, *AttestationPolicyReq) (*AttestationPolicyRes, error)
@@ -105,7 +105,7 @@ type ManagerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedManagerServiceServer struct{}
 
-func (UnimplementedManagerServiceServer) CreateVm(context.Context, *emptypb.Empty) (*CreateRes, error) {
+func (UnimplementedManagerServiceServer) CreateVm(context.Context, *CreateReq) (*CreateRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
 }
 func (UnimplementedManagerServiceServer) RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error) {
@@ -139,7 +139,7 @@ func RegisterManagerServiceServer(s grpc.ServiceRegistrar, srv ManagerServiceSer
 }
 
 func _ManagerService_CreateVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(CreateReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func _ManagerService_CreateVm_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: ManagerService_CreateVm_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagerServiceServer).CreateVm(ctx, req.(*emptypb.Empty))
+		return srv.(ManagerServiceServer).CreateVm(ctx, req.(*CreateReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }

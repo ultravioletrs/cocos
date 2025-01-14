@@ -94,6 +94,18 @@ func (v *qemuVM) Stop() error {
 		return fmt.Errorf("failed to send SIGTERM: %v", err)
 	}
 
+	if v.vmi.Config.CertsMount != "" {
+		if err := os.RemoveAll(v.vmi.Config.CertsMount); err != nil {
+			return fmt.Errorf("failed to remove certs mount: %v", err)
+		}
+	}
+
+	if v.vmi.Config.EnvMount != "" {
+		if err := os.RemoveAll(v.vmi.Config.EnvMount); err != nil {
+			return fmt.Errorf("failed to remove env mount: %v", err)
+		}
+	}
+
 	done := make(chan error, 1)
 	go func() {
 		_, err := v.cmd.Process.Wait()

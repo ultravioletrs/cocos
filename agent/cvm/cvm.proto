@@ -98,6 +98,5 @@ message AgentConfig {
   string key_file = 4;
   string client_ca_file = 5;
   string server_ca_file = 6;
-  string log_level = 7;
-  bool   attested_tls = 8;
+  bool   attested_tls = 7;
 }

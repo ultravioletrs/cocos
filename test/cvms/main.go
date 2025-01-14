@@ -84,7 +84,6 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.Sen
 				ResultConsumers: []*cvms.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &cvms.AgentConfig{
 					Port:        "7002",
-					LogLevel:    "debug",
 					AttestedTls: attestedTLS,
 				},
 			},
