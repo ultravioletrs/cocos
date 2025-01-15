@@ -13,8 +13,8 @@ import (
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
-	"github.com/ultravioletrs/cocos/agent/cvm"
-	cvmgrpc "github.com/ultravioletrs/cocos/agent/cvm/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	cvmgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
@@ -52,7 +52,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.Sen
 	}
 	pubPem, _ := pem.Decode(pubKey)
 
-	var datasets []*cvm.Dataset
+	var datasets []*cvms.Dataset
 	for _, dataPath := range dataPaths {
 		if _, err := os.Stat(dataPath); os.IsNotExist(err) {
 			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
@@ -64,7 +64,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.Sen
 			return
 		}
 
-		datasets = append(datasets, &cvm.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+		datasets = append(datasets, &cvms.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
 	}
 
 	algoHash, err := internal.Checksum(algoPath)
@@ -73,16 +73,16 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.Sen
 		return
 	}
 
-	if err := sendMessage(&cvm.ServerStreamMessage{
-		Message: &cvm.ServerStreamMessage_RunReq{
-			RunReq: &cvm.ComputationRunReq{
+	if err := sendMessage(&cvms.ServerStreamMessage{
+		Message: &cvms.ServerStreamMessage_RunReq{
+			RunReq: &cvms.ComputationRunReq{
 				Id:              "1",
 				Name:            "sample computation",
 				Description:     "sample descrption",
 				Datasets:        datasets,
-				Algorithm:       &cvm.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
-				ResultConsumers: []*cvm.ResultConsumer{{UserKey: pubPem.Bytes}},
-				AgentConfig: &cvm.AgentConfig{
+				Algorithm:       &cvms.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
+				ResultConsumers: []*cvms.ResultConsumer{{UserKey: pubPem.Bytes}},
+				AgentConfig: &cvms.AgentConfig{
 					Port:        "7002",
 					LogLevel:    "debug",
 					AttestedTls: attestedTLS,
@@ -113,7 +113,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	incomingChan := make(chan *cvm.ClientStreamMessage)
+	incomingChan := make(chan *cvms.ClientStreamMessage)
 
 	logger, err := mglog.New(os.Stdout, "debug")
 	if err != nil {
@@ -128,7 +128,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		cvm.RegisterCVMServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
+		cvms.RegisterCVMsServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
 		BaseConfig: server.BaseConfig{

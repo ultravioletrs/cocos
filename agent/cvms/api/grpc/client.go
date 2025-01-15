@@ -10,8 +10,8 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
-	"github.com/ultravioletrs/cocos/agent/cvm"
-	"github.com/ultravioletrs/cocos/agent/cvm/server"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,16 +23,16 @@ var (
 
 type CVMClient struct {
 	mu            sync.Mutex
-	stream        cvm.CVMService_ProcessClient
+	stream        cvms.CVMsService_ProcessClient
 	svc           agent.Service
-	messageQueue  chan *cvm.ClientStreamMessage
+	messageQueue  chan *cvms.ClientStreamMessage
 	logger        *slog.Logger
 	runReqManager *runRequestManager
 	sp            server.AgentServer
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvm.CVMService_ProcessClient, svc agent.Service, messageQueue chan *cvm.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMClient {
+func NewClient(stream cvms.CVMsService_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMClient {
 	return CVMClient{
 		stream:        stream,
 		svc:           svc,
@@ -74,11 +74,11 @@ func (client *CVMClient) handleIncomingMessages(ctx context.Context) error {
 	}
 }
 
-func (client *CVMClient) processIncomingMessage(ctx context.Context, req *cvm.ServerStreamMessage) error {
+func (client *CVMClient) processIncomingMessage(ctx context.Context, req *cvms.ServerStreamMessage) error {
 	switch mes := req.Message.(type) {
-	case *cvm.ServerStreamMessage_RunReqChunks:
+	case *cvms.ServerStreamMessage_RunReqChunks:
 		return client.handleRunReqChunks(ctx, mes)
-	case *cvm.ServerStreamMessage_StopComputation:
+	case *cvms.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
 	default:
 		return errors.New("unknown message type")
@@ -86,11 +86,11 @@ func (client *CVMClient) processIncomingMessage(ctx context.Context, req *cvm.Se
 	return nil
 }
 
-func (client *CVMClient) handleRunReqChunks(ctx context.Context, mes *cvm.ServerStreamMessage_RunReqChunks) error {
+func (client *CVMClient) handleRunReqChunks(ctx context.Context, mes *cvms.ServerStreamMessage_RunReqChunks) error {
 	buffer, complete := client.runReqManager.addChunk(mes.RunReqChunks.Id, mes.RunReqChunks.Data, mes.RunReqChunks.IsLast)
 
 	if complete {
-		var runReq cvm.ComputationRunReq
+		var runReq cvms.ComputationRunReq
 		if err := proto.Unmarshal(buffer, &runReq); err != nil {
 			return errors.Wrap(err, errCorruptedManifest)
 		}
@@ -101,7 +101,7 @@ func (client *CVMClient) handleRunReqChunks(ctx context.Context, mes *cvm.Server
 	return nil
 }
 
-func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.ComputationRunReq) {
+func (client *CVMClient) executeRun(ctx context.Context, runReq *cvms.ComputationRunReq) {
 	ac := agent.Computation{
 		ID:          runReq.Id,
 		Name:        runReq.Name,
@@ -137,11 +137,11 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 	defer client.mu.Unlock()
 
 	if runReq.AgentConfig == nil {
-		runReq.AgentConfig = &cvm.AgentConfig{}
+		runReq.AgentConfig = &cvms.AgentConfig{}
 	}
 
-	runRes := &cvm.ClientStreamMessage_RunRes{
-		RunRes: &cvm.RunResponse{
+	runRes := &cvms.ClientStreamMessage_RunRes{
+		RunRes: &cvms.RunResponse{
 			ComputationId: runReq.Id,
 		},
 	}
@@ -160,12 +160,12 @@ func (client *CVMClient) executeRun(ctx context.Context, runReq *cvm.Computation
 		runRes.RunRes.Error = err.Error()
 	}
 
-	client.sendMessage(&cvm.ClientStreamMessage{Message: runRes})
+	client.sendMessage(&cvms.ClientStreamMessage{Message: runRes})
 }
 
-func (client *CVMClient) handleStopComputation(ctx context.Context, mes *cvm.ServerStreamMessage_StopComputation) {
-	msg := &cvm.ClientStreamMessage_StopComputationRes{
-		StopComputationRes: &cvm.StopComputationResponse{
+func (client *CVMClient) handleStopComputation(ctx context.Context, mes *cvms.ServerStreamMessage_StopComputation) {
+	msg := &cvms.ClientStreamMessage_StopComputationRes{
+		StopComputationRes: &cvms.StopComputationResponse{
 			ComputationId: mes.StopComputation.ComputationId,
 		},
 	}
@@ -180,7 +180,7 @@ func (client *CVMClient) handleStopComputation(ctx context.Context, mes *cvm.Ser
 		msg.StopComputationRes.Message = err.Error()
 	}
 
-	client.sendMessage(&cvm.ClientStreamMessage{Message: msg})
+	client.sendMessage(&cvms.ClientStreamMessage{Message: msg})
 }
 
 func (client *CVMClient) handleOutgoingMessages(ctx context.Context) error {
@@ -196,7 +196,7 @@ func (client *CVMClient) handleOutgoingMessages(ctx context.Context) error {
 	}
 }
 
-func (client *CVMClient) sendMessage(mes *cvm.ClientStreamMessage) {
+func (client *CVMClient) sendMessage(mes *cvms.ClientStreamMessage) {
 	ctx, cancel := context.WithTimeout(context.Background(), sendTimeout)
 	defer cancel()
 

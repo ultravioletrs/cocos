@@ -7,7 +7,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/ultravioletrs/cocos/agent/cvm"
+	"github.com/ultravioletrs/cocos/agent/cvms"
 	"github.com/ultravioletrs/cocos/agent/events"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,10 +19,10 @@ type handler struct {
 	opts  slog.HandlerOptions
 	w     io.Writer
 	cmpID string
-	queue chan *cvm.ClientStreamMessage
+	queue chan *cvms.ClientStreamMessage
 }
 
-func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, queue chan *cvm.ClientStreamMessage) slog.Handler {
+func NewProtoHandler(conn io.Writer, opts *slog.HandlerOptions, queue chan *cvms.ClientStreamMessage) slog.Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
@@ -71,9 +71,9 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 			},
 		}
 
-		h.queue <- &cvm.ClientStreamMessage{
-			Message: &cvm.ClientStreamMessage_AgentLog{
-				AgentLog: &cvm.AgentLog{
+		h.queue <- &cvms.ClientStreamMessage{
+			Message: &cvms.ClientStreamMessage_AgentLog{
+				AgentLog: &cvms.AgentLog{
 					Timestamp:     timestamp,
 					Message:       chunk,
 					Level:         level,

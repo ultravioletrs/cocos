@@ -18,9 +18,9 @@ import (
 	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
-	"github.com/ultravioletrs/cocos/agent/cvm"
-	cvmapi "github.com/ultravioletrs/cocos/agent/cvm/api/grpc"
-	"github.com/ultravioletrs/cocos/agent/cvm/server"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	cvmapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
@@ -59,7 +59,7 @@ func main() {
 		return
 	}
 
-	eventsLogsQueue := make(chan *cvm.ClientStreamMessage, 1000)
+	eventsLogsQueue := make(chan *cvms.ClientStreamMessage, 1000)
 
 	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, eventsLogsQueue)
 	logger := slog.New(handler)

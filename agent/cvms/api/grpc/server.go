@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ultravioletrs/cocos/agent/cvm"
+	"github.com/ultravioletrs/cocos/agent/cvms"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	_                cvm.CVMServiceServer = (*grpcServer)(nil)
-	ErrUnexpectedMsg                      = errors.New("unknown message type")
+	_                cvms.CVMsServiceServer = (*grpcServer)(nil)
+	ErrUnexpectedMsg                        = errors.New("unknown message type")
 )
 
 const (
@@ -26,11 +26,11 @@ const (
 	runReqTimeout = 30 * time.Second
 )
 
-type SendFunc func(*cvm.ServerStreamMessage) error
+type SendFunc func(*cvms.ServerStreamMessage) error
 
 type grpcServer struct {
-	cvm.UnimplementedCVMServiceServer
-	incoming chan *cvm.ClientStreamMessage
+	cvms.UnimplementedCVMsServiceServer
+	incoming chan *cvms.ClientStreamMessage
 	svc      Service
 }
 
@@ -39,14 +39,14 @@ type Service interface {
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(incoming chan *cvm.ClientStreamMessage, svc Service) cvm.CVMServiceServer {
+func NewServer(incoming chan *cvms.ClientStreamMessage, svc Service) cvms.CVMsServiceServer {
 	return &grpcServer{
 		incoming: incoming,
 		svc:      svc,
 	}
 }
 
-func (s *grpcServer) Process(stream cvm.CVMService_ProcessServer) error {
+func (s *grpcServer) Process(stream cvms.CVMsService_ProcessServer) error {
 	client, ok := peer.FromContext(stream.Context())
 	if !ok {
 		return errors.New("failed to get peer info")
@@ -70,13 +70,13 @@ func (s *grpcServer) Process(stream cvm.CVMService_ProcessServer) error {
 	})
 
 	eg.Go(func() error {
-		sendMessage := func(msg *cvm.ServerStreamMessage) error {
+		sendMessage := func(msg *cvms.ServerStreamMessage) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
 				switch m := msg.Message.(type) {
-				case *cvm.ServerStreamMessage_RunReq:
+				case *cvms.ServerStreamMessage_RunReq:
 					return s.sendRunReqInChunks(stream, m.RunReq)
 				default:
 					return stream.Send(msg)
@@ -91,7 +91,7 @@ func (s *grpcServer) Process(stream cvm.CVMService_ProcessServer) error {
 	return eg.Wait()
 }
 
-func (s *grpcServer) sendRunReqInChunks(stream cvm.CVMService_ProcessServer, runReq *cvm.ComputationRunReq) error {
+func (s *grpcServer) sendRunReqInChunks(stream cvms.CVMsService_ProcessServer, runReq *cvms.ComputationRunReq) error {
 	data, err := proto.Marshal(runReq)
 	if err != nil {
 		return err
@@ -110,9 +110,9 @@ func (s *grpcServer) sendRunReqInChunks(stream cvm.CVMService_ProcessServer, run
 			return err
 		}
 
-		chunk := &cvm.ServerStreamMessage{
-			Message: &cvm.ServerStreamMessage_RunReqChunks{
-				RunReqChunks: &cvm.RunReqChunks{
+		chunk := &cvms.ServerStreamMessage{
+			Message: &cvms.ServerStreamMessage_RunReqChunks{
+				RunReqChunks: &cvms.RunReqChunks{
 					Id:     runReq.Id,
 					Data:   buf[:n],
 					IsLast: isLast,

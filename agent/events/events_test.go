@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/agent/cvm"
+	"github.com/ultravioletrs/cocos/agent/cvms"
 )
 
 func TestSendEventSuccess(t *testing.T) {
-	queue := make(chan *cvm.ClientStreamMessage, 1)
+	queue := make(chan *cvms.ClientStreamMessage, 1)
 	svc, err := New("test_service", queue)
 	assert.NoError(t, err)
 
