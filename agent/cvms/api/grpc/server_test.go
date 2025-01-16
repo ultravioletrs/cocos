@@ -128,7 +128,7 @@ func TestGrpcServer_sendRunReqInChunks(t *testing.T) {
 	runReq.Algorithm = &cvms.Algorithm{}
 	runReq.Algorithm.UserKey = largePayload
 
-	mockStream.On("Send", mock.AnythingOfType("*cvm.ServerStreamMessage")).Return(nil).Times(4)
+	mockStream.On("Send", mock.AnythingOfType("*cvms.ServerStreamMessage")).Return(nil).Times(4)
 
 	err := server.sendRunReqInChunks(mockStream, runReq)
 
@@ -245,7 +245,7 @@ func TestGrpcServer_sendRunReqInChunksError(t *testing.T) {
 	}
 
 	// Simulate an error when sending
-	mockStream.On("Send", mock.AnythingOfType("*cvm.ServerStreamMessage")).Return(errors.New("send error")).Once()
+	mockStream.On("Send", mock.AnythingOfType("*cvms.ServerStreamMessage")).Return(errors.New("send error")).Once()
 
 	err := server.sendRunReqInChunks(mockStream, runReq)
 
