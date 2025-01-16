@@ -23,7 +23,7 @@ var (
 
 type CVMClient struct {
 	mu            sync.Mutex
-	stream        cvms.CVMsService_ProcessClient
+	stream        cvms.Service_ProcessClient
 	svc           agent.Service
 	messageQueue  chan *cvms.ClientStreamMessage
 	logger        *slog.Logger
@@ -32,7 +32,7 @@ type CVMClient struct {
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.CVMsService_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMClient {
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMClient {
 	return CVMClient{
 		stream:        stream,
 		svc:           svc,

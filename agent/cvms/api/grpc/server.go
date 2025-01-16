@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	_                cvms.CVMsServiceServer = (*grpcServer)(nil)
-	ErrUnexpectedMsg                        = errors.New("unknown message type")
+	_                cvms.ServiceServer = (*grpcServer)(nil)
+	ErrUnexpectedMsg                    = errors.New("unknown message type")
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 type SendFunc func(*cvms.ServerStreamMessage) error
 
 type grpcServer struct {
-	cvms.UnimplementedCVMsServiceServer
+	cvms.UnimplementedServiceServer
 	incoming chan *cvms.ClientStreamMessage
 	svc      Service
 }
@@ -39,14 +39,14 @@ type Service interface {
 }
 
 // NewServer returns new AuthServiceServer instance.
-func NewServer(incoming chan *cvms.ClientStreamMessage, svc Service) cvms.CVMsServiceServer {
+func NewServer(incoming chan *cvms.ClientStreamMessage, svc Service) cvms.ServiceServer {
 	return &grpcServer{
 		incoming: incoming,
 		svc:      svc,
 	}
 }
 
-func (s *grpcServer) Process(stream cvms.CVMsService_ProcessServer) error {
+func (s *grpcServer) Process(stream cvms.Service_ProcessServer) error {
 	client, ok := peer.FromContext(stream.Context())
 	if !ok {
 		return errors.New("failed to get peer info")
@@ -91,7 +91,7 @@ func (s *grpcServer) Process(stream cvms.CVMsService_ProcessServer) error {
 	return eg.Wait()
 }
 
-func (s *grpcServer) sendRunReqInChunks(stream cvms.CVMsService_ProcessServer, runReq *cvms.ComputationRunReq) error {
+func (s *grpcServer) sendRunReqInChunks(stream cvms.Service_ProcessServer, runReq *cvms.ComputationRunReq) error {
 	data, err := proto.Marshal(runReq)
 	if err != nil {
 		return err

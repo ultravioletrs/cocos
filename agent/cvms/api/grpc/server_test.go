@@ -17,7 +17,7 @@ import (
 
 type mockServerStream struct {
 	mock.Mock
-	cvms.CVMsService_ProcessServer
+	cvms.Service_ProcessServer
 }
 
 func (m *mockServerStream) Send(msg *cvms.ServerStreamMessage) error {

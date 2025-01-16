@@ -128,7 +128,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		cvms.RegisterCVMsServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
+		cvms.RegisterServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
 		BaseConfig: server.BaseConfig{

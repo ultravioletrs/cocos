@@ -8,11 +8,11 @@ import (
 )
 
 // NewManagerClient creates new manager gRPC client instance.
-func NewCVMClient(cfg grpc.CVMClientConfig) (grpc.Client, cvms.CVMsServiceClient, error) {
+func NewCVMClient(cfg grpc.CVMClientConfig) (grpc.Client, cvms.ServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return client, cvms.NewCVMsServiceClient(client.Connection()), nil
+	return client, cvms.NewServiceClient(client.Connection()), nil
 }

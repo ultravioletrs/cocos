@@ -22,27 +22,27 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CVMsService_Process_FullMethodName = "/cvms.CVMsService/Process"
+	Service_Process_FullMethodName = "/cvms.Service/Process"
 )
 
-// CVMsServiceClient is the client API for CVMsService service.
+// ServiceClient is the client API for Service service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type CVMsServiceClient interface {
+type ServiceClient interface {
 	Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage], error)
 }
 
-type cVMsServiceClient struct {
+type serviceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewCVMsServiceClient(cc grpc.ClientConnInterface) CVMsServiceClient {
-	return &cVMsServiceClient{cc}
+func NewServiceClient(cc grpc.ClientConnInterface) ServiceClient {
+	return &serviceClient{cc}
 }
 
-func (c *cVMsServiceClient) Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage], error) {
+func (c *serviceClient) Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &CVMsService_ServiceDesc.Streams[0], CVMsService_Process_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Service_ServiceDesc.Streams[0], Service_Process_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,65 +51,65 @@ func (c *cVMsServiceClient) Process(ctx context.Context, opts ...grpc.CallOption
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type CVMsService_ProcessClient = grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage]
+type Service_ProcessClient = grpc.BidiStreamingClient[ClientStreamMessage, ServerStreamMessage]
 
-// CVMsServiceServer is the server API for CVMsService service.
-// All implementations must embed UnimplementedCVMsServiceServer
+// ServiceServer is the server API for Service service.
+// All implementations must embed UnimplementedServiceServer
 // for forward compatibility.
-type CVMsServiceServer interface {
+type ServiceServer interface {
 	Process(grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]) error
-	mustEmbedUnimplementedCVMsServiceServer()
+	mustEmbedUnimplementedServiceServer()
 }
 
-// UnimplementedCVMsServiceServer must be embedded to have
+// UnimplementedServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedCVMsServiceServer struct{}
+type UnimplementedServiceServer struct{}
 
-func (UnimplementedCVMsServiceServer) Process(grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]) error {
+func (UnimplementedServiceServer) Process(grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Process not implemented")
 }
-func (UnimplementedCVMsServiceServer) mustEmbedUnimplementedCVMsServiceServer() {}
-func (UnimplementedCVMsServiceServer) testEmbeddedByValue()                     {}
+func (UnimplementedServiceServer) mustEmbedUnimplementedServiceServer() {}
+func (UnimplementedServiceServer) testEmbeddedByValue()                 {}
 
-// UnsafeCVMsServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to CVMsServiceServer will
+// UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ServiceServer will
 // result in compilation errors.
-type UnsafeCVMsServiceServer interface {
-	mustEmbedUnimplementedCVMsServiceServer()
+type UnsafeServiceServer interface {
+	mustEmbedUnimplementedServiceServer()
 }
 
-func RegisterCVMsServiceServer(s grpc.ServiceRegistrar, srv CVMsServiceServer) {
-	// If the following call pancis, it indicates UnimplementedCVMsServiceServer was
+func RegisterServiceServer(s grpc.ServiceRegistrar, srv ServiceServer) {
+	// If the following call pancis, it indicates UnimplementedServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&CVMsService_ServiceDesc, srv)
+	s.RegisterService(&Service_ServiceDesc, srv)
 }
 
-func _CVMsService_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(CVMsServiceServer).Process(&grpc.GenericServerStream[ClientStreamMessage, ServerStreamMessage]{ServerStream: stream})
+func _Service_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ServiceServer).Process(&grpc.GenericServerStream[ClientStreamMessage, ServerStreamMessage]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type CVMsService_ProcessServer = grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]
+type Service_ProcessServer = grpc.BidiStreamingServer[ClientStreamMessage, ServerStreamMessage]
 
-// CVMsService_ServiceDesc is the grpc.ServiceDesc for CVMsService service.
+// Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var CVMsService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "cvms.CVMsService",
-	HandlerType: (*CVMsServiceServer)(nil),
+var Service_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "cvms.Service",
+	HandlerType: (*ServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Process",
-			Handler:       _CVMsService_Process_Handler,
+			Handler:       _Service_Process_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

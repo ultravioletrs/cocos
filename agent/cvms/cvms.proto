@@ -9,7 +9,7 @@ package cvms;
 
 option go_package = "./cvms";
 
-service CVMsService {
+service Service {
   rpc Process(stream ClientStreamMessage) returns (stream ServerStreamMessage) {}
 }
 
