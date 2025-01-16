@@ -33,8 +33,6 @@ type docker struct {
 	logger   *slog.Logger
 	stderr   io.Writer
 	stdout   io.Writer
-	ctx      context.Context
-	cancel   context.CancelFunc
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, cmpID string) algorithm.Algorithm {
@@ -44,8 +42,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc, CmpID: cmpID},
 		stdout:   &logging.Stdout{Logger: logger},
 	}
-
-	d.ctx, d.cancel = context.WithCancel(context.Background())
 
 	return d
 }
@@ -64,15 +60,16 @@ func (d *docker) Run() error {
 	}
 	defer imageFile.Close()
 
+	ctx := context.Background()
 	// Load the Docker image from the tar file.
-	resp, err := cli.ImageLoad(d.ctx, imageFile, true)
+	resp, err := cli.ImageLoad(ctx, imageFile, true)
 	if err != nil {
 		return fmt.Errorf("could not load Docker image from file: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// List the loaded images to get the image ID.
-	images, err := cli.ImageList(d.ctx, image.ListOptions{})
+	images, err := cli.ImageList(ctx, image.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("could not get the Docker image list: %v", err)
 	}
@@ -92,7 +89,7 @@ func (d *docker) Run() error {
 	}
 
 	// Create and start the container.
-	respContainer, err := cli.ContainerCreate(d.ctx, &container.Config{
+	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Image:        dockerImageName,
 		Tty:          true,
 		AttachStdout: true,
@@ -115,11 +112,11 @@ func (d *docker) Run() error {
 		return fmt.Errorf("could not create a Docker container: %v", err)
 	}
 
-	if err := cli.ContainerStart(d.ctx, respContainer.ID, container.StartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, respContainer.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("could not start a Docker container: %v", err)
 	}
 
-	stdout, err := cli.ContainerLogs(d.ctx, respContainer.ID, container.LogsOptions{ShowStdout: true, Follow: true})
+	stdout, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStdout: true, Follow: true})
 	if err != nil {
 		return fmt.Errorf("could not read stdout from the container: %v", err)
 	}
@@ -131,7 +128,7 @@ func (d *docker) Run() error {
 		}
 	}()
 
-	stderr, err := cli.ContainerLogs(d.ctx, respContainer.ID, container.LogsOptions{ShowStderr: true, Follow: true})
+	stderr, err := cli.ContainerLogs(ctx, respContainer.ID, container.LogsOptions{ShowStderr: true, Follow: true})
 	if err != nil {
 		d.logger.Warn(fmt.Sprintf("could not read stderr from the container: %v", err))
 	}
@@ -143,7 +140,7 @@ func (d *docker) Run() error {
 		}
 	}()
 
-	statusCh, errCh := cli.ContainerWait(d.ctx, respContainer.ID, container.WaitConditionNotRunning)
+	statusCh, errCh := cli.ContainerWait(ctx, respContainer.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -153,11 +150,11 @@ func (d *docker) Run() error {
 	}
 
 	defer func() {
-		if err = cli.ContainerRemove(d.ctx, respContainer.ID, container.RemoveOptions{Force: true}); err != nil {
+		if err = cli.ContainerRemove(ctx, respContainer.ID, container.RemoveOptions{Force: true}); err != nil {
 			d.logger.Warn(fmt.Sprintf("error could not remove container: %v", err))
 		}
 
-		if _, err := cli.ImageRemove(d.ctx, imageID, image.RemoveOptions{Force: true}); err != nil {
+		if _, err := cli.ImageRemove(ctx, imageID, image.RemoveOptions{Force: true}); err != nil {
 			d.logger.Warn(fmt.Sprintf("error could not remove image: %v", err))
 		}
 	}()
@@ -180,9 +177,6 @@ func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
 }
 
 func (d *docker) Stop() error {
-	if d.cancel != nil {
-		d.cancel()
-	}
-
+	// To be supported later.
 	return nil
 }
