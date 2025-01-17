@@ -35,8 +35,6 @@ var (
 const datasetFile = "iris.csv"
 
 func TestAlgo(t *testing.T) {
-	events := new(mocks.Service)
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -117,6 +115,7 @@ func TestAlgo(t *testing.T) {
 				metadata.Pairs(algorithm.AlgoTypeKey, tc.algoType, python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			events := new(mocks.Service)
 			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			defer evCall.Unset()
 
@@ -141,8 +140,6 @@ func TestAlgo(t *testing.T) {
 }
 
 func TestData(t *testing.T) {
-	events := new(mocks.Service)
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -209,6 +206,7 @@ func TestData(t *testing.T) {
 					python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			events := new(mocks.Service)
 			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			defer evCall.Unset()
 
@@ -244,8 +242,6 @@ func TestData(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	events := new(mocks.Service)
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -288,6 +284,7 @@ func TestResult(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		events := new(mocks.Service)
 		evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		defer evCall.Unset()
 		t.Run(tc.name, func(t *testing.T) {
@@ -328,7 +325,6 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	events := new(mocks.Service)
 	qp := new(mocks2.QuoteProvider)
 
 	cases := []struct {
@@ -352,6 +348,10 @@ func TestAttestation(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			events := new(mocks.Service)
+			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			defer evCall.Unset()
+
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
 			)
