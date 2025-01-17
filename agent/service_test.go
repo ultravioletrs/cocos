@@ -37,9 +37,6 @@ const datasetFile = "iris.csv"
 func TestAlgo(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -120,6 +117,9 @@ func TestAlgo(t *testing.T) {
 				metadata.Pairs(algorithm.AlgoTypeKey, tc.algoType, python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			defer evCall.Unset()
+
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			svc := New(ctx, mglog.NewMock(), events, qp)
@@ -142,9 +142,6 @@ func TestAlgo(t *testing.T) {
 
 func TestData(t *testing.T) {
 	events := new(mocks.Service)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
 
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
@@ -212,6 +209,9 @@ func TestData(t *testing.T) {
 					python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			defer evCall.Unset()
+
 			if tc.err != ErrUndeclaredDataset {
 				ctx = IndexToContext(ctx, 0)
 			}
@@ -245,9 +245,6 @@ func TestData(t *testing.T) {
 
 func TestResult(t *testing.T) {
 	events := new(mocks.Service)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
 
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
@@ -291,6 +288,8 @@ func TestResult(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		defer evCall.Unset()
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
@@ -331,9 +330,6 @@ func TestResult(t *testing.T) {
 func TestAttestation(t *testing.T) {
 	events := new(mocks.Service)
 	qp := new(mocks2.QuoteProvider)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
 
 	cases := []struct {
 		name       string
