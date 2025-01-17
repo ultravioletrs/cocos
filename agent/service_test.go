@@ -116,8 +116,7 @@ func TestAlgo(t *testing.T) {
 			)
 
 			events := new(mocks.Service)
-			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			defer evCall.Unset()
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -207,8 +206,7 @@ func TestData(t *testing.T) {
 			)
 
 			events := new(mocks.Service)
-			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			defer evCall.Unset()
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			if tc.err != ErrUndeclaredDataset {
 				ctx = IndexToContext(ctx, 0)
@@ -285,8 +283,8 @@ func TestResult(t *testing.T) {
 
 	for _, tc := range cases {
 		events := new(mocks.Service)
-		evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		defer evCall.Unset()
+		events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
@@ -349,8 +347,7 @@ func TestAttestation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			events := new(mocks.Service)
-			evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			defer evCall.Unset()
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),

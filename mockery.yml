@@ -93,7 +93,7 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "sdk.go"
           mockname: "{{.InterfaceName}}"
-  github.com/ultravioletrs/cocos/agent/cvm/server:
+  github.com/ultravioletrs/cocos/agent/cvms/server:
     interfaces:
       AgentServerProvider:
         config:
