@@ -246,7 +246,7 @@ func TestData(t *testing.T) {
 func TestResult(t *testing.T) {
 	events := new(mocks.Service)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	qp, err := quoteprovider.GetQuoteProvider()
@@ -332,7 +332,7 @@ func TestAttestation(t *testing.T) {
 	events := new(mocks.Service)
 	qp := new(mocks2.QuoteProvider)
 
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	defer evCall.Unset()
 
 	cases := []struct {
