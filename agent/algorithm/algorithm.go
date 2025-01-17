@@ -46,4 +46,7 @@ func AlgorithmArgsFromContext(ctx context.Context) []string {
 type Algorithm interface {
 	// Run executes the algorithm and returns the result.
 	Run() error
+
+	// Stop stops the algorithm.
+	Stop() error
 }

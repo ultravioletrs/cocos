@@ -11,6 +11,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/ultravioletrs/cocos/agent/cvms"
 )
 
 type failedWriter struct{}
@@ -21,14 +22,14 @@ func (f *failedWriter) Write(p []byte) (n int, err error) {
 
 // TestNewProtoHandler tests the initialization of the ProtoHandler.
 func TestNewProtoHandler(t *testing.T) {
-	handler := NewProtoHandler(io.Discard, nil, "testCmpID")
+	handler := NewProtoHandler(io.Discard, nil, make(chan *cvms.ClientStreamMessage))
 
 	assert.NotNil(t, handler, "Handler should not be nil")
 }
 
 // TestHandleMessageSuccess tests the handling of a message when the write succeeds.
 func TestHandleMessageSuccess(t *testing.T) {
-	handler := NewProtoHandler(io.Discard, nil, "testCmpID")
+	handler := NewProtoHandler(io.Discard, nil, make(chan *cvms.ClientStreamMessage, 1))
 	record := slog.Record{
 		Time:    time.Now(),
 		Message: "Test message",
@@ -42,7 +43,7 @@ func TestHandleMessageSuccess(t *testing.T) {
 
 // TestHandleMessageFailure tests the caching mechanism when the write fails.
 func TestHandleMessageFailure(t *testing.T) {
-	protohandler := NewProtoHandler(&failedWriter{}, nil, "testCmpID")
+	protohandler := NewProtoHandler(&failedWriter{}, nil, make(chan *cvms.ClientStreamMessage, 1))
 	record := slog.Record{
 		Time:    time.Now(),
 		Message: "Test message",
@@ -56,7 +57,7 @@ func TestHandleMessageFailure(t *testing.T) {
 
 // TestEnabled tests that the handler enables logging based on level.
 func TestEnabled(t *testing.T) {
-	handler := NewProtoHandler(io.Discard, nil, "testCmpID")
+	handler := NewProtoHandler(io.Discard, nil, make(chan *cvms.ClientStreamMessage, 1))
 
 	assert.True(t, handler.Enabled(context.Background(), slog.LevelInfo), "Logging should be enabled for LevelInfo")
 	assert.False(t, handler.Enabled(context.Background(), slog.LevelDebug), "Logging should be disabled for LevelDebug by default")
@@ -66,7 +67,7 @@ func TestEnabled(t *testing.T) {
 func TestCloseStopsRetry(t *testing.T) {
 	mockWriter := io.Discard
 
-	handler := NewProtoHandler(mockWriter, nil, "testCmpID").(*handler)
+	handler := NewProtoHandler(mockWriter, nil, make(chan *cvms.ClientStreamMessage, 1)).(*handler)
 
 	time.Sleep(2 * time.Second)
 	err := handler.Close()

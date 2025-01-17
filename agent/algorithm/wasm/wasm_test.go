@@ -18,7 +18,7 @@ func TestNewAlgorithm(t *testing.T) {
 	algoFile := "test.wasm"
 	args := []string{"arg1", "arg2"}
 
-	algo := NewAlgorithm(logger, eventsSvc, algoFile, args)
+	algo := NewAlgorithm(logger, eventsSvc, args, algoFile, "")
 
 	w, ok := algo.(*wasm)
 	if !ok {
@@ -54,7 +54,7 @@ func TestRunError(t *testing.T) {
 	algoFile := "test.wasm"
 	args := []string{"arg1", "arg2"}
 
-	w := NewAlgorithm(logger, eventsSvc, algoFile, args).(*wasm)
+	w := NewAlgorithm(logger, eventsSvc, args, algoFile, "").(*wasm)
 
 	err := w.Run()
 	if err == nil {

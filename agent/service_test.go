@@ -35,11 +35,6 @@ var (
 const datasetFile = "iris.csv"
 
 func TestAlgo(t *testing.T) {
-	events := new(mocks.Service)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -120,9 +115,15 @@ func TestAlgo(t *testing.T) {
 				metadata.Pairs(algorithm.AlgoTypeKey, tc.algoType, python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			events := new(mocks.Service)
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, qp)
+
+			err := svc.InitComputation(ctx, testComputation(t))
+			require.NoError(t, err)
 
 			time.Sleep(300 * time.Millisecond)
 
@@ -138,11 +139,6 @@ func TestAlgo(t *testing.T) {
 }
 
 func TestData(t *testing.T) {
-	events := new(mocks.Service)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -209,6 +205,9 @@ func TestData(t *testing.T) {
 					python.PyRuntimeKey, python.PyRuntime),
 			)
 
+			events := new(mocks.Service)
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
 			if tc.err != ErrUndeclaredDataset {
 				ctx = IndexToContext(ctx, 0)
 			}
@@ -216,13 +215,16 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			comp := testComputation(t)
+			svc := New(ctx, mglog.NewMock(), events, qp)
 
-			svc := New(ctx, mglog.NewMock(), events, comp, qp)
+			err := svc.InitComputation(ctx, testComputation(t))
+			require.NoError(t, err)
+
 			time.Sleep(300 * time.Millisecond)
 
 			if tc.err != ErrStateNotReady {
-				_ = svc.Algo(ctx, alg)
+				err = svc.Algo(ctx, alg)
+				require.NoError(t, err)
 				time.Sleep(300 * time.Millisecond)
 			}
 			err = svc.Data(ctx, tc.data)
@@ -238,11 +240,6 @@ func TestData(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	events := new(mocks.Service)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
-
 	qp, err := quoteprovider.GetQuoteProvider()
 	require.NoError(t, err)
 
@@ -285,6 +282,9 @@ func TestResult(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		events := new(mocks.Service)
+		events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
@@ -323,11 +323,7 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	events := new(mocks.Service)
 	qp := new(mocks2.QuoteProvider)
-
-	evCall := events.On("SendEvent", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	defer evCall.Unset()
 
 	cases := []struct {
 		name       string
@@ -350,6 +346,9 @@ func TestAttestation(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			events := new(mocks.Service)
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
 			ctx := metadata.NewIncomingContext(context.Background(),
 				metadata.Pairs(algorithm.AlgoTypeKey, "python", python.PyRuntimeKey, python.PyRuntime),
 			)
@@ -362,7 +361,7 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, testComputation(t), qp)
+			svc := New(ctx, mglog.NewMock(), events, qp)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -397,10 +396,5 @@ func testComputation(t *testing.T) Computation {
 		Datasets:        []Dataset{{Hash: dataHash, UserKey: []byte("key"), Dataset: data, Filename: datasetFile}},
 		Algorithm:       Algorithm{Hash: algoHash, UserKey: []byte("key"), Algorithm: algo},
 		ResultConsumers: []ResultConsumer{{UserKey: []byte("key")}},
-		AgentConfig: AgentConfig{
-			Port:        "7002",
-			LogLevel:    "debug",
-			AttestedTls: false,
-		},
 	}
 }

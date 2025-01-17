@@ -13,7 +13,6 @@ import (
 var _ fmt.Stringer = (*Datasets)(nil)
 
 type AgentConfig struct {
-	LogLevel     string `json:"log_level,omitempty"`
 	Host         string `json:"host,omitempty"`
 	Port         string `json:"port,omitempty"`
 	CertFile     string `json:"cert_file,omitempty"`
@@ -30,7 +29,6 @@ type Computation struct {
 	Datasets        Datasets         `json:"datasets,omitempty"`
 	Algorithm       Algorithm        `json:"algorithm,omitempty"`
 	ResultConsumers []ResultConsumer `json:"result_consumers,omitempty"`
-	AgentConfig     AgentConfig      `json:"agent_config,omitempty"`
 }
 
 type ResultConsumer struct {

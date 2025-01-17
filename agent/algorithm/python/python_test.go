@@ -50,7 +50,7 @@ func TestNewAlgorithm(t *testing.T) {
 	algoFile := "algorithm.py"
 	args := []string{"--arg1", "value1"}
 
-	algo := NewAlgorithm(logger, eventsSvc, runtime, requirementsFile, algoFile, args)
+	algo := NewAlgorithm(logger, eventsSvc, runtime, requirementsFile, algoFile, args, "")
 
 	p, ok := algo.(*python)
 	if !ok {

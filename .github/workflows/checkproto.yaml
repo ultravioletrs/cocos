@@ -33,8 +33,8 @@ jobs:
 
       - name: Set up protoc
         run: |
-          PROTOC_VERSION=28.1
-          PROTOC_GEN_VERSION=v1.34.2
+          PROTOC_VERSION=29.0
+          PROTOC_GEN_VERSION=v1.36.0
           PROTOC_GRPC_VERSION=v1.5.1
 
           # Download and install protoc

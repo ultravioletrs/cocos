@@ -35,11 +35,11 @@ type docker struct {
 	stdout   io.Writer
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, cmpID string) algorithm.Algorithm {
 	d := &docker{
 		algoFile: algoFile,
 		logger:   logger,
-		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc},
+		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc, CmpID: cmpID},
 		stdout:   &logging.Stdout{Logger: logger},
 	}
 
@@ -47,8 +47,6 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 }
 
 func (d *docker) Run() error {
-	ctx := context.Background()
-
 	// Create a new Docker client.
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -62,6 +60,7 @@ func (d *docker) Run() error {
 	}
 	defer imageFile.Close()
 
+	ctx := context.Background()
 	// Load the Docker image from the tar file.
 	resp, err := cli.ImageLoad(ctx, imageFile, true)
 	if err != nil {
@@ -174,5 +173,10 @@ func writeToOut(readCloser io.ReadCloser, ioWriter io.Writer) error {
 		return fmt.Errorf("error reading container logs error: %v", err)
 	}
 
+	return nil
+}
+
+func (d *docker) Stop() error {
+	// To be supported later.
 	return nil
 }

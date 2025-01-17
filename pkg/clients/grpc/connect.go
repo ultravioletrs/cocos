@@ -68,7 +68,7 @@ type AgentClientConfig struct {
 	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
 }
 
-type ManagerClientConfig struct {
+type CVMClientConfig struct {
 	BaseConfig
 }
 
@@ -80,7 +80,7 @@ func (a AgentClientConfig) GetBaseConfig() BaseConfig {
 	return a.BaseConfig
 }
 
-func (a ManagerClientConfig) GetBaseConfig() BaseConfig {
+func (a CVMClientConfig) GetBaseConfig() BaseConfig {
 	return a.BaseConfig
 }
 

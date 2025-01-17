@@ -3,77 +3,68 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/google/go-sev-guest/abi"
+	"github.com/caarlos0/env/v11"
 	"github.com/google/go-sev-guest/client"
-	"github.com/mdlayher/vsock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
-	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
-	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	cvmapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
+	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
-	"github.com/ultravioletrs/cocos/internal/server"
-	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
-	ackvsock "github.com/ultravioletrs/cocos/internal/vsock"
-	managerevents "github.com/ultravioletrs/cocos/manager/events"
-	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	"golang.org/x/crypto/sha3"
+	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	cvmgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 const (
-	svcName        = "agent"
-	defSvcGRPCPort = "7002"
-	retryInterval  = 5 * time.Second
+	svcName          = "agent"
+	defSvcGRPCPort   = "7002"
+	retryInterval    = 5 * time.Second
+	envPrefixCVMGRPC = "AGENT_CVM_GRPC_"
 )
+
+type config struct {
+	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 
-	cfg, err := readConfig()
-	if err != nil {
-		log.Fatalf("failed to read agent configuration from vsock %s", err.Error())
+	var cfg config
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatalf("failed to load %s configuration : %s", svcName, err)
 	}
-
-	conn, err := dialVsock()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	ackConn := ackvsock.NewAckWriter(conn)
 
 	var exitCode int
 	defer mglog.ExitWithError(&exitCode)
 
 	var level slog.Level
-	if err := level.UnmarshalText([]byte(cfg.AgentConfig.LogLevel)); err != nil {
+	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
 		log.Println(err)
 		exitCode = 1
 		return
 	}
 
-	handler := agentlogger.NewProtoHandler(ackConn, &slog.HandlerOptions{Level: level}, cfg.ID)
+	eventsLogsQueue := make(chan *cvms.ClientStreamMessage, 1000)
+
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, eventsLogsQueue)
 	logger := slog.New(handler)
 
-	eventSvc, err := events.New(svcName, cfg.ID, ackConn)
+	eventSvc, err := events.New(svcName, eventsLogsQueue)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		exitCode = 1
@@ -87,64 +78,49 @@ func main() {
 		return
 	}
 
-	if err := verifyManifest(cfg, qp); err != nil {
+	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
+	if err := env.ParseWithOptions(&cvmGrpcConfig, env.Options{Prefix: envPrefixCVMGRPC}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
+		exitCode = 1
+		return
+	}
+
+	cvmGRPCClient, cvmClient, err := cvmgrpc.NewCVMClient(cvmGrpcConfig)
+	if err != nil {
+		logger.Error(err.Error())
+		exitCode = 1
+		return
+	}
+	defer cvmGRPCClient.Close()
+
+	pc, err := cvmClient.Process(ctx)
+	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}
 
-	setDefaultValues(&cfg)
+	svc := newService(ctx, logger, eventSvc, qp)
 
-	svc := newService(ctx, logger, eventSvc, cfg, qp)
-
-	agentGrpcServerConfig := server.AgentConfig{
-		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
-				Host:         cfg.AgentConfig.Host,
-				Port:         cfg.AgentConfig.Port,
-				CertFile:     cfg.AgentConfig.CertFile,
-				KeyFile:      cfg.AgentConfig.KeyFile,
-				ServerCAFile: cfg.AgentConfig.ServerCAFile,
-				ClientCAFile: cfg.AgentConfig.ClientCAFile,
-			},
-		},
-		AttestedTLS: cfg.AgentConfig.AttestedTls,
-	}
-
-	registerAgentServiceServer := func(srv *grpc.Server) {
-		reflection.Register(srv)
-		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(svc))
-	}
-
-	authSvc, err := auth.New(cfg)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
-		exitCode = 1
-		return
-	}
-
-	gs := grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, logger, qp, authSvc)
+	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc))
 
 	g.Go(func() error {
-		for {
-			if _, err := io.Copy(io.Discard, conn); err != nil {
-				log.Printf("vsock connection lost: %v, reconnecting...", err)
-				conn.Close()
-				conn, err = dialVsock()
-				if err != nil {
-					log.Fatal("failed to reconnect: ", err)
-				}
-			}
-			time.Sleep(retryInterval)
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(ch)
+
+		select {
+		case <-ch:
+			logger.Info("Received signal, shutting down...")
+			cancel()
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	})
 
 	g.Go(func() error {
-		return gs.Start()
-	})
-
-	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, gs)
+		return mc.Process(ctx, cancel)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -152,113 +128,12 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, cmp agent.Computation, qp client.QuoteProvider) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, cmp, qp)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.QuoteProvider) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, qp)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
-}
-
-func readConfig() (agent.Computation, error) {
-	l, err := vsock.Listen(qemu.VsockConfigPort, nil)
-	if err != nil {
-		return agent.Computation{}, err
-	}
-	defer l.Close()
-
-	conn, err := l.Accept()
-	if err != nil {
-		return agent.Computation{}, err
-	}
-	defer conn.Close()
-
-	var buffer []byte
-	for {
-		chunk := make([]byte, 1024)
-		n, err := conn.Read(chunk)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return agent.Computation{}, err
-		}
-		buffer = append(buffer, chunk[:n]...)
-	}
-
-	ac := agent.Computation{
-		AgentConfig: agent.AgentConfig{},
-	}
-	if err := json.Unmarshal(buffer, &ac); err != nil {
-		return agent.Computation{}, err
-	}
-	return ac, nil
-}
-
-func setDefaultValues(cfg *agent.Computation) {
-	if cfg.AgentConfig.LogLevel == "" {
-		cfg.AgentConfig.LogLevel = "info"
-	}
-	if cfg.AgentConfig.Port == "" {
-		cfg.AgentConfig.Port = defSvcGRPCPort
-	}
-}
-
-func isTEE() bool {
-	_, err := os.Stat("/dev/sev-guest")
-	return !os.IsNotExist(err)
-}
-
-func dialVsock() (*vsock.Conn, error) {
-	var conn *vsock.Conn
-	var err error
-
-	err = backoff.Retry(func() error {
-		conn, err = vsock.Dial(vsock.Host, managerevents.ManagerVsockPort, nil)
-		if err == nil {
-			log.Println("vsock connection established")
-			return nil
-		}
-		log.Printf("vsock connection failed, retrying in %s... Error: %v", retryInterval, err)
-		return err
-	}, backoff.NewExponentialBackOff())
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
-}
-
-func verifyManifest(cfg agent.Computation, qp client.QuoteProvider) error {
-	if !isTEE() {
-		return nil
-	}
-
-	ar, err := qp.GetRawQuote(sha3.Sum512([]byte(cfg.ID)))
-	if err != nil {
-		return err
-	}
-
-	arProto, err := abi.ReportCertsToProto(ar[:abi.ReportSize])
-	if err != nil {
-		return err
-	}
-
-	cfgBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-
-	mcHash := sha3.Sum256(cfgBytes)
-
-	if arProto.Report.HostData == nil {
-		return fmt.Errorf("manifest verification failed: HostData is nil")
-	}
-	if !bytes.Equal(arProto.Report.HostData, mcHash[:]) {
-		return fmt.Errorf("manifest verification failed")
-	}
-
-	return nil
 }

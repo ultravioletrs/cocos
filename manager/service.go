@@ -166,16 +166,6 @@ func (ms *managerService) Run(ctx context.Context, c *ComputationRunReq) (string
 		ID:          c.Id,
 		Name:        c.Name,
 		Description: c.Description,
-		AgentConfig: agent.AgentConfig{
-			Port:         c.AgentConfig.Port,
-			Host:         c.AgentConfig.Host,
-			KeyFile:      c.AgentConfig.KeyFile,
-			CertFile:     c.AgentConfig.CertFile,
-			ServerCAFile: c.AgentConfig.ServerCaFile,
-			ClientCAFile: c.AgentConfig.ClientCaFile,
-			LogLevel:     c.AgentConfig.LogLevel,
-			AttestedTls:  c.AgentConfig.AttestedTls,
-		},
 	}
 	if len(c.Algorithm.Hash) != hashLength {
 		ms.publishEvent(manager.VmProvision.String(), c.Id, agent.Failed.String(), json.RawMessage{})
