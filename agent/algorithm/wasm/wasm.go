@@ -27,7 +27,7 @@ type wasm struct {
 	cmd      *exec.Cmd
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string, cmpID string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, args []string, algoFile, cmpID string) algorithm.Algorithm {
 	return &wasm{
 		algoFile: algoFile,
 		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc, CmpID: cmpID},

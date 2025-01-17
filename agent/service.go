@@ -296,7 +296,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		runtime := python.PythonRunTimeFromContext(ctx)
 		as.algorithm = python.NewAlgorithm(as.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args, as.computation.ID)
 	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args, as.computation.ID)
+		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, args, f.Name(), as.computation.ID)
 	case string(algorithm.AlgoTypeDocker):
 		as.algorithm = docker.NewAlgorithm(as.logger, as.eventSvc, f.Name(), as.computation.ID)
 	}

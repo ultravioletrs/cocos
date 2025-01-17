@@ -35,7 +35,7 @@ type docker struct {
 	stdout   io.Writer
 }
 
-func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, cmpID string) algorithm.Algorithm {
+func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, cmpID string) algorithm.Algorithm {
 	d := &docker{
 		algoFile: algoFile,
 		logger:   logger,
