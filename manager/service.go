@@ -26,8 +26,17 @@ import (
 )
 
 const (
-	hashLength     = 32
-	persistenceDir = "/tmp/cocos"
+	hashLength              = 32
+	persistenceDir          = "/tmp/cocos"
+	agentLogLevelKey        = "AGENT_LOG_LEVEL"
+	agentCvmGrpcUrlKey      = "AGENT_CVM_GRPC_URL"
+	agentCvmClientCertKey   = "AGENT_CVM_CLIENT_CERT"
+	agentCvmClientKey       = "AGENT_CVM_CLIENT_KEY"
+	agentCvmServerCaCertKey = "AGENT_CVM_SERVER_CA_CERT"
+	defClientCertPath       = "/etc/certs/cert.pem"
+	defClientKeyPath        = "/etc/certs/key.pem"
+	defServerCaCertPath     = "/etc/certs/ca.pem"
+	cvmEnvironmentFile      = "environment"
 )
 
 var (
@@ -391,21 +400,21 @@ func tmpEnvironment(id string, req *CreateReq) (string, error) {
 	}
 
 	envMap := map[string]string{
-		"AGENT_LOG_LEVEL":    req.AgentLogLevel,
-		"AGENT_CVM_GRPC_URL": req.AgentCvmServerUrl,
+		agentLogLevelKey:   req.AgentLogLevel,
+		agentCvmGrpcUrlKey: req.AgentCvmServerUrl,
 	}
 
 	if req.AgentCvmClientCert != nil {
-		envMap["AGENT_CVM_CLIENT_CERT"] = "/etc/certs/cert.pem"
+		envMap[agentCvmClientCertKey] = defClientCertPath
 	}
 	if req.AgentCvmClientKey != nil {
-		envMap["AGENT_CVM_CLIENT_KEY"] = "/etc/certs/key.pem"
+		envMap[agentCvmClientKey] = defClientKeyPath
 	}
 	if req.AgentCvmServerCaCert != nil {
-		envMap["AGENT_CVM_SERVER_CA_CERT"] = "/etc/certs/ca.pem"
+		envMap[agentCvmServerCaCertKey] = defServerCaCertPath
 	}
 
-	envFile, err := os.OpenFile(fmt.Sprintf("%s/%s", dir, "environment"), os.O_CREATE|os.O_WRONLY, 0o644)
+	envFile, err := os.OpenFile(fmt.Sprintf("%s/%s", dir, cvmEnvironmentFile), os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return "", err
 	}

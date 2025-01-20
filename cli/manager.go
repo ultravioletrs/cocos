@@ -10,6 +10,14 @@ import (
 	"github.com/ultravioletrs/cocos/manager"
 )
 
+const (
+	serverURL = "server-url"
+	serverCA  = "server-ca"
+	clientKey = "client-key"
+	clientCrt = "client-crt"
+	logLevel  = "log-level"
+)
+
 var (
 	agentCVMServerUrl string
 	agentCVMServerCA  string
@@ -52,11 +60,11 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&agentCVMServerUrl, "server-url", "", "CVM server URL")
-	cmd.Flags().StringVar(&agentCVMServerCA, "server-ca", "", "CVM server CA")
-	cmd.Flags().StringVar(&agentCVMClientKey, "client-key", "", "CVM client key")
-	cmd.Flags().StringVar(&agentCVMClientCrt, "client-crt", "", "CVM client crt")
-	cmd.Flags().StringVar(&agentLogLevel, "log-level", "", "Log level")
+	cmd.Flags().StringVar(&agentCVMServerUrl, serverURL, "", "CVM server URL")
+	cmd.Flags().StringVar(&agentCVMServerCA, serverCA, "", "CVM server CA")
+	cmd.Flags().StringVar(&agentCVMClientKey, clientKey, "", "CVM client key")
+	cmd.Flags().StringVar(&agentCVMClientCrt, clientCrt, "", "CVM client crt")
+	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
 
 	return cmd
 }
