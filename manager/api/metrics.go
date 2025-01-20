@@ -32,22 +32,22 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) Run(ctx context.Context, mc *manager.ComputationRunReq) (string, error) {
+func (ms *metricsMiddleware) CreateVM(ctx context.Context) (string, string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Run(ctx, mc)
+	return ms.svc.CreateVM(ctx)
 }
 
-func (ms *metricsMiddleware) Stop(ctx context.Context, computationID string) error {
+func (ms *metricsMiddleware) RemoveVM(ctx context.Context, computationID string) error {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Stop").Add(1)
 		ms.latency.With("method", "Stop").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.Stop(ctx, computationID)
+	return ms.svc.RemoveVM(ctx, computationID)
 }
 
 func (ms *metricsMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId string) ([]byte, error) {
@@ -57,10 +57,6 @@ func (ms *metricsMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId s
 	}(time.Now())
 
 	return ms.svc.FetchAttestationPolicy(ctx, cmpId)
-}
-
-func (ms *metricsMiddleware) ReportBrokenConnection(addr string) {
-	ms.svc.ReportBrokenConnection(addr)
 }
 
 func (ms *metricsMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {

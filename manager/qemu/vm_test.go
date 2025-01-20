@@ -6,10 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 )
@@ -19,7 +17,7 @@ const testComputationID = "test-computation"
 func TestNewVM(t *testing.T) {
 	config := VMInfo{Config: Config{}}
 
-	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID)
+	vm := NewVM(config, testComputationID)
 
 	assert.NotNil(t, vm)
 	assert.IsType(t, &qemuVM{}, vm)
@@ -38,7 +36,7 @@ func TestStart(t *testing.T) {
 		QemuBinPath: "echo",
 	}}
 
-	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
+	vm := NewVM(config, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -61,7 +59,7 @@ func TestStartSudo(t *testing.T) {
 		UseSudo:     true,
 	}}
 
-	vm := NewVM(config, func(event interface{}) error { return nil }, testComputationID).(*qemuVM)
+	vm := NewVM(config, testComputationID).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -101,9 +99,6 @@ func TestStop(t *testing.T) {
 				Process: cmd.Process,
 			},
 			StateMachine: sm,
-			eventsLogsSender: func(event interface{}) error {
-				return nil
-			},
 		}
 
 		err = vm.Stop()
@@ -164,32 +159,4 @@ func TestGetConfig(t *testing.T) {
 
 	config := vm.GetConfig()
 	assert.Equal(t, expectedConfig, config)
-}
-
-func TestCheckVMProcessPeriodically(t *testing.T) {
-	logsChan := make(chan interface{}, 1)
-	vmi := &qemuVM{
-		eventsLogsSender: func(event interface{}) error {
-			logsChan <- event
-			return nil
-		},
-		computationId: testComputationID,
-		cmd: &exec.Cmd{
-			Process: &os.Process{Pid: -1}, // Use an invalid PID to simulate a stopped process
-		},
-		StateMachine: vm.NewStateMachine(),
-	}
-
-	go vmi.checkVMProcessPeriodically()
-
-	select {
-	case msg := <-logsChan:
-		assert.NotNil(t, msg)
-		msgE := msg.(*vm.Event)
-		assert.Equal(t, testComputationID, msgE.ComputationId)
-		assert.Equal(t, pkgmanager.VmProvision.String(), msgE.EventType)
-		assert.Equal(t, pkgmanager.Stopped.String(), msgE.Status)
-	case <-time.After(2 * interval):
-		t.Fatal("Timeout waiting for VM stopped message")
-	}
 }

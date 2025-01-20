@@ -13,7 +13,6 @@ import (
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -31,19 +30,17 @@ type VMInfo struct {
 }
 
 type qemuVM struct {
-	vmi              VMInfo
-	cmd              *exec.Cmd
-	eventsLogsSender vm.EventSender
-	computationId    string
+	vmi           VMInfo
+	cmd           *exec.Cmd
+	computationId string
 	vm.StateMachine
 }
 
-func NewVM(config interface{}, eventsLogsSender vm.EventSender, computationId string) vm.VM {
+func NewVM(config interface{}, computationId string) vm.VM {
 	return &qemuVM{
-		vmi:              config.(VMInfo),
-		eventsLogsSender: eventsLogsSender,
-		computationId:    computationId,
-		StateMachine:     vm.NewStateMachine(),
+		vmi:           config.(VMInfo),
+		computationId: computationId,
+		StateMachine:  vm.NewStateMachine(),
 	}
 }
 
@@ -79,8 +76,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.cmd = exec.Command(exe, args...)
-	v.cmd.Stdout = &vm.Stdout{ComputationId: v.computationId, EventSender: v.eventsLogsSender}
-	v.cmd.Stderr = &vm.Stderr{EventSender: v.eventsLogsSender, ComputationId: v.computationId, StateMachine: v.StateMachine}
+	v.cmd.Stdout = os.Stdout
+	v.cmd.Stderr = os.Stderr
 
 	return v.cmd.Start()
 }
@@ -89,15 +86,7 @@ func (v *qemuVM) Stop() error {
 	defer func() {
 		err := v.StateMachine.Transition(manager.StopComputationRun)
 		if err != nil {
-			if err := v.eventsLogsSender(&vm.Event{
-				EventType:     v.StateMachine.State(),
-				Timestamp:     timestamppb.Now(),
-				ComputationId: v.computationId,
-				Originator:    "manager",
-				Status:        manager.Warning.String(),
-			}); err != nil {
-				return
-			}
+			return
 		}
 	}()
 	err := v.cmd.Process.Signal(syscall.SIGTERM)
@@ -163,15 +152,6 @@ func (v *qemuVM) executableAndArgs() (string, []string, error) {
 func (v *qemuVM) checkVMProcessPeriodically() {
 	for {
 		if !processExists(v.GetProcess()) {
-			if err := v.eventsLogsSender(&vm.Event{
-				EventType:     v.StateMachine.State(),
-				Timestamp:     timestamppb.Now(),
-				ComputationId: v.computationId,
-				Originator:    "manager",
-				Status:        manager.Stopped.String(),
-			}); err != nil {
-				return
-			}
 			break
 		}
 		time.Sleep(interval)

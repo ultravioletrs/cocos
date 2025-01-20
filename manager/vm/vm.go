@@ -21,7 +21,7 @@ type VM interface {
 	GetConfig() interface{}
 }
 
-type Provider func(config interface{}, eventSender EventSender, computationId string) VM
+type Provider func(config interface{}, computationId string) VM
 
 type Event struct {
 	EventType     string
@@ -38,5 +38,3 @@ type Log struct {
 	Level         string
 	Timestamp     *timestamppb.Timestamp
 }
-
-type EventSender func(event interface{}) error

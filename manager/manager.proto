@@ -3,40 +3,34 @@
 
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 package manager;
 
 option go_package = "./manager";
 
 service ManagerService {
-  rpc Process(stream ClientStreamMessage) returns (stream ServerStreamMessage) {}
+  rpc CreateVm(google.protobuf.Empty) returns (CreateRes) {}
+  rpc RemoveVm(RemoveReq) returns (google.protobuf.Empty) {}
+  rpc SVMInfo(SVMInfoReq) returns (SVMInfoRes) {}
+  rpc AttestationPolicy(AttestationPolicyReq) returns (AttestationPolicyRes) {}
 }
 
-message Terminate {
-  string message = 1;
+message CreateRes{
+  string forwarded_port = 1;
+  string svm_id = 2;
 }
 
-message StopComputation {
-  string computation_id = 1;
+message RemoveReq{
+  string svm_id = 1;
 }
 
-message StopComputationResponse {
-  string computation_id = 1;
-  string message = 2;
-}
-
-message RunResponse{
-  string agent_port = 1;
-  string computation_id = 2;
-}
-
-message AttestationPolicy{
+message AttestationPolicyRes{
   bytes info = 1;
   string id = 2;
 }
 
-message SVMInfo{
+message SVMInfoRes{
   string id = 1;
   string ovmf_version = 2;
   int32 cpu_num = 3;
@@ -45,91 +39,11 @@ message SVMInfo{
   string eos_version = 6;
 }
 
-message AgentEvent {
-  string event_type = 1;
-	google.protobuf.Timestamp timestamp = 2;
-	string	computation_id = 3;
-	bytes	details = 4;
-	string	originator = 5;
-	string	status = 6;
-}
-
-message AgentLog {
-  string message = 1;
-  string computation_id = 2;
-  string level = 3;
-  google.protobuf.Timestamp timestamp = 4;
-}
-
-message ClientStreamMessage {
-  oneof message {
-    AgentLog agent_log = 1;
-    AgentEvent agent_event = 2;
-    RunResponse run_res = 3;
-    AttestationPolicy attestationPolicy = 4;
-    StopComputationResponse stopComputationRes = 5;
-    SVMInfo svm_info = 6;
-  }
-}
-
-message ServerStreamMessage {
-  oneof message {
-    RunReqChunks runReqChunks = 1;
-    ComputationRunReq runReq = 2;
-    Terminate terminateReq = 3;
-    StopComputation stopComputation = 4;
-    AttestationPolicyReq attestationPolicyReq = 5;
-    SVMInfoReq svmInfoReq = 6;
-  }
-}
-
-message RunReqChunks {
-  bytes data = 1;
-  string id = 2;
-  bool is_last = 3;
-}
-
-message ComputationRunReq {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-  repeated Dataset datasets = 4;
-  Algorithm algorithm = 5;
-  repeated ResultConsumer result_consumers = 6;
-  AgentConfig agent_config = 7;
-}
-
 message AttestationPolicyReq {
   string id = 1;
 }
 
 message SVMInfoReq {
   string id = 1;
-}
-
-message ResultConsumer {
-  bytes userKey = 1;
-}
-
-message Dataset {
-  bytes hash = 1; // should be sha3.Sum256, 32 byte length.
-  bytes userKey = 2;
-  string filename = 3;
-}
-
-message Algorithm {
-  bytes hash = 1; // should be sha3.Sum256, 32 byte length.
-  bytes userKey = 2;
-}
-
-message AgentConfig {
-  string port = 1;
-  string host = 2;
-  string cert_file = 3;
-  string key_file = 4;
-  string client_ca_file = 5;
-  string server_ca_file = 6;
-  string log_level = 7;
-  bool   attested_tls = 8;
 }
 

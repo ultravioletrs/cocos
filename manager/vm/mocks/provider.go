@@ -23,17 +23,17 @@ func (_m *Provider) EXPECT() *Provider_Expecter {
 	return &Provider_Expecter{mock: &_m.Mock}
 }
 
-// Execute provides a mock function with given fields: config, eventSender, computationId
-func (_m *Provider) Execute(config interface{}, eventSender vm.EventSender, computationId string) vm.VM {
-	ret := _m.Called(config, eventSender, computationId)
+// Execute provides a mock function with given fields: config, computationId
+func (_m *Provider) Execute(config interface{}, computationId string) vm.VM {
+	ret := _m.Called(config, computationId)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Execute")
 	}
 
 	var r0 vm.VM
-	if rf, ok := ret.Get(0).(func(interface{}, vm.EventSender, string) vm.VM); ok {
-		r0 = rf(config, eventSender, computationId)
+	if rf, ok := ret.Get(0).(func(interface{}, string) vm.VM); ok {
+		r0 = rf(config, computationId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(vm.VM)
@@ -50,15 +50,14 @@ type Provider_Execute_Call struct {
 
 // Execute is a helper method to define mock.On call
 //   - config interface{}
-//   - eventSender vm.EventSender
 //   - computationId string
-func (_e *Provider_Expecter) Execute(config interface{}, eventSender interface{}, computationId interface{}) *Provider_Execute_Call {
-	return &Provider_Execute_Call{Call: _e.mock.On("Execute", config, eventSender, computationId)}
+func (_e *Provider_Expecter) Execute(config interface{}, computationId interface{}) *Provider_Execute_Call {
+	return &Provider_Execute_Call{Call: _e.mock.On("Execute", config, computationId)}
 }
 
-func (_c *Provider_Execute_Call) Run(run func(config interface{}, eventSender vm.EventSender, computationId string)) *Provider_Execute_Call {
+func (_c *Provider_Execute_Call) Run(run func(config interface{}, computationId string)) *Provider_Execute_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}), args[1].(vm.EventSender), args[2].(string))
+		run(args[0].(interface{}), args[1].(string))
 	})
 	return _c
 }
@@ -68,7 +67,7 @@ func (_c *Provider_Execute_Call) Return(_a0 vm.VM) *Provider_Execute_Call {
 	return _c
 }
 
-func (_c *Provider_Execute_Call) RunAndReturn(run func(interface{}, vm.EventSender, string) vm.VM) *Provider_Execute_Call {
+func (_c *Provider_Execute_Call) RunAndReturn(run func(interface{}, string) vm.VM) *Provider_Execute_Call {
 	_c.Call.Return(run)
 	return _c
 }
