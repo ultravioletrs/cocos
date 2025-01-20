@@ -10,10 +10,18 @@ package manager;
 option go_package = "./manager";
 
 service ManagerService {
-  rpc CreateVm(google.protobuf.Empty) returns (CreateRes) {}
+  rpc CreateVm(CreateReq) returns (CreateRes) {}
   rpc RemoveVm(RemoveReq) returns (google.protobuf.Empty) {}
   rpc SVMInfo(SVMInfoReq) returns (SVMInfoRes) {}
   rpc AttestationPolicy(AttestationPolicyReq) returns (AttestationPolicyRes) {}
+}
+
+message CreateReq{
+  string agent_log_level = 1;
+  bytes agent_cvm_server_ca_cert = 2;
+  bytes agent_cvm_client_key = 3;
+  bytes agent_cvm_client_cert = 4;
+  string agent_cvm_server_url = 5;
 }
 
 message CreateRes{

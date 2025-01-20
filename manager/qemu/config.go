@@ -106,6 +106,10 @@ type Config struct {
 
 	// ports
 	HostFwdRange string `env:"HOST_FWD_RANGE" envDefault:"6100-6200"`
+
+	// mounts
+	CertsMount string `env:"CERTS_MOUNT" envDefault:""`
+	EnvMount   string `env:"ENV_MOUNT"   envDefault:""`
 }
 
 func (config Config) ConstructQemuArgs() []string {
@@ -215,6 +219,16 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	args = append(args, "-monitor", config.Monitor)
+
+	if config.CertsMount != "" {
+		args = append(args, "-fsdev", fmt.Sprintf("local,id=cert_fs,path=%s,security_model=mapped", config.CertsMount))
+		args = append(args, "-device", "virtio-9p-pci,fsdev=cert_fs,mount_tag=certs_share")
+	}
+
+	if config.EnvMount != "" {
+		args = append(args, "-fsdev", fmt.Sprintf("local,id=env_fs,path=%s,security_model=mapped", config.EnvMount))
+		args = append(args, "-device", "virtio-9p-pci,fsdev=env_fs,mount_tag=env_share")
+	}
 
 	return args
 }

@@ -8,8 +8,7 @@ WorkingDirectory=/cocos
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 
-Environment=AGENT_GRPC_PORT=7002
-Environment=AGENT_LOG_LEVEL=info
+EnvironmentFile=/etc/cocos/environment
 
 ExecStartPre=/cocos_init/agent_setup.sh
 ExecStart=/cocos_init/agent_start_script.sh

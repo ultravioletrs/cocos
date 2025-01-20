@@ -32,13 +32,13 @@ func MetricsMiddleware(svc manager.Service, counter metrics.Counter, latency met
 	}
 }
 
-func (ms *metricsMiddleware) CreateVM(ctx context.Context) (string, string, error) {
+func (ms *metricsMiddleware) CreateVM(ctx context.Context, req *manager.CreateReq) (string, string, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "Run").Add(1)
 		ms.latency.With("method", "Run").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.CreateVM(ctx)
+	return ms.svc.CreateVM(ctx, req)
 }
 
 func (ms *metricsMiddleware) RemoveVM(ctx context.Context, computationID string) error {

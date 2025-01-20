@@ -21,11 +21,11 @@ func New(svc manager.Service, tracer trace.Tracer) manager.Service {
 	return &tracingMiddleware{tracer, svc}
 }
 
-func (tm *tracingMiddleware) CreateVM(ctx context.Context) (string, string, error) {
+func (tm *tracingMiddleware) CreateVM(ctx context.Context, req *manager.CreateReq) (string, string, error) {
 	ctx, span := tm.tracer.Start(ctx, "run")
 	defer span.End()
 
-	return tm.svc.CreateVM(ctx)
+	return tm.svc.CreateVM(ctx, req)
 }
 
 func (tm *tracingMiddleware) RemoveVM(ctx context.Context, id string) error {

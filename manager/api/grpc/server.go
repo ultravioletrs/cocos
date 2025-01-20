@@ -27,8 +27,8 @@ func NewServer(svc manager.Service) manager.ManagerServiceServer {
 	}
 }
 
-func (s *grpcServer) CreateVm(ctx context.Context, _ *emptypb.Empty) (*manager.CreateRes, error) {
-	port, id, err := s.svc.CreateVM(ctx)
+func (s *grpcServer) CreateVm(ctx context.Context, req *manager.CreateReq) (*manager.CreateRes, error) {
+	port, id, err := s.svc.CreateVM(ctx, req)
 	if err != nil {
 		return nil, err
 	}

@@ -103,7 +103,7 @@ func TestRun(t *testing.T) {
 
 			ctx := context.Background()
 
-			port, _, err := ms.CreateVM(ctx)
+			port, _, err := ms.CreateVM(ctx, &CreateReq{})
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)

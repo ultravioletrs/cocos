@@ -26,8 +26,17 @@ import (
 )
 
 const (
-	hashLength     = 32
-	persistenceDir = "/tmp/cocos"
+	hashLength              = 32
+	persistenceDir          = "/tmp/cocos"
+	agentLogLevelKey        = "AGENT_LOG_LEVEL"
+	agentCvmGrpcUrlKey      = "AGENT_CVM_GRPC_URL"
+	agentCvmClientCertKey   = "AGENT_CVM_CLIENT_CERT"
+	agentCvmClientKey       = "AGENT_CVM_CLIENT_KEY"
+	agentCvmServerCaCertKey = "AGENT_CVM_SERVER_CA_CERT"
+	defClientCertPath       = "/etc/certs/cert.pem"
+	defClientKeyPath        = "/etc/certs/key.pem"
+	defServerCaCertPath     = "/etc/certs/ca.pem"
+	cvmEnvironmentFile      = "environment"
 )
 
 var (
@@ -62,7 +71,7 @@ var (
 // implementation, and all of its decorators (e.g. logging & metrics).
 type Service interface {
 	// Run create a computation.
-	CreateVM(ctx context.Context) (string, string, error)
+	CreateVM(ctx context.Context, req *CreateReq) (string, string, error)
 	// Stop stops a computation.
 	RemoveVM(ctx context.Context, computationID string) error
 	// FetchAttestationPolicy measures and fetches the attestation policy.
@@ -118,7 +127,7 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 	return ms, nil
 }
 
-func (ms *managerService) CreateVM(ctx context.Context) (string, string, error) {
+func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string, string, error) {
 	id := uuid.New().String()
 	ms.mu.Lock()
 	cfg := qemu.VMInfo{
@@ -126,6 +135,19 @@ func (ms *managerService) CreateVM(ctx context.Context) (string, string, error) 
 		LaunchTCB: 0,
 	}
 	ms.mu.Unlock()
+
+	tmpCertsDir, err := tempCertMount(id, req)
+	if err != nil {
+		return "", id, err
+	}
+
+	tmpEnvDir, err := tmpEnvironment(id, req)
+	if err != nil {
+		return "", id, err
+	}
+
+	cfg.Config.CertsMount = tmpCertsDir
+	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
 		cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
@@ -348,4 +370,64 @@ func (ms *managerService) processExists(pid int) bool {
 		return false
 	}
 	return false
+}
+
+func tempCertMount(id string, req *CreateReq) (string, error) {
+	dir, err := os.MkdirTemp("/tmp", id)
+	if err != nil {
+		return "", err
+	}
+
+	if err = os.WriteFile(fmt.Sprintf("%s/%s", dir, "cert.pem"), req.AgentCvmClientCert, 0o644); err != nil {
+		return "", err
+	}
+
+	if err = os.WriteFile(fmt.Sprintf("%s/%s", dir, "key.pem"), req.AgentCvmClientKey, 0o644); err != nil {
+		return "", err
+	}
+
+	if err = os.WriteFile(fmt.Sprintf("%s/%s", dir, "ca.pem"), req.AgentCvmServerCaCert, 0o644); err != nil {
+		return "", err
+	}
+
+	return dir, nil
+}
+
+func tmpEnvironment(id string, req *CreateReq) (string, error) {
+	dir, err := os.MkdirTemp("/tmp", id)
+	if err != nil {
+		return "", err
+	}
+
+	envMap := map[string]string{
+		agentLogLevelKey:   req.AgentLogLevel,
+		agentCvmGrpcUrlKey: req.AgentCvmServerUrl,
+	}
+
+	if req.AgentCvmClientCert != nil {
+		envMap[agentCvmClientCertKey] = defClientCertPath
+	}
+	if req.AgentCvmClientKey != nil {
+		envMap[agentCvmClientKey] = defClientKeyPath
+	}
+	if req.AgentCvmServerCaCert != nil {
+		envMap[agentCvmServerCaCertKey] = defServerCaCertPath
+	}
+
+	envFile, err := os.OpenFile(fmt.Sprintf("%s/%s", dir, cvmEnvironmentFile), os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return "", err
+	}
+
+	for k, v := range envMap {
+		if _, err = envFile.WriteString(fmt.Sprintf("%s=%s\n", k, v)); err != nil {
+			return "", err
+		}
+	}
+
+	if err = envFile.Close(); err != nil {
+		return "", err
+	}
+
+	return dir, nil
 }

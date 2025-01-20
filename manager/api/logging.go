@@ -27,7 +27,7 @@ func LoggingMiddleware(svc manager.Service, logger *slog.Logger) manager.Service
 	return &loggingMiddleware{logger, svc}
 }
 
-func (lm *loggingMiddleware) CreateVM(ctx context.Context) (agentAddr string, id string, err error) {
+func (lm *loggingMiddleware) CreateVM(ctx context.Context, req *manager.CreateReq) (agentAddr string, id string, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method CreateVM for id %s on port %s took %s to complete", id, agentAddr, time.Since(begin))
 		if err != nil {
@@ -37,7 +37,7 @@ func (lm *loggingMiddleware) CreateVM(ctx context.Context) (agentAddr string, id
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.CreateVM(ctx)
+	return lm.svc.CreateVM(ctx, req)
 }
 
 func (lm *loggingMiddleware) RemoveVM(ctx context.Context, id string) (err error) {
