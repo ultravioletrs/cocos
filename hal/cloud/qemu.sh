@@ -2,12 +2,6 @@
 
 source ./.env
 
-# File paths
-SERVER_CA=$(<./ca.pem)
-SERVER_CERT=$(<./cert.pem)
-SERVER_KEY=$(<./key.pem)
-AGENT_ENV=$(<./.env)
-
 # Required commands
 REQUIRED_CMDS=("wget" "cloud-localds" "$QEMU_BINARY" "qemu-img")
 
@@ -37,100 +31,13 @@ echo "Creating custom QEMU image..."
 qemu-img create -f qcow2 -b $BASE_IMAGE -F qcow2 $CUSTOM_IMAGE $DISK_SIZE
 
 # Cloud-init configuration files
-USER_DATA="user-data"
+CLOUD_CONFIG="config.yaml"
 META_DATA="meta-data"
 SEED_IMAGE="seed.img"
 
-cat <<EOF > $USER_DATA
-#cloud-config
-package_update: true
-package_upgrade: false
-
-users:
-  - default
-  - name: cocos
-    gecos: Default User
-    groups:
-      - sudo
-    sudo:
-      - ALL=(ALL:ALL) ALL
-    shell: /bin/bash
-
-chpasswd:
-  list: |
-    cocos:password
-  expire: False
-
-ssh_pwauth: True
-
-packages:
-  - curl
-  - make
-  - install
-  - git
-  - python3
-  - python3-dev
-
-write_files:
-  - path: /etc/cocos/environment
-    content: |
-      $AGENT_ENV
-    permissions: '0644'
-
-  - path: /etc/cocos/certs/cert.pem
-    content: |
-      $SERVER_CERT
-    permissions: '0644'
-
-  - path: /etc/cocos/certs/ca.pem
-    content: |
-      $SERVER_CA
-    permissions: '0644'
-
-  - path: /etc/cocos/certs/key.pem
-    content: |
-      $SERVER_KEY
-    permissions: '0600'
-
-runcmd:
-  # Install Docker
-  - curl -fsSL https://get.docker.com -o get-docker.sh
-  - sh ./get-docker.sh
-  - groupadd docker
-  - usermod -aG docker cocos_user
-  - newgrp docker
-
-  # Install Wasmtime
-  - curl https://wasmtime.dev/install.sh -sSf | bash
-  - echo "export WASMTIME_HOME=$HOME/.wasmtime" >> /etc/profile.d/wasm_env.sh
-  - echo "export PATH=\$WASMTIME_HOME/bin:\$PATH" >> /etc/profile.d/wasm_env.sh
-  - source /etc/profile.d/wasm_env.sh
-
-  # Clone and set up the cocos repository
-  - git clone https://github.com/ultravioletrs/cocos.git /home/cocos_user/cocos
-
-  # Download and Install the agent binary
-  - wget -q https://github.com/ultravioletrs/cocos/releases/download/$COCOS_AGENT_VERSION/cocos-agent
-  - install -D -m 0755 /home/cocos_user/cocos-agent /usr/local/bin/cocos-agent
-  - mkdir -p /var/log/cocos
-  - mkdir -p /etc/cocos
-
-  # Install systemd service file
-  - install -D -m 0644 /home/cocos_user/cocos/init/systemd/cocos-agent.service /etc/systemd/system/cocos-agent.service
-  - install -D -m 0755 /home/cocos_user/cocos/init/systemd/agent_start_script.sh /etc/cocos/agent_start_script.sh
-
-  # Reload systemd and enable the service
-  - systemctl daemon-reload
-  - systemctl enable cocos-agent.service
-  - systemctl start cocos-agent.service
-
-final_message: "Cocos agent setup complete and service started successfully."
-
-EOF
-
 # Create seed image for cloud-init
 echo "Creating seed image..."
-cloud-localds $SEED_IMAGE $USER_DATA $META_DATA
+cloud-localds $SEED_IMAGE $CLOUD_CONFIG $META_DATA
 
 # Construct QEMU arguments from environment variables
 construct_qemu_args() {
@@ -205,17 +112,6 @@ construct_qemu_args() {
     args+=("-monitor" "$MONITOR")
     args+=("-no-reboot")
     args+=("-vnc :9")
-
-    # Mount configuration
-    if [ -n "$CERTS_MOUNT" ]; then
-        args+=("-fsdev" "local,id=cert_fs,path=$CERTS_MOUNT,security_model=mapped")
-        args+=("-device" "virtio-9p-pci,fsdev=cert_fs,mount_tag=certs_share")
-    fi
-
-    if [ -n "$ENV_MOUNT" ]; then
-        args+=("-fsdev" "local,id=env_fs,path=$ENV_MOUNT,security_model=mapped")
-        args+=("-device" "virtio-9p-pci,fsdev=env_fs,mount_tag=env_share")
-    fi
 
     echo "${args[@]}"
 }

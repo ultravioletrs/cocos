@@ -111,8 +111,8 @@ github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoG
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/sammyoina/sev-snp-measure-go v0.0.0-20241107163739-38915ab517c7 h1:g+a3hLU4pl41mhP+CQu3+bDhL4HSfrnPI1BvLjKfD8Y=
-github.com/sammyoina/sev-snp-measure-go v0.0.0-20241107163739-38915ab517c7/go.mod h1:dEkBe8JnxU5itNjZDEQINFd7f7l4DtjfqRuzPQcit4w=
+github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825 h1:SqNaL9udBIc026SGNEuEuiVL0/hw9fXxM5qrFhWGkdE=
+github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825/go.mod h1:dEkBe8JnxU5itNjZDEQINFd7f7l4DtjfqRuzPQcit4w=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/spf13/cobra v1.8.1 h1:e5/vxKd/rZsfSJMUX1agtjeTDf+qv1/JdBF8gg5k9ZM=
