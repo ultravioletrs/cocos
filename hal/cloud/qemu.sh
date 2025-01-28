@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Source environment variables
 source ./.env
 
 # Required commands
@@ -7,7 +8,7 @@ REQUIRED_CMDS=("wget" "cloud-localds" "$QEMU_BINARY" "qemu-img")
 
 # Check for required commands
 for cmd in "${REQUIRED_CMDS[@]}"; do
-    if ! command -v $cmd &> /dev/null; then
+    if ! command -v "$cmd" &> /dev/null; then
         echo "Error: $cmd is not installed. Please install it and try again."
         exit 1
     fi
@@ -19,16 +20,15 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-
 # Create the root filesystem image if it doesn't exist
-if [ ! -f $BASE_IMAGE ]; then
+if [ ! -f "$BASE_IMAGE" ]; then
   echo "Downloading base Ubuntu image..."
-  wget -q $BASE_IMAGE_URL -O $BASE_IMAGE --show-progress
+  wget -q "$BASE_IMAGE_URL" -O "$BASE_IMAGE" --show-progress
 fi
 
 # Create custom image
 echo "Creating custom QEMU image..."
-qemu-img create -f qcow2 -b $BASE_IMAGE -F qcow2 $CUSTOM_IMAGE $DISK_SIZE
+qemu-img create -f qcow2 -b "$BASE_IMAGE" -F qcow2 "$CUSTOM_IMAGE" "$DISK_SIZE"
 
 # Cloud-init configuration files
 CLOUD_CONFIG="config.yaml"
@@ -37,13 +37,13 @@ SEED_IMAGE="seed.img"
 
 # Create seed image for cloud-init
 echo "Creating seed image..."
-cloud-localds $SEED_IMAGE $CLOUD_CONFIG $META_DATA
+cloud-localds "$SEED_IMAGE" "$CLOUD_CONFIG" "$META_DATA"
 
 # Construct QEMU arguments from environment variables
 construct_qemu_args() {
     args=()
 
-    args+=("-name $VM_NAME")
+    args+=("-name" "$VM_NAME")
 
     # Virtualization (Enable KVM)
     if [ "$ENABLE_KVM" == "true" ]; then
@@ -59,8 +59,8 @@ construct_qemu_args() {
         args+=("-cpu" "$CPU")
     fi
 
+    args+=("-boot" "d")
     args+=("-smp" "$SMP_COUNT,maxcpus=$SMP_MAXCPUS")
-
     args+=("-m" "$MEMORY_SIZE,slots=$MEMORY_SLOTS,maxmem=$MAX_MEMORY")
 
     # OVMF (if applicable)
@@ -100,9 +100,10 @@ construct_qemu_args() {
     fi
 
     # Disk image configuration
-    args+=("-drive file=$SEED_IMAGE,media=cdrom")
-    args+=("-drive file=$CUSTOM_IMAGE,if=none,id=disk0,format=qcow2")
-    args+=("-device scsi-hd,drive=disk0")
+    args+=("-drive" "file=$SEED_IMAGE,media=cdrom")
+    args+=("-drive" "file=$CUSTOM_IMAGE,if=none,id=disk0,format=qcow2")
+    args+=("-device" "virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true")
+    args+=("-device" "scsi-hd,drive=disk0")
 
     # Display options
     if [ "$NO_GRAPHIC" == "true" ]; then
@@ -111,7 +112,7 @@ construct_qemu_args() {
 
     args+=("-monitor" "$MONITOR")
     args+=("-no-reboot")
-    args+=("-vnc :9")
+    args+=("-vnc" ":9")
 
     echo "${args[@]}"
 }
@@ -119,4 +120,5 @@ construct_qemu_args() {
 qemu_args=$(construct_qemu_args)
 
 echo "Running QEMU with the following arguments: $qemu_args"
+echo "Starting QEMU VM..."
 $QEMU_BINARY $qemu_args

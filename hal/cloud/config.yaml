@@ -8,13 +8,14 @@ users:
     gecos: Default User
     groups:
       - sudo
+      - docker  # Add cocos user to the docker group
     sudo:
       - ALL=(ALL:ALL) ALL
     shell: /bin/bash
 
 chpasswd:
   list: |
-    cocos:password
+    cocos_user:password
   expire: False
 
 ssh_pwauth: True
@@ -22,7 +23,6 @@ ssh_pwauth: True
 packages:
   - curl
   - make
-  - install
   - git
   - python3
   - python3-dev
@@ -30,51 +30,64 @@ packages:
 write_files:
   - path: /etc/cocos/environment
     content: |
+      # Add environment variables here
     permissions: '0644'
 
   - path: /etc/cocos/certs/cert.pem
     content: |
+      # Add certificate content here
     permissions: '0644'
 
   - path: /etc/cocos/certs/ca.pem
     content: |
+      # Add CA certificate content here
     permissions: '0644'
 
   - path: /etc/cocos/certs/key.pem
     content: |
-
+      # Add private key content here
     permissions: '0600'
 
 runcmd:
   # Install Docker
-  - curl -fsSL https://get.docker.com -o get-docker.sh
-  - sh ./get-docker.sh
-  - groupadd docker
-  - usermod -aG docker cocos_user
-  - newgrp docker
+  - echo "Starting Docker installation..."
+  - curl -fsSL https://get.docker.com -o get-docker.sh && echo "Docker install script downloaded successfully" || echo "Failed to download Docker install script"
+  - sh ./get-docker.sh && echo "Docker installed successfully" || echo "Failed to install Docker"
+  - usermod -aG docker cocos_user && echo "Added cocos_user to the docker group" || echo "Failed to add cocos_user to the docker group"
 
   # Install Wasmtime
-  - curl https://wasmtime.dev/install.sh -sSf | bash
+  - echo "Installing Wasmtime runtime..."
+  - curl https://wasmtime.dev/install.sh -sSf | bash && echo "Wasmtime installed successfully" || echo "Failed to install Wasmtime"
+  - echo "Configuring Wasmtime environment variables..."
   - echo "export WASMTIME_HOME=$HOME/.wasmtime" >> /etc/profile.d/wasm_env.sh
   - echo "export PATH=\$WASMTIME_HOME/bin:\$PATH" >> /etc/profile.d/wasm_env.sh
-  - source /etc/profile.d/wasm_env.sh
+  - source /etc/profile.d/wasm_env.sh && echo "Wasmtime environment variables configured successfully" || echo "Failed to configure Wasmtime environment variables"
+
+  # Download the cocos-agent binary
+  - echo "[ COCOS AGENT SETUP ] Downloading the cocos-agent binary..."
+  - curl -L -O -J https://github.com/smithjilks/cocos/releases/download/v1.0.0/cocos-agent --progress-bar && echo "[ COCOS AGENT SETUP ] cocos-agent binary downloaded successfully" || echo "Failed to download cocos-agent binary"
+
+  # Install the agent binary
+  - echo "[ COCOS AGENT SETUP ] Installing cocos-agent binary..."
+  - install -D -m 0755 cocos-agent /bin/cocos-agent && echo "[ COCOS AGENT SETUP ] cocos-agent binary installed successfully" || echo "[ COCOS AGENT SETUP ] Failed to install cocos-agent binary"
+  - mkdir -p /var/log/cocos && echo "[ COCOS AGENT SETUP ] Created /var/log/cocos directory" || echo "[ COCOS AGENT SETUP ] Failed to create /var/log/cocos directory"
+  - mkdir -p /etc/cocos && echo "[ COCOS AGENT SETUP ] Created /etc/cocos directory" || echo "[ COCOS AGENT SETUP ] Failed to create /etc/cocos directory"
 
   # Clone and set up the cocos repository
-  - git clone https://github.com/ultravioletrs/cocos.git /home/cocos_user/cocos
-
-  # Download and Install the agent binary
-  - wget -q https://github.com/smithjilks/cocos/releases/download/v1.0.0/cocos-agent
-  - install -D -m 0755 /home/cocos_user/cocos-agent /usr/local/bin/cocos-agent
-  - mkdir -p /var/log/cocos
-  - mkdir -p /etc/cocos
+  - echo "Cloning the cocos repository..."
+  - git clone https://github.com/ultravioletrs/cocos.git /home/cocos_user/cocos && echo "[ COCOS AGENT SETUP ] cocos repository cloned successfully" || echo "[ COCOS AGENT SETUP ] Failed to clone cocos repository"
 
   # Install systemd service file
-  - install -D -m 0644 /home/cocos_user/cocos/init/systemd/cocos-agent.service /etc/systemd/system/cocos-agent.service
-  - install -D -m 0755 /home/cocos_user/cocos/init/systemd/agent_start_script.sh /etc/cocos/agent_start_script.sh
+  - echo "[ COCOS AGENT SETUP ] Setting up the cocos-agent systemd service..."
+  - install -D -m 0644 /home/cocos_user/cocos/init/systemd/cocos-agent.service /etc/systemd/system/cocos-agent.service && echo "[ COCOS AGENT SETUP ] cocos-agent systemd service file installed successfully" || echo "[ COCOS AGENT SETUP ]Failed to install cocos-agent systemd service file"
+  - install -D -m 0755 /home/cocos_user/cocos/init/systemd/agent_start_script.sh /etc/cocos/agent_start_script.sh && echo "[ COCOS AGENT SETUP ] cocos-agent start script installed successfully" || echo "[ COCOS AGENT SETUP ] Failed to install cocos-agent start script"
 
   # Reload systemd and enable the service
-  - systemctl daemon-reload
-  - systemctl enable cocos-agent.service
-  - systemctl start cocos-agent.service
+  - echo "[ COCOS AGENT SETUP ] Reloading systemd daemon..."
+  - systemctl daemon-reload && echo "[ COCOS AGENT SETUP ] Systemd daemon reloaded successfully" || echo "[ COCOS AGENT SETUP ] Failed to reload systemd daemon"
+  - echo "[ COCOS AGENT SETUP ] Enabling cocos-agent.service..."
+  - systemctl enable cocos-agent.service && echo "[ COCOS AGENT SETUP ] cocos-agent.service enabled successfully" || echo "[ COCOS AGENT SETUP ] Failed to enable cocos-agent.service"
+  - echo "[ COCOS AGENT SETUP ] Starting cocos-agent.service..."
+  - systemctl start cocos-agent.service && echo "[ COCOS AGENT SETUP ] cocos-agent.service started successfully" || echo "[ COCOS AGENT SETUP ] Failed to start cocos-agent.service"
 
-final_message: "Cocos agent setup complete and service started successfully."
+final_message: "Cocos agent setup complete. Verify logs to confirm successful service startup."
