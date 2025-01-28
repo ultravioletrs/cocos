@@ -1,0 +1,80 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+users:
+  - default
+  - name: cocos_user
+    gecos: Default User
+    groups:
+      - sudo
+    sudo:
+      - ALL=(ALL:ALL) ALL
+    shell: /bin/bash
+
+chpasswd:
+  list: |
+    cocos:password
+  expire: False
+
+ssh_pwauth: True
+
+packages:
+  - curl
+  - make
+  - install
+  - git
+  - python3
+  - python3-dev
+
+write_files:
+  - path: /etc/cocos/environment
+    content: |
+    permissions: '0644'
+
+  - path: /etc/cocos/certs/cert.pem
+    content: |
+    permissions: '0644'
+
+  - path: /etc/cocos/certs/ca.pem
+    content: |
+    permissions: '0644'
+
+  - path: /etc/cocos/certs/key.pem
+    content: |
+
+    permissions: '0600'
+
+runcmd:
+  # Install Docker
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh ./get-docker.sh
+  - groupadd docker
+  - usermod -aG docker cocos_user
+  - newgrp docker
+
+  # Install Wasmtime
+  - curl https://wasmtime.dev/install.sh -sSf | bash
+  - echo "export WASMTIME_HOME=$HOME/.wasmtime" >> /etc/profile.d/wasm_env.sh
+  - echo "export PATH=\$WASMTIME_HOME/bin:\$PATH" >> /etc/profile.d/wasm_env.sh
+  - source /etc/profile.d/wasm_env.sh
+
+  # Clone and set up the cocos repository
+  - git clone https://github.com/ultravioletrs/cocos.git /home/cocos_user/cocos
+
+  # Download and Install the agent binary
+  - wget -q https://github.com/smithjilks/cocos/releases/download/v1.0.0/cocos-agent
+  - install -D -m 0755 /home/cocos_user/cocos-agent /usr/local/bin/cocos-agent
+  - mkdir -p /var/log/cocos
+  - mkdir -p /etc/cocos
+
+  # Install systemd service file
+  - install -D -m 0644 /home/cocos_user/cocos/init/systemd/cocos-agent.service /etc/systemd/system/cocos-agent.service
+  - install -D -m 0755 /home/cocos_user/cocos/init/systemd/agent_start_script.sh /etc/cocos/agent_start_script.sh
+
+  # Reload systemd and enable the service
+  - systemctl daemon-reload
+  - systemctl enable cocos-agent.service
+  - systemctl start cocos-agent.service
+
+final_message: "Cocos agent setup complete and service started successfully."
