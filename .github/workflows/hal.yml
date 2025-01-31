@@ -1,9 +1,9 @@
-name: Build and Release
+name: Build and Release Hal
 
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   build:
@@ -32,8 +32,8 @@ jobs:
         with:
           root-reserve-mb: 35000
           swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
+          remove-dotnet: "true"
+          remove-android: "true"
       - name: Check free space
         run: |
           echo "Free space:"
@@ -48,20 +48,25 @@ jobs:
       - name: Checkout cocos
         uses: actions/checkout@v4
         with:
-          repository: 'ultravioletrs/cocos'
+          repository: "ultravioletrs/cocos"
           path: cocos
 
       - name: Checkout buildroot
         uses: actions/checkout@v4
         with:
-          repository: 'buildroot/buildroot'
+          repository: "buildroot/buildroot"
           path: buildroot
           ref: 2024.11-rc2
 
-      - name: Build
+      - name: Build hal
         run: |
           cd buildroot
           make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
+          make
+
+      - name: Build cocos
+        run: |
+          cd cocos
           make
 
       - name: Release
@@ -70,4 +75,6 @@ jobs:
           files: |
             buildroot/output/images/bzImage
             buildroot/output/images/rootfs.cpio.gz
-
+            cocos/build/cocos-agent  
+            cocos/build/cocos-cli  
+            cocos/build/cocos-manager
