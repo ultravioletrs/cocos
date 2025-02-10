@@ -1,2 +1,3 @@
 source "$BR2_EXTERNAL_COCOS_PATH/package/agent/Config.in"
 source "$BR2_EXTERNAL_COCOS_PATH/package/wasmedge/Config.in"
+source "$BR2_EXTERNAL_COCOS_PATH/package/cloud-init/Config.in"

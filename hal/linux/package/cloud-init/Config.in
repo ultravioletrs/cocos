@@ -1,0 +1,6 @@
+config BR2_PACKAGE_CLOUD_INIT
+    bool "cloud-init"
+    depends on BR2_PACKAGE_PYTHON3
+    default y
+    help
+      Cloud-init is an industry-standard tool for configuring cloud instances
