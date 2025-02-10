@@ -16,21 +16,16 @@ define CLOUD_INIT_BUILD_CMDS
 	/usr/bin/python3 -m venv $(BUILD_DIR)/cloud-init-venv
 	# Change directory to the package source so that relative paths work correctly.
 	cd $(@D) && $(BUILD_DIR)/cloud-init-venv/bin/pip install -r requirements.txt
+	cd $(@D) && $(BUILD_DIR)/cloud-init-venv/bin/pip install setuptools
 	# Build cloud-init (the setup.py now finds its helper scripts like tools/read-dependencies)
 	cd $(@D) && $(BUILD_DIR)/cloud-init-venv/bin/python setup.py build
 endef
 
 define CLOUD_INIT_INSTALL_TARGET_CMDS
-	# Install cloud-init into the target directory.
-	# Note: --install-scripts is set to /usr/bin, not $(TARGET_DIR)/usr/bin.
-	cd $(@D) && $(BUILD_DIR)/cloud-init-venv/bin/python setup.py install \
-		--prefix=/usr \
-		--root=$(TARGET_DIR) \
-		--install-scripts=/usr/bin \
-		--single-version-externally-managed
-	# Patch the installed cloud-init script so that its shebang points to the target's python.
+	cd $(@D) && $(BUILD_DIR)/cloud-init-venv/bin/pip install --prefix=/usr --root=$(TARGET_DIR) .
 	$(SED) '1 s|^#!.*python.*|#!/usr/bin/env python3|' $(TARGET_DIR)/usr/bin/cloud-init
 endef
+
 
 
 define CLOUD_INIT_INSTALL_INIT_SYSTEMD
