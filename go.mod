@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/google/go-sev-guest v0.12.1
+	github.com/google/go-sev-guest v0.11.1
 	github.com/google/go-tdx-guest v0.3.1 // indirect
 	github.com/mdlayher/vsock v1.2.1
 	github.com/spf13/cobra v1.8.1
@@ -45,16 +45,13 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
+	github.com/pborman/uuid v1.2.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.57.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.32.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.32.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.32.0 // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
-	google.golang.org/genproto v0.0.0-20250207221924-e9438ea467c6 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
 
