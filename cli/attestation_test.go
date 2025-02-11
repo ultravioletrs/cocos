@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -145,12 +146,12 @@ func TestNewGetAttestationCmd(t *testing.T) {
 	}
 }
 
-func TestNewValidateAttestationValidationCmd(t *testing.T) {
+func TestNewValidateAttestationValidationCmdDefaults(t *testing.T) {
 	cli := &CLI{}
 	cmd := cli.NewValidateAttestationValidationCmd()
 
 	assert.Equal(t, "validate", cmd.Use)
-	assert.Equal(t, "Validate and verify attestation information. The report is provided as a file path.", cmd.Short)
+	assert.Equal(t, "Validate and verify attestation information. You can choose from 3 modes: snp,vtpm and snp-vtpm.Default mode is snp.", cmd.Short)
 
 	assert.Equal(t, fmt.Sprint(defaultMinimumTcb), cmd.Flag("minimum_tcb").Value.String())
 	assert.Equal(t, fmt.Sprint(defaultMinimumLaunchTcb), cmd.Flag("minimum_lauch_tcb").Value.String())
@@ -160,6 +161,95 @@ func TestNewValidateAttestationValidationCmd(t *testing.T) {
 	assert.Equal(t, defaultCheckCrl, cmd.Flag("check_crl").Value.String() == "true")
 	assert.Equal(t, fmt.Sprint(defaultTimeout), cmd.Flag("timeout").Value.String())
 	assert.Equal(t, fmt.Sprint(defaultMaxRetryDelay), cmd.Flag("max_retry_delay").Value.String())
+}
+
+func TestNewValidateAttestationValidationCmd(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewValidateAttestationValidationCmd()
+
+	t.Run("missing attestation report file path", func(t *testing.T) {
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Equal(t, "please pass the attestation report file path", err.Error())
+	})
+
+	t.Run("unknown mode", func(t *testing.T) {
+		cmd.SetArgs([]string{attestationFilePath, "--mode=invalid"})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown mode")
+	})
+
+	t.Run("snp mode with missing flags", func(t *testing.T) {
+		cmd.SetArgs([]string{attestationFilePath, "--mode=snp"})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "required flag(s) \"product\", \"report_data\" not set")
+	})
+
+	t.Run("vtpm mode with missing flags", func(t *testing.T) {
+		cmd.SetArgs([]string{vtpmFilePath, "--mode=vtpm"})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "required flag(s) \"format\", \"nonce\", \"output\", \"product\", \"report_data\" not set")
+	})
+
+	t.Run("snp-vtpm mode with missing flags", func(t *testing.T) {
+		cmd.SetArgs([]string{vtpmFilePath, "--mode=snp-vtpm"})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "required flag(s) \"format\", \"nonce\", \"output\", \"product\", \"report_data\" not set")
+	})
+
+	t.Run("valid snp mode execution", func(t *testing.T) {
+		cli := CLI{}
+		cmd := cli.NewValidateAttestationValidationCmd()
+
+		cmd.RunE = func(_ *cobra.Command, _ []string) error {
+			t.Log("Mock RunE executed instead of sevsnpverify")
+			return nil
+		}
+
+		cmd.SetArgs([]string{
+			"../attestation.bin",
+			"--mode=snp",
+			"--report_data=" +
+				"11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff" +
+				"11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff",
+			"--product=Milan",
+		})
+		err := cmd.PreRunE(cmd, []string{"../attestation.bin"})
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid vtpm mode execution", func(t *testing.T) {
+		cli := CLI{}
+		cmd := cli.NewValidateAttestationValidationCmd()
+
+		cmd.RunE = func(_ *cobra.Command, _ []string) error {
+			t.Log("Mock RunE executed instead of vtpmverify")
+			return nil
+		}
+
+		cmd.SetArgs([]string{vtpmFilePath, "--mode=vtpm", "--nonce=123abc", "--format=binarypb", "--output=some_output"})
+
+		err := cmd.PreRunE(cmd, []string{"../quote.dat"})
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid snp-vtpm mode execution", func(t *testing.T) {
+		cli := CLI{}
+		cmd := cli.NewValidateAttestationValidationCmd()
+
+		cmd.RunE = func(_ *cobra.Command, _ []string) error {
+			t.Log("Mock RunE executed instead of vtpmSevSnpverify")
+			return nil
+		}
+
+		cmd.SetArgs([]string{vtpmFilePath, "--mode=snp-vtpm", "--nonce=123abc", "--format=textproto", "--output=some_output"})
+		err := cmd.PreRunE(cmd, []string{"../quote.dat"})
+		assert.NoError(t, err)
+	})
 }
 
 func TestParseConfig(t *testing.T) {

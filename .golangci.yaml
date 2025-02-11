@@ -67,7 +67,6 @@ linters:
     - dogsled
     - errchkjson
     - errname
-    - execinquery
     - copyloopvar
     - ginkgolinter
     - gocheckcompilerdirectives
@@ -78,3 +77,4 @@ linters:
     - mirror
     - nakedret
     - dupword
+
