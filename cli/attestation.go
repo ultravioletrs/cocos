@@ -54,6 +54,8 @@ const (
 	attestationJson         = "attestation.json"
 	sevProductNameMilan     = "Milan"
 	sevProductNameGenoa     = "Genoa"
+	FormatBinaryPB          = "binarypb"
+	FormatTextProto         = "textproto"
 	exampleJSONConfig       = `
 	{
 		"rootOfTrust":{
@@ -605,9 +607,9 @@ func vtpmSevSnpverify(args []string) error {
 	}
 	attestation := &tpmAttest.Attestation{}
 
-	if format == "binarypb" {
+	if format == FormatBinaryPB {
 		err = proto.Unmarshal(attestationBytes, attestation)
-	} else if format == "textproto" {
+	} else if format == FormatTextProto {
 		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
 	} else {
 		return fmt.Errorf("format should be either binarypb or textproto")
@@ -680,9 +682,9 @@ func vtpmverify(args []string) error {
 	}
 	attestation := &tpmAttest.Attestation{}
 
-	if format == "binarypb" {
+	if format == FormatBinaryPB {
 		err = proto.Unmarshal(attestationBytes, attestation)
-	} else if format == "textproto" {
+	} else if format == FormatTextProto {
 		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
 	} else {
 		return fmt.Errorf("format should be either binarypb or textproto")
