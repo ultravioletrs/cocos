@@ -701,6 +701,9 @@ func vtpmverify(args []string) error {
 	}
 
 	ms, err := server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: nonce, TrustedAKs: []crypto.PublicKey{cryptoPub}, TEEOpts: nil})
+	if err != nil {
+		return nil
+	}
 	out, err := marshalOptions.Marshal(ms)
 	if err != nil {
 		return nil
@@ -725,6 +728,7 @@ func openInputFile() (io.Reader, error) {
 	}
 	return os.Open(tpmAttestationFile)
 }
+
 func createOutputFile() (io.Writer, error) {
 	if output == "" {
 		return os.Stdout, nil
