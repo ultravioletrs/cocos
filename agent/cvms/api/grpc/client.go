@@ -207,10 +207,25 @@ func (client *CVMSClient) processIncomingMessage(ctx context.Context, req *cvms.
 		return client.handleRunReqChunks(ctx, mes)
 	case *cvms.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
+	case *cvms.ServerStreamMessage_AgentStateReq:
+		client.handleAgentStateReq(ctx, mes)
 	default:
 		return errUnknonwMessageType
 	}
 	return nil
+}
+
+func (client *CVMSClient) handleAgentStateReq(ctx context.Context, mes *cvms.ServerStreamMessage_AgentStateReq) {
+	state := client.svc.State()
+
+	msg := &cvms.ClientStreamMessage_AgentStateRes{
+		AgentStateRes: &cvms.AgentStateRes{
+			State: state,
+			Id:    mes.AgentStateReq.Id,
+		},
+	}
+
+	client.sendMessage(&cvms.ClientStreamMessage{Message: msg})
 }
 
 func (client *CVMSClient) handleRunReqChunks(ctx context.Context, msg *cvms.ServerStreamMessage_RunReqChunks) error {

@@ -110,6 +110,7 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error)
+	State() string
 }
 
 type agentService struct {
@@ -172,11 +173,15 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quot
 	return svc
 }
 
+func (as *agentService) State() string {
+	return as.sm.GetState().String()
+}
+
 func (as *agentService) InitComputation(ctx context.Context, cmp Computation) error {
-	defer as.sm.SendEvent(ManifestReceived)
 	if as.sm.GetState() != ReceivingManifest {
 		return ErrStateNotReady
 	}
+	defer as.sm.SendEvent(ManifestReceived)
 
 	as.mu.Lock()
 	defer as.mu.Unlock()
