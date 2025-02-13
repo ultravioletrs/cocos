@@ -1,21 +1,17 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
+
 package grpc
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
-	"github.com/ultravioletrs/cocos/atls"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -89,13 +85,8 @@ func (a CVMClientConfig) GetBaseConfig() BaseConfig {
 }
 
 type Client interface {
-	// Close closes gRPC connection.
 	Close() error
-
-	// Secure is used for pretty printing TLS info.
 	Secure() string
-
-	// Connection returns the gRPC connection.
 	Connection() *grpc.ClientConn
 }
 
@@ -124,7 +115,6 @@ func (c *client) Close() error {
 	if err := c.ClientConn.Close(); err != nil {
 		return errors.Wrap(errGrpcClose, err)
 	}
-
 	return nil
 }
 
@@ -136,8 +126,6 @@ func (c *client) Secure() string {
 		return "with mTLS"
 	case withaTLS:
 		return WithATLS
-	case withoutTLS:
-		fallthrough
 	default:
 		return "without TLS"
 	}
@@ -147,26 +135,18 @@ func (c *client) Connection() *grpc.ClientConn {
 	return c.ClientConn
 }
 
-// connect creates new gRPC client and connect to gRPC server.
 func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 	secure := withoutTLS
-	var tc credentials.TransportCredentials
 
 	if agcfg, ok := cfg.(AgentClientConfig); ok && agcfg.AttestedTLS {
-		err := ReadAttestationPolicy(agcfg.AttestationPolicy, &quoteprovider.AttConfigurationSEVSNP)
+		tc, err := setupATLS(agcfg)
 		if err != nil {
-			return nil, secure, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
+			return nil, secure, err
 		}
-
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify:    true,
-			VerifyPeerCertificate: verifyPeerCertificateATLS,
-		}
-		tc = credentials.NewTLS(tlsConfig)
-		opts = append(opts, grpc.WithContextDialer(CustomDialer))
+		opts = append(opts, grpc.WithTransportCredentials(tc))
 		secure = withaTLS
 	} else {
 		conf := cfg.GetBaseConfig()
@@ -174,13 +154,11 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 		if err != nil {
 			return nil, secure, err
 		}
-		tc = transportCreds
+		opts = append(opts, grpc.WithTransportCredentials(transportCreds))
 		secure = sec
 	}
 
-	opts = append(opts, grpc.WithTransportCredentials(tc))
-
-	conn, err := grpc.NewClient(cfg.GetBaseConfig().URL, opts...)
+	conn, err := grpc.Dial(cfg.GetBaseConfig().URL, opts...)
 	if err != nil {
 		return nil, secure, errors.Wrap(errGrpcConnect, err)
 	}
@@ -192,7 +170,6 @@ func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.Tran
 	secure := withoutTLS
 	tc := insecure.NewCredentials()
 
-	// Load Root CA certificates
 	if serverCAFile != "" {
 		rootCA, err := os.ReadFile(serverCAFile)
 		if err != nil {
@@ -209,7 +186,6 @@ func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.Tran
 		}
 	}
 
-	// Load mTLS certificates
 	if clientCert != "" || clientKey != "" {
 		certificate, err := tls.LoadX509KeyPair(clientCert, clientKey)
 		if err != nil {
@@ -238,53 +214,4 @@ func ReadAttestationPolicy(manifestPath string, attestationConfiguration *check.
 	}
 
 	return ErrAttestationPolicyMissing
-}
-
-func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {
-	ip, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, fmt.Errorf("could not create a custom dialer")
-	}
-
-	p, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, fmt.Errorf("bad format of IP address: %v", err)
-	}
-
-	conn, err := atls.DialTLSClient(ip, p)
-	if err != nil {
-		return nil, fmt.Errorf("could not create TLS connection")
-	}
-
-	return conn, nil
-}
-
-func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	cert, err := x509.ParseCertificate(rawCerts[0])
-	if err != nil {
-		return errors.Wrap(errCertificateParse, err)
-	}
-
-	err = checkIfCertificateSelfSigned(cert)
-	if err != nil {
-		return errors.Wrap(errAttVerification, err)
-	}
-
-	return nil
-}
-
-func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
-	certPool := x509.NewCertPool()
-	certPool.AddCert(cert)
-
-	opts := x509.VerifyOptions{
-		Roots:       certPool,
-		CurrentTime: time.Now(),
-	}
-
-	if _, err := cert.Verify(opts); err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -14,7 +14,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
-	github.com/ultravioletrs/cocos/atls v0.0.0
 	github.com/virtee/sev-snp-measure-go v0.0.0-20240530153610-e6e8dc9b6877
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0
 	go.opentelemetry.io/otel/trace v1.34.0
@@ -34,10 +33,10 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gofrs/uuid/v5 v5.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/certificate-transparency-go v1.1.2 // indirect
 	github.com/google/go-attestation v0.5.0 // indirect
 	github.com/google/go-tspi v0.3.0 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect

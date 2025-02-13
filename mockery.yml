@@ -105,3 +105,8 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "server.go"
           mockname: "{{.InterfaceName}}"
+  github.com/google/go-sev-guest/client:
+    interfaces:
+      QuoteProvider:
+        config:
+          dir: ""
