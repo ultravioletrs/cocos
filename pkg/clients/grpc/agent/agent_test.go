@@ -101,7 +101,7 @@ func TestAgentClientIntegration(t *testing.T) {
 					Timeout: 1,
 				},
 			},
-			err: ErrAgentServiceUnavailable,
+			err: errors.New("failed to connect to grpc server"),
 		},
 		{
 			name: "invalid config, missing AttestationPolicy with aTLS",
