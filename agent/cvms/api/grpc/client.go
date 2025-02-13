@@ -120,7 +120,7 @@ func (client *CVMSClient) savePendingMessages() error {
 	}
 
 	file := filepath.Join(client.storageDir, pendingMsgFile)
-	return os.WriteFile(file, data, 0644)
+	return os.WriteFile(file, data, 0o644)
 }
 
 func (client *CVMSClient) addPendingMessage(msg *cvms.ClientStreamMessage) {

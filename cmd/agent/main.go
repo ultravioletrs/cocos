@@ -113,7 +113,7 @@ func main() {
 
 	svc := newService(ctx, logger, eventSvc, qp)
 
-	if err := os.MkdirAll(storageDir, 0755); err != nil {
+	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
 		exitCode = 1
 		return
