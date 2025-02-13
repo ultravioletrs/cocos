@@ -24,7 +24,7 @@ const (
 )
 
 type AgentServer interface {
-	Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error
+	Start(cfg agent.AgentConfig, cmp agent.Computation) error
 	Stop() error
 }
 
@@ -41,7 +41,7 @@ func NewServer(logger *slog.Logger, svc agent.Service) AgentServer {
 	}
 }
 
-func (as *agentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp agent.Computation) error {
+func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error {
 	if cfg.Port == "" {
 		cfg.Port = defSvcGRPCPort
 	}
@@ -77,11 +77,18 @@ func (as *agentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp age
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, qp, authSvc)
 
-	return as.gs.Start()
+	go func() {
+		err := as.gs.Start()
+		if err != nil {
+			as.logger.Error(fmt.Sprintf("failed to start grpc server %s", err.Error()))
+		}
+	}()
+
+	return nil
 }
 
 func (as *agentServer) Stop() error {

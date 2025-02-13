@@ -34,6 +34,7 @@ const (
 	defSvcGRPCPort   = "7002"
 	retryInterval    = 5 * time.Second
 	envPrefixCVMGRPC = "AGENT_CVM_GRPC_"
+	storageDir       = "/var/lib/cocos/agent"
 )
 
 type config struct {
@@ -93,6 +94,16 @@ func main() {
 	}
 	defer cvmGRPCClient.Close()
 
+	reconnectFn := func(ctx context.Context) (cvms.Service_ProcessClient, error) {
+		_, newClient, err := cvmgrpc.NewCVMClient(cvmGrpcConfig)
+		if err != nil {
+			return nil, err
+		}
+		// Don't defer close here as we want to keep the connection open
+
+		return newClient.Process(ctx)
+	}
+
 	pc, err := cvmClient.Process(ctx)
 	if err != nil {
 		logger.Error(err.Error())
@@ -102,7 +113,13 @@ func main() {
 
 	svc := newService(ctx, logger, eventSvc, qp)
 
-	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc))
+	if err := os.MkdirAll(storageDir, 0755); err != nil {
+		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
+		exitCode = 1
+		return
+	}
+
+	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
 
 	g.Go(func() error {
 		ch := make(chan os.Signal, 1)

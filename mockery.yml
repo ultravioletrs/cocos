@@ -100,7 +100,7 @@ packages:
           mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/agent/cvms/server:
     interfaces:
-      AgentServerProvider:
+      AgentServer:
         config:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "server.go"
