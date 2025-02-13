@@ -109,4 +109,6 @@ packages:
     interfaces:
       QuoteProvider:
         config:
-          dir: ""
+          dir: "./pkg/attestation/quoteprovider/mocks"
+          filename: "QuoteProvider.go"
+          mockname: "{{.InterfaceName}}"
