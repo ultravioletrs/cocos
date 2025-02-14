@@ -5,7 +5,6 @@ package grpc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -67,7 +66,6 @@ func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc
 	for {
 		err := client.processWithRetry(ctx)
 		if ctx.Err() != nil {
-			fmt.Println("Context error")
 			return ctx.Err()
 		}
 
