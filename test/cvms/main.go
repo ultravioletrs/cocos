@@ -14,7 +14,7 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
-	cvmgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
+	cvmsgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
@@ -24,10 +24,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var _ cvmgrpc.Service = (*svc)(nil)
+var _ cvmsgrpc.Service = (*svc)(nil)
 
 const (
-	svcName     = "computations_test_server"
+	svcName     = "cvms_test_server"
 	defaultPort = "7001"
 )
 
@@ -42,7 +42,7 @@ type svc struct {
 	logger *slog.Logger
 }
 
-func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmgrpc.SendFunc, authInfo credentials.AuthInfo) {
+func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.SendFunc, authInfo credentials.AuthInfo) {
 	s.logger.Debug(fmt.Sprintf("received who am on ip address %s", ipAddress))
 
 	pubKey, err := os.ReadFile(pubKeyFile)
@@ -127,7 +127,7 @@ func main() {
 
 	registerAgentServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
-		cvms.RegisterServiceServer(srv, cvmgrpc.NewServer(incomingChan, &svc{logger: logger}))
+		cvms.RegisterServiceServer(srv, cvmsgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
 		BaseConfig: server.BaseConfig{
