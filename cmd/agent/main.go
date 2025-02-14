@@ -19,13 +19,13 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
-	cvmapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
+	cvmsapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
-	cvmgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
+	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -86,7 +86,7 @@ func main() {
 		return
 	}
 
-	cvmGRPCClient, cvmClient, err := cvmgrpc.NewCVMClient(cvmGrpcConfig)
+	cvmGRPCClient, cvmsClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -95,7 +95,7 @@ func main() {
 	defer cvmGRPCClient.Close()
 
 	reconnectFn := func(ctx context.Context) (cvms.Service_ProcessClient, error) {
-		_, newClient, err := cvmgrpc.NewCVMClient(cvmGrpcConfig)
+		_, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func main() {
 		return newClient.Process(ctx)
 	}
 
-	pc, err := cvmClient.Process(ctx)
+	pc, err := cvmsClient.Process(ctx)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -119,7 +119,7 @@ func main() {
 		return
 	}
 
-	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
+	mc := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
 
 	g.Go(func() error {
 		ch := make(chan os.Signal, 1)
