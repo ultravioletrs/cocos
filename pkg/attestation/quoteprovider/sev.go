@@ -32,6 +32,7 @@ const (
 	reportDataSize        = 64
 	sevProductNameMilan   = "Milan"
 	sevProductNameGenoa   = "Genoa"
+	sevVMPL               = 2
 )
 
 var (
@@ -138,8 +139,8 @@ func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error 
 	return nil
 }
 
-func GetQuoteProvider() (client.QuoteProvider, error) {
-	return client.GetQuoteProvider()
+func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
+	return client.GetLeveledQuoteProvider()
 }
 
 func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
@@ -179,7 +180,7 @@ func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	var reportData [reportDataSize]byte
 
-	qp, err := GetQuoteProvider()
+	qp, err := GetLeveledQuoteProvider()
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not get quote provider")
 	}
@@ -189,7 +190,7 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	}
 	copy(reportData[:], reportDataSlice)
 
-	rawQuote, err := qp.GetRawQuote(reportData)
+	rawQuote, err := qp.GetRawQuoteAtLevel(reportData, sevVMPL)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to get raw quote")
 	}

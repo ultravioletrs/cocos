@@ -35,7 +35,7 @@ var (
 const datasetFile = "iris.csv"
 
 func TestAlgo(t *testing.T) {
-	qp, err := quoteprovider.GetQuoteProvider()
+	qp, err := quoteprovider.GetLeveledQuoteProvider()
 	require.NoError(t, err)
 
 	algo, err := os.ReadFile(algoPath)
@@ -139,7 +139,7 @@ func TestAlgo(t *testing.T) {
 }
 
 func TestData(t *testing.T) {
-	qp, err := quoteprovider.GetQuoteProvider()
+	qp, err := quoteprovider.GetLeveledQuoteProvider()
 	require.NoError(t, err)
 
 	algo, err := os.ReadFile(algoPath)
@@ -240,7 +240,7 @@ func TestData(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	qp, err := quoteprovider.GetQuoteProvider()
+	qp, err := quoteprovider.GetLeveledQuoteProvider()
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -323,25 +323,25 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	qp := new(mocks2.QuoteProvider)
+	qp := new(mocks2.LeveledQuoteProvider)
 
 	cases := []struct {
-		name       string
-		reportData [ReportDataSize]byte
-		rawQuote   []uint8
-		err        error
+		name     string
+		nonce    [Nonce]byte
+		rawQuote []uint8
+		err      error
 	}{
 		{
-			name:       "Test attestation successful",
-			reportData: generateReportData(),
-			rawQuote:   make([]uint8, 0),
-			err:        nil,
+			name:     "Test attestation successful",
+			nonce:    generateReportData(),
+			rawQuote: make([]uint8, 0),
+			err:      nil,
 		},
 		{
-			name:       "Test attestation failed",
-			reportData: generateReportData(),
-			rawQuote:   nil,
-			err:        ErrAttestationFailed,
+			name:     "Test attestation failed",
+			nonce:    generateReportData(),
+			rawQuote: nil,
+			err:      ErrAttestationFailed,
 		},
 	}
 	for _, tc := range cases {
@@ -355,22 +355,22 @@ func TestAttestation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			getQuote := qp.On("GetRawQuote", mock.Anything).Return(tc.rawQuote, tc.err)
+			getQuote := qp.On("GetRawQuoteAtLevel", mock.Anything).Return(tc.rawQuote, tc.err)
 			if tc.err != ErrAttestationFailed {
-				getQuote = qp.On("GetRawQuote", mock.Anything).Return(tc.reportData, nil)
+				getQuote = qp.On("GetRawQuoteAtLevel", mock.Anything).Return(tc.nonce, nil)
 			}
 			defer getQuote.Unset()
 
 			svc := New(ctx, mglog.NewMock(), events, qp)
 			time.Sleep(300 * time.Millisecond)
-			_, err := svc.Attestation(ctx, tc.reportData)
+			_, err := svc.Attestation(ctx, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
 }
 
-func generateReportData() [ReportDataSize]byte {
-	bytes := make([]byte, ReportDataSize)
+func generateReportData() [Nonce]byte {
+	bytes := make([]byte, Nonce)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		log.Fatalf("Failed to generate random bytes: %v", err)

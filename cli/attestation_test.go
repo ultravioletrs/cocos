@@ -35,8 +35,8 @@ func TestNewAttestationCmd(t *testing.T) {
 
 	cmd.SetOutput(&buf)
 
-	reportData := bytes.Repeat([]byte{0x01}, agent.ReportDataSize)
-	mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(reportData), mock.Anything).Return(nil)
+	reportData := bytes.Repeat([]byte{0x01}, agent.Nonce)
+	mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(reportData), mock.Anything).Return(nil)
 
 	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
 	err := cmd.Execute()
@@ -57,7 +57,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 	}{
 		{
 			name:         "successful attestation retrieval",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
@@ -85,28 +85,28 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		},
 		{
 			name:         "failed to get attestation",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
 			expectedErr:  "Failed to get attestation due to error",
 		},
 		{
 			name:         "JSON report error",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), "--json"},
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce)), "--json"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedErr:  "Error converting attestation to json",
 		},
 		{
 			name:         "successful JSON report",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), "--json"},
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce)), "--json"},
 			mockResponse: validattestation,
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
 			name:         "connection error",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.ReportDataSize))},
+			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
 			mockResponse: nil,
 			mockError:    errors.New("failed to connect to agent"),
 			expectedErr:  "Failed to connect to agent",
@@ -128,7 +128,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			var buf bytes.Buffer
 			cmd.SetOutput(&buf)
 
-			mockSDK.On("Attestation", mock.Anything, [agent.ReportDataSize]byte(bytes.Repeat([]byte{0x01}, agent.ReportDataSize)), mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+			mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(bytes.Repeat([]byte{0x01}, agent.Nonce)), mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(2).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})

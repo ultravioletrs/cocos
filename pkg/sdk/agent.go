@@ -26,7 +26,7 @@ type SDK interface {
 	Algo(ctx context.Context, algorithm, requirements *os.File, privKey any) error
 	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
 	Result(ctx context.Context, privKey any, resultFile *os.File) error
-	Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error
+	Attestation(ctx context.Context, nonce [size64]byte, attType int, attestationFile *os.File) error
 }
 
 const (
@@ -120,9 +120,10 @@ func (sdk *agentSDK) Result(ctx context.Context, privKey any, resultFile *os.Fil
 	return pb.ReceiveResult(resultProgressDescription, fileSize, stream, resultFile)
 }
 
-func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte, attestationFile *os.File) error {
+func (sdk *agentSDK) Attestation(ctx context.Context, nonce [size64]byte, attType int, attestationFile *os.File) error {
 	request := &agent.AttestationRequest{
-		ReportData: reportData[:],
+		Nonce: nonce[:],
+		Type:  int32(attType),
 	}
 
 	stream, err := sdk.client.Attestation(ctx, request)

@@ -96,10 +96,14 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	if len(req.ReportData) != agent.ReportDataSize {
-		return nil, errors.New("malformed report data, expect 64 bytes")
+	var nonce [agent.Nonce]byte
+
+	if len(req.Nonce) > agent.Nonce {
+		return nil, errors.New("malformed report data, expect less or equal to 64 bytes")
 	}
-	return attestationReq{ReportData: [agent.ReportDataSize]byte(req.ReportData)}, nil
+
+	copy(nonce[:], req.Nonce)
+	return attestationReq{Nonce: nonce, AttType: req.Type}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
