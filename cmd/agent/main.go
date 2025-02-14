@@ -71,7 +71,7 @@ func main() {
 		return
 	}
 
-	qp, err := quoteprovider.GetQuoteProvider()
+	qp, err := quoteprovider.GetLeveledQuoteProvider()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
 		exitCode = 1
@@ -128,7 +128,7 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.QuoteProvider) agent.Service {
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider) agent.Service {
 	svc := agent.New(ctx, logger, eventSvc, qp)
 
 	svc = api.LoggingMiddleware(svc, logger)

@@ -59,7 +59,7 @@ func (v *qemuVM) Start() (err error) {
 	v.vmi.Config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.NetDevConfig.ID, id)
 	v.vmi.Config.SevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SevConfig.ID, id)
 
-	if !v.vmi.Config.KernelHash {
+	if !v.vmi.Config.EnableSEVSNP {
 		// Copy firmware vars file.
 		srcFile := v.vmi.Config.OVMFVarsConfig.File
 		dstFile := fmt.Sprintf("%s/%s-%s.fd", tmpDir, firmwareVars, id)

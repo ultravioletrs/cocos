@@ -17,11 +17,14 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
+	pb "github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -98,27 +101,33 @@ const (
 		}
 	}
 	`
+	SNP     = "snp"
+	VTPM    = "vtpm"
+	SNPvTPM = "snp-vtpm"
 )
 
 var (
-	cfg                 = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-	cfgString           string
-	timeout             time.Duration
-	maxRetryDelay       time.Duration
-	platformInfo        string
-	stepping            string
-	trustedAuthorKeys   []string
-	trustedAuthorHashes []string
-	trustedIdKeys       []string
-	trustedIdKeyHashes  []string
-	attestationFile     string
-	attestation         []byte
-	empty16             = [size16]byte{}
-	empty32             = [size32]byte{}
-	empty64             = [size64]byte{}
-	defaultReportIdMa   = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	getJsonAttestation  bool
-	errReportSize       = errors.New("attestation contents too small")
+	cfg                     = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	cfgString               string
+	timeout                 time.Duration
+	maxRetryDelay           time.Duration
+	platformInfo            string
+	stepping                string
+	trustedAuthorKeys       []string
+	trustedAuthorHashes     []string
+	trustedIdKeys           []string
+	trustedIdKeyHashes      []string
+	attestationFile         string
+	attestation             []byte
+	empty16                 = [size16]byte{}
+	empty32                 = [size32]byte{}
+	empty64                 = [size64]byte{}
+	defaultReportIdMa       = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	getTextProtoAttestation bool
+	attestationType         string
+	errReportSize           = errors.New("attestation contents too small")
+	ErrBadType              = errors.New("bad type provided to the CLI attestation command")
+	ErrBadAttestation       = errors.New("attestation file is corrupted or in wrong format")
 )
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
@@ -154,8 +163,8 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get",
-		Short:   "Retrieve attestation information from agent. Report data expected in hex enoded string of length 64 bytes.",
-		Example: "get <report_data>",
+		Short:   "Retrieve attestation information from agent. The nonce parameter needs to be a hex encoded string.",
+		Example: "get <nonce>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -165,19 +174,38 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			cmd.Println("Getting attestation")
 
-			reportData, err := hex.DecodeString(args[0])
+			nonce, err := hex.DecodeString(args[0])
 			if err != nil {
 				printError(cmd, "Error decoding report data: %v ❌ ", err)
 				return
 			}
-			if len(reportData) != agent.ReportDataSize {
-				msg := color.New(color.FgRed).Sprintf("report data must be a hex encoded string of length %d bytes ❌ ", agent.ReportDataSize)
+
+			attType := agent.SNPvTPM
+			switch attestationType {
+			case SNP:
+				cmd.Println("Fetching SEV-SNP attestation report")
+				attType = agent.SNP
+			case VTPM:
+				cmd.Println("Fetching vTPM report")
+				attType = agent.VTPM
+			case SNPvTPM:
+				cmd.Println("Fetching SEV-SNP and vTPM report")
+			default:
+				printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
+				return
+			}
+
+			if len(nonce) > agent.Nonce {
+				msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", agent.Nonce)
 				cmd.Println(msg)
 				return
 			}
 
+			var fixedNonce [agent.Nonce]byte
+			copy(fixedNonce[:], nonce)
+
 			filename := attestationFilePath
-			if getJsonAttestation {
+			if getTextProtoAttestation {
 				filename = attestationJson
 			}
 
@@ -187,7 +215,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if err := cli.agentSDK.Attestation(cmd.Context(), [agent.ReportDataSize]byte(reportData), attestationFile); err != nil {
+			if err := cli.agentSDK.Attestation(cmd.Context(), fixedNonce, int(attType), attestationFile); err != nil {
 				printError(cmd, "Failed to get attestation due to error: %v ❌ ", err)
 				return
 			}
@@ -197,16 +225,35 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if getJsonAttestation {
+			if getTextProtoAttestation {
 				result, err := os.ReadFile(filename)
 				if err != nil {
 					printError(cmd, "Error reading attestation file: %v ❌ ", err)
 					return
 				}
 
-				result, err = attesationToJSON(result)
+				switch attestationType {
+				case SNP:
+					result, err = attesationToJSON(result)
+				case VTPM, SNPvTPM:
+					marshalOptions := prototext.MarshalOptions{
+						Multiline: true,
+						EmitASCII: true,
+					}
+					var attvTPM pb.Attestation
+					err = proto.Unmarshal(result, &attvTPM)
+					if err != nil {
+						printError(cmd, "failed to unmarshal the attestation report: %v ❌ ", ErrBadAttestation)
+					}
+
+					result = []byte(marshalOptions.Format(&attvTPM))
+				default:
+					printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
+					return
+				}
+
 				if err != nil {
-					printError(cmd, "Error converting attestation to json: %v ❌ ", err)
+					printError(cmd, "Error converting attestation to textproto: %v ❌ ", err)
 					return
 				}
 
@@ -220,7 +267,8 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&getJsonAttestation, "json", "j", false, "Get attestation in json format")
+	cmd.Flags().BoolVarP(&getTextProtoAttestation, "textproto", "p", false, "Get attestation in textproto format")
+	cmd.Flags().StringVarP(&attestationType, "type", "t", "", "Get SEV or/and vTPM attestation report (snp, vtpm or snp-vtpm)")
 
 	return cmd
 }

@@ -71,7 +71,7 @@ func (as *agentServer) Start(ctx context.Context, cfg agent.AgentConfig, cmp age
 		return err
 	}
 
-	qp, err := quoteprovider.GetQuoteProvider()
+	qp, err := quoteprovider.GetLeveledQuoteProvider()
 	if err != nil {
 		as.logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
 		return err

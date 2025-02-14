@@ -32,6 +32,8 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gofrs/uuid/v5 v5.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/google/go-tdx-guest v0.3.1 // indirect
+	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -58,6 +60,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-configfs-tsm v0.2.2 // indirect
+	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect

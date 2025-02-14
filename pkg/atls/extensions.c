@@ -121,9 +121,14 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         }
 
         if (ext_data != NULL) {
-            if (RAND_bytes(ext_data->er.data, CLIENT_RANDOM_SIZE) != 1) {
-                perror("could not generate random bytes, will use SSL client random");
-                SSL_get_client_random(s, ext_data->er.data, CLIENT_RANDOM_SIZE);
+            if (RAND_bytes(ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE) != 1) {
+                perror("could not generate random bytes for vtpm nonce, will use SSL client random");
+                SSL_get_client_random(s, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+            }
+
+            if (RAND_bytes(ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE) != 1) {
+                perror("could not generate random bytes for tee nonce, will use SSL client random");
+                SSL_get_client_random(s, ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE);
             }
         } else {
             fprintf(stderr, "add_arg is NULL\n");
@@ -132,7 +137,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
             return -1;
         }
 
-        memcpy(er->data, ext_data->er.data, CLIENT_RANDOM_SIZE);
+        memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+        memcpy(er->tee_nonce, ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE);
         er->tee_type = AMD_TEE;
         ext_data->er.tee_type = AMD_TEE;
 
@@ -201,7 +207,8 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
         evidence_request *er = (evidence_request*)in;
 
         if (ext_data != NULL) {
-            memcpy(ext_data->er.data, er->data, CLIENT_RANDOM_SIZE);
+            memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, CLIENT_RANDOM_SIZE);
+            memcpy(ext_data->er.tee_nonce, er->tee_nonce, CLIENT_RANDOM_SIZE);
             ext_data->er.tee_type = er->tee_type;
         } else {
             fprintf(stderr, "parse_arg is NULL\n");
@@ -273,7 +280,8 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
             }
 
             if (x != NULL) {
-                int ret = compute_sha256_of_public_key_nonce(x, ext_data->er.data, hash);
+
+                int ret = compute_sha256_of_public_key_nonce(x, ext_data->er.tee_nonce, hash);
                 if (ret != 0) {
                     fprintf(stderr, "error while calculating hash\n");
                     free(hash);
@@ -342,7 +350,7 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
                     return 0;
                 }
 
-                if (compute_sha256_of_public_key_nonce(x, ext_data->er.data, hash) != 0) {
+                if (compute_sha256_of_public_key_nonce(x, ext_data->er.tee_nonce, hash) != 0) {
                     fprintf(stderr, "calculating hash failed\n");
                     free(attestation_report);
                     free(hash);

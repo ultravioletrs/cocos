@@ -47,7 +47,7 @@ func TestNew(t *testing.T) {
 		},
 	}
 	logger := slog.Default()
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -97,7 +97,7 @@ func TestServerStartWithTLSFile(t *testing.T) {
 
 	logBuffer := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -144,7 +144,7 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 
 	logBuffer := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -184,7 +184,7 @@ func TestServerStop(t *testing.T) {
 	}
 	buf := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -374,7 +374,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 
 			logBuffer := &ThreadSafeBuffer{}
 			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			qp := new(mocks.QuoteProvider)
+			qp := new(mocks.LeveledQuoteProvider)
 			authSvc := new(authmocks.Authenticator)
 
 			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc)
