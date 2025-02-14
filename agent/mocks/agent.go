@@ -73,9 +73,9 @@ func (_c *Service_Algo_Call) RunAndReturn(run func(context.Context, agent.Algori
 	return _c
 }
 
-// Attestation provides a mock function with given fields: ctx, reportData
-func (_m *Service) Attestation(ctx context.Context, reportData [64]byte) ([]byte, error) {
-	ret := _m.Called(ctx, reportData)
+// Attestation provides a mock function with given fields: ctx, reportData, attType
+func (_m *Service) Attestation(ctx context.Context, reportData [64]byte, attType int32) ([]byte, error) {
+	ret := _m.Called(ctx, reportData, attType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Attestation")
@@ -83,19 +83,19 @@ func (_m *Service) Attestation(ctx context.Context, reportData [64]byte) ([]byte
 
 	var r0 []byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte) ([]byte, error)); ok {
-		return rf(ctx, reportData)
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, int32) ([]byte, error)); ok {
+		return rf(ctx, reportData, attType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte) []byte); ok {
-		r0 = rf(ctx, reportData)
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, int32) []byte); ok {
+		r0 = rf(ctx, reportData, attType)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [64]byte) error); ok {
-		r1 = rf(ctx, reportData)
+	if rf, ok := ret.Get(1).(func(context.Context, [64]byte, int32) error); ok {
+		r1 = rf(ctx, reportData, attType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -111,13 +111,14 @@ type Service_Attestation_Call struct {
 // Attestation is a helper method to define mock.On call
 //   - ctx context.Context
 //   - reportData [64]byte
-func (_e *Service_Expecter) Attestation(ctx interface{}, reportData interface{}) *Service_Attestation_Call {
-	return &Service_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData)}
+//   - attType int32
+func (_e *Service_Expecter) Attestation(ctx interface{}, reportData interface{}, attType interface{}) *Service_Attestation_Call {
+	return &Service_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData, attType)}
 }
 
-func (_c *Service_Attestation_Call) Run(run func(ctx context.Context, reportData [64]byte)) *Service_Attestation_Call {
+func (_c *Service_Attestation_Call) Run(run func(ctx context.Context, reportData [64]byte, attType int32)) *Service_Attestation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([64]byte))
+		run(args[0].(context.Context), args[1].([64]byte), args[2].(int32))
 	})
 	return _c
 }
@@ -127,7 +128,7 @@ func (_c *Service_Attestation_Call) Return(_a0 []byte, _a1 error) *Service_Attes
 	return _c
 }
 
-func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte) ([]byte, error)) *Service_Attestation_Call {
+func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte, int32) ([]byte, error)) *Service_Attestation_Call {
 	_c.Call.Return(run)
 	return _c
 }

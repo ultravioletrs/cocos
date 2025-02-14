@@ -151,10 +151,10 @@ func TestAttestation(t *testing.T) {
 	mockStream := &MockAgentService_AttestationServer{ctx: context.Background()}
 	mockStream.On("Send", mock.AnythingOfType("*agent.AttestationResponse")).Return(nil)
 
-	reportData := [agent.ReportDataSize]byte{}
+	reportData := [agent.Nonce]byte{}
 	mockService.On("Attestation", mock.Anything, reportData).Return([]byte("attestation data"), nil)
 
-	err := server.Attestation(&agent.AttestationRequest{ReportData: reportData[:]}, mockStream)
+	err := server.Attestation(&agent.AttestationRequest{Nonce: reportData[:]}, mockStream)
 	assert.NoError(t, err)
 
 	mockService.AssertExpectations(t)
@@ -199,11 +199,11 @@ func TestEncodeResultResponse(t *testing.T) {
 }
 
 func TestDecodeAttestationRequest(t *testing.T) {
-	reportData := [agent.ReportDataSize]byte{}
-	req := &agent.AttestationRequest{ReportData: reportData[:]}
+	nonce := [agent.Nonce]byte{}
+	req := &agent.AttestationRequest{Nonce: nonce[:]}
 	decoded, err := decodeAttestationRequest(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Equal(t, attestationReq{ReportData: reportData}, decoded)
+	assert.Equal(t, attestationReq{Nonce: nonce}, decoded)
 }
 
 func TestEncodeAttestationResponse(t *testing.T) {

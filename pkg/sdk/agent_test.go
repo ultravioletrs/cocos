@@ -385,7 +385,7 @@ func TestAttestation(t *testing.T) {
 	cases := []struct {
 		name       string
 		userKey    any
-		reportData [agent.ReportDataSize]byte
+		reportData [agent.Nonce]byte
 		response   *agent.AttestationResponse
 		svcRes     []byte
 		err        error
@@ -393,7 +393,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "fetch attestation report successfully",
 			userKey:    resultConsumerKey,
-			reportData: [agent.ReportDataSize]byte(reportData),
+			reportData: [agent.Nonce]byte(reportData),
 			response: &agent.AttestationResponse{
 				File: report,
 			},
@@ -403,7 +403,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "fetch attestation report with different key type",
 			userKey:    resultConsumer1Key,
-			reportData: [agent.ReportDataSize]byte(reportData),
+			reportData: [agent.Nonce]byte(reportData),
 			response: &agent.AttestationResponse{
 				File: report,
 			},
@@ -413,7 +413,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "failed to fetch attestation report",
 			userKey:    resultConsumerKey,
-			reportData: [agent.ReportDataSize]byte(reportData),
+			reportData: [agent.Nonce]byte(reportData),
 			response: &agent.AttestationResponse{
 				File: []byte{},
 			},
@@ -422,7 +422,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "invalid report data",
 			userKey:    resultConsumerKey,
-			reportData: [agent.ReportDataSize]byte{},
+			reportData: [agent.Nonce]byte{},
 			response: &agent.AttestationResponse{
 				File: []byte{},
 			},
@@ -442,7 +442,7 @@ func TestAttestation(t *testing.T) {
 				os.Remove(file.Name())
 			})
 
-			err = sdk.Attestation(context.Background(), tc.reportData, file)
+			err = sdk.Attestation(context.Background(), tc.reportData, 0, file)
 
 			require.NoError(t, file.Close())
 

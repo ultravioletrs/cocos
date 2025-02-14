@@ -76,8 +76,8 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		attestationPolicy.Policy.Measurement = measurement
 	}
 
-	if vmi.Config.HostData != "" {
-		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.HostData)
+	if vmi.Config.SevConfig.EnableHostData {
+		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SevConfig.HostData)
 		if err != nil {
 			return nil, err
 		}

@@ -56,7 +56,13 @@ type SevConfig struct {
 	ID              string `env:"SEV_ID"                envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS"           envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
-	HostData        string `env:"HOST_DATA" envDefault:""`
+	EnableHostData  bool   `env:"ENABLE_HOST_DATA"      envDefault:"false"`
+	HostData        string `env:"HOST_DATA"             envDefault:""`
+}
+
+type IGVMConfig struct {
+	ID   string `env:"IGVM_ID"        envDefault:"igvm0"`
+	File string `env:"IGVM_FILE"      envDefault:"/root/coconut-qemu.igvm"`
 }
 
 type VSockConfig struct {
@@ -80,9 +86,6 @@ type Config struct {
 	MemID    string `env:"MEM_ID"      envDefault:"ram1"`
 	MemoryConfig
 
-	// Kernel hash
-	KernelHash bool `env:"KERNEL_HASH" envDefault:"false"`
-
 	// OVMF
 	OVMFCodeConfig
 	OVMFVarsConfig
@@ -99,6 +102,9 @@ type Config struct {
 
 	// SEV
 	SevConfig
+
+	// vTPM
+	IGVMConfig
 
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
@@ -173,25 +179,20 @@ func (config Config) ConstructQemuArgs() []string {
 	// SEV
 	if config.EnableSEV || config.EnableSEVSNP {
 		sevType := "sev-guest"
-		kernelHash := ""
 		hostData := ""
 
 		args = append(args, "-machine",
-			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s",
+			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s,igvm-cfg=%s",
 				config.SevConfig.ID,
-				config.MemID))
+				config.MemID,
+				config.IGVMConfig.ID))
 
 		if config.EnableSEVSNP {
-			args = append(args, "-bios", config.OVMFCodeConfig.File)
 			sevType = "sev-snp-guest"
 
-			if config.SevConfig.HostData != "" {
+			if config.SevConfig.EnableHostData {
 				hostData = fmt.Sprintf(",host-data=%s", config.SevConfig.HostData)
 			}
-		}
-
-		if config.KernelHash {
-			kernelHash = ",kernel-hashes=on"
 		}
 
 		args = append(args, "-object",
@@ -200,13 +201,17 @@ func (config Config) ConstructQemuArgs() []string {
 				config.MemoryConfig.Size))
 
 		args = append(args, "-object",
-			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s%s",
+			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s",
 				sevType,
 				config.SevConfig.ID,
 				config.SevConfig.CBitPos,
 				config.SevConfig.ReducedPhysBits,
-				kernelHash,
 				hostData))
+
+		args = append(args, "-object",
+			fmt.Sprintf("igvm-cfg,id=%s,file=%s",
+				config.IGVMConfig.ID,
+				config.IGVMConfig.File))
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)

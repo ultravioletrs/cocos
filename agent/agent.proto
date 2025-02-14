@@ -36,7 +36,8 @@ message ResultResponse {
 }
 
 message AttestationRequest {
-  bytes report_data = 1; // Should be of length 64.
+  bytes nonce = 1; // Should be less or equal 64 bytes.
+  int32 type = 2;
 }
 
 message AttestationResponse {

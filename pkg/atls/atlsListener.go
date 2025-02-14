@@ -95,7 +95,7 @@ func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uch
 
 	callback := handle.Value().(ValidationVerification)
 	attestationReport := C.GoBytes(unsafe.Pointer(attReport), attReportSize)
-	reportData := C.GoBytes(unsafe.Pointer(repData), agent.ReportDataSize)
+	reportData := C.GoBytes(unsafe.Pointer(repData), agent.Nonce)
 
 	err := callback(attestationReport, reportData)
 	if err != nil {
@@ -112,7 +112,7 @@ func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.ucha
 	defer handle.Delete()
 
 	callback := handle.Value().(FetchAttestation)
-	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.ReportDataSize)
+	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.Nonce)
 
 	quote, err := callback(reportData)
 	if err != nil {
