@@ -130,7 +130,7 @@ func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case msg := <-client.messageQueue:
-			if err := client.sendMessageWithRetry(msg); err != nil {
+			if err := client.sendStreamMessage(msg); err != nil {
 				if err := client.storage.Add(msg); err != nil {
 					client.logger.Error("Failed to store pending message", "error", err)
 				}
@@ -140,7 +140,7 @@ func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
 	}
 }
 
-func (client *CVMSClient) sendMessageWithRetry(msg *cvms.ClientStreamMessage) error {
+func (client *CVMSClient) sendStreamMessage(msg *cvms.ClientStreamMessage) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -149,7 +149,7 @@ func (client *CVMSClient) sendMessageWithRetry(msg *cvms.ClientStreamMessage) er
 
 func (client *CVMSClient) sendPendingMessages(pending []storage.Message) {
 	for _, pm := range pending {
-		if err := client.sendMessageWithRetry(pm.Message); err != nil {
+		if err := client.sendStreamMessage(pm.Message); err != nil {
 			if err := client.storage.Add(pm.Message); err != nil {
 				client.logger.Error("Failed to store pending message", "error", err)
 			}
