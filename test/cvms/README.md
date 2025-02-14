@@ -17,3 +17,8 @@ The service is configured using the environment variables from the following tab
 ```shell
 go run main.go <algo_path> <public_key_path> <attested_tls_bool> <dataset(s)_path> 
 ```
+
+- `algo_path`: Path to the algorithm file (python file,docker image file, wasm, compiled binary) \
+- `public_key_path`: Path to the public key file (PEM format) \
+- `attested_tls_bool`: Boolean flag to enable/disable attested TLS (true/false) \
+- `dataset(s)_path`: Path to one or more dataset files.
