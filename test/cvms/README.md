@@ -8,8 +8,8 @@ The service is configured using the environment variables from the following tab
 
 | Variable         | Description                              | Default |
 | ---------------- | ---------------------------------------- | ------- |
-| HOST             | Computations service gRPC host           |         |
-| PORT             | Computations service gRPC port           | 7001    |
+| HOST             | CVMS server gRPC host                    |         |
+| PORT             | CVMS server gRPC port                    | 7001    |
 | SERVER_CERT      | Path to server certificate in pem format |         |
 | SERVER_KEY       | Path to server key in pem format         |         |
 
