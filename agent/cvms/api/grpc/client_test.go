@@ -84,14 +84,15 @@ func TestManagerClient_Process1(t *testing.T) {
 			messageQueue := make(chan *cvms.ClientStreamMessage, 10)
 			logger := mglog.NewMock()
 
-			client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+			assert.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
 			tc.setupMocks(mockStream, mockSvc, mockServerSvc)
 
-			err := client.Process(ctx, cancel)
+			err = client.Process(ctx, cancel)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -112,7 +113,8 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	assert.NoError(t, err)
 
 	runReq := &cvms.ComputationRunReq{
 		Id: "test-id",
@@ -137,7 +139,7 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	mockSvc.On("InitComputation", mock.Anything, mock.Anything).Return(nil)
 	mockServerSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	err := client.handleRunReqChunks(context.Background(), chunk1)
+	err = client.handleRunReqChunks(context.Background(), chunk1)
 	assert.NoError(t, err)
 
 	err = client.handleRunReqChunks(context.Background(), chunk2)
@@ -162,7 +164,8 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
 
-	client := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	assert.NoError(t, err)
 
 	stopReq := &cvms.ServerStreamMessage_StopComputation{
 		StopComputation: &cvms.StopComputation{

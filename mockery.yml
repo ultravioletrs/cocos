@@ -112,3 +112,10 @@ packages:
           dir: "./pkg/attestation/quoteprovider/mocks"
           filename: "QuoteProvider.go"
           mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage:
+    interfaces:
+      Storage:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "storage.go"
+          mockname: "{{.InterfaceName}}"

@@ -119,7 +119,12 @@ func main() {
 		return
 	}
 
-	mc := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
+	if err != nil {
+		logger.Error(err.Error())
+		exitCode = 1
+		return
+	}
 
 	g.Go(func() error {
 		ch := make(chan os.Signal, 1)

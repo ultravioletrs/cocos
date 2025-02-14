@@ -4,16 +4,14 @@ package grpc
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/cvms"
+	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
@@ -43,23 +41,27 @@ type CVMSClient struct {
 	logger        *slog.Logger
 	runReqManager *runRequestManager
 	sp            server.AgentServer
-	pendingMsgs   []PendingMessage
-	storageDir    string
+	storage       storage.Storage
 	reconnectFn   func(context.Context) (cvms.Service_ProcessClient, error)
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (cvms.Service_ProcessClient, error)) CVMSClient {
-	return CVMSClient{
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (cvms.Service_ProcessClient, error)) (*CVMSClient, error) {
+	store, err := storage.NewFileStorage(storageDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CVMSClient{
 		stream:        stream,
 		svc:           svc,
 		messageQueue:  messageQueue,
 		logger:        logger,
 		runReqManager: newRunRequestManager(),
 		sp:            sp,
-		storageDir:    storageDir,
+		storage:       store,
 		reconnectFn:   reconnectFn,
-	}
+	}, nil
 }
 
 func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc) error {
@@ -98,43 +100,6 @@ func (client *CVMSClient) processWithRetry(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (client *CVMSClient) loadPendingMessages() error {
-	file := filepath.Join(client.storageDir, pendingMsgFile)
-	data, err := os.ReadFile(file)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(data, &client.pendingMsgs)
-}
-
-func (client *CVMSClient) savePendingMessages() error {
-	data, err := json.Marshal(client.pendingMsgs)
-	if err != nil {
-		return err
-	}
-
-	file := filepath.Join(client.storageDir, pendingMsgFile)
-	return os.WriteFile(file, data, 0o644)
-}
-
-func (client *CVMSClient) addPendingMessage(msg *cvms.ClientStreamMessage) {
-	client.mu.Lock()
-	defer client.mu.Unlock()
-
-	client.pendingMsgs = append(client.pendingMsgs, PendingMessage{
-		Message: msg,
-		Time:    time.Now(),
-	})
-
-	if err := client.savePendingMessages(); err != nil {
-		client.logger.Error("Failed to save pending messages", "error", err)
-	}
-}
-
 func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 	for {
 		select {
@@ -153,10 +118,11 @@ func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 }
 
 func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
-	if err := client.loadPendingMessages(); err != nil {
+	pendingMsgs, err := client.storage.Load()
+	if err != nil {
 		client.logger.Error("Failed to load pending messages", "error", err)
 	} else {
-		client.sendPendingMessages()
+		client.sendPendingMessages(pendingMsgs)
 	}
 
 	for {
@@ -165,7 +131,9 @@ func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
 			return ctx.Err()
 		case msg := <-client.messageQueue:
 			if err := client.sendMessageWithRetry(msg); err != nil {
-				client.addPendingMessage(msg)
+				if err := client.storage.Add(msg); err != nil {
+					client.logger.Error("Failed to store pending message", "error", err)
+				}
 				client.logger.Error("Failed to send message, stored for retry", "error", err)
 			}
 		}
@@ -179,23 +147,20 @@ func (client *CVMSClient) sendMessageWithRetry(msg *cvms.ClientStreamMessage) er
 	return client.stream.Send(msg)
 }
 
-func (client *CVMSClient) sendPendingMessages() {
-	client.mu.Lock()
-	pending := client.pendingMsgs
-	client.pendingMsgs = nil
-	client.mu.Unlock()
-
+func (client *CVMSClient) sendPendingMessages(pending []storage.Message) {
 	for _, pm := range pending {
 		if err := client.sendMessageWithRetry(pm.Message); err != nil {
-			client.addPendingMessage(pm.Message)
+			if err := client.storage.Add(pm.Message); err != nil {
+				client.logger.Error("Failed to store pending message", "error", err)
+			}
 			client.logger.Error("Failed to resend pending message", "error", err)
 		} else {
 			client.logger.Info("Successfully resent pending message")
 		}
 	}
 
-	if err := client.savePendingMessages(); err != nil {
-		client.logger.Error("Failed to save pending messages state", "error", err)
+	if err := client.storage.Clear(); err != nil {
+		client.logger.Error("Failed to clear pending messages", "error", err)
 	}
 }
 
