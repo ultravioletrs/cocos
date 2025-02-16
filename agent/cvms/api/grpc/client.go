@@ -11,16 +11,27 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/cvms"
+	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	reconnectInterval = 5 * time.Second
+	sendTimeout       = 5 * time.Second
+	pendingMsgFile    = "pending_messages.json"
+)
+
 var (
 	errCorruptedManifest  = errors.New("received manifest may be corrupted")
 	errUnknonwMessageType = errors.New("unknown message type")
-	sendTimeout           = 5 * time.Second
 )
+
+type PendingMessage struct {
+	Message *cvms.ClientStreamMessage
+	Time    time.Time
+}
 
 type CVMSClient struct {
 	mu            sync.Mutex
@@ -30,21 +41,52 @@ type CVMSClient struct {
 	logger        *slog.Logger
 	runReqManager *runRequestManager
 	sp            server.AgentServer
+	storage       storage.Storage
+	reconnectFn   func(context.Context) (cvms.Service_ProcessClient, error)
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer) CVMSClient {
-	return CVMSClient{
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (cvms.Service_ProcessClient, error)) (*CVMSClient, error) {
+	store, err := storage.NewFileStorage(storageDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CVMSClient{
 		stream:        stream,
 		svc:           svc,
 		messageQueue:  messageQueue,
 		logger:        logger,
 		runReqManager: newRunRequestManager(),
 		sp:            sp,
-	}
+		storage:       store,
+		reconnectFn:   reconnectFn,
+	}, nil
 }
 
 func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc) error {
+	for {
+		err := client.processWithRetry(ctx)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		client.logger.Info("Connection lost, attempting to reconnect...", "error", err)
+		time.Sleep(reconnectInterval)
+
+		stream, err := client.reconnectFn(ctx)
+		if err != nil {
+			client.logger.Error("Failed to reconnect", "error", err)
+			continue
+		}
+
+		client.mu.Lock()
+		client.stream = stream
+		client.mu.Unlock()
+	}
+}
+
+func (client *CVMSClient) processWithRetry(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
@@ -75,16 +117,78 @@ func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 	}
 }
 
+func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
+	pendingMsgs, err := client.storage.Load()
+	if err != nil {
+		client.logger.Error("Failed to load pending messages", "error", err)
+	} else {
+		client.sendPendingMessages(pendingMsgs)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg := <-client.messageQueue:
+			if err := client.sendStreamMessage(msg); err != nil {
+				if err := client.storage.Add(msg); err != nil {
+					client.logger.Error("Failed to store pending message", "error", err)
+				}
+				client.logger.Error("Failed to send message, stored for retry", "error", err)
+			}
+		}
+	}
+}
+
+func (client *CVMSClient) sendStreamMessage(msg *cvms.ClientStreamMessage) error {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
+	return client.stream.Send(msg)
+}
+
+func (client *CVMSClient) sendPendingMessages(pending []storage.Message) {
+	for _, pm := range pending {
+		if err := client.sendStreamMessage(pm.Message); err != nil {
+			if err := client.storage.Add(pm.Message); err != nil {
+				client.logger.Error("Failed to store pending message", "error", err)
+			}
+			client.logger.Error("Failed to resend pending message", "error", err)
+		} else {
+			client.logger.Info("Successfully resent pending message")
+		}
+	}
+
+	if err := client.storage.Clear(); err != nil {
+		client.logger.Error("Failed to clear pending messages", "error", err)
+	}
+}
+
 func (client *CVMSClient) processIncomingMessage(ctx context.Context, req *cvms.ServerStreamMessage) error {
 	switch mes := req.Message.(type) {
 	case *cvms.ServerStreamMessage_RunReqChunks:
 		return client.handleRunReqChunks(ctx, mes)
 	case *cvms.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
+	case *cvms.ServerStreamMessage_AgentStateReq:
+		client.handleAgentStateReq(mes)
 	default:
 		return errUnknonwMessageType
 	}
 	return nil
+}
+
+func (client *CVMSClient) handleAgentStateReq(mes *cvms.ServerStreamMessage_AgentStateReq) {
+	state := client.svc.State()
+
+	msg := &cvms.ClientStreamMessage_AgentStateRes{
+		AgentStateRes: &cvms.AgentStateRes{
+			State: state,
+			Id:    mes.AgentStateReq.Id,
+		},
+	}
+
+	client.sendMessage(&cvms.ClientStreamMessage{Message: msg})
 }
 
 func (client *CVMSClient) handleRunReqChunks(ctx context.Context, msg *cvms.ServerStreamMessage_RunReqChunks) error {
@@ -147,7 +251,7 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		},
 	}
 
-	err := client.sp.Start(ctx, agent.AgentConfig{
+	if err := client.sp.Start(agent.AgentConfig{
 		Port:         runReq.AgentConfig.Port,
 		Host:         runReq.AgentConfig.Host,
 		CertFile:     runReq.AgentConfig.CertFile,
@@ -155,8 +259,7 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		ServerCAFile: runReq.AgentConfig.ServerCaFile,
 		ClientCAFile: runReq.AgentConfig.ClientCaFile,
 		AttestedTls:  runReq.AgentConfig.AttestedTls,
-	}, ac)
-	if err != nil {
+	}, ac); err != nil {
 		client.logger.Warn(err.Error())
 		runRes.RunRes.Error = err.Error()
 	}
@@ -182,19 +285,6 @@ func (client *CVMSClient) handleStopComputation(ctx context.Context, mes *cvms.S
 	}
 
 	client.sendMessage(&cvms.ClientStreamMessage{Message: msg})
-}
-
-func (client *CVMSClient) handleOutgoingMessages(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case mes := <-client.messageQueue:
-			if err := client.stream.Send(mes); err != nil {
-				return err
-			}
-		}
-	}
 }
 
 func (client *CVMSClient) sendMessage(mes *cvms.ClientStreamMessage) {

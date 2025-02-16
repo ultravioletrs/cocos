@@ -100,7 +100,7 @@ packages:
           mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/agent/cvms/server:
     interfaces:
-      AgentServerProvider:
+      AgentServer:
         config:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "server.go"
@@ -111,4 +111,11 @@ packages:
         config:
           dir: "./pkg/attestation/quoteprovider/mocks"
           filename: "QuoteProvider.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage:
+    interfaces:
+      Storage:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "storage.go"
           mockname: "{{.InterfaceName}}"

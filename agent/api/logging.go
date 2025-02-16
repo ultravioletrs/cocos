@@ -27,6 +27,15 @@ func LoggingMiddleware(svc agent.Service, logger *slog.Logger) agent.Service {
 	return &loggingMiddleware{logger, svc}
 }
 
+// State implements agent.Service.
+func (lm *loggingMiddleware) State() (state string) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method State took %s to complete with state %s", time.Since(begin), state)
+		lm.logger.Info(message)
+	}(time.Now())
+	return lm.svc.State()
+}
+
 // InitComputation implements agent.Service.
 func (lm *loggingMiddleware) InitComputation(ctx context.Context, cmp agent.Computation) (err error) {
 	defer func(begin time.Time) {

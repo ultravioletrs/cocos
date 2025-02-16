@@ -13,6 +13,15 @@ service Service {
   rpc Process(stream ClientStreamMessage) returns (stream ServerStreamMessage) {}
 }
 
+message AgentStateReq {
+  string id = 1;
+}
+
+message AgentStateRes {
+  string id = 1;
+  string state = 2;
+}
+
 message StopComputation {
   string computation_id = 1;
 }
@@ -49,6 +58,7 @@ message ClientStreamMessage {
     AgentEvent agent_event = 2;
     RunResponse run_res = 3;
     StopComputationResponse stopComputationRes = 4;
+    AgentStateRes agentStateRes = 5;
   }
 }
 
@@ -57,6 +67,7 @@ message ServerStreamMessage {
     RunReqChunks runReqChunks = 1;
     ComputationRunReq runReq = 2;
     StopComputation stopComputation = 3;
+    AgentStateReq agentStateReq = 4;
   }
 }
 

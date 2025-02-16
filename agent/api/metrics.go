@@ -32,6 +32,16 @@ func MetricsMiddleware(svc agent.Service, counter metrics.Counter, latency metri
 	}
 }
 
+// State implements agent.Service.
+func (ms *metricsMiddleware) State() string {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "state").Add(1)
+		ms.latency.With("method", "state").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.State()
+}
+
 // InitComputation implements agent.Service.
 func (ms *metricsMiddleware) InitComputation(ctx context.Context, cmp agent.Computation) error {
 	defer func(begin time.Time) {

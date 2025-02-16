@@ -19,13 +19,13 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
-	cvmapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
+	cvmsapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
-	cvmgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
+	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -34,6 +34,7 @@ const (
 	defSvcGRPCPort   = "7002"
 	retryInterval    = 5 * time.Second
 	envPrefixCVMGRPC = "AGENT_CVM_GRPC_"
+	storageDir       = "/var/lib/cocos/agent"
 )
 
 type config struct {
@@ -85,7 +86,7 @@ func main() {
 		return
 	}
 
-	cvmGRPCClient, cvmClient, err := cvmgrpc.NewCVMClient(cvmGrpcConfig)
+	cvmGRPCClient, cvmsClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -93,7 +94,17 @@ func main() {
 	}
 	defer cvmGRPCClient.Close()
 
-	pc, err := cvmClient.Process(ctx)
+	reconnectFn := func(ctx context.Context) (cvms.Service_ProcessClient, error) {
+		_, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
+		if err != nil {
+			return nil, err
+		}
+		// Don't defer close here as we want to keep the connection open
+
+		return newClient.Process(ctx)
+	}
+
+	pc, err := cvmsClient.Process(ctx)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -102,7 +113,18 @@ func main() {
 
 	svc := newService(ctx, logger, eventSvc, qp)
 
-	mc := cvmapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc))
+	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
+		exitCode = 1
+		return
+	}
+
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
+	if err != nil {
+		logger.Error(err.Error())
+		exitCode = 1
+		return
+	}
 
 	g.Go(func() error {
 		ch := make(chan os.Signal, 1)
