@@ -42,7 +42,6 @@ var (
 
 var (
 	errProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
-	errReportSize      = errors.New("attestation report size mismatch")
 	errAttVerification = errors.New("attestation verification failed")
 	errAttValidation   = errors.New("attestation validation failed")
 )

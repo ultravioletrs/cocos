@@ -44,46 +44,6 @@ int check_sev_snp() {
     return 1;
 }
 
-int compute_sha256_of_public_key_nonce(X509 *cert, u_char *nonce, u_char *hash) {
-    EVP_PKEY *pkey = NULL;
-    u_char *pubkey_buf = NULL;
-    u_char *concatinated = NULL;
-    int pubkey_len = 0;
-    int totla_len = 0; 
-
-    pkey = X509_get_pubkey(cert);
-    if (pkey == NULL) {
-        fprintf(stderr, "Failed to extract public key from certificate\n");
-        return 0;
-    }
-
-    pubkey_len = i2d_PUBKEY(pkey, &pubkey_buf);
-    if (pubkey_len <= 0) {
-        fprintf(stderr, "Failed to convert public key to DER format\n");
-        EVP_PKEY_free(pkey);
-        return -1;
-    }
-    
-    totla_len = pubkey_len + CLIENT_RANDOM_SIZE;
-    concatinated = (u_char*)malloc(totla_len);
-    if (concatinated == NULL) {
-        perror("failed to allocate memory");
-        return -1;
-    }
-    memcpy(concatinated, nonce, CLIENT_RANDOM_SIZE);
-    memcpy(concatinated + CLIENT_RANDOM_SIZE, pubkey_buf, pubkey_len);
-
-    // Compute the SHA-512 hash of the DER-encoded public key and the random nonce
-    SHA512(concatinated, totla_len, hash);
-
-    // Clean up
-    EVP_PKEY_free(pkey);
-    OPENSSL_free(pubkey_buf);
-    free(concatinated);
-    
-    return 0;  // Success
-}
-
 /*
     Evidence request extension
     - Contains a random nonce that goes into the attestation report

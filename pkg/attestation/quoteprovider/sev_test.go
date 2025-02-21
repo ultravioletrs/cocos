@@ -20,11 +20,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const (
-	measurementOffset = 0x90
-	signatureOffset   = 0x2A0
-)
-
 func TestFillInAttestationLocal(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "test_home")
 	require.NoError(t, err)
@@ -189,12 +184,12 @@ func prepareForTestVerifyAttestationReport(t *testing.T) (*sevsnp.Attestation, [
 	file, err := os.ReadFile("../../../attestation.bin")
 	require.NoError(t, err)
 
-	rr, err := abi.ReportCertsToProto(file)
-	require.NoError(t, err)
-
 	if len(file) < attestationReportSize {
 		file = append(file, make([]byte, attestationReportSize-len(file))...)
 	}
+
+	rr, err := abi.ReportCertsToProto(file)
+	require.NoError(t, err)
 
 	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 

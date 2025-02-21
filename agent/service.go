@@ -410,9 +410,6 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData [Nonce]byte, nonce [vtpm.Nonce]byte, attType int32) ([]byte, error) {
-
-	fmt.Printf("Working on attestation: %d\n", attType)
-
 	switch AttestationType(attType) {
 	case SNP:
 		fmt.Println("SEV")

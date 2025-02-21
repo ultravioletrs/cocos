@@ -308,6 +308,10 @@ func generateCertificatesForATLS() ([]byte, []byte, error) {
 	}
 
 	pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal public key to DER format: %w", err)
+	}
+
 	if err := vtpm.ExtendPCR(vtpm.PCR15, pubKeyDER); err != nil {
 		return nil, nil, fmt.Errorf("failed to extend vTPM PCR with public key: %w", err)
 	}
