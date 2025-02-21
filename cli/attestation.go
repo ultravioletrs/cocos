@@ -134,7 +134,6 @@ var (
 	empty32                 = [size32]byte{}
 	empty64                 = [size64]byte{}
 	defaultReportIdMa       = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	getJsonAttestation      bool
 	errReportSize           = errors.New("attestation contents too small")
 	ErrBadType              = errors.New("bad type provided to the CLI attestation command")
 	ErrBadAttestation       = errors.New("attestation file is corrupted or in wrong format")
