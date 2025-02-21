@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -115,30 +116,35 @@ const (
 )
 
 var (
-	mode                string
-	cfg                 = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-	cfgString           string
-	timeout             time.Duration
-	maxRetryDelay       time.Duration
-	platformInfo        string
-	stepping            string
-	trustedAuthorKeys   []string
-	trustedAuthorHashes []string
-	trustedIdKeys       []string
-	trustedIdKeyHashes  []string
-	attestationFile     string
-	tpmAttestationFile  string
-	attestation         []byte
-	empty16             = [size16]byte{}
-	empty32             = [size32]byte{}
-	empty64             = [size64]byte{}
-	defaultReportIdMa   = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	getJsonAttestation  bool
-	errReportSize       = errors.New("attestation contents too small")
-	output              string
-	nonce               []byte
-	format              string
-	teeNonce            []byte
+	mode                    string
+	cfg                     = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	cfgString               string
+	timeout                 time.Duration
+	maxRetryDelay           time.Duration
+	platformInfo            string
+	stepping                string
+	trustedAuthorKeys       []string
+	trustedAuthorHashes     []string
+	trustedIdKeys           []string
+	trustedIdKeyHashes      []string
+	attestationFile         string
+	tpmAttestationFile      string
+	attestation             []byte
+	empty16                 = [size16]byte{}
+	empty32                 = [size32]byte{}
+	empty64                 = [size64]byte{}
+	defaultReportIdMa       = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	getJsonAttestation      bool
+	errReportSize           = errors.New("attestation contents too small")
+	ErrBadType              = errors.New("bad type provided to the CLI attestation command")
+	ErrBadAttestation       = errors.New("attestation file is corrupted or in wrong format")
+	output                  string
+	nonce                   []byte
+	format                  string
+	teeNonce                []byte
+	vtpmNonce               string
+	attestationType         string
+	getTextProtoAttestation bool
 )
 
 var errEmptyFile = errors.New("input file is empty")
@@ -191,26 +197,30 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			cmd.Println("Getting attestation")
-
 			nonce, err := hex.DecodeString(args[0])
 			if err != nil {
 				printError(cmd, "Error decoding report data: %v ❌ ", err)
 				return
 			}
 
-			attType := agent.SNPvTPM
+			attType := agent.SNP
 			switch attestationType {
 			case SNP:
 				cmd.Println("Fetching SEV-SNP attestation report")
-				attType = agent.SNP
 			case VTPM:
 				cmd.Println("Fetching vTPM report")
 				attType = agent.VTPM
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
+				attType = agent.SNPvTPM
 			default:
 				printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
+				return
+			}
+
+			if attType == agent.VTPM || attType == agent.SNPvTPM && vtpmNonce == "" {
+				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
+				cmd.Println(msg)
 				return
 			}
 
@@ -220,12 +230,29 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			var fixedNonce [agent.Nonce]byte
-			copy(fixedNonce[:], nonce)
+			var fixedReportData [agent.Nonce]byte
+			copy(fixedReportData[:], nonce)
 
 			filename := attestationFilePath
 			if getTextProtoAttestation {
 				filename = attestationJson
+			}
+
+			var fixedVtpmNonceByte [vtpm.Nonce]byte
+			if attType != agent.SNP {
+				vtpmNonceByte, err := hex.DecodeString(vtpmNonce)
+				if err != nil {
+					printError(cmd, "Error decoding vTPM nonce: %v ❌ ", err)
+					return
+				}
+
+				if len(vtpmNonceByte) > vtpm.Nonce {
+					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
+					cmd.Println(msg)
+					return
+				}
+
+				copy(fixedVtpmNonceByte[:], vtpmNonceByte)
 			}
 
 			attestationFile, err := os.Create(filename)
@@ -234,7 +261,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if err := cli.agentSDK.Attestation(cmd.Context(), fixedNonce, int(attType), attestationFile); err != nil {
+			if err := cli.agentSDK.Attestation(cmd.Context(), fixedReportData, fixedVtpmNonceByte, int(attType), attestationFile); err != nil {
 				printError(cmd, "Failed to get attestation due to error: %v ❌ ", err)
 				return
 			}
@@ -259,7 +286,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 						Multiline: true,
 						EmitASCII: true,
 					}
-					var attvTPM pb.Attestation
+					var attvTPM tpmAttest.Attestation
 					err = proto.Unmarshal(result, &attvTPM)
 					if err != nil {
 						printError(cmd, "failed to unmarshal the attestation report: %v ❌ ", ErrBadAttestation)
@@ -287,6 +314,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&getTextProtoAttestation, "textproto", "p", false, "Get attestation in textproto format")
+	cmd.Flags().StringVarP(&vtpmNonce, "vtpmnonce", "n", "", "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm or snp-vtpm)")
 	cmd.Flags().StringVarP(&attestationType, "type", "t", "", "Get SEV or/and vTPM attestation report (snp, vtpm or snp-vtpm)")
 
 	return cmd
@@ -627,7 +655,12 @@ func sevsnpverify(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error validating input: %v ❌ ", err)
 	}
 
-	if err := quoteprovider.VerifyAndValidate(attestation, &cfg); err != nil {
+	attestationPB, err := abi.ReportCertsToProto(attestation)
+	if err != nil {
+		return fmt.Errorf("failed to convert attestation bytes to struct %v ❌ ", err)
+	}
+
+	if err := quoteprovider.VerifyAndValidate(attestationPB, &cfg); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 	cmd.Println("Attestation validation and verification is successful!")

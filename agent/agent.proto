@@ -36,8 +36,9 @@ message ResultResponse {
 }
 
 message AttestationRequest {
-  bytes nonce = 1; // Should be less or equal 64 bytes.
-  int32 type = 2;
+  bytes teeNonce = 1; // Should be less or equal 64 bytes.
+  bytes vtpmNonce = 2; // Should be less or equal 32 bytes.
+  int32 type = 3;
 }
 
 message AttestationResponse {

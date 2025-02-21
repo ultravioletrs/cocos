@@ -74,17 +74,17 @@ func (_c *SDK_Algo_Call) RunAndReturn(run func(context.Context, *os.File, *os.Fi
 	return _c
 }
 
-// Attestation provides a mock function with given fields: ctx, nonce, attType, attestationFile
-func (_m *SDK) Attestation(ctx context.Context, nonce [64]byte, attType int, attestationFile *os.File) error {
-	ret := _m.Called(ctx, nonce, attType, attestationFile)
+// Attestation provides a mock function with given fields: ctx, reportData, nonce, attType, attestationFile
+func (_m *SDK) Attestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType int, attestationFile *os.File) error {
+	ret := _m.Called(ctx, reportData, nonce, attType, attestationFile)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Attestation")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, int, *os.File) error); ok {
-		r0 = rf(ctx, nonce, attType, attestationFile)
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, [32]byte, int, *os.File) error); ok {
+		r0 = rf(ctx, reportData, nonce, attType, attestationFile)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -99,16 +99,17 @@ type SDK_Attestation_Call struct {
 
 // Attestation is a helper method to define mock.On call
 //   - ctx context.Context
-//   - nonce [64]byte
+//   - reportData [64]byte
+//   - nonce [32]byte
 //   - attType int
 //   - attestationFile *os.File
-func (_e *SDK_Expecter) Attestation(ctx interface{}, nonce interface{}, attType interface{}, attestationFile interface{}) *SDK_Attestation_Call {
-	return &SDK_Attestation_Call{Call: _e.mock.On("Attestation", ctx, nonce, attType, attestationFile)}
+func (_e *SDK_Expecter) Attestation(ctx interface{}, reportData interface{}, nonce interface{}, attType interface{}, attestationFile interface{}) *SDK_Attestation_Call {
+	return &SDK_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData, nonce, attType, attestationFile)}
 }
 
-func (_c *SDK_Attestation_Call) Run(run func(ctx context.Context, nonce [64]byte, attType int, attestationFile *os.File)) *SDK_Attestation_Call {
+func (_c *SDK_Attestation_Call) Run(run func(ctx context.Context, reportData [64]byte, nonce [32]byte, attType int, attestationFile *os.File)) *SDK_Attestation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([64]byte), args[2].(int), args[3].(*os.File))
+		run(args[0].(context.Context), args[1].([64]byte), args[2].([32]byte), args[3].(int), args[4].(*os.File))
 	})
 	return _c
 }
@@ -118,7 +119,7 @@ func (_c *SDK_Attestation_Call) Return(_a0 error) *SDK_Attestation_Call {
 	return _c
 }
 
-func (_c *SDK_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte, int, *os.File) error) *SDK_Attestation_Call {
+func (_c *SDK_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte, [32]byte, int, *os.File) error) *SDK_Attestation_Call {
 	_c.Call.Return(run)
 	return _c
 }

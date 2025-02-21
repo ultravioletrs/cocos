@@ -76,18 +76,18 @@ func TestFillInAttestationLocal(t *testing.T) {
 }
 
 func TestVerifyAttestationReportSuccess(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		goodProduct       int
 		err               error
 	}{
 		{
 			name:              "Valid attestation, validation and verification is performed succsessfully",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			goodProduct:       1,
 			err:               nil,
@@ -103,20 +103,20 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
 
 	// Change random data so in the signature so the signature failes
-	file[signatureOffset] = file[signatureOffset] ^ 0x01
+	attestationPB.Report.Signature[0] = attestationPB.Report.Signature[0] ^ 0x01
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, distorted signature",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errAttVerification,
 		},
@@ -131,17 +131,17 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 }
 
 func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, unknown product",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errProductLine,
 		},
@@ -158,20 +158,20 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
 
 	// Change random data in the measurement so the measurement does not match
-	file[measurementOffset] = file[measurementOffset] ^ 0x01
+	attestationPB.Report.Measurement[0] = attestationPB.Report.Measurement[0] ^ 0x01
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, malformed policy (measurement)",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errAttVerification,
 		},
@@ -185,7 +185,7 @@ func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
 	}
 }
 
-func prepareForTestVerifyAttestationReport(t *testing.T) ([]byte, []byte) {
+func prepareForTestVerifyAttestationReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 	file, err := os.ReadFile("../../../attestation.bin")
 	require.NoError(t, err)
 
@@ -212,5 +212,5 @@ func prepareForTestVerifyAttestationReport(t *testing.T) ([]byte, []byte) {
 	AttConfigurationSEVSNP.Policy.ReportIdMa = rr.Report.ReportIdMa
 	AttConfigurationSEVSNP.RootOfTrust.ProductLine = sevProductNameMilan
 
-	return file, rr.Report.ReportData
+	return rr, rr.Report.ReportData
 }

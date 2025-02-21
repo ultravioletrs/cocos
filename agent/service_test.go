@@ -22,6 +22,7 @@ import (
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 )
@@ -326,22 +327,25 @@ func TestAttestation(t *testing.T) {
 	qp := new(mocks2.LeveledQuoteProvider)
 
 	cases := []struct {
-		name     string
-		nonce    [Nonce]byte
-		rawQuote []uint8
-		err      error
+		name       string
+		reportData [Nonce]byte
+		nonce      [vtpm.Nonce]byte
+		rawQuote   []uint8
+		err        error
 	}{
 		{
-			name:     "Test attestation successful",
-			nonce:    generateReportData(),
-			rawQuote: make([]uint8, 0),
-			err:      nil,
+			name:       "Test attestation successful",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   make([]uint8, 0),
+			err:        nil,
 		},
 		{
-			name:     "Test attestation failed",
-			nonce:    generateReportData(),
-			rawQuote: nil,
-			err:      ErrAttestationFailed,
+			name:       "Test attestation failed",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   nil,
+			err:        ErrAttestationFailed,
 		},
 	}
 	for _, tc := range cases {
@@ -363,7 +367,7 @@ func TestAttestation(t *testing.T) {
 
 			svc := New(ctx, mglog.NewMock(), events, qp)
 			time.Sleep(300 * time.Millisecond)
-			_, err := svc.Attestation(ctx, tc.nonce, 0)
+			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}

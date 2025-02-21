@@ -21,7 +21,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -51,8 +51,8 @@ var (
 	errConnCreate    = errors.New("could not create connection")
 )
 
-type ValidationVerification func(data1, data2 []byte) error
-type FetchAttestation func(data1 []byte) ([]byte, error)
+type ValidationVerification func(data1, data2, data3, data4 []byte) error
+type FetchAttestation func(data1, data2, data3 []byte) ([]byte, error)
 
 func registerFetchAttestation(callback FetchAttestation) uintptr {
 	handle := cgo.NewHandle(callback)
@@ -70,7 +70,7 @@ func validationVerificationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerValidationVerification(quoteprovider.VerifyAttestationReportTLS)
+		return registerValidationVerification(vtpm.VTPMVerify)
 	default:
 		return uintptr(0)
 	}
@@ -82,22 +82,24 @@ func fetchAttestationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerFetchAttestation(quoteprovider.FetchAttestation)
+		return registerFetchAttestation(vtpm.FetchATLSQuote)
 	default:
 		return uintptr(0)
 	}
 }
 
 //export callVerificationValidationCallback
-func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uchar, attReportSize C.int, repData *C.uchar) C.int {
+func callVerificationValidationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, quote *C.uchar, quoteSize C.int, teeNonce *C.uchar, nonce *C.uchar) C.int {
 	handle := cgo.Handle(callbackHandle)
 	defer handle.Delete()
 
 	callback := handle.Value().(ValidationVerification)
-	attestationReport := C.GoBytes(unsafe.Pointer(attReport), attReportSize)
-	reportData := C.GoBytes(unsafe.Pointer(repData), agent.Nonce)
+	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
+	attestationReport := C.GoBytes(unsafe.Pointer(quote), quoteSize)
+	teeData := C.GoBytes(unsafe.Pointer(teeNonce), agent.Nonce)
+	nonceData := C.GoBytes(unsafe.Pointer(nonce), vtpm.Nonce)
 
-	err := callback(attestationReport, reportData)
+	err := callback(attestationReport, pubKeyCert, teeData, nonceData)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "callback failed %v", err)
 		return C.int(-1)
@@ -107,20 +109,22 @@ func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uch
 }
 
 //export callFetchAttestationCallback
-func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.uchar, outlen *C.int) *C.uchar {
+func callFetchAttestationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, teeNonceByte *C.uchar, vTPMNonceByte *C.uchar, outlen *C.ulong) *C.uchar {
 	handle := cgo.Handle(callbackHandle)
 	defer handle.Delete()
 
 	callback := handle.Value().(FetchAttestation)
-	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.Nonce)
+	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
+	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), agent.Nonce)
+	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
 
-	quote, err := callback(reportData)
+	quote, err := callback(pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "attestation callback returned nil")
 		return nil
 	}
 
-	*outlen = C.int(len(quote))
+	*outlen = C.ulong(len(quote))
 	resultC := C.malloc(C.size_t(len(quote)))
 	if resultC == nil {
 		fmt.Fprintf(os.Stderr, "could not allocate memory for fetch attestation callback")

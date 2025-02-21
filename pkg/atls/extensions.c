@@ -7,30 +7,27 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-extern int callVerificationValidationCallback(uintptr_t callbackHandle, const u_char* attReport, int attReportSize, const u_char* repData);
-extern u_char* callFetchAttestationCallback(uintptr_t callbackHandle, const u_char* reportDataByte, int* outlen);
+extern int callVerificationValidationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* quote, int quoteSize, const u_char* teeNonce, const u_char* nonce);
+extern u_char* callFetchAttestationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* teeNonceByte, const u_char* vTPMNonceByte, unsigned long* outlen);
 extern uintptr_t validationVerificationCallback(int teeType);
 extern uintptr_t fetchAttestationCallback(int teeType);
 
-int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char *attestationReport, int reportSize, u_char *reportData) {
-    if (attestationReport == NULL || reportData == NULL) {
-        fprintf(stderr, "attestation data and report data cannot be NULL\n");
+int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *nonce) {
+    if (quote == NULL || nonce == NULL || tee_nonce == NULL || pub_key == NULL) {
+        fprintf(stderr, "attestation and noce and public key cannot be NULL\n");
         return -1;
     }
 
-
-    return callVerificationValidationCallback(callbackHandle, attestationReport, reportSize, reportData);
+    return callVerificationValidationCallback(callbackHandle, pub_key, pub_key_len, quote, quote_size, tee_nonce, nonce);
 }
 
-u_char* triggerFetchAttestationCallback(uintptr_t callbackHandle, char *reportData) {
-    int outlen = REPORT_DATA_SIZE;
-
-    if(reportData == NULL) {
+u_char* triggerFetchAttestationCallback(uintptr_t callback_handle, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
+    if(tee_nonce == NULL || vtpm_nonce == NULL) {
         fprintf(stderr, "Report data cannot be NULL");
         return NULL;
     }
 
-    return callFetchAttestationCallback(callbackHandle, reportData, &outlen);
+    return callFetchAttestationCallback(callback_handle, pub_key, pub_key_len, tee_nonce, vtpm_nonce, outlen);
 }
 
 int check_sev_snp() {
@@ -245,7 +242,7 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
 /*
     Attestation Certificate extension
     - Contains the attestation report
-    - The attestation report contains the hash of the nonce and the Public Key of the x.509 Agent certificate
+    - The attestation report contains the hash of the nonce, the Public Key of the x.509 Agent certificate, and the vTPM AK
 */
 void  attestation_certificate_ext_free_cb(SSL *s, unsigned int ext_type,
                                     unsigned int context,
@@ -270,41 +267,48 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
     {
         tls_extension_data *ext_data = (tls_extension_data*)add_arg;
         if (ext_data != NULL) {
-            u_char *attestation_report;
-            u_char *hash = (u_char*)malloc(REPORT_DATA_SIZE*sizeof(u_char));
-
-            if (hash == NULL) {
-                perror("could not allocate memory");
-                *al = SSL_AD_INTERNAL_ERROR;
-                return -1;
-            }
+            u_char *quote;
+            size_t len = 0;
+            EVP_PKEY *pkey = NULL;
+            u_char *pubkey_buf = NULL;
+            int pubkey_len = 0;
+        
 
             if (x != NULL) {
-
-                int ret = compute_sha256_of_public_key_nonce(x, ext_data->er.tee_nonce, hash);
-                if (ret != 0) {
-                    fprintf(stderr, "error while calculating hash\n");
-                    free(hash);
-                    *al = SSL_AD_INTERNAL_ERROR;
+                pkey = X509_get_pubkey(x);
+                if (pkey == NULL) {
+                    fprintf(stderr, "Failed to extract public key from certificate\n");
+                    return -1;
+                }
+            
+                pubkey_len = i2d_PUBKEY(pkey, &pubkey_buf);
+                if (pubkey_len <= 0) {
+                    fprintf(stderr, "Failed to convert public key to DER format\n");
+                    EVP_PKEY_free(pkey);
                     return -1;
                 }
             } else {
                 fprintf(stderr, "agent certificate must be used for aTLS\n");
-                free(hash);
                 *al = SSL_AD_INTERNAL_ERROR;
                 return -1;
             }
 
-            attestation_report = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, hash);
-            if (attestation_report == NULL) {
+            quote = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, pubkey_buf, pubkey_len, ext_data->er.tee_nonce, ext_data->er.vtpm_nonce, &len);
+            if (quote == NULL) {
                 fprintf(stderr, "attestation report is NULL\n");
                 *al = SSL_AD_INTERNAL_ERROR;
+                EVP_PKEY_free(pkey);
+                OPENSSL_free(pubkey_buf);
                 return -1;
             }
-            free(hash);
 
-            *out = attestation_report;
-            *outlen = ATTESTATION_REPORT_SIZE;
+            EVP_PKEY_free(pkey);
+            OPENSSL_free(pubkey_buf);
+
+            fprintf(stderr, "QUOTE_SIZE: %ld\n", strlen(quote));
+
+            *out = quote;
+            *outlen = len;
             return 1;
         } else {
             fprintf(stderr, "add_arg is NULL\n");
@@ -337,34 +341,41 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
             tls_extension_data *ext_data = (tls_extension_data*)parse_arg;
 
             if (ext_data != NULL) {
-                char *attestation_report = (char*)malloc(ATTESTATION_REPORT_SIZE*sizeof(char));
-                u_char *hash = (u_char*)malloc(REPORT_DATA_SIZE*sizeof(u_char));
+                char *quote = (char*)malloc(inlen*sizeof(char));
+                EVP_PKEY *pkey = NULL;
+                u_char *pubkey_buf = NULL;
+                int pubkey_len = 0;
                 int res = 0;
 
-                if (hash == NULL || attestation_report == NULL) {
+                if (quote == NULL) {
                     perror("could not allocate memory");
-
-                    if (hash != NULL) free(hash);
-                    if (attestation_report != NULL) free(attestation_report);
-
                     return 0;
                 }
 
-                if (compute_sha256_of_public_key_nonce(x, ext_data->er.tee_nonce, hash) != 0) {
-                    fprintf(stderr, "calculating hash failed\n");
-                    free(attestation_report);
-                    free(hash);
-                    return 0;
+                pkey = X509_get_pubkey(x);
+                if (pkey == NULL) {
+                    fprintf(stderr, "Failed to extract public key from certificate\n");
+                    return -1;
                 }
+            
+                pubkey_len = i2d_PUBKEY(pkey, &pubkey_buf);
+                if (pubkey_len <= 0) {
+                    fprintf(stderr, "Failed to convert public key to DER format\n");
+                    EVP_PKEY_free(pkey);
+                    return -1;
+                }
+                memcpy(quote, in, inlen);
 
-                memcpy(attestation_report, in, inlen);
-
-                res = triggerVerificationValidationCallback(ext_data->verification_validation_handler, 
-                                                    attestation_report,
-                                                    ATTESTATION_REPORT_SIZE,
-                                                    hash);
-                free(attestation_report);
-                free(hash);
+                res = triggerVerificationValidationCallback(ext_data->verification_validation_handler,
+                                                    pubkey_buf,
+                                                    pubkey_len,
+                                                    quote,
+                                                    inlen,
+                                                    (u_char*)&ext_data->er.tee_nonce,
+                                                    (u_char*)&ext_data->er.vtpm_nonce);
+                free(quote);
+                EVP_PKEY_free(pkey);
+                OPENSSL_free(pubkey_buf);
                 
                 if (res != 0) {
                     fprintf(stderr, "verification and validation failed, aborting connection\n");
