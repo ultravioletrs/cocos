@@ -12,6 +12,7 @@ CONFIG_DIR ?= /etc/cocos
 SERVICE_NAME ?= cocos-manager
 SERVICE_DIR ?= /etc/systemd/system
 SERVICE_FILE = init/systemd/$(SERVICE_NAME).service
+IGVM_BUILD_SCRIPT := ./scripts/igvmmeasure/igvm.sh
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
@@ -27,8 +28,9 @@ endef
 
 all: $(SERVICES)
 
-$(SERVICES):
+$(SERVICES): 
 	$(call compile_service,$@)
+	@if [ "$@" = "cli" ]; then $(MAKE) build-igvm; fi
 
 $(ATTESTATION_POLICY):
 	$(MAKE) -C ./scripts/attestation_policy
@@ -61,3 +63,7 @@ stop:
 install_service:
 	sudo install -m 644 $(SERVICE_FILE) $(SERVICE_DIR)/$(SERVICE_NAME).service
 	sudo systemctl daemon-reload
+
+build-igvm:
+	@echo "Running build script for igvmmeasure..."
+	@$(IGVM_BUILD_SCRIPT)
