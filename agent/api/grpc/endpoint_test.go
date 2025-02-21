@@ -141,11 +141,11 @@ func TestAttestationEndpoint(t *testing.T) {
 	}{
 		{
 			name: "Success",
-			req:  attestationReq{Nonce: sha3.Sum512([]byte("report data")), AttType: 0},
+			req:  attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), AttType: 0},
 		},
 		{
 			name:        "Service Error",
-			req:         attestationReq{Nonce: sha3.Sum512([]byte("report data")), AttType: 0},
+			req:         attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), AttType: 0},
 			expectedErr: true,
 		},
 	}
@@ -153,9 +153,9 @@ func TestAttestationEndpoint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.name == svcErr {
-				svc.On("Attestation", context.Background(), tt.req.Nonce).Return([]byte{}, errors.New("")).Once()
+				svc.On("Attestation", context.Background(), tt.req.TeeNonce).Return([]byte{}, errors.New("")).Once()
 			} else {
-				svc.On("Attestation", context.Background(), tt.req.Nonce).Return([]byte{}, nil).Once()
+				svc.On("Attestation", context.Background(), tt.req.TeeNonce).Return([]byte{}, nil).Once()
 			}
 			endpoint := attestationEndpoint(svc)
 			res, err := endpoint(context.Background(), tt.req)

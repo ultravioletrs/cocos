@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -96,14 +97,20 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	var nonce [agent.Nonce]byte
+	var reportData [agent.Nonce]byte
+	var nonce [vtpm.Nonce]byte
 
-	if len(req.Nonce) > agent.Nonce {
+	if len(req.TeeNonce) > agent.Nonce {
 		return nil, errors.New("malformed report data, expect less or equal to 64 bytes")
 	}
 
-	copy(nonce[:], req.Nonce)
-	return attestationReq{Nonce: nonce, AttType: req.Type}, nil
+	if len(req.VtpmNonce) > vtpm.Nonce {
+		return nil, errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
+	}
+
+	copy(reportData[:], req.TeeNonce)
+	copy(nonce[:], req.VtpmNonce)
+	return attestationReq{TeeNonce: reportData, VtpmNonce: nonce, AttType: req.Type}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {

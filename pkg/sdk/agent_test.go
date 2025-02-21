@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
@@ -364,6 +365,7 @@ func TestAttestation(t *testing.T) {
 	resultConsumer1Key, _ := generateKeys(t, "ed25519")
 
 	reportData := make([]byte, 64)
+	nonce := make([]byte, 64)
 	report := []byte{
 		0x01, 0x02, 0x03, 0x04,
 		0x05, 0x06, 0x07, 0x08,
@@ -386,6 +388,7 @@ func TestAttestation(t *testing.T) {
 		name       string
 		userKey    any
 		reportData [agent.Nonce]byte
+		nonce      [vtpm.Nonce]byte
 		response   *agent.AttestationResponse
 		svcRes     []byte
 		err        error
@@ -394,6 +397,7 @@ func TestAttestation(t *testing.T) {
 			name:       "fetch attestation report successfully",
 			userKey:    resultConsumerKey,
 			reportData: [agent.Nonce]byte(reportData),
+			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: report,
 			},
@@ -404,6 +408,7 @@ func TestAttestation(t *testing.T) {
 			name:       "fetch attestation report with different key type",
 			userKey:    resultConsumer1Key,
 			reportData: [agent.Nonce]byte(reportData),
+			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: report,
 			},
@@ -414,6 +419,7 @@ func TestAttestation(t *testing.T) {
 			name:       "failed to fetch attestation report",
 			userKey:    resultConsumerKey,
 			reportData: [agent.Nonce]byte(reportData),
+			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: []byte{},
 			},
@@ -423,6 +429,7 @@ func TestAttestation(t *testing.T) {
 			name:       "invalid report data",
 			userKey:    resultConsumerKey,
 			reportData: [agent.Nonce]byte{},
+			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: []byte{},
 			},
@@ -442,7 +449,7 @@ func TestAttestation(t *testing.T) {
 				os.Remove(file.Name())
 			})
 
-			err = sdk.Attestation(context.Background(), tc.reportData, 0, file)
+			err = sdk.Attestation(context.Background(), tc.reportData, tc.nonce, 0, file)
 
 			require.NoError(t, file.Close())
 

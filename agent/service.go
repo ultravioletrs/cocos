@@ -121,7 +121,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error)
+	Attestation(ctx context.Context, reportData [Nonce]byte, nonce [vtpm.Nonce]byte, attType int32) ([]byte, error)
 	State() string
 }
 
@@ -409,28 +409,28 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, nonce [Nonce]byte, attType int32) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [Nonce]byte, nonce [vtpm.Nonce]byte, attType int32) ([]byte, error) {
 
 	fmt.Printf("Working on attestation: %d\n", attType)
 
 	switch AttestationType(attType) {
 	case SNP:
 		fmt.Println("SEV")
-		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(nonce, VMPL)
+		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, VMPL)
 		if err != nil {
 			return []byte{}, err
 		}
 		return rawQuote, nil
 	case VTPM:
 		fmt.Println("vTPM")
-		vTPMQuote, err := vtpm.Attest(nonce[:], false)
+		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], false)
 		if err != nil {
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
 	case SNPvTPM:
 		fmt.Println("SEV and vTPM")
-		vTPMQuote, err := vtpm.Attest(nonce[:], true)
+		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], true)
 		if err != nil {
 			return []byte{}, err
 		}
