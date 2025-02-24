@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -152,7 +153,9 @@ func TestAttestation(t *testing.T) {
 	mockStream.On("Send", mock.AnythingOfType("*agent.AttestationResponse")).Return(nil)
 
 	reportData := [agent.Nonce]byte{}
-	mockService.On("Attestation", mock.Anything, reportData).Return([]byte("attestation data"), nil)
+	vtpmNonce := [vtpm.Nonce]byte{}
+	attestationType := 0
+	mockService.On("Attestation", mock.Anything, reportData, vtpmNonce, int32(attestationType)).Return([]byte("attestation data"), nil)
 
 	err := server.Attestation(&agent.AttestationRequest{TeeNonce: reportData[:]}, mockStream)
 	assert.NoError(t, err)
