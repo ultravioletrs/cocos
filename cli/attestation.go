@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -555,6 +556,37 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	)
 
 	return cmd
+}
+
+func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
+	igvmmeasureCmd := &cobra.Command{
+		Use:   "igvmmeasure <INPUT>",
+		Short: "Measure an IGVM file",
+		Long: `igvmmeasure measures an IGVM file and outputs the calculated measurement.
+			It ensures integrity verification for the IGVM file.`,
+
+		Args: cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: No input file provided")
+				os.Exit(1)
+			}
+
+			inputFile := args[0]
+
+			measurement, err := igvmmeasure.NewIgvmMeasurement(inputFile, os.Stderr, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error initializing measurement: %v\n", err)
+				os.Exit(1)
+			}
+
+			if err := measurement.Run(igvmBinaryPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Error running measurement: %v\n", err)
+				os.Exit(1)
+			}
+		},
+	}
+	return igvmmeasureCmd
 }
 
 func sevsnpverify(cmd *cobra.Command, args []string) error {
