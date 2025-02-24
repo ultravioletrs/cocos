@@ -22,6 +22,7 @@ import (
 	authmocks "github.com/ultravioletrs/cocos/agent/auth/mocks"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -29,6 +30,14 @@ import (
 const bufSize = 1024 * 1024
 
 var lis *bufconn.Listener
+
+// type BufferRW struct {
+// 	*bytes.Buffer
+// }
+
+// func (b *BufferRW) Close() error {
+// 	return nil
+// }
 
 func init() {
 	lis = bufconn.Listen(bufSize)
@@ -259,6 +268,8 @@ func (b *ThreadSafeBuffer) String() string {
 }
 
 func TestServerInitializationAndStartup(t *testing.T) {
+	vtpm.ExternalTPM = &vtpm.DummyRWC{}
+
 	testCases := []struct {
 		name          string
 		config        server.AgentConfig
