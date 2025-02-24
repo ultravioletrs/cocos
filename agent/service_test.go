@@ -359,9 +359,9 @@ func TestAttestation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			getQuote := qp.On("GetRawQuoteAtLevel", mock.Anything).Return(tc.rawQuote, tc.err)
+			getQuote := qp.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
 			if tc.err != ErrAttestationFailed {
-				getQuote = qp.On("GetRawQuoteAtLevel", mock.Anything).Return(tc.nonce, nil)
+				getQuote = qp.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return(tc.nonce, nil)
 			}
 			defer getQuote.Unset()
 
