@@ -48,6 +48,10 @@ func TestNewAttestationCmd(t *testing.T) {
 func TestNewGetAttestationCmd(t *testing.T) {
 	validattestation, err := os.ReadFile("../attestation.bin")
 	require.NoError(t, err)
+
+	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce))
+	vtpmNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
+
 	testCases := []struct {
 		name         string
 		args         []string
@@ -57,55 +61,36 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		expectedOut  string
 	}{
 		{
-			name: "successful SNP attestation retrieval",
-			args: []string{
-				"--tee",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
-				"-t", "snp"},
+			name:         "successful SNP attestation retrieval",
+			args:         []string{"--tee", teeNonce, "-t", "snp"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
-			name: "successful vTPM attestation retrieval",
-			args: []string{
-				"--tee",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
-				"--vtpmnonce",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
-				"-t", "vtpm"},
+			name:         "successful vTPM attestation retrieval",
+			args:         []string{"--vtpmnonce", vtpmNonce, "-t", "vtpm"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
-			name: "successful SNP-vTPM attestation retrieval",
-			args: []string{
-				"--tee",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
-				"--vtpmnonce",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
-				"-t", "snp-vtpm"},
+			name:         "successful SNP-vTPM attestation retrieval",
+			args:         []string{"--tee", teeNonce, "--vtpmnonce", vtpmNonce, "-t", "vtpm"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
-			name: "missing vTPM nonce",
-			args: []string{
-				"--tee",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
-				"-t", "vtpm"},
+			name:         "missing vTPM nonce",
+			args:         []string{"--tee", teeNonce, "-t", "snp-vtpm"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "vTPM nonce must be defined for vTPM attestation",
 		},
 		{
-			name: "missing TEE nonce",
-			args: []string{
-				"--vtpmnonce",
-				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
-				"-t", "snp"},
+			name:         "missing TEE nonce",
+			args:         []string{"--vtpmnonce", vtpmNonce, "-t", "snp-vtpm"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "TEE nonce must be defined for SEV-SNP attestation",
@@ -133,28 +118,28 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		},
 		{
 			name:         "failed to get attestation",
-			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp"},
+			args:         []string{"-e", teeNonce, "-t", "snp"},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
 			expectedErr:  "Failed to get attestation due to error",
 		},
 		{
 			name:         "Textproto report error",
-			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp", "--textproto"},
+			args:         []string{"-e", teeNonce, "-t", "snp", "--textproto"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedErr:  "Error converting attestation to textproto",
 		},
 		{
 			name:         "successful Textproto report",
-			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp", "--textproto"},
+			args:         []string{"-e", teeNonce, "-t", "snp", "--textproto"},
 			mockResponse: validattestation,
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
 			name:         "connection error",
-			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp"},
+			args:         []string{"-e", teeNonce, "-t", "snp"},
 			mockResponse: nil,
 			mockError:    errors.New("failed to connect to agent"),
 			expectedErr:  "Failed to connect to agent",
