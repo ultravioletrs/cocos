@@ -27,6 +27,8 @@ const (
 	PCR15    = 15
 )
 
+var ExternalTPM io.ReadWriteCloser
+
 type tpmWrapper struct {
 	io.ReadWriteCloser
 }
@@ -36,6 +38,10 @@ func (et tpmWrapper) EventLog() ([]byte, error) {
 }
 
 func OpenTpm() (io.ReadWriteCloser, error) {
+	if ExternalTPM != nil {
+		return tpmWrapper{ExternalTPM}, nil
+	}
+
 	tw := tpmWrapper{}
 	var err error
 
