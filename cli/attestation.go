@@ -141,7 +141,6 @@ var (
 	nonce                   []byte
 	format                  string
 	teeNonce                []byte
-	vtpmNonce               string
 	attestationType         string
 	getTextProtoAttestation bool
 )
@@ -188,17 +187,10 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get",
 		Short:   "Retrieve attestation information from agent. The nonce parameter needs to be a hex encoded string.",
-		Example: "get <nonce>",
-		Args:    cobra.ExactArgs(1),
+		Example: "get <args>",
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
-				return
-			}
-
-			nonce, err := hex.DecodeString(args[0])
-			if err != nil {
-				printError(cmd, "Error decoding report data: %v ❌ ", err)
 				return
 			}
 
@@ -217,41 +209,43 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if attType == agent.VTPM || attType == agent.SNPvTPM && vtpmNonce == "" {
+			if (attType == agent.VTPM || attType == agent.SNPvTPM) && len(nonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
-			if len(nonce) > agent.Nonce {
-				msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", agent.Nonce)
+			if (attType == agent.SNP || attType == agent.SNPvTPM) && len(teeNonce) == 0 {
+				msg := color.New(color.FgRed).Sprint("TEE nonce must be defined for SEV-SNP attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
 			var fixedReportData [agent.Nonce]byte
-			copy(fixedReportData[:], nonce)
+			if attType != agent.VTPM {
+				if len(teeNonce) > agent.Nonce {
+					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", agent.Nonce)
+					cmd.Println(msg)
+					return
+				}
 
-			filename := attestationFilePath
-			if getTextProtoAttestation {
-				filename = attestationJson
+				copy(fixedReportData[:], teeNonce)
 			}
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
 			if attType != agent.SNP {
-				vtpmNonceByte, err := hex.DecodeString(vtpmNonce)
-				if err != nil {
-					printError(cmd, "Error decoding vTPM nonce: %v ❌ ", err)
-					return
-				}
-
-				if len(vtpmNonceByte) > vtpm.Nonce {
+				if len(nonce) > vtpm.Nonce {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)
 					return
 				}
 
-				copy(fixedVtpmNonceByte[:], vtpmNonceByte)
+				copy(fixedVtpmNonceByte[:], nonce)
+			}
+
+			filename := attestationFilePath
+			if getTextProtoAttestation {
+				filename = attestationJson
 			}
 
 			attestationFile, err := os.Create(filename)
@@ -313,7 +307,8 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&getTextProtoAttestation, "textproto", "p", false, "Get attestation in textproto format")
-	cmd.Flags().StringVarP(&vtpmNonce, "vtpmnonce", "n", "", "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm or snp-vtpm)")
+	cmd.Flags().BytesHexVarP(&teeNonce, "tee", "e", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
+	cmd.Flags().BytesHexVarP(&nonce, "vtpmnonce", "n", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
 	cmd.Flags().StringVarP(&attestationType, "type", "t", "", "Get SEV or/and vTPM attestation report (snp, vtpm or snp-vtpm)")
 
 	return cmd
