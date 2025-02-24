@@ -278,11 +278,10 @@ func (client *CVMSClient) handleStopComputation(ctx context.Context, mes *cvms.S
 	}
 
 	client.mu.Lock()
-	defer client.mu.Unlock()
-
 	if err := client.sp.Stop(); err != nil {
 		msg.StopComputationRes.Message = err.Error()
 	}
+	client.mu.Unlock()
 
 	client.sendMessage(&cvms.ClientStreamMessage{Message: msg})
 }
