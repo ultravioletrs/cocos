@@ -15,7 +15,7 @@ func (l *DummyRWC) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// Write simply returns len(p) indicating that all bytes were "written."
+// Write simply returns len(p) indicating that all bytes were written.
 func (l *DummyRWC) Write(p []byte) (int, error) {
 	// In this simple implementation, we ignore the data.
 	return len(p), nil
