@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
 )
 
@@ -56,57 +57,104 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		expectedOut  string
 	}{
 		{
-			name:         "successful attestation retrieval",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
+			name: "successful SNP attestation retrieval",
+			args: []string{
+				"--tee",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
+				"-t", "snp"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
-			name:         "invalid report data (decoding error)",
-			args:         []string{"invalid"},
-			mockResponse: nil,
-			mockError:    errors.New("error"),
-			expectedErr:  "Error decoding report data",
+			name: "successful vTPM attestation retrieval",
+			args: []string{
+				"--tee",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
+				"--vtpmnonce",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
+				"-t", "vtpm"},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedOut:  "Attestation result retrieved and saved successfully!",
+		},
+		{
+			name: "successful SNP-vTPM attestation retrieval",
+			args: []string{
+				"--tee",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
+				"--vtpmnonce",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
+				"-t", "snp-vtpm"},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedOut:  "Attestation result retrieved and saved successfully!",
+		},
+		{
+			name: "missing vTPM nonce",
+			args: []string{
+				"--tee",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)),
+				"-t", "vtpm"},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedOut:  "vTPM nonce must be defined for vTPM attestation",
+		},
+		{
+			name: "missing TEE nonce",
+			args: []string{
+				"--vtpmnonce",
+				hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce)),
+				"-t", "snp"},
+			mockResponse: []byte("mock attestation"),
+			mockError:    nil,
+			expectedOut:  "TEE nonce must be defined for SEV-SNP attestation",
 		},
 		{
 			name:         "invalid report data size",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, 32))},
+			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, 65)), "-t", "snp"},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
-			expectedErr:  "report data must be a hex encoded string of length 64 bytes",
+			expectedErr:  "nonce must be a hex encoded string of length lesser or equal 64 bytes",
 		},
 		{
-			name:         "invalid report data hex",
+			name:         "invalid vTPM data size",
+			args:         []string{"-n", hex.EncodeToString(bytes.Repeat([]byte{0x00}, 33)), "-t", "vtpm"},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "vTPM nonce must be a hex encoded string of length lesser or equal 32 bytes",
+		},
+		{
+			name:         "invalid arguments",
 			args:         []string{"invalid"},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
-			expectedErr:  "Error decoding report data",
+			expectedErr:  "Possible attestation types are snp, vtpm and snp-vtpm: bad type provided to the CLI attestation command",
 		},
 		{
 			name:         "failed to get attestation",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
+			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp"},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
 			expectedErr:  "Failed to get attestation due to error",
 		},
 		{
-			name:         "JSON report error",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce)), "--json"},
+			name:         "Textproto report error",
+			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp", "--textproto"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
-			expectedErr:  "Error converting attestation to json",
+			expectedErr:  "Error converting attestation to textproto",
 		},
 		{
-			name:         "successful JSON report",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce)), "--json"},
+			name:         "successful Textproto report",
+			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp", "--textproto"},
 			mockResponse: validattestation,
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
 			name:         "connection error",
-			args:         []string{hex.EncodeToString(bytes.Repeat([]byte{0x01}, agent.Nonce))},
+			args:         []string{"-e", hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce)), "-t", "snp"},
 			mockResponse: nil,
 			mockError:    errors.New("failed to connect to agent"),
 			expectedErr:  "Failed to connect to agent",
@@ -128,8 +176,8 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			var buf bytes.Buffer
 			cmd.SetOutput(&buf)
 
-			mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(bytes.Repeat([]byte{0x01}, agent.Nonce)), mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
-				_, err := args.Get(2).(*os.File).Write(tc.mockResponse)
+			mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(bytes.Repeat([]byte{0x00}, agent.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+				_, err := args.Get(4).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})
 
