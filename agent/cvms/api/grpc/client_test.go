@@ -81,8 +81,12 @@ func TestManagerClient_Process(t *testing.T) {
 			mockStream := new(mockStream)
 			mockSvc := new(mocks.Service)
 			mockServerSvc := new(servermocks.AgentServer)
-			messageQueue := make(chan *cvms.ClientStreamMessage, 100)
+			messageQueue := make(chan *cvms.ClientStreamMessage)
 			logger := mglog.NewMock()
+
+			go func() {
+				<-messageQueue
+			}()
 
 			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
 			assert.NoError(t, err)
