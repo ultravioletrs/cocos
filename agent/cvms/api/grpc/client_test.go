@@ -32,7 +32,7 @@ func (m *mockStream) Send(msg *cvms.ClientStreamMessage) error {
 	return args.Error(0)
 }
 
-func TestManagerClient_Process1(t *testing.T) {
+func TestManagerClient_Process(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer)
@@ -81,8 +81,12 @@ func TestManagerClient_Process1(t *testing.T) {
 			mockStream := new(mockStream)
 			mockSvc := new(mocks.Service)
 			mockServerSvc := new(servermocks.AgentServer)
-			messageQueue := make(chan *cvms.ClientStreamMessage, 10)
+			messageQueue := make(chan *cvms.ClientStreamMessage)
 			logger := mglog.NewMock()
+
+			go func() {
+				<-messageQueue
+			}()
 
 			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
 			assert.NoError(t, err)
