@@ -62,7 +62,7 @@ func (d *docker) Run() error {
 
 	ctx := context.Background()
 	// Load the Docker image from the tar file.
-	resp, err := cli.ImageLoad(ctx, imageFile, true)
+	resp, err := cli.ImageLoad(ctx, imageFile, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return fmt.Errorf("could not load Docker image from file: %v", err)
 	}
