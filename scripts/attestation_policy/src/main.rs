@@ -1,12 +1,15 @@
 use base64::prelude::*;
 use clap::{value_parser, Arg, Command};
 use serde::Serialize;
+use serde_json::Value;
 use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::io::Write;
 
 const ATTESTATION_POLICY_JSON: &str = "attestation_policy.json";
+const PCR_VALUES_JSON: &str = "pcr_values.json";
+
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
 const EXTENDED_MODEL_SHIFT: u32 = 16;
 const FAMILY_SHIFT: u32 = 8;
@@ -123,7 +126,7 @@ fn main() {
     let policy: u64 = *matches.get_one::<u64>("policy").unwrap();
     let family_id = BASE64_STANDARD.encode(vec![0; 16]);
     let image_id = BASE64_STANDARD.encode(vec![0; 16]);
-    let vmpl = 0;
+    let vmpl = 2;
     let minimum_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let minimum_launch_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
     let require_author_key = false;
@@ -169,10 +172,33 @@ fn main() {
         root_of_trust,
     };
 
-    let json = serde_json::to_string_pretty(&computation).expect("Failed to serialize to JSON");
-    let mut file = File::create(ATTESTATION_POLICY_JSON).expect("Failed to create file");
-    file.write_all(json.as_bytes())
-        .expect("Failed to write to file");
+    let mut computation_value =
+        serde_json::to_value(&computation).expect("Failed to convert computation to JSON");
+
+    // Read and parse the pcr_values.json file.
+    let pcr_content = read_to_string(PCR_VALUES_JSON).expect("Failed to read pcr_values.json");
+    let pcr_value: Value =
+        serde_json::from_str(&pcr_content).expect("Failed to parse pcr_values.json");
+
+    // Merge the pcr_values into the main JSON object.
+    if let Value::Object(ref mut main_map) = computation_value {
+        if let Value::Object(pcr_map) = pcr_value {
+            // The keys in pcr_map (e.g., "pcr_values") will be added
+            main_map.extend(pcr_map);
+        } else {
+            eprintln!("{} is not a JSON object.", PCR_VALUES_JSON);
+        }
+    } else {
+        eprintln!("The computed JSON is not an object.");
+    }
+
+    // Serialize the merged JSON and write to file.
+    let merged_json =
+        serde_json::to_string_pretty(&computation_value).expect("Failed to serialize merged JSON");
+    let mut file =
+        File::create(ATTESTATION_POLICY_JSON).expect("Failed to create attestation policy file");
+    file.write_all(merged_json.as_bytes())
+        .expect("Failed to write merged JSON to file");
 
     println!(
         "AttestationPolicy JSON has been written to {}",

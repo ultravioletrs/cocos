@@ -38,7 +38,9 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	ReportData [64]byte
+	TeeNonce  [64]byte
+	VtpmNonce [32]byte
+	AttType   int32
 }
 
 func (req attestationReq) validate() error {

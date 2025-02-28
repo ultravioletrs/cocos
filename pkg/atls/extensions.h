@@ -6,7 +6,6 @@
 
 #define EVIDENCE_REQUEST_HELLO_EXTENSION_TYPE 65
 #define ATTESTATION_CERTIFICATE_EXTENSION_TYPE 66
-#define ATTESTATION_REPORT_SIZE 0x4A0
 #define REPORT_DATA_SIZE 64
 #define CLIENT_RANDOM_SIZE 32
 #define TLS_CLIENT_CTX 0
@@ -19,7 +18,8 @@
 typedef struct evidence_request
 {
     int tee_type;
-    char data[CLIENT_RANDOM_SIZE];
+    char vtpm_nonce[CLIENT_RANDOM_SIZE];
+    char tee_nonce[REPORT_DATA_SIZE];
 } evidence_request;
 
 typedef struct tls_extension_data
@@ -32,7 +32,7 @@ typedef struct tls_extension_data
 typedef struct tls_server_connection
 {
     int server_fd;
-    char* cert; 
+    char* cert;
     int cert_len;
     char* key;
     int key_len;

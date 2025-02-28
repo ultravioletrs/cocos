@@ -33,8 +33,8 @@ jobs:
 
       - name: Set up protoc
         run: |
-          PROTOC_VERSION=29.0
-          PROTOC_GEN_VERSION=v1.36.0
+          PROTOC_VERSION=29.3
+          PROTOC_GEN_VERSION=v1.36.4
           PROTOC_GRPC_VERSION=v1.5.1
 
           # Download and install protoc
@@ -55,7 +55,7 @@ jobs:
       - name: Set up Cocos-AI
         run: |
           # Rename .pb.go files to .pb.go.tmp to prevent conflicts
-          for p in $(ls pkg/manager/*.pb.go); do
+          for p in $(ls manager/*.pb.go); do
             mv $p $p.tmp
           done
 
@@ -67,7 +67,7 @@ jobs:
           make protoc
 
           # Compare generated Go files with the original ones
-          for p in $(ls pkg/manager/*.pb.go); do
+          for p in $(ls manager/*.pb.go); do
             if ! cmp -s $p $p.tmp; then
               echo "Proto file and generated Go file $p are out of sync!"
               exit 1
