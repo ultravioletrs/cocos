@@ -1,10 +1,10 @@
 use base64::prelude::*;
 use clap::{value_parser, Arg, Command};
 use serde::Serialize;
-use serde_json::{Value, Map};
+use serde_json::{Map, Value};
 use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
-use std::fs::{File, read_to_string};
+use std::fs::{read_to_string, File};
 use std::io::Write;
 
 const ATTESTATION_POLICY_JSON: &str = "attestation_policy.json";
@@ -107,7 +107,9 @@ fn sev_product(eax: u32) -> SevProduct {
 
 fn main() {
     let matches = Command::new("Attestation Policy")
-        .about("Processes command line options and outputs a JSON file for Attestation verification")
+        .about(
+            "Processes command line options and outputs a JSON file for Attestation verification"
+        )
         .arg(
             Arg::new("policy")
                 .long("policy")
@@ -170,15 +172,13 @@ fn main() {
         root_of_trust,
     };
 
-    // Convert the computed data to a JSON value.
-    let mut computation_value = serde_json::to_value(&computation)
-        .expect("Failed to convert computation to JSON");
+    let mut computation_value = 
+        serde_json::to_value(&computation).expect("Failed to convert computation to JSON");
 
     // Read and parse the pcr_values.json file.
-    let pcr_content = read_to_string(PCR_VALUES_JSON)
-        .expect("Failed to read pcr_values.json");
-    let pcr_value: Value = serde_json::from_str(&pcr_content)
-        .expect("Failed to parse pcr_values.json");
+    let pcr_content = read_to_string(PCR_VALUES_JSON).expect("Failed to read pcr_values.json");
+    let pcr_value: Value = 
+        serde_json::from_str(&pcr_content).expect("Failed to parse pcr_values.json");
 
     // Merge the pcr_values into the main JSON object.
     if let Value::Object(ref mut main_map) = computation_value {
@@ -193,10 +193,10 @@ fn main() {
     }
 
     // Serialize the merged JSON and write to file.
-    let merged_json = serde_json::to_string_pretty(&computation_value)
-        .expect("Failed to serialize merged JSON");
-    let mut file = File::create(ATTESTATION_POLICY_JSON)
-        .expect("Failed to create attestation policy file");
+    let merged_json = 
+        serde_json::to_string_pretty(&computation_value).expect("Failed to serialize merged JSON");
+    let mut file = 
+        File::create(ATTESTATION_POLICY_JSON).expect("Failed to create attestation policy file");
     file.write_all(merged_json.as_bytes())
         .expect("Failed to write merged JSON to file");
 
