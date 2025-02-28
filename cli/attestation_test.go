@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
 )
 
@@ -250,6 +252,37 @@ func TestNewValidateAttestationValidationCmd(t *testing.T) {
 		err := cmd.PreRunE(cmd, []string{"../quote.dat"})
 		assert.NoError(t, err)
 	})
+}
+
+func TestNewMeasureCmd_RunSuccess(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewMeasureCmd("/mock/igvmBinary")
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"/valid/input.igvm"})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestNewMeasureCmd_RunError(t *testing.T) {
+	newMeasurementFunc = func(pathToFile string, stderr io.Writer, stdout io.Writer) (*igvmmeasure.IgvmMeasurement, error) {
+		return nil, fmt.Errorf("mock error: Error initializing measurement")
+	}
+	defer func() { newMeasurementFunc = igvmmeasure.NewIgvmMeasurement }()
+
+	cli := &CLI{}
+	cmd := cli.NewMeasureCmd("/mock/igvmBinary")
+
+	var buf bytes.Buffer
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"/invalid/input.igvm"})
+
+	err := cmd.Execute()
+
+	assert.Error(t, err, "Expected an error but got nil")
+	assert.Contains(t, buf.String(), "Error initializing measurement", "Expected error message to be present")
 }
 
 func TestParseConfig(t *testing.T) {
