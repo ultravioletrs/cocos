@@ -1,7 +1,7 @@
 use base64::prelude::*;
 use clap::{value_parser, Arg, Command};
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
 use std::fs::{read_to_string, File};

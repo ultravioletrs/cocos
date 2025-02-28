@@ -8,6 +8,7 @@ package quoteprovider
 
 import (
 	"github.com/google/go-sev-guest/client"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	pb "github.com/google/go-sev-guest/proto/sevsnp"
 	cocosai "github.com/ultravioletrs/cocos"
 )
@@ -41,6 +42,6 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	return cocosai.EmbeddedAttestation, nil
 }
 
-func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
+func VerifyAttestationReportTLS(attestation *sevsnp.Attestation, reportData []byte) error {
 	return nil
 }
