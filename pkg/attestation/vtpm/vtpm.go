@@ -4,18 +4,24 @@
 package vtpm
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-tpm-tools/client"
-	pb "github.com/google/go-tpm-tools/proto/attest"
+	"github.com/google/go-tpm-tools/proto/attest"
+	"github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/google/go-tpm-tools/server"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
@@ -27,7 +33,10 @@ const (
 	PCR15    = 15
 )
 
-var ExternalTPM io.ReadWriteCloser
+var (
+	ExternalTPM   io.ReadWriteCloser
+	ErrNoHashAlgo = errors.New("hash algo is not supported")
+)
 
 type tpmWrapper struct {
 	io.ReadWriteCloser
@@ -60,11 +69,13 @@ func ExtendPCR(pcrIndex int, value []byte) error {
 	}
 	defer rwc.Close()
 
-	if err := tpm2.PCRExtend(rwc, tpmutil.Handle(pcrIndex), tpm2.AlgSHA256, value, ""); err != nil {
+	fixedSha256Hash := sha3.Sum256(value)
+	if err := tpm2.PCRExtend(rwc, tpmutil.Handle(pcrIndex), tpm2.AlgSHA256, fixedSha256Hash[:], ""); err != nil {
 		return err
 	}
 
-	if err := tpm2.PCRExtend(rwc, tpmutil.Handle(pcrIndex), tpm2.AlgSHA384, value, ""); err != nil {
+	fixedSha384Hash := sha3.Sum384(value)
+	if err := tpm2.PCRExtend(rwc, tpmutil.Handle(pcrIndex), tpm2.AlgSHA384, fixedSha384Hash[:], ""); err != nil {
 		return err
 	}
 
@@ -107,7 +118,7 @@ func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {
 }
 
 func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte) error {
-	attestation := &pb.Attestation{}
+	attestation := &attest.Attestation{}
 
 	err := proto.Unmarshal(quote, attestation)
 	if err != nil {
@@ -137,6 +148,10 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 	_, err = server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
 	if err != nil {
 		return fmt.Errorf("verifying attestation: %w", err)
+	}
+
+	if err := checkExpectedPCRValues(attestation); err != nil {
+		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
 	}
 
 	return nil
@@ -172,7 +187,7 @@ func createTEEAttestationReportNonce(pubKeyTLS []byte, ak []byte, nonce []byte) 
 	return hash[:], nil
 }
 
-func marshalQuote(attestation *pb.Attestation) ([]byte, error) {
+func marshalQuote(attestation *attest.Attestation) ([]byte, error) {
 	out, err := proto.Marshal(attestation)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to marshal vTPM attestation report: %v", err)
@@ -181,7 +196,7 @@ func marshalQuote(attestation *pb.Attestation) ([]byte, error) {
 	return out, nil
 }
 
-func fetchVTPMQuote(nonce []byte) (*pb.Attestation, error) {
+func fetchVTPMQuote(nonce []byte) (*attest.Attestation, error) {
 	rwc, err := OpenTpm()
 	if err != nil {
 		return nil, err
@@ -212,7 +227,7 @@ func fetchVTPMQuote(nonce []byte) (*pb.Attestation, error) {
 	return attestation, nil
 }
 
-func addTEEAttestation(attestation *pb.Attestation, nonce []byte) (*pb.Attestation, error) {
+func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.Attestation, error) {
 	rawTeeAttestation, err := quoteprovider.FetchAttestation(nonce)
 	if err != nil {
 		return attestation, fmt.Errorf("failed to fetch TEE attestation report: %v", err)
@@ -222,9 +237,45 @@ func addTEEAttestation(attestation *pb.Attestation, nonce []byte) (*pb.Attestati
 	if err != nil {
 		return attestation, fmt.Errorf("failed to export the TEE report: %v", err)
 	}
-	attestation.TeeAttestation = &pb.Attestation_SevSnpAttestation{
+	attestation.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: extReport,
 	}
 
 	return attestation, nil
+}
+
+func checkExpectedPCRValues(attestation *attest.Attestation) error {
+	quotes := attestation.GetQuotes()
+
+	for index := range quotes {
+		quote := quotes[index]
+		var pcrMap map[string]string
+
+		switch quote.Pcrs.Hash {
+		case tpm.HashAlgo_SHA256:
+			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha256
+		case tpm.HashAlgo_SHA384:
+			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha384
+		default:
+			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
+		}
+
+		for i, v := range pcrMap {
+			index, err := strconv.ParseInt(i, 10, 32)
+			if err != nil {
+				return fmt.Errorf("error converting PCR index to int32: %v\n", err)
+			}
+
+			value, err := hex.DecodeString(v)
+			if err != nil {
+				return fmt.Errorf("error converting PCR value to byte: %v\n", err)
+			}
+
+			if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], value) {
+				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]), v)
+			}
+		}
+	}
+
+	return nil
 }

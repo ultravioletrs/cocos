@@ -236,23 +236,23 @@ func (c *ATLSConn) Read(b []byte) (int, error) {
 	case noError:
 		return n, nil // no error.
 	case errorZeroReturn:
-		fmt.Fprintf(os.Stdout, "Connection closed by peer")
+		fmt.Fprintf(os.Stdout, "Connection closed by peer\n")
 		return 0, io.EOF // connection closed.
 	case errorWantRead:
-		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later")
+		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later\n")
 		return 0, nil // non-fatal, just retry later.
 	case errorWantWrite:
-		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later")
+		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later\n")
 		return 0, nil // non-fatal, just retry later.
 	case errorSyscall:
-		fmt.Fprintf(os.Stderr, "I/O error")
+		fmt.Fprintf(os.Stderr, "I/O error\n")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	case errorSsl:
-		fmt.Fprintf(os.Stderr, "I/O error")
+		fmt.Fprintf(os.Stderr, "I/O error\n")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	default:
 		fmt.Fprintf(os.Stderr, "SSL error occurred: %d\n", errCode)
-		return 0, fmt.Errorf("SSL error")
+		return 0, fmt.Errorf("SSL error\n")
 	}
 }
 

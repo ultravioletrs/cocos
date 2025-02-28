@@ -34,7 +34,9 @@ require (
 	github.com/gofrs/uuid/v5 v5.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/certificate-transparency-go v1.1.2 // indirect
-	github.com/google/go-attestation v0.5.0 // indirect
+	github.com/google/gce-tcb-verifier v0.2.3-0.20240905212129-12f728a62786 // indirect
+	github.com/google/go-attestation v0.5.1 // indirect
+	github.com/google/go-eventlog v0.0.2-0.20241003021507-01bb555f7cba // indirect
 	github.com/google/go-tspi v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -49,6 +51,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.32.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.32.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.32.0 // indirect
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
 
@@ -61,7 +64,7 @@ require (
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/google/go-configfs-tsm v0.2.2 // indirect
+	github.com/google/go-configfs-tsm v0.3.3-0.20240919001351-b4b5b84fdcbc // indirect
 	github.com/google/go-tpm v0.9.3
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
@@ -89,3 +92,5 @@ require (
 )
 
 replace github.com/virtee/sev-snp-measure-go => github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825
+
+replace github.com/google/go-tpm-tools => github.com/danko-miladinovic/go-tpm-tools v0.0.0-20250228160324-1ebcfd79567c

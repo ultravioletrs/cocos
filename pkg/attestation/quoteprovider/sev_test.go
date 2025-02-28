@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -144,8 +145,8 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			AttConfigurationSEVSNP.RootOfTrust.ProductLine = ""
-			AttConfigurationSEVSNP.Policy.Product = nil
+			config.AttestationPolicy.SnpCheck.RootOfTrust.ProductLine = ""
+			config.AttestationPolicy.SnpCheck.Policy.Product = nil
 			err := VerifyAttestationReportTLS(tt.attestationReport, tt.reportData)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
@@ -191,21 +192,23 @@ func prepareForTestVerifyAttestationReport(t *testing.T) (*sevsnp.Attestation, [
 	rr, err := abi.ReportCertsToProto(file)
 	require.NoError(t, err)
 
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	config.AttestationPolicy = config.Config{SnpCheck: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
 
 	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/attestation_policy.json")
 	require.NoError(t, err)
 
-	err = protojson.Unmarshal(attestationPolicyFile, &AttConfigurationSEVSNP)
+	unmarshalOptions := protojson.UnmarshalOptions{DiscardUnknown: true}
+
+	err = unmarshalOptions.Unmarshal(attestationPolicyFile, config.AttestationPolicy.SnpCheck)
 	require.NoError(t, err)
 
-	AttConfigurationSEVSNP.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
-	AttConfigurationSEVSNP.Policy.FamilyId = rr.Report.FamilyId
-	AttConfigurationSEVSNP.Policy.ImageId = rr.Report.ImageId
-	AttConfigurationSEVSNP.Policy.Measurement = rr.Report.Measurement
-	AttConfigurationSEVSNP.Policy.HostData = rr.Report.HostData
-	AttConfigurationSEVSNP.Policy.ReportIdMa = rr.Report.ReportIdMa
-	AttConfigurationSEVSNP.RootOfTrust.ProductLine = sevProductNameMilan
+	config.AttestationPolicy.SnpCheck.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
+	config.AttestationPolicy.SnpCheck.Policy.FamilyId = rr.Report.FamilyId
+	config.AttestationPolicy.SnpCheck.Policy.ImageId = rr.Report.ImageId
+	config.AttestationPolicy.SnpCheck.Policy.Measurement = rr.Report.Measurement
+	config.AttestationPolicy.SnpCheck.Policy.HostData = rr.Report.HostData
+	config.AttestationPolicy.SnpCheck.Policy.ReportIdMa = rr.Report.ReportIdMa
+	config.AttestationPolicy.SnpCheck.RootOfTrust.ProductLine = sevProductNameMilan
 
 	return rr, rr.Report.ReportData
 }

@@ -12,13 +12,13 @@ extern u_char* callFetchAttestationCallback(uintptr_t callbackHandle, const u_ch
 extern uintptr_t validationVerificationCallback(int teeType);
 extern uintptr_t fetchAttestationCallback(int teeType);
 
-int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *nonce) {
-    if (quote == NULL || nonce == NULL || tee_nonce == NULL || pub_key == NULL) {
+int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *vtpm_nonce) {
+    if (quote == NULL || vtpm_nonce == NULL || tee_nonce == NULL || pub_key == NULL) {
         fprintf(stderr, "attestation and noce and public key cannot be NULL\n");
         return -1;
     }
 
-    return callVerificationValidationCallback(callbackHandle, pub_key, pub_key_len, quote, quote_size, tee_nonce, nonce);
+    return callVerificationValidationCallback(callbackHandle, pub_key, pub_key_len, quote, quote_size, tee_nonce, vtpm_nonce);
 }
 
 u_char* triggerFetchAttestationCallback(uintptr_t callback_handle, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
@@ -83,9 +83,9 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
                 SSL_get_client_random(s, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
             }
 
-            if (RAND_bytes(ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE) != 1) {
+            if (RAND_bytes(ext_data->er.tee_nonce, REPORT_DATA_SIZE) != 1) {
                 perror("could not generate random bytes for tee nonce, will use SSL client random");
-                SSL_get_client_random(s, ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE);
+                SSL_get_client_random(s, ext_data->er.tee_nonce, REPORT_DATA_SIZE);
             }
         } else {
             fprintf(stderr, "add_arg is NULL\n");
@@ -95,7 +95,7 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         }
 
         memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
-        memcpy(er->tee_nonce, ext_data->er.tee_nonce, CLIENT_RANDOM_SIZE);
+        memcpy(er->tee_nonce, ext_data->er.tee_nonce, REPORT_DATA_SIZE);
         er->tee_type = AMD_TEE;
         ext_data->er.tee_type = AMD_TEE;
 
@@ -165,7 +165,7 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
 
         if (ext_data != NULL) {
             memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, CLIENT_RANDOM_SIZE);
-            memcpy(ext_data->er.tee_nonce, er->tee_nonce, CLIENT_RANDOM_SIZE);
+            memcpy(ext_data->er.tee_nonce, er->tee_nonce, REPORT_DATA_SIZE);
             ext_data->er.tee_type = er->tee_type;
         } else {
             fprintf(stderr, "parse_arg is NULL\n");

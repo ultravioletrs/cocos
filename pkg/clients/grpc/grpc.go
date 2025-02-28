@@ -11,12 +11,10 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/google/go-sev-guest/proto/check"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type security int
@@ -37,9 +35,6 @@ const (
 var (
 	errGrpcConnect               = errors.New("failed to connect to grpc server")
 	errGrpcClose                 = errors.New("failed to close grpc connection")
-	errAttestationPolicyOpen     = errors.New("failed to open Attestation Policy file")
-	ErrAttestationPolicyMissing  = errors.New("failed due to missing Attestation Policy file")
-	ErrAttestationPolicyDecode   = errors.New("failed to decode Attestation Policy file")
 	errCertificateParse          = errors.New("failed to parse x509 certificate")
 	errAttVerification           = errors.New("certificat is not sefl signed")
 	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
@@ -55,7 +50,7 @@ type BaseConfig struct {
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
 	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
 	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
-	ServerCAFile string        `env:"SERVER_CA_CERTS"    envDefault:""`
+	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
 }
 
 type AgentClientConfig struct {
@@ -146,7 +141,9 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 		if err != nil {
 			return nil, secure, err
 		}
+
 		opts = append(opts, grpc.WithTransportCredentials(tc))
+		opts = append(opts, grpc.WithContextDialer(CustomDialer))
 		secure = withaTLS
 	} else {
 		conf := cfg.GetBaseConfig()
@@ -197,21 +194,4 @@ func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.Tran
 	}
 
 	return tc, nil, secure
-}
-
-func ReadAttestationPolicy(manifestPath string, attestationConfiguration *check.Config) error {
-	if manifestPath != "" {
-		manifest, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return errors.Wrap(errAttestationPolicyOpen, err)
-		}
-
-		if err := protojson.Unmarshal(manifest, attestationConfiguration); err != nil {
-			return errors.Wrap(ErrAttestationPolicyDecode, err)
-		}
-
-		return nil
-	}
-
-	return ErrAttestationPolicyMissing
 }

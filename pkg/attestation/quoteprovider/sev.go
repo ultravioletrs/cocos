@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,9 +36,8 @@ const (
 )
 
 var (
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-	timeout                = time.Minute * 2
-	maxTryDelay            = time.Second * 30
+	timeout     = time.Minute * 2
+	maxTryDelay = time.Second * 30
 )
 
 var (
@@ -142,11 +142,14 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 }
 
 func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(&AttConfigurationSEVSNP)
+	config, err := copyConfig(config.AttestationPolicy.SnpCheck)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}
 
+	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
+	// This data is not part of the attestation report and it will be ignored.
+	attestationPB.CertificateChain = nil
 	config.Policy.ReportData = reportData[:]
 	return VerifyAndValidate(attestationPB, config)
 }

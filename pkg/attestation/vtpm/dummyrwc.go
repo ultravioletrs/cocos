@@ -21,7 +21,6 @@ func (l *DummyRWC) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// Close does nothing.
 func (l *DummyRWC) Close() error {
 	return nil
 }

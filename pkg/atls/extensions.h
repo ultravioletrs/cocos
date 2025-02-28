@@ -19,7 +19,7 @@ typedef struct evidence_request
 {
     int tee_type;
     char vtpm_nonce[CLIENT_RANDOM_SIZE];
-    char tee_nonce[CLIENT_RANDOM_SIZE];
+    char tee_nonce[REPORT_DATA_SIZE];
 } evidence_request;
 
 typedef struct tls_extension_data
