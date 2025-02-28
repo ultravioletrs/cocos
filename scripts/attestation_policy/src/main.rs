@@ -108,7 +108,7 @@ fn sev_product(eax: u32) -> SevProduct {
 fn main() {
     let matches = Command::new("Attestation Policy")
         .about(
-            "Processes command line options and outputs a JSON file for Attestation verification"
+            "Processes command line options and outputs a JSON file for Attestation verification",
         )
         .arg(
             Arg::new("policy")
@@ -172,12 +172,12 @@ fn main() {
         root_of_trust,
     };
 
-    let mut computation_value = 
+    let mut computation_value =
         serde_json::to_value(&computation).expect("Failed to convert computation to JSON");
 
     // Read and parse the pcr_values.json file.
     let pcr_content = read_to_string(PCR_VALUES_JSON).expect("Failed to read pcr_values.json");
-    let pcr_value: Value = 
+    let pcr_value: Value =
         serde_json::from_str(&pcr_content).expect("Failed to parse pcr_values.json");
 
     // Merge the pcr_values into the main JSON object.
@@ -193,9 +193,9 @@ fn main() {
     }
 
     // Serialize the merged JSON and write to file.
-    let merged_json = 
+    let merged_json =
         serde_json::to_string_pretty(&computation_value).expect("Failed to serialize merged JSON");
-    let mut file = 
+    let mut file =
         File::create(ATTESTATION_POLICY_JSON).expect("Failed to create attestation policy file");
     file.write_all(merged_json.as_bytes())
         .expect("Failed to write merged JSON to file");

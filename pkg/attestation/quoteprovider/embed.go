@@ -8,21 +8,16 @@ package quoteprovider
 
 import (
 	"github.com/google/go-sev-guest/client"
-	"github.com/google/go-sev-guest/proto/check"
 	pb "github.com/google/go-sev-guest/proto/sevsnp"
 	cocosai "github.com/ultravioletrs/cocos"
 )
 
-var (
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-)
-
-var _ client.QuoteProvider = (*embeddedQuoteProvider)(nil)
+var _ client.LeveledQuoteProvider = (*embeddedQuoteProvider)(nil)
 
 type embeddedQuoteProvider struct {
 }
 
-func GetLeveledQuoteProvider() (client.QuoteProvider, error) {
+func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return &embeddedQuoteProvider{}, nil
 }
 
