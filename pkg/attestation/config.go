@@ -12,6 +12,14 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+type AttestationType int32
+
+const (
+	SNP AttestationType = iota
+	VTPM
+	SNPvTPM
+)
+
 var (
 	AttestationPolicy           = Config{SnpCheck: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
 	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")

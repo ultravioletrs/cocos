@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/agent"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -194,35 +195,35 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			attType := agent.SNP
+			attType := config.SNP
 			switch attestationType {
 			case SNP:
 				cmd.Println("Fetching SEV-SNP attestation report")
 			case VTPM:
 				cmd.Println("Fetching vTPM report")
-				attType = agent.VTPM
+				attType = config.VTPM
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
-				attType = agent.SNPvTPM
+				attType = config.SNPvTPM
 			default:
 				printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
 				return
 			}
 
-			if (attType == agent.VTPM || attType == agent.SNPvTPM) && len(nonce) == 0 {
+			if (attType == config.VTPM || attType == config.SNPvTPM) && len(nonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
-			if (attType == agent.SNP || attType == agent.SNPvTPM) && len(teeNonce) == 0 {
+			if (attType == config.SNP || attType == config.SNPvTPM) && len(teeNonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("TEE nonce must be defined for SEV-SNP attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
 			var fixedReportData [agent.Nonce]byte
-			if attType != agent.VTPM {
+			if attType != config.VTPM {
 				if len(teeNonce) > agent.Nonce {
 					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", agent.Nonce)
 					cmd.Println(msg)
@@ -233,7 +234,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			}
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
-			if attType != agent.SNP {
+			if attType != config.SNP {
 				if len(nonce) > vtpm.Nonce {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)

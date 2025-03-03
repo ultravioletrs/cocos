@@ -4,6 +4,8 @@ package grpc
 
 import (
 	"errors"
+
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 type algoReq struct {
@@ -40,7 +42,7 @@ func (req resultReq) validate() error {
 type attestationReq struct {
 	TeeNonce  [64]byte
 	VtpmNonce [32]byte
-	AttType   int32
+	AttType   config.AttestationType
 }
 
 func (req attestationReq) validate() error {

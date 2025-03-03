@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -110,7 +111,7 @@ func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface
 
 	copy(reportData[:], req.TeeNonce)
 	copy(nonce[:], req.VtpmNonce)
-	return attestationReq{TeeNonce: reportData, VtpmNonce: nonce, AttType: req.Type}, nil
+	return attestationReq{TeeNonce: reportData, VtpmNonce: nonce, AttType: config.AttestationType(req.Type)}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
