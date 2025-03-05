@@ -67,7 +67,15 @@ export AGENT_GRPC_ATTESTATION_POLICY=./scripts/attestation_policy/attestation_po
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retrieve Attestation
-./build/cocos-cli attestation get '<report_data>'
+# Three different attestation reports can be retrieved:
+#  - SEV-SNP with argument snp for attestation get command.
+./build/cocos-cli attestation get snp --tee '<report_data>'
+
+#  - vTPM with argument vtpm for attestation get command.
+./build/cocos-cli attestation get vtpm --vtpm '<vtpm_nonce>'
+
+#  - vTPM with SEV-SNP with argument snp-vtpm for attestation get command.
+./build/cocos-cli attestation get snp-vtpm --tee '<report_data>' --vtpm '<vtpm_nonce>'
 
 # Validate Attestation
 # Product name must be Milan or Genoa

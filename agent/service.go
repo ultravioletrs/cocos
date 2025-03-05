@@ -73,7 +73,6 @@ const (
 
 const (
 	algoFilePermission = 0o700
-	VMPL               = 2
 )
 
 var (
@@ -129,12 +128,13 @@ type agentService struct {
 	logger          *slog.Logger                // Logger for the agent service.
 	resultsConsumed bool                        // Indicates if the results have been consumed.
 	cancel          context.CancelFunc          // Cancels the computation context.
+	vmpl            int                         // VMPL at which the Agent is running.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
@@ -143,6 +143,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quot
 		quoteProvider: quoteProvider,
 		logger:        logger,
 		cancel:        cancel,
+		vmpl:          vmlp,
 	}
 
 	transitions := []statemachine.Transition{
@@ -404,7 +405,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
 	switch attType {
 	case config.SNP:
-		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, VMPL)
+		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, uint(as.vmpl))
 		if err != nil {
 			return []byte{}, err
 		}

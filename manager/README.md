@@ -44,7 +44,10 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_SEV_ID                        | The ID for the Secure Encrypted Virtualization (SEV) device.                                                    | sev0                         |
 | MANAGER_QEMU_SEV_CBITPOS                   | The position of the C-bit in the physical address.                                                              | 51                           |
 | MANAGER_QEMU_SEV_REDUCED_PHYS_BITS         | The number of reduced physical address bits for SEV.                                                            | 1                            |
+| MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV host.                                                                        | false                        |
 | MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV host.                                                                               |                              |
+| MANAGER_QEMU_IGVM_ID                       | The ID of the IGVM file.                                                                                        | igvm0                        |
+| MANAGER_QEMU_IGVM_FILE                     | The file path to the IGVM file.                                                                                 | /root/coconut-qemu.igvm      |
 | MANAGER_QEMU_VSOCK_ID                      | The ID for the virtual socket device.                                                                           | vhost-vsock-pci0             |
 | MANAGER_QEMU_VSOCK_GUEST_CID               | The guest-side CID (Context ID) for the virtual socket device.                                                  | 3                            |
 | MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                            | 0                            |
@@ -58,7 +61,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_SMP_COUNT                     | The number of virtual CPUs.                                                                                     | 4                            |
 | MANAGER_QEMU_SMP_MAXCPUS                   | The maximum number of virtual CPUs.                                                                             | 64                           |
 | MANAGER_QEMU_MEM_ID                        | The ID for the memory device.                                                                                   | ram1                         |
-| MANAGER_QEMU_KERNEL_HASH                   | Whether to enable kernel hash verification.                                                                     | false                        |
 | MANAGER_QEMU_NO_GRAPHIC                    | Whether to disable the graphical display.                                                                       | true                         |
 | MANAGER_QEMU_MONITOR                       | The type of monitor to use.                                                                                     | pty                          |
 | MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                             | 6100-6200                    |
@@ -232,21 +234,7 @@ MANAGER_QEMU_ENABLE_SEV=false \
 MANAGER_QEMU_ENABLE_SEV_SNP=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
-MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF.fd Amd Sev built package> \
-./build/cocos-manager
-```
-
-To include the kernel hash into the measurement of the attestation report (SEV or SEV-SNP), start manager like this
-
-```sh
-MANAGER_GRPC_URL=localhost:7001 \
-MANAGER_LOG_LEVEL=debug \
-MANAGER_QEMU_ENABLE_SEV=false \
-MANAGER_QEMU_ENABLE_SEV_SNP=true \
-MANAGER_QEMU_SEV_CBITPOS=51 \
-MANAGER_QEMU_KERNEL_HASH=true \
-MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
-MANAGER_QEMU_QEMU_OVMF_CODE_FILE=<path to OVMF.fd Amd Sev built package> \
+MANAGER_QEMU_IGVM_FILE=<path to IGVM file> \
 ./build/cocos-manager
 ```
 

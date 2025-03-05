@@ -39,6 +39,7 @@ const (
 
 type config struct {
 	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
+	Vmpl     int    `env:"AGENT_VMPL" envDefault:"2"`
 }
 
 func main() {
@@ -111,7 +112,13 @@ func main() {
 		return
 	}
 
-	svc := newService(ctx, logger, eventSvc, qp)
+	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
+		logger.Error("vmpl level must be in a range [0, 3]")
+		exitCode = 1
+		return
+	}
+
+	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -150,8 +157,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, qp)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, qp, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
