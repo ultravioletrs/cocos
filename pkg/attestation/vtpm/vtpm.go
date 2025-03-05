@@ -293,7 +293,7 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePc
 	return nil
 }
 
-// Return SHA256 and SHA384 values of the input public key
+// Return SHA256 and SHA384 values of the input public key.
 func calculatePCRTLSKey(pubKey []byte) ([]byte, []byte) {
 	init256 := make([]byte, Hash256)
 	init384 := make([]byte, Hash384)

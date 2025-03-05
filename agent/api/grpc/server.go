@@ -25,8 +25,8 @@ const (
 )
 
 var (
-	ErrTEENonceLength  = errors.New(fmt.Sprintf("malformed report data, expect less or equal to %d bytes", quoteprovider.Nonce))
-	ErrVTpmNonceLength = errors.New(fmt.Sprintf("malformed vTPM nonce, expect less or equal to %d bytes", vtpm.Nonce))
+	ErrTEENonceLength  = errors.New("malformed report data, expect less or equal to 64 bytes")
+	ErrVTpmNonceLength = errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
 )
 
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
