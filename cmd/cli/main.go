@@ -28,7 +28,8 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"info"`
+	LogLevel       string `env:"AGENT_LOG_LEVEL" envDefault:"info"`
+	IgvmBinaryPath string `env:"IGVM_BINARY_PATH" envDefault:"./build/igvmmeasure"`
 }
 
 func main() {
@@ -136,6 +137,7 @@ func main() {
 
 	// measure.
 	rootCmd.AddCommand(cmd.NewRootCmd())
+	rootCmd.AddCommand(cliSVC.NewMeasureCmd(cfg.IgvmBinaryPath))
 
 	// Flags
 	keysCmd.PersistentFlags().StringVarP(
