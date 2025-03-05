@@ -13,6 +13,8 @@ import (
 	cocosai "github.com/ultravioletrs/cocos"
 )
 
+const Nonce = 64
+
 var _ client.LeveledQuoteProvider = (*embeddedQuoteProvider)(nil)
 
 type embeddedQuoteProvider struct {

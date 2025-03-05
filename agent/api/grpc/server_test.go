@@ -12,6 +12,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -153,7 +154,7 @@ func TestAttestation(t *testing.T) {
 	mockStream := &MockAgentService_AttestationServer{ctx: context.Background()}
 	mockStream.On("Send", mock.AnythingOfType("*agent.AttestationResponse")).Return(nil)
 
-	reportData := [agent.Nonce]byte{}
+	reportData := [quoteprovider.Nonce]byte{}
 	vtpmNonce := [vtpm.Nonce]byte{}
 	attestationType := config.SNP
 	mockService.On("Attestation", mock.Anything, reportData, vtpmNonce, attestationType).Return([]byte("attestation data"), nil)
@@ -203,7 +204,7 @@ func TestEncodeResultResponse(t *testing.T) {
 }
 
 func TestDecodeAttestationRequest(t *testing.T) {
-	nonce := [agent.Nonce]byte{}
+	nonce := [quoteprovider.Nonce]byte{}
 	req := &agent.AttestationRequest{TeeNonce: nonce[:]}
 	decoded, err := decodeAttestationRequest(context.Background(), req)
 	assert.NoError(t, err)

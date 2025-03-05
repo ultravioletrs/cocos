@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/ultravioletrs/cocos/agent"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -136,13 +135,11 @@ var (
 	empty64                 = [size64]byte{}
 	defaultReportIdMa       = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	errReportSize           = errors.New("attestation contents too small")
-	ErrBadType              = errors.New("bad type provided to the CLI attestation command")
 	ErrBadAttestation       = errors.New("attestation file is corrupted or in wrong format")
 	output                  string
 	nonce                   []byte
 	format                  string
 	teeNonce                []byte
-	attestationType         string
 	getTextProtoAttestation bool
 )
 
@@ -186,14 +183,26 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 
 func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
-		Short:   "Retrieve attestation information from agent. The nonce parameter needs to be a hex encoded string.",
-		Example: "get <args>",
+		Use:       "get",
+		Short:     "Retrieve attestation information from agent. The argument of the command must be the type of the report (snp or vtpm or snp-vtpm).",
+		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM},
+		Example: fmt.Sprintf(`Based on attestation report type:
+		get %s --tee <512 bit hex value>
+		get %s --vtpm <256 bit hex value>
+		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>`, SNP, VTPM, SNPvTPM),
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
 			}
+
+			if err := cobra.OnlyValidArgs(cmd, args); err != nil {
+				printError(cmd, "Bad attestation type: %v ❌ ", err)
+				return
+			}
+
+			attestationType := args[0]
 
 			attType := config.SNP
 			switch attestationType {
@@ -205,9 +214,6 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
 				attType = config.SNPvTPM
-			default:
-				printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
-				return
 			}
 
 			if (attType == config.VTPM || attType == config.SNPvTPM) && len(nonce) == 0 {
@@ -222,10 +228,10 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			var fixedReportData [agent.Nonce]byte
+			var fixedReportData [quoteprovider.Nonce]byte
 			if attType != config.VTPM {
-				if len(teeNonce) > agent.Nonce {
-					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", agent.Nonce)
+				if len(teeNonce) > quoteprovider.Nonce {
+					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", quoteprovider.Nonce)
 					cmd.Println(msg)
 					return
 				}
@@ -287,9 +293,6 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 					}
 
 					result = []byte(marshalOptions.Format(&attvTPM))
-				default:
-					printError(cmd, "Possible attestation types are snp, vtpm and snp-vtpm: %v ❌ ", ErrBadType)
-					return
 				}
 
 				if err != nil {
@@ -309,8 +312,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&getTextProtoAttestation, "textproto", "p", false, "Get attestation in textproto format")
 	cmd.Flags().BytesHexVarP(&teeNonce, "tee", "e", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
-	cmd.Flags().BytesHexVarP(&nonce, "vtpmnonce", "n", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
-	cmd.Flags().StringVarP(&attestationType, "type", "t", "", "Get SEV or/and vTPM attestation report (snp, vtpm or snp-vtpm)")
+	cmd.Flags().BytesHexVarP(&nonce, "vtpm", "t", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
 
 	return cmd
 }

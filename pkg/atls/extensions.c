@@ -265,8 +265,6 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
             EVP_PKEY_free(pkey);
             OPENSSL_free(pubkey_buf);
 
-            fprintf(stderr, "QUOTE_SIZE: %ld\n", strlen(quote));
-
             *out = quote;
             *outlen = len;
             return 1;

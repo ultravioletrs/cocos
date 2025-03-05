@@ -31,14 +31,6 @@ const bufSize = 1024 * 1024
 
 var lis *bufconn.Listener
 
-// type BufferRW struct {
-// 	*bytes.Buffer
-// }
-
-// func (b *BufferRW) Close() error {
-// 	return nil
-// }
-
 func init() {
 	lis = bufconn.Listen(bufSize)
 }

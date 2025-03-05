@@ -20,7 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
@@ -96,7 +96,7 @@ func callVerificationValidationCallback(callbackHandle uintptr, pubKey *C.uchar,
 	callback := handle.Value().(ValidationVerification)
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	attestationReport := C.GoBytes(unsafe.Pointer(quote), quoteSize)
-	teeData := C.GoBytes(unsafe.Pointer(teeNonce), agent.Nonce)
+	teeData := C.GoBytes(unsafe.Pointer(teeNonce), quoteprovider.Nonce)
 	nonceData := C.GoBytes(unsafe.Pointer(nonce), vtpm.Nonce)
 
 	err := callback(attestationReport, pubKeyCert, teeData, nonceData)
@@ -115,7 +115,7 @@ func callFetchAttestationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKe
 
 	callback := handle.Value().(FetchAttestation)
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
-	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), agent.Nonce)
+	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
 
 	quote, err := callback(pubKeyCert, teeNonceData, vTPMNonce)
@@ -301,7 +301,7 @@ func (c *ATLSConn) Close() error {
 			return errTLSConn
 		} else if int(ret) == 1 {
 			c.tlsConn = nil
-			break;
+			break
 		}
 	}
 

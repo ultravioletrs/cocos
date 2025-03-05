@@ -24,6 +24,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 )
@@ -71,8 +72,6 @@ const (
 )
 
 const (
-	// ReportDataSize is the size of the report data expected by the attestation service.
-	Nonce              = 64
 	algoFilePermission = 0o700
 	VMPL               = 2
 )
@@ -114,7 +113,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
 	State() string
 }
 
@@ -402,24 +401,21 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
 	switch attType {
 	case config.SNP:
-		fmt.Println("SEV")
 		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, VMPL)
 		if err != nil {
 			return []byte{}, err
 		}
 		return rawQuote, nil
 	case config.VTPM:
-		fmt.Println("vTPM")
 		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], false)
 		if err != nil {
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
 	case config.SNPvTPM:
-		fmt.Println("SEV and vTPM")
 		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], true)
 		if err != nil {
 			return []byte{}, err

@@ -29,7 +29,7 @@ const (
 	cocosDirectory        = ".cocos"
 	caBundleName          = "ask_ark.pem"
 	attestationReportSize = 0x4A0
-	reportDataSize        = 64
+	Nonce                 = 64
 	sevProductNameMilan   = "Milan"
 	sevProductNameGenoa   = "Genoa"
 	sevVMPL               = 2
@@ -169,14 +169,14 @@ func VerifyAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) err
 }
 
 func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
-	var reportData [reportDataSize]byte
+	var reportData [Nonce]byte
 
 	qp, err := GetLeveledQuoteProvider()
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not get quote provider")
 	}
 
-	if len(reportData) > reportDataSize {
+	if len(reportData) > Nonce {
 		return []byte{}, fmt.Errorf("attestation report size mismatch")
 	}
 	copy(reportData[:], reportDataSlice)

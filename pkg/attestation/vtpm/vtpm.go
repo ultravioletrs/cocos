@@ -6,6 +6,8 @@ package vtpm
 import (
 	"bytes"
 	"crypto"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
@@ -31,6 +33,8 @@ const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
 	Nonce    = 32
 	PCR15    = 15
+	Hash256  = 32
+	Hash384  = 48
 )
 
 var (
@@ -150,7 +154,9 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 		return fmt.Errorf("verifying attestation: %w", err)
 	}
 
-	if err := checkExpectedPCRValues(attestation); err != nil {
+	s256, s384 := calculatePCRTLSKey(pubKeyTLS)
+
+	if err := checkExpectedPCRValues(attestation, s256, s384); err != nil {
 		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
 	}
 
@@ -244,20 +250,27 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.A
 	return attestation, nil
 }
 
-func checkExpectedPCRValues(attestation *attest.Attestation) error {
+func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePcr384 []byte) error {
 	quotes := attestation.GetQuotes()
 
 	for index := range quotes {
 		quote := quotes[index]
 		var pcrMap map[string]string
+		var pcr15 []byte
 
 		switch quote.Pcrs.Hash {
 		case tpm.HashAlgo_SHA256:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha256
+			pcr15 = ePcr256
 		case tpm.HashAlgo_SHA384:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha384
+			pcr15 = ePcr384
 		default:
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
+		}
+
+		if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], pcr15) {
+			return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]), pcr15)
 		}
 
 		for i, v := range pcrMap {
@@ -278,4 +291,21 @@ func checkExpectedPCRValues(attestation *attest.Attestation) error {
 	}
 
 	return nil
+}
+
+// Return SHA256 and SHA384 values of the input public key
+func calculatePCRTLSKey(pubKey []byte) ([]byte, []byte) {
+	init256 := make([]byte, Hash256)
+	init384 := make([]byte, Hash384)
+
+	key256 := sha3.Sum256(pubKey)
+	key384 := sha3.Sum384(pubKey)
+
+	pcrValue256 := append(init256, key256[:]...)
+	pcrValue384 := append(init384, key384[:]...)
+
+	newPcr256 := sha256.Sum256(pcrValue256)
+	newPcr384 := sha512.Sum384(pcrValue384)
+
+	return newPcr256[:], newPcr384[:]
 }

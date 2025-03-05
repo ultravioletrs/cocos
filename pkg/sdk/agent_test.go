@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 	"golang.org/x/crypto/sha3"
@@ -387,7 +388,7 @@ func TestAttestation(t *testing.T) {
 	cases := []struct {
 		name       string
 		userKey    any
-		reportData [agent.Nonce]byte
+		reportData [quoteprovider.Nonce]byte
 		nonce      [vtpm.Nonce]byte
 		response   *agent.AttestationResponse
 		svcRes     []byte
@@ -396,7 +397,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "fetch attestation report successfully",
 			userKey:    resultConsumerKey,
-			reportData: [agent.Nonce]byte(reportData),
+			reportData: [quoteprovider.Nonce]byte(reportData),
 			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: report,
@@ -407,7 +408,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "fetch attestation report with different key type",
 			userKey:    resultConsumer1Key,
-			reportData: [agent.Nonce]byte(reportData),
+			reportData: [quoteprovider.Nonce]byte(reportData),
 			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: report,
@@ -418,7 +419,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "failed to fetch attestation report",
 			userKey:    resultConsumerKey,
-			reportData: [agent.Nonce]byte(reportData),
+			reportData: [quoteprovider.Nonce]byte(reportData),
 			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: []byte{},
@@ -428,7 +429,7 @@ func TestAttestation(t *testing.T) {
 		{
 			name:       "invalid report data",
 			userKey:    resultConsumerKey,
-			reportData: [agent.Nonce]byte{},
+			reportData: [quoteprovider.Nonce]byte{},
 			nonce:      [vtpm.Nonce]byte(nonce),
 			response: &agent.AttestationResponse{
 				File: []byte{},

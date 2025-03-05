@@ -328,7 +328,7 @@ func TestAttestation(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		reportData [Nonce]byte
+		reportData [quoteprovider.Nonce]byte
 		nonce      [vtpm.Nonce]byte
 		rawQuote   []uint8
 		err        error
@@ -373,8 +373,8 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
-func generateReportData() [Nonce]byte {
-	bytes := make([]byte, Nonce)
+func generateReportData() [quoteprovider.Nonce]byte {
+	bytes := make([]byte, quoteprovider.Nonce)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		log.Fatalf("Failed to generate random bytes: %v", err)

@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
 )
@@ -36,8 +36,8 @@ func TestNewAttestationCmd(t *testing.T) {
 
 	cmd.SetOutput(&buf)
 
-	reportData := bytes.Repeat([]byte{0x01}, agent.Nonce)
-	mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(reportData), mock.Anything).Return(nil)
+	reportData := bytes.Repeat([]byte{0x01}, quoteprovider.Nonce)
+	mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(reportData), mock.Anything).Return(nil)
 
 	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
 	err := cmd.Execute()
@@ -49,7 +49,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 	validattestation, err := os.ReadFile("../attestation.bin")
 	require.NoError(t, err)
 
-	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, agent.Nonce))
+	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))
 	vtpmNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
 
 	testCases := []struct {
@@ -161,7 +161,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			var buf bytes.Buffer
 			cmd.SetOutput(&buf)
 
-			mockSDK.On("Attestation", mock.Anything, [agent.Nonce]byte(bytes.Repeat([]byte{0x00}, agent.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+			mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(4).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})
