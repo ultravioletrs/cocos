@@ -9,7 +9,7 @@
       "5": "a5ceb755d043f32431d63e39f5161464620a3437280494b5850dc1b47cc074e0",
       "6": "3d458cfe55cc03ea1f443f1562beec8df51c75e14a9fcf9a7234a13f198e7969",
       "7": "70d12f32fdb109ba0960697b5a8d5d8d860b004a757fe2471be2c2a19ec1a765",
-      "9": "f36b1e1660932b2a60828698d18f524b0a5b603eb33dc21e35b9bc5e6df5060a"
+      "9": "52e14e6e642c0f0b841527a138ae9ee0f5403e04f34aa078fb0684f3ff7fa6fa"
     },
     "sha384": {
       "0": "ff93a763afde2c4a152d4843d9fcabe73a70d4f34bf8861845f2ab08440c1f0742b5882ed7f2524e38a3a6e40fbcdfca",
@@ -20,7 +20,7 @@
       "5": "c50b529497c7f441ea47305587d6ce83e2e31f7b4fab6c13dc0b0c3c900e1d0caf0768321100927862df142bf0465ee4",
       "6": "518923b0f955d08da077c96aaba522b9decede61c599cea6c41889cfbea4ae4d50529d96fe4d1afdafb65e7f95bf23c4",
       "7": "ea40cbd8f51eed103d75821340e71fa3c0cfde3e75c360b4c9aca534b7fed021e12f8890acef36ccfe12b33ea4111576",
-      "9": "26af1635432b7c9f8971e934cfad99a7d22a9888074e6ab6dce5fba9e095bc094cc0fbaa4b4a8a23c5c7abd5a33c2772"
+      "9": "4e25b08ec0ec3b6990f73e0d5269cee8f791ed6d86c28ccbf2f58cc0db99d6b1d66ca38c3174ddae365818a7d26ac4e8"
     }
   },
   "policy": {
@@ -28,7 +28,7 @@
     "family_id": "AAAAAAAAAAAAAAAAAAAAAA==",
     "host_data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "image_id": "AAAAAAAAAAAAAAAAAAAAAA==",
-    "measurement": "oDYo4e98Da2Fy73nDVZmxiWiz+5gnxae7NMRtdfnwpbBuVYZsI0mynz3fpfe+YIX",
+    "measurement": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
     "minimum_build": 8,
     "minimum_launch_tcb": 15352208179752599555,
     "minimum_tcb": 15352208179752599555,

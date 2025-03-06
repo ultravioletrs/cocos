@@ -48,18 +48,22 @@ func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) 
 			return errors.Wrap(ErrAttestationPolicyOpen, err)
 		}
 
-		unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-
-		if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.SnpCheck); err != nil {
-			return errors.Wrap(ErrAttestationPolicyDecode, err)
-		}
-
-		if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
-			return errors.Wrap(ErrAttestationPolicyDecode, err)
-		}
-
-		return nil
+		return ReadAttestationPolicyFromByte(policyData, attestationConfiguration)
 	}
 
 	return ErrAttestationPolicyMissing
+}
+
+func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *Config) error {
+	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+
+	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.SnpCheck); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	return nil
 }
