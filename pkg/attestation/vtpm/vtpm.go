@@ -252,12 +252,10 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.A
 
 func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePcr384 []byte) error {
 	quotes := attestation.GetQuotes()
-
-	for index := range quotes {
-		quote := quotes[index]
+	for i := range quotes {
+		quote := quotes[i]
 		var pcrMap map[string]string
 		var pcr15 []byte
-
 		switch quote.Pcrs.Hash {
 		case tpm.HashAlgo_SHA256:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha256
@@ -269,8 +267,9 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePc
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
 		}
 
-		if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], pcr15) {
-			return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]), pcr15)
+		pcr15Index := uint32(15)
+		if !bytes.Equal(quote.Pcrs.Pcrs[pcr15Index], pcr15) {
+			return fmt.Errorf("for algo %s PCR[15] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], hex.EncodeToString(pcr15), hex.EncodeToString(quote.Pcrs.Pcrs[pcr15Index]))
 		}
 
 		for i, v := range pcrMap {
@@ -278,18 +277,15 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePc
 			if err != nil {
 				return fmt.Errorf("error converting PCR index to int32: %v\n", err)
 			}
-
 			value, err := hex.DecodeString(v)
 			if err != nil {
 				return fmt.Errorf("error converting PCR value to byte: %v\n", err)
 			}
-
 			if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], value) {
-				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]), v)
+				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(value), hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]))
 			}
 		}
 	}
-
 	return nil
 }
 
