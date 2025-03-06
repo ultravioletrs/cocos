@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
 	"github.com/google/go-sev-guest/client"
+	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -24,6 +26,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
@@ -73,11 +76,20 @@ func main() {
 		return
 	}
 
-	qp, err := quoteprovider.GetLeveledQuoteProvider()
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
-		exitCode = 1
-		return
+	var qp client.LeveledQuoteProvider
+
+	if !sevGuesDeviceExists() {
+		logger.Info("SEV-SNP device not found")
+		qpMock := new(mocks.LeveledQuoteProvider)
+		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
+		qp = qpMock
+	} else {
+		qp, err = quoteprovider.GetLeveledQuoteProvider()
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
+			exitCode = 1
+			return
+		}
 	}
 
 	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
@@ -165,4 +177,13 @@ func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Servic
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
+}
+
+func sevGuesDeviceExists() bool {
+	d, err := client.OpenDevice()
+	if err != nil {
+		return false
+	}
+	d.Close()
+	return true
 }
