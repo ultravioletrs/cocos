@@ -163,6 +163,11 @@ runcmd:
   - systemctl stop ssh.service && echo "SSH service stopped successfully" || echo "Failed to stop SSH service"
   - systemctl stop sshd.service && echo "SSHD service stopped successfully" || echo "Failed to stop SSHD service"
 
+  # Completely remove SSH server
+  - echo "Removing SSH server..."
+  - apt-get purge -y openssh-server && echo "SSH server removed successfully" || echo "Failed to remove SSH server"
+  - apt-get autoremove -y && echo "Removed dependencies successfully" || echo "Failed to remove dependencies"
+
   # Reload systemd and enable the service
   - echo "[ COCOS AGENT SETUP ] Reloading systemd daemon..."
   - systemctl daemon-reload && echo "[ COCOS AGENT SETUP ] Systemd daemon reloaded successfully" || echo "[ COCOS AGENT SETUP ] Failed to reload systemd daemon"
