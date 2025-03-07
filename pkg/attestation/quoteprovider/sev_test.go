@@ -72,7 +72,7 @@ func TestFillInAttestationLocal(t *testing.T) {
 }
 
 func TestVerifyAttestationReportSuccess(t *testing.T) {
-	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	tests := []struct {
 		name              string
@@ -99,7 +99,7 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
-	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	// Change random data so in the signature so the signature failes
 	attestationPB.Report.Signature[0] = attestationPB.Report.Signature[0] ^ 0x01
@@ -127,7 +127,7 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 }
 
 func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
-	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	tests := []struct {
 		name              string
@@ -154,7 +154,7 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
-	attestationPB, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	// Change random data in the measurement so the measurement does not match
 	attestationPB.Report.Measurement[0] = attestationPB.Report.Measurement[0] ^ 0x01
@@ -181,7 +181,7 @@ func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
 	}
 }
 
-func prepareForTestVerifyAttestationReport(t *testing.T) (*sevsnp.Attestation, []byte) {
+func prepVerifyAttReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 	file, err := os.ReadFile("../../../attestation.bin")
 	require.NoError(t, err)
 
