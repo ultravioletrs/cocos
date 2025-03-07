@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -67,11 +68,30 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	case vmi.Config.EnableSEVSNP:
-		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[vmi.Config.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+		args := []string{}
+		args = append(args, fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath))
+		args = append(args, ms.qemuCfg.IGVMConfig.File)
+		args = append(args, "measure")
+		args = append(args, "-b")
+
+		igvm_measure_cmd := exec.Command("sudo", args...)
+
+		out, err := igvm_measure_cmd.Output()
 		if err != nil {
 			return nil, err
 		}
+
+		outputString := string(out)
+
+		lines := strings.Split(strings.TrimSpace(outputString), "\n")
+
+		if len(lines) == 1 {
+			measurement = out
+		} else {
+			return nil, fmt.Errorf("error: %s", outputString)
+		}
 	}
+
 	if measurement != nil {
 		attestationPolicy.Policy.Measurement = measurement
 	}
