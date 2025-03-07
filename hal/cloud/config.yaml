@@ -11,14 +11,7 @@ users:
       - docker # Add cocos user to the docker group
     sudo:
       - ALL=(ALL:ALL) ALL
-    shell: /bin/bash
-
-chpasswd:
-  list: |
-    cocos_user:password
-  expire: False
-
-ssh_pwauth: True
+    shell: /sbin/nologin
 
 packages:
   - curl
@@ -162,6 +155,13 @@ runcmd:
   - curl -fsSL https://get.docker.com -o get-docker.sh && echo "Docker install script downloaded successfully" || echo "Failed to download Docker install script"
   - sh ./get-docker.sh && echo "Docker installed successfully" || echo "Failed to install Docker"
   - usermod -aG docker cocos_user && echo "Added cocos_user to the docker group" || echo "Failed to add cocos_user to the docker group"
+
+  # Disable SSH service
+  - echo "Disabling SSH service..."
+  - systemctl disable ssh.service && echo "SSH service disabled successfully" || echo "Failed to disable SSH service"
+  - systemctl disable sshd.service && echo "SSHD service disabled successfully" || echo "Failed to disable SSHD service"
+  - systemctl stop ssh.service && echo "SSH service stopped successfully" || echo "Failed to stop SSH service"
+  - systemctl stop sshd.service && echo "SSHD service stopped successfully" || echo "Failed to stop SSHD service"
 
   # Reload systemd and enable the service
   - echo "[ COCOS AGENT SETUP ] Reloading systemd daemon..."
