@@ -20,6 +20,7 @@ packages:
   - python3
   - python3-dev
   - net-tools # Add net-tools to install the 'route' command
+  - iptables-persistent # Add iptables-persistent to save firewall rules
 
 write_files:
   - path: /etc/cocos/certs/cert.pem
@@ -127,6 +128,41 @@ write_files:
       exec /bin/cocos-agent
     permissions: "0755"
 
+  # Firewall configuration script
+  - path: /cocos_init/setup_firewall.sh
+    content: |
+      #!/bin/bash
+      
+      # Flush existing rules
+      iptables -F
+      iptables -X
+      iptables -t nat -F
+      iptables -t nat -X
+      iptables -t mangle -F
+      iptables -t mangle -X
+      
+      # Set default policies to DROP
+      iptables -P INPUT DROP
+      iptables -P FORWARD DROP
+      iptables -P OUTPUT ACCEPT
+      
+      # Allow loopback interface
+      iptables -A INPUT -i lo -j ACCEPT
+      iptables -A OUTPUT -o lo -j ACCEPT
+      
+      # Allow established and related connections
+      iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+      
+      # Allow port 7002 (TCP) for incoming connections
+      iptables -A INPUT -p tcp --dport 7002 -j ACCEPT
+      
+      # Save rules to persist after reboot
+      mkdir -p /etc/iptables
+      iptables-save > /etc/iptables/rules.v4
+      
+      echo "Firewall configured to allow only port 7002"
+    permissions: "0755"
+
 runcmd:
   # Create necessary directories
   - mkdir -p /cocos
@@ -167,6 +203,15 @@ runcmd:
   - echo "Removing SSH server..."
   - apt-get purge -y openssh-server && echo "SSH server removed successfully" || echo "Failed to remove SSH server"
   - apt-get autoremove -y && echo "Removed dependencies successfully" || echo "Failed to remove dependencies"
+
+  # Set up firewall to only allow port 7002
+  - echo "Setting up firewall..."
+  - bash /cocos_init/setup_firewall.sh && echo "Firewall configured successfully" || echo "Failed to configure firewall"
+  
+  # Ensure iptables rules persist after reboot
+  - echo "Ensuring iptables rules persist after reboot..."
+  - systemctl enable netfilter-persistent && echo "netfilter-persistent service enabled successfully" || echo "Failed to enable netfilter-persistent service"
+  - systemctl start netfilter-persistent && echo "netfilter-persistent service started successfully" || echo "Failed to start netfilter-persistent service"
 
   # Reload systemd and enable the service
   - echo "[ COCOS AGENT SETUP ] Reloading systemd daemon..."
