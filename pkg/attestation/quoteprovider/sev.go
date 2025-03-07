@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
@@ -22,6 +21,7 @@ import (
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,20 +29,19 @@ const (
 	cocosDirectory        = ".cocos"
 	caBundleName          = "ask_ark.pem"
 	attestationReportSize = 0x4A0
-	reportDataSize        = 64
+	Nonce                 = 64
 	sevProductNameMilan   = "Milan"
 	sevProductNameGenoa   = "Genoa"
+	sevVMPL               = 2
 )
 
 var (
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-	timeout                = time.Minute * 2
-	maxTryDelay            = time.Second * 30
+	timeout     = time.Minute * 2
+	maxTryDelay = time.Second * 30
 )
 
 var (
 	errProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
-	errReportSize      = errors.New("attestation report size mismatch")
 	errAttVerification = errors.New("attestation verification failed")
 	errAttValidation   = errors.New("attestation validation failed")
 )
@@ -138,38 +137,31 @@ func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error 
 	return nil
 }
 
-func GetQuoteProvider() (client.QuoteProvider, error) {
-	return client.GetQuoteProvider()
+func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
+	return client.GetLeveledQuoteProvider()
 }
 
-func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
-	config, err := copyConfig(&AttConfigurationSEVSNP)
+func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
+	config, err := copyConfig(config.AttestationPolicy.SnpCheck)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}
 
+	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
+	// This data is not part of the attestation report and it will be ignored.
+	attestationPB.CertificateChain = nil
 	config.Policy.ReportData = reportData[:]
-	return VerifyAndValidate(attestationBytes, config)
+	return VerifyAndValidate(attestationPB, config)
 }
 
-func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
+func VerifyAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	logger.Init("", false, false, io.Discard)
 
-	if len(attestationReport) < attestationReportSize {
-		return errReportSize
-	}
-	attestationBytes := attestationReport[:attestationReportSize]
-
-	attestationPB, err := abi.ReportCertsToProto(attestationBytes)
-	if err != nil {
-		return fmt.Errorf("failed to convert attestation bytes to struct %v", errors.Wrap(errAttVerification, err))
-	}
-
-	if err = verifyReport(attestationPB, cfg); err != nil {
+	if err := verifyReport(attestationPB, cfg); err != nil {
 		return err
 	}
 
-	if err = validateReport(attestationPB, cfg); err != nil {
+	if err := validateReport(attestationPB, cfg); err != nil {
 		return err
 	}
 
@@ -177,19 +169,19 @@ func VerifyAndValidate(attestationReport []byte, cfg *check.Config) error {
 }
 
 func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
-	var reportData [reportDataSize]byte
+	var reportData [Nonce]byte
 
-	qp, err := GetQuoteProvider()
+	qp, err := GetLeveledQuoteProvider()
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not get quote provider")
 	}
 
-	if len(reportData) > reportDataSize {
+	if len(reportData) > Nonce {
 		return []byte{}, fmt.Errorf("attestation report size mismatch")
 	}
 	copy(reportData[:], reportDataSlice)
 
-	rawQuote, err := qp.GetRawQuote(reportData)
+	rawQuote, err := qp.GetRawQuoteAtLevel(reportData, sevVMPL)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to get raw quote")
 	}

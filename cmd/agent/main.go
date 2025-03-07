@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
 	"github.com/google/go-sev-guest/client"
+	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -24,6 +26,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
@@ -39,6 +42,7 @@ const (
 
 type config struct {
 	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
+	Vmpl     int    `env:"AGENT_VMPL" envDefault:"2"`
 }
 
 func main() {
@@ -72,11 +76,20 @@ func main() {
 		return
 	}
 
-	qp, err := quoteprovider.GetQuoteProvider()
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
-		exitCode = 1
-		return
+	var qp client.LeveledQuoteProvider
+
+	if !sevGuesDeviceExists() {
+		logger.Info("SEV-SNP device not found")
+		qpMock := new(mocks.LeveledQuoteProvider)
+		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
+		qp = qpMock
+	} else {
+		qp, err = quoteprovider.GetLeveledQuoteProvider()
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
+			exitCode = 1
+			return
+		}
 	}
 
 	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
@@ -111,7 +124,13 @@ func main() {
 		return
 	}
 
-	svc := newService(ctx, logger, eventSvc, qp)
+	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
+		logger.Error("vmpl level must be in a range [0, 3]")
+		exitCode = 1
+		return
+	}
+
+	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -150,12 +169,21 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.QuoteProvider) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, qp)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, qp, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
+}
+
+func sevGuesDeviceExists() bool {
+	d, err := client.OpenDevice()
+	if err != nil {
+		return false
+	}
+	d.Close()
+	return true
 }

@@ -20,9 +20,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -166,14 +166,14 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 			return "", id, errors.Wrap(ErrFailedToReadPolicy, err)
 		}
 
-		var attestationPolicy check.Config
+		attestationPolicy := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
-		if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
+		if err = config.ReadAttestationPolicyFromByte(f, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 
 		// Define the TCB that was present at launch of the VM.
-		cfg.LaunchTCB = attestationPolicy.Policy.MinimumLaunchTcb
+		cfg.LaunchTCB = attestationPolicy.SnpCheck.Policy.MinimumLaunchTcb
 	}
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)

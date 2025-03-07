@@ -23,6 +23,9 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -69,8 +72,6 @@ const (
 )
 
 const (
-	// ReportDataSize is the size of the report data expected by the attestation service.
-	ReportDataSize     = 64
 	algoFilePermission = 0o700
 )
 
@@ -99,6 +100,8 @@ var (
 	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
 	// ErrAttestationFailed attestation failed.
 	ErrAttestationFailed = errors.New("failed to get raw quote")
+	// ErrAttType indicates that the attestation type that is requested does not exist or is not supported.
+	ErrAttestationType = errors.New("attestation type does not exist or is not supported")
 )
 
 // Service specifies an API that must be fullfiled by the domain service
@@ -109,28 +112,29 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
 	State() string
 }
 
 type agentService struct {
 	mu              sync.Mutex
-	computation     Computation               // Holds the current computation request details.
-	algorithm       algorithm.Algorithm       // Filepath to the algorithm received for the computation.
-	result          []byte                    // Stores the result of the computation.
-	sm              statemachine.StateMachine // Manages the state transitions of the agent service.
-	runError        error                     // Stores any error encountered during the computation run.
-	eventSvc        events.Service            // Service for publishing events related to computation.
-	quoteProvider   client.QuoteProvider      // Provider for generating attestation quotes.
-	logger          *slog.Logger              // Logger for the agent service.
-	resultsConsumed bool                      // Indicates if the results have been consumed.
-	cancel          context.CancelFunc        // Cancels the computation context.
+	computation     Computation                 // Holds the current computation request details.
+	algorithm       algorithm.Algorithm         // Filepath to the algorithm received for the computation.
+	result          []byte                      // Stores the result of the computation.
+	sm              statemachine.StateMachine   // Manages the state transitions of the agent service.
+	runError        error                       // Stores any error encountered during the computation run.
+	eventSvc        events.Service              // Service for publishing events related to computation.
+	quoteProvider   client.LeveledQuoteProvider // Provider for generating attestation quotes.
+	logger          *slog.Logger                // Logger for the agent service.
+	resultsConsumed bool                        // Indicates if the results have been consumed.
+	cancel          context.CancelFunc          // Cancels the computation context.
+	vmpl            int                         // VMPL at which the Agent is running.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.QuoteProvider) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
@@ -139,6 +143,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quot
 		quoteProvider: quoteProvider,
 		logger:        logger,
 		cancel:        cancel,
+		vmpl:          vmlp,
 	}
 
 	transitions := []statemachine.Transition{
@@ -397,13 +402,29 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [ReportDataSize]byte) ([]byte, error) {
-	rawQuote, err := as.quoteProvider.GetRawQuote(reportData)
-	if err != nil {
-		return []byte{}, err
+func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+	switch attType {
+	case config.SNP:
+		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, uint(as.vmpl))
+		if err != nil {
+			return []byte{}, err
+		}
+		return rawQuote, nil
+	case config.VTPM:
+		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], false)
+		if err != nil {
+			return []byte{}, err
+		}
+		return vTPMQuote, nil
+	case config.SNPvTPM:
+		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], true)
+		if err != nil {
+			return []byte{}, err
+		}
+		return vTPMQuote, nil
+	default:
+		return []byte{}, ErrAttestationType
 	}
-
-	return rawQuote, nil
 }
 
 func (as *agentService) runComputation(state statemachine.State) {

@@ -20,8 +20,8 @@ import (
 	"unsafe"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -51,8 +51,8 @@ var (
 	errConnCreate    = errors.New("could not create connection")
 )
 
-type ValidationVerification func(data1, data2 []byte) error
-type FetchAttestation func(data1 []byte) ([]byte, error)
+type ValidationVerification func(data1, data2, data3, data4 []byte) error
+type FetchAttestation func(data1, data2, data3 []byte) ([]byte, error)
 
 func registerFetchAttestation(callback FetchAttestation) uintptr {
 	handle := cgo.NewHandle(callback)
@@ -70,7 +70,7 @@ func validationVerificationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerValidationVerification(quoteprovider.VerifyAttestationReportTLS)
+		return registerValidationVerification(vtpm.VTPMVerify)
 	default:
 		return uintptr(0)
 	}
@@ -82,22 +82,24 @@ func fetchAttestationCallback(teeType C.int) uintptr {
 	case NoTee:
 		return uintptr(0)
 	case AmdSevSnp:
-		return registerFetchAttestation(quoteprovider.FetchAttestation)
+		return registerFetchAttestation(vtpm.FetchATLSQuote)
 	default:
 		return uintptr(0)
 	}
 }
 
 //export callVerificationValidationCallback
-func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uchar, attReportSize C.int, repData *C.uchar) C.int {
+func callVerificationValidationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, quote *C.uchar, quoteSize C.int, teeNonce *C.uchar, nonce *C.uchar) C.int {
 	handle := cgo.Handle(callbackHandle)
 	defer handle.Delete()
 
 	callback := handle.Value().(ValidationVerification)
-	attestationReport := C.GoBytes(unsafe.Pointer(attReport), attReportSize)
-	reportData := C.GoBytes(unsafe.Pointer(repData), agent.ReportDataSize)
+	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
+	attestationReport := C.GoBytes(unsafe.Pointer(quote), quoteSize)
+	teeData := C.GoBytes(unsafe.Pointer(teeNonce), quoteprovider.Nonce)
+	nonceData := C.GoBytes(unsafe.Pointer(nonce), vtpm.Nonce)
 
-	err := callback(attestationReport, reportData)
+	err := callback(attestationReport, pubKeyCert, teeData, nonceData)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "callback failed %v", err)
 		return C.int(-1)
@@ -107,20 +109,22 @@ func callVerificationValidationCallback(callbackHandle uintptr, attReport *C.uch
 }
 
 //export callFetchAttestationCallback
-func callFetchAttestationCallback(callbackHandle uintptr, reportDataByte *C.uchar, outlen *C.int) *C.uchar {
+func callFetchAttestationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, teeNonceByte *C.uchar, vTPMNonceByte *C.uchar, outlen *C.ulong) *C.uchar {
 	handle := cgo.Handle(callbackHandle)
 	defer handle.Delete()
 
 	callback := handle.Value().(FetchAttestation)
-	reportData := C.GoBytes(unsafe.Pointer(reportDataByte), agent.ReportDataSize)
+	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
+	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
+	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
 
-	quote, err := callback(reportData)
+	quote, err := callback(pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "attestation callback returned nil")
 		return nil
 	}
 
-	*outlen = C.int(len(quote))
+	*outlen = C.ulong(len(quote))
 	resultC := C.malloc(C.size_t(len(quote)))
 	if resultC == nil {
 		fmt.Fprintf(os.Stderr, "could not allocate memory for fetch attestation callback")
@@ -232,23 +236,23 @@ func (c *ATLSConn) Read(b []byte) (int, error) {
 	case noError:
 		return n, nil // no error.
 	case errorZeroReturn:
-		fmt.Fprintf(os.Stdout, "Connection closed by peer")
+		fmt.Fprintf(os.Stdout, "Connection closed by peer\n")
 		return 0, io.EOF // connection closed.
 	case errorWantRead:
-		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later")
+		fmt.Fprintf(os.Stderr, "Operation read incomplete, retry later\n")
 		return 0, nil // non-fatal, just retry later.
 	case errorWantWrite:
-		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later")
+		fmt.Fprintf(os.Stderr, "Operation write incomplete, retry later\n")
 		return 0, nil // non-fatal, just retry later.
 	case errorSyscall:
-		fmt.Fprintf(os.Stderr, "I/O error")
+		fmt.Fprintf(os.Stderr, "I/O error\n")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	case errorSsl:
-		fmt.Fprintf(os.Stderr, "I/O error")
+		fmt.Fprintf(os.Stderr, "I/O error\n")
 		return 0, syscall.ECONNRESET // return connection reset error.
 	default:
 		fmt.Fprintf(os.Stderr, "SSL error occurred: %d\n", errCode)
-		return 0, fmt.Errorf("SSL error")
+		return 0, fmt.Errorf("SSL error\n")
 	}
 }
 
@@ -297,7 +301,7 @@ func (c *ATLSConn) Close() error {
 			return errTLSConn
 		} else if int(ret) == 1 {
 			c.tlsConn = nil
-			break;
+			break
 		}
 	}
 

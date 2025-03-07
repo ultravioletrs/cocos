@@ -13,6 +13,9 @@ import (
 	"time"
 
 	"github.com/ultravioletrs/cocos/agent"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 var _ agent.Service = (*loggingMiddleware)(nil)
@@ -103,7 +106,7 @@ func (lm *loggingMiddleware) Result(ctx context.Context) (response []byte, err e
 	return lm.svc.Result(ctx)
 }
 
-func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData [agent.ReportDataSize]byte) (response []byte, err error) {
+func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) (response []byte, err error) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
 		if err != nil {
@@ -113,5 +116,5 @@ func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData [agent.
 		lm.logger.Info(fmt.Sprintf("%s without errors", message))
 	}(time.Now())
 
-	return lm.svc.Attestation(ctx, reportData)
+	return lm.svc.Attestation(ctx, reportData, nonce, attType)
 }

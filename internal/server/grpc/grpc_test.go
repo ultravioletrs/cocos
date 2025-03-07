@@ -22,6 +22,7 @@ import (
 	authmocks "github.com/ultravioletrs/cocos/agent/auth/mocks"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -29,6 +30,28 @@ import (
 const bufSize = 1024 * 1024
 
 var lis *bufconn.Listener
+
+type DummyRWC struct{}
+
+// Read fills p with byte(len(p)) and returns len(p).
+func (l *DummyRWC) Read(p []byte) (int, error) {
+	n := len(p)
+	// Fill each byte in p with the value of n as a byte.
+	for i := range p {
+		p[i] = byte(n)
+	}
+	return n, nil
+}
+
+// Write simply returns len(p) indicating that all bytes were written.
+func (l *DummyRWC) Write(p []byte) (int, error) {
+	// In this simple implementation, we ignore the data.
+	return len(p), nil
+}
+
+func (l *DummyRWC) Close() error {
+	return nil
+}
 
 func init() {
 	lis = bufconn.Listen(bufSize)
@@ -47,7 +70,7 @@ func TestNew(t *testing.T) {
 		},
 	}
 	logger := slog.Default()
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -97,7 +120,7 @@ func TestServerStartWithTLSFile(t *testing.T) {
 
 	logBuffer := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -144,7 +167,7 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 
 	logBuffer := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -184,7 +207,7 @@ func TestServerStop(t *testing.T) {
 	}
 	buf := &ThreadSafeBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	qp := new(mocks.QuoteProvider)
+	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
 	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
@@ -259,6 +282,8 @@ func (b *ThreadSafeBuffer) String() string {
 }
 
 func TestServerInitializationAndStartup(t *testing.T) {
+	vtpm.ExternalTPM = &DummyRWC{}
+
 	testCases := []struct {
 		name          string
 		config        server.AgentConfig
@@ -374,7 +399,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 
 			logBuffer := &ThreadSafeBuffer{}
 			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			qp := new(mocks.QuoteProvider)
+			qp := new(mocks.LeveledQuoteProvider)
 			authSvc := new(authmocks.Authenticator)
 
 			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc)

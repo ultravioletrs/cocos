@@ -107,7 +107,7 @@ packages:
           mockname: "{{.InterfaceName}}"
   github.com/google/go-sev-guest/client:
     interfaces:
-      QuoteProvider:
+      LeveledQuoteProvider:
         config:
           dir: "./pkg/attestation/quoteprovider/mocks"
           filename: "QuoteProvider.go"

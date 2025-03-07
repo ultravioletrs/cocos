@@ -17,12 +17,8 @@ import (
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/encoding/protojson"
-)
-
-const (
-	measurementOffset = 0x90
-	signatureOffset   = 0x2A0
 )
 
 func TestFillInAttestationLocal(t *testing.T) {
@@ -76,18 +72,18 @@ func TestFillInAttestationLocal(t *testing.T) {
 }
 
 func TestVerifyAttestationReportSuccess(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		goodProduct       int
 		err               error
 	}{
 		{
 			name:              "Valid attestation, validation and verification is performed succsessfully",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			goodProduct:       1,
 			err:               nil,
@@ -103,20 +99,20 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	// Change random data so in the signature so the signature failes
-	file[signatureOffset] = file[signatureOffset] ^ 0x01
+	attestationPB.Report.Signature[0] = attestationPB.Report.Signature[0] ^ 0x01
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, distorted signature",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errAttVerification,
 		},
@@ -131,17 +127,17 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 }
 
 func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, unknown product",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errProductLine,
 		},
@@ -149,8 +145,8 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			AttConfigurationSEVSNP.RootOfTrust.ProductLine = ""
-			AttConfigurationSEVSNP.Policy.Product = nil
+			config.AttestationPolicy.SnpCheck.RootOfTrust.ProductLine = ""
+			config.AttestationPolicy.SnpCheck.Policy.Product = nil
 			err := VerifyAttestationReportTLS(tt.attestationReport, tt.reportData)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
@@ -158,20 +154,20 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
-	file, reportData := prepareForTestVerifyAttestationReport(t)
+	attestationPB, reportData := prepVerifyAttReport(t)
 
 	// Change random data in the measurement so the measurement does not match
-	file[measurementOffset] = file[measurementOffset] ^ 0x01
+	attestationPB.Report.Measurement[0] = attestationPB.Report.Measurement[0] ^ 0x01
 
 	tests := []struct {
 		name              string
-		attestationReport []byte
+		attestationReport *sevsnp.Attestation
 		reportData        []byte
 		err               error
 	}{
 		{
 			name:              "Valid attestation, malformed policy (measurement)",
-			attestationReport: file,
+			attestationReport: attestationPB,
 			reportData:        reportData,
 			err:               errAttVerification,
 		},
@@ -185,32 +181,34 @@ func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
 	}
 }
 
-func prepareForTestVerifyAttestationReport(t *testing.T) ([]byte, []byte) {
+func prepVerifyAttReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 	file, err := os.ReadFile("../../../attestation.bin")
-	require.NoError(t, err)
-
-	rr, err := abi.ReportCertsToProto(file)
 	require.NoError(t, err)
 
 	if len(file) < attestationReportSize {
 		file = append(file, make([]byte, attestationReportSize-len(file))...)
 	}
 
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	rr, err := abi.ReportCertsToProto(file)
+	require.NoError(t, err)
+
+	config.AttestationPolicy = config.Config{SnpCheck: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
 
 	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/attestation_policy.json")
 	require.NoError(t, err)
 
-	err = protojson.Unmarshal(attestationPolicyFile, &AttConfigurationSEVSNP)
+	unmarshalOptions := protojson.UnmarshalOptions{DiscardUnknown: true}
+
+	err = unmarshalOptions.Unmarshal(attestationPolicyFile, config.AttestationPolicy.SnpCheck)
 	require.NoError(t, err)
 
-	AttConfigurationSEVSNP.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
-	AttConfigurationSEVSNP.Policy.FamilyId = rr.Report.FamilyId
-	AttConfigurationSEVSNP.Policy.ImageId = rr.Report.ImageId
-	AttConfigurationSEVSNP.Policy.Measurement = rr.Report.Measurement
-	AttConfigurationSEVSNP.Policy.HostData = rr.Report.HostData
-	AttConfigurationSEVSNP.Policy.ReportIdMa = rr.Report.ReportIdMa
-	AttConfigurationSEVSNP.RootOfTrust.ProductLine = sevProductNameMilan
+	config.AttestationPolicy.SnpCheck.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
+	config.AttestationPolicy.SnpCheck.Policy.FamilyId = rr.Report.FamilyId
+	config.AttestationPolicy.SnpCheck.Policy.ImageId = rr.Report.ImageId
+	config.AttestationPolicy.SnpCheck.Policy.Measurement = rr.Report.Measurement
+	config.AttestationPolicy.SnpCheck.Policy.HostData = rr.Report.HostData
+	config.AttestationPolicy.SnpCheck.Policy.ReportIdMa = rr.Report.ReportIdMa
+	config.AttestationPolicy.SnpCheck.RootOfTrust.ProductLine = sevProductNameMilan
 
-	return file, rr.Report.ReportData
+	return rr, rr.Report.ReportData
 }

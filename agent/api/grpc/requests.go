@@ -4,6 +4,10 @@ package grpc
 
 import (
 	"errors"
+
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 type algoReq struct {
@@ -38,9 +42,16 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	ReportData [64]byte
+	TeeNonce  [quoteprovider.Nonce]byte
+	VtpmNonce [vtpm.Nonce]byte
+	AttType   config.AttestationType
 }
 
 func (req attestationReq) validate() error {
-	return nil
+	switch req.AttType {
+	case config.SNP, config.VTPM, config.SNPvTPM:
+		return nil
+	default:
+		return errors.New("invalid attestation type in attestation request")
+	}
 }

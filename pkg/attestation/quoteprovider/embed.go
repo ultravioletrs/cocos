@@ -8,26 +8,24 @@ package quoteprovider
 
 import (
 	"github.com/google/go-sev-guest/client"
-	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	pb "github.com/google/go-sev-guest/proto/sevsnp"
 	cocosai "github.com/ultravioletrs/cocos"
 )
 
-var (
-	AttConfigurationSEVSNP = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-)
+const Nonce = 64
 
-var _ client.QuoteProvider = (*embeddedQuoteProvider)(nil)
+var _ client.LeveledQuoteProvider = (*embeddedQuoteProvider)(nil)
 
 type embeddedQuoteProvider struct {
 }
 
-func GetQuoteProvider() (client.QuoteProvider, error) {
+func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return &embeddedQuoteProvider{}, nil
 }
 
-// GetQuote returns the SEV quote for the given report data.
-func (e *embeddedQuoteProvider) GetRawQuote(reportData [64]byte) ([]byte, error) {
+// GetRawQuoteAtLevel returns the SEV quote for the given report data and VMPL.
+func (e *embeddedQuoteProvider) GetRawQuoteAtLevel(reportData [64]byte, vmpl uint) ([]byte, error) {
 	return cocosai.EmbeddedAttestation, nil
 }
 
@@ -46,6 +44,6 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	return cocosai.EmbeddedAttestation, nil
 }
 
-func VerifyAttestationReportTLS(attestationBytes []byte, reportData []byte) error {
+func VerifyAttestationReportTLS(attestation *sevsnp.Attestation, reportData []byte) error {
 	return nil
 }

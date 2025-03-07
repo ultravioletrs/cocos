@@ -57,9 +57,10 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			binaryBehavior: "success",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEV: true,
-					SMPCount:  2,
-					CPU:       "EPYC",
+					EnableSEV:    true,
+					EnableSEVSNP: false,
+					SMPCount:     2,
+					CPU:          "EPYC",
 					OVMFCodeConfig: qemu.OVMFCodeConfig{
 						File: "/path/to/OVMF_CODE.fd",
 					},
@@ -67,23 +68,6 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				LaunchTCB: 0,
 			},
 			expectedError: "open /path/to/OVMF_CODE.fd: no such file or directory",
-		},
-		{
-			name:           "Valid SEV-SNP configuration",
-			computationId:  "sev-snp-computation",
-			binaryBehavior: "success",
-			vmConfig: qemu.VMInfo{
-				Config: qemu.Config{
-					EnableSEVSNP: true,
-					SMPCount:     4,
-					CPU:          "EPYC-v2",
-					OVMFCodeConfig: qemu.OVMFCodeConfig{
-						File: "/path/to/OVMF_CODE_SNP.fd",
-					},
-				},
-				LaunchTCB: 0,
-			},
-			expectedError: "open /path/to/OVMF_CODE_SNP.fd: no such file or director",
 		},
 		{
 			name:           "Invalid computation ID",

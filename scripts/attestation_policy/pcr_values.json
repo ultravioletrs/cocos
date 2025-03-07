@@ -22,31 +22,5 @@
       "7": "ea40cbd8f51eed103d75821340e71fa3c0cfde3e75c360b4c9aca534b7fed021e12f8890acef36ccfe12b33ea4111576",
       "9": "02556c6b494abaf21481def35b38574e80dc68f20ceb8385f78a5ad4ecfbab60f9fcfca7c69f09a081fdd4ca13f3c14d"
     }
-  },
-  "policy": {
-    "chip_id": "GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
-    "family_id": "AAAAAAAAAAAAAAAAAAAAAA==",
-    "host_data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-    "image_id": "AAAAAAAAAAAAAAAAAAAAAA==",
-    "measurement": "oDYo4e98Da2Fy73nDVZmxiWiz+5gnxae7NMRtdfnwpbBuVYZsI0mynz3fpfe+YIX",
-    "minimum_build": 8,
-    "minimum_launch_tcb": 15352208179752599555,
-    "minimum_tcb": 15352208179752599555,
-    "minimum_version": "1.55",
-    "permit_provisional_firmware": true,
-    "policy": 196608,
-    "product": {
-      "name": 1
-    },
-    "report_id_ma": "//////////////////////////////////////////8=",
-    "require_author_key": false,
-    "require_id_block": false,
-    "vmpl": 2
-  },
-  "root_of_trust": {
-    "check_crl": true,
-    "disallow_network": false,
-    "product": "Milan",
-    "product_line": "Milan"
   }
 }

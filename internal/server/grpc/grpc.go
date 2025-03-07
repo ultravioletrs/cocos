@@ -25,6 +25,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"github.com/ultravioletrs/cocos/pkg/atls"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -51,7 +52,7 @@ type Server struct {
 	server.BaseServer
 	server          *grpc.Server
 	registerService serviceRegister
-	quoteProvider   client.QuoteProvider
+	quoteProvider   client.LeveledQuoteProvider
 	authSvc         auth.Authenticator
 	health          *health.Server
 }
@@ -60,7 +61,7 @@ type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.QuoteProvider, authSvc auth.Authenticator) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator) server.Server {
 	base := config.GetBaseConfig()
 	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 	return &Server{
@@ -300,6 +301,20 @@ func generateCertificatesForATLS() ([]byte, []byte, error) {
 		Type:  "PRIVATE KEY",
 		Bytes: privateKeyBytes,
 	})
+
+	cert, err := x509.ParseCertificate(certDERBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal public key to DER format: %w", err)
+	}
+
+	if err := vtpm.ExtendPCR(vtpm.PCR15, pubKeyDER); err != nil {
+		return nil, nil, fmt.Errorf("failed to extend vTPM PCR with public key: %w", err)
+	}
 
 	return certBytes, keyBytes, nil
 }

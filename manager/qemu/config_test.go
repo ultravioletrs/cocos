@@ -132,6 +132,10 @@ func TestConstructQemuArgs(t *testing.T) {
 					CBitPos:         51,
 					ReducedPhysBits: 1,
 				},
+				IGVMConfig: IGVMConfig{
+					ID:   "igvm0",
+					File: "/test/path/cocos-igvm.igvm",
+				},
 				NoGraphic: true,
 				Monitor:   "pty",
 			},
@@ -144,10 +148,10 @@ func TestConstructQemuArgs(t *testing.T) {
 				"-netdev", "user,id=vmnic,hostfwd=tcp::7020-:7002",
 				"-device", "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,addr=0x2,romfile=",
 				"-device", "vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3",
-				"-machine", "confidential-guest-support=sev0,memory-backend=ram1",
-				"-bios", "/usr/share/OVMF/OVMF_CODE.fd",
+				"-machine", "confidential-guest-support=sev0,memory-backend=ram1,igvm-cfg=igvm0",
 				"-object", "memory-backend-memfd,id=ram1,size=2048M,share=true,prealloc=false",
 				"-object", "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1",
+				"-object", "igvm-cfg,id=igvm0,file=/test/path/cocos-igvm.igvm",
 				"-kernel", "img/bzImage",
 				"-append", "\"quiet console=null\"",
 				"-initrd", "img/rootfs.cpio.gz",
@@ -167,37 +171,6 @@ func TestConstructQemuArgs(t *testing.T) {
 	}
 }
 
-func TestConstructQemuArgs_KernelHash(t *testing.T) {
-	config := Config{
-		EnableSEVSNP: true,
-		KernelHash:   true,
-		SevConfig: SevConfig{
-			ID:              "sev0",
-			CBitPos:         51,
-			ReducedPhysBits: 1,
-		},
-	}
-
-	result := config.ConstructQemuArgs()
-
-	expected := "-object"
-	expectedValue := "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,kernel-hashes=on"
-
-	found := false
-	for i, arg := range result {
-		if arg == expected && i+1 < len(result) {
-			if result[i+1] == expectedValue {
-				found = true
-				break
-			}
-		}
-	}
-
-	if !found {
-		t.Errorf("ConstructQemuArgs() did not contain expected SEV-SNP configuration with kernel hashes enabled")
-	}
-}
-
 func TestConstructQemuArgs_HostData(t *testing.T) {
 	config := Config{
 		EnableSEVSNP: true,
@@ -205,6 +178,7 @@ func TestConstructQemuArgs_HostData(t *testing.T) {
 			ID:              "sev0",
 			CBitPos:         51,
 			ReducedPhysBits: 1,
+			EnableHostData:  true,
 			HostData:        "test-host-data",
 		},
 	}

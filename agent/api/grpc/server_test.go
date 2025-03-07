@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -151,10 +154,12 @@ func TestAttestation(t *testing.T) {
 	mockStream := &MockAgentService_AttestationServer{ctx: context.Background()}
 	mockStream.On("Send", mock.AnythingOfType("*agent.AttestationResponse")).Return(nil)
 
-	reportData := [agent.ReportDataSize]byte{}
-	mockService.On("Attestation", mock.Anything, reportData).Return([]byte("attestation data"), nil)
+	reportData := [quoteprovider.Nonce]byte{}
+	vtpmNonce := [vtpm.Nonce]byte{}
+	attestationType := config.SNP
+	mockService.On("Attestation", mock.Anything, reportData, vtpmNonce, attestationType).Return([]byte("attestation data"), nil)
 
-	err := server.Attestation(&agent.AttestationRequest{ReportData: reportData[:]}, mockStream)
+	err := server.Attestation(&agent.AttestationRequest{TeeNonce: reportData[:]}, mockStream)
 	assert.NoError(t, err)
 
 	mockService.AssertExpectations(t)
@@ -199,11 +204,11 @@ func TestEncodeResultResponse(t *testing.T) {
 }
 
 func TestDecodeAttestationRequest(t *testing.T) {
-	reportData := [agent.ReportDataSize]byte{}
-	req := &agent.AttestationRequest{ReportData: reportData[:]}
+	nonce := [quoteprovider.Nonce]byte{}
+	req := &agent.AttestationRequest{TeeNonce: nonce[:]}
 	decoded, err := decodeAttestationRequest(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Equal(t, attestationReq{ReportData: reportData}, decoded)
+	assert.Equal(t, attestationReq{TeeNonce: nonce}, decoded)
 }
 
 func TestEncodeAttestationResponse(t *testing.T) {

@@ -19,6 +19,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	att "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 func TestNewClient(t *testing.T) {
@@ -200,8 +201,9 @@ func TestClientSecure(t *testing.T) {
 }
 
 func TestReadAttestationPolicy(t *testing.T) {
-	validJSON := `{"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
+	validJSON := `{"pcr_values":{"sha256":{"0":"123"},"sha384":{"0":"123"}},"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
 	invalidJSON := `{"invalid_json"`
+	invalidJSONPCR := `{"pcr_values":{"sha256":{"0":true},"sha384":{"0":"123"}},"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
 
 	cases := []struct {
 		name         string
@@ -219,19 +221,25 @@ func TestReadAttestationPolicy(t *testing.T) {
 			name:         "Invalid JSON",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSON,
-			err:          ErrAttestationPolicyDecode,
+			err:          att.ErrAttestationPolicyDecode,
 		},
 		{
 			name:         "Non-existent file",
 			manifestPath: "nonexistent.json",
 			fileContent:  "",
-			err:          errAttestationPolicyOpen,
+			err:          att.ErrAttestationPolicyOpen,
 		},
 		{
 			name:         "Empty manifest path",
 			manifestPath: "",
 			fileContent:  "",
-			err:          ErrAttestationPolicyMissing,
+			err:          att.ErrAttestationPolicyMissing,
+		},
+		{
+			name:         "Invalid JSON PCR",
+			manifestPath: "invalid_manifest.json",
+			fileContent:  invalidJSONPCR,
+			err:          att.ErrAttestationPolicyDecode,
 		},
 	}
 
@@ -243,13 +251,13 @@ func TestReadAttestationPolicy(t *testing.T) {
 				defer os.Remove(tt.manifestPath)
 			}
 
-			config := check.Config{}
-			err := ReadAttestationPolicy(tt.manifestPath, &config)
+			config := att.Config{SnpCheck: &check.Config{}, PcrConfig: &att.PcrConfig{}}
+			err := att.ReadAttestationPolicy(tt.manifestPath, &config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.err == nil {
-				assert.NotNil(t, config.Policy)
-				assert.NotNil(t, config.RootOfTrust)
+				assert.NotNil(t, config.SnpCheck.Policy)
+				assert.NotNil(t, config.SnpCheck.RootOfTrust)
 			}
 		})
 	}
