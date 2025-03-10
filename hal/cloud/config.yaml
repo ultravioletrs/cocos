@@ -12,6 +12,15 @@ users:
     sudo:
       - ALL=(ALL:ALL) ALL
     shell: /sbin/nologin
+  - name: algo_user
+    gecos: Algorithm User
+    groups:
+      - docker # Add to docker group for container execution
+    shell: /bin/bash
+    sudo:
+      - /usr/bin/python3 # Allow running Python
+      - /home/algo_user/.wasmtime/bin/wasmtime # Allow running Wasmtime
+      - /usr/bin/docker # Allow running Docker commands
 
 packages:
   - curl
@@ -21,6 +30,7 @@ packages:
   - python3-dev
   - net-tools # Add net-tools to install the 'route' command
   - iptables-persistent # Add iptables-persistent to save firewall rules
+  - sudo # Ensure sudo is installed
 
 write_files:
   - path: /etc/cocos/certs/cert.pem
@@ -163,6 +173,67 @@ write_files:
       echo "Firewall configured to allow only port 7002"
     permissions: "0755"
 
+  # Setup script for algo_user
+  - path: /cocos_init/setup_algo_user.sh
+    content: |
+      #!/bin/bash
+      
+      # Create datasets directory with the right permissions
+      mkdir -p /datasets
+      chown root:root /datasets
+      chmod 755 /datasets
+      
+      # Create a home directory for algo_user
+      mkdir -p /home/algo_user
+      chown algo_user:algo_user /home/algo_user
+      chmod 750 /home/algo_user
+      
+      # Set up Wasmtime for algo_user
+      mkdir -p /home/algo_user/.wasmtime/bin
+      
+      # Link system Wasmtime to user's directory
+      ln -s /root/.wasmtime/bin/wasmtime /home/algo_user/.wasmtime/bin/wasmtime
+      chown -R algo_user:algo_user /home/algo_user/.wasmtime
+      
+      # Configure sudoers for algo_user
+      cat > /etc/sudoers.d/algo_user << EOF
+      algo_user ALL=(ALL) NOPASSWD: /usr/bin/python3
+      algo_user ALL=(ALL) NOPASSWD: /home/algo_user/.wasmtime/bin/wasmtime
+      algo_user ALL=(ALL) NOPASSWD: /usr/bin/docker
+      Defaults:algo_user !requiretty
+      EOF
+      
+      chmod 440 /etc/sudoers.d/algo_user
+      
+      # Create a .bashrc file that restricts navigation to /datasets
+      cat > /home/algo_user/.bashrc << EOF
+      # .bashrc for algo_user
+      
+      # Restrict navigation outside /datasets
+      function cd() {
+          if [[ "\$1" == /* && "\$1" != "/datasets"* && "\$1" != "/home/algo_user"* ]]; then
+              echo "Access denied: You can only access files in /datasets or your home directory"
+              return 1
+          else
+              builtin cd "\$1"
+          fi
+      }
+      
+      # Set PATH to include necessary binaries
+      export PATH=/usr/bin:/bin:/usr/local/bin:/home/algo_user/.wasmtime/bin
+      
+      # Set default directory
+      if [[ \$PWD != "/datasets"* && \$PWD != "/home/algo_user"* ]]; then
+          cd /datasets
+      fi
+      EOF
+      
+      chown algo_user:algo_user /home/algo_user/.bashrc
+      chmod 644 /home/algo_user/.bashrc
+      
+      echo "algo_user setup completed successfully"
+    permissions: "0755"
+
 runcmd:
   # Create necessary directories
   - mkdir -p /cocos
@@ -213,6 +284,20 @@ runcmd:
   - systemctl enable netfilter-persistent && echo "netfilter-persistent service enabled successfully" || echo "Failed to enable netfilter-persistent service"
   - systemctl start netfilter-persistent && echo "netfilter-persistent service started successfully" || echo "Failed to start netfilter-persistent service"
 
+  # Set up algo_user environment
+  - echo "Setting up algo_user environment..."
+  - bash /cocos_init/setup_algo_user.sh && echo "algo_user environment setup successfully" || echo "Failed to set up algo_user environment"
+  
+  # Create datasets directory and set permissions
+  - echo "Creating datasets directory..."
+  - mkdir -p /datasets && echo "datasets directory created successfully" || echo "Failed to create datasets directory"
+  - chown root:root /datasets && echo "datasets ownership set successfully" || echo "Failed to set datasets ownership"
+  - chmod 755 /datasets && echo "datasets permissions set successfully" || echo "Failed to set datasets permissions"
+  
+  # Add algo_user to the docker group
+  - echo "Adding algo_user to the docker group..."
+  - usermod -aG docker algo_user && echo "Added algo_user to the docker group" || echo "Failed to add algo_user to the docker group"
+
   # Reload systemd and enable the service
   - echo "[ COCOS AGENT SETUP ] Reloading systemd daemon..."
   - systemctl daemon-reload && echo "[ COCOS AGENT SETUP ] Systemd daemon reloaded successfully" || echo "[ COCOS AGENT SETUP ] Failed to reload systemd daemon"
@@ -221,4 +306,4 @@ runcmd:
   - echo "[ COCOS AGENT SETUP ] Starting cocos-agent.service..."
   - systemctl start cocos-agent.service && echo "[ COCOS AGENT SETUP ] cocos-agent.service started successfully" || echo "[ COCOS AGENT SETUP ] Failed to start cocos-agent.service"
 
-final_message: "Cocos agent setup complete. Verify logs to confirm successful service startup."
+final_message: "Cocos agent and algo_user setup complete. Verify logs to confirm successful service startup."
