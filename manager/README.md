@@ -12,6 +12,7 @@ The service is configured using the environment variables from the following tab
 | COCOS_JAEGER_TRACE_RATIO                  | The ratio of traces to sample.                                                                                   | 1.0                          |
 | MANAGER_INSTANCE_ID                       | The instance ID for the manager service.                                                                         |                              |
 | MANAGER_ATTESTATION_POLICY_BINARY         | The file path for the attestation policy and igvmmeassure binaries.                                              | ../../build                  |
+| MANAGER_PCR_VALUES                        | The file path for the file with the expected PCR values.                                                         |                              |
 | MANAGER_GRPC_CLIENT_CERT                  | The file path for the client certificate.                                                                        |                              |
 | MANAGER_GRPC_CLIENT_KEY                   | The file path for the client private key.                                                                        |                              |
 | MANAGER_GRPC_SERVER_CA_CERTS              | The file path for the server CA certificate(s).                                                                  |                              |

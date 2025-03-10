@@ -8,7 +8,6 @@ use std::fs::{read_to_string, File};
 use std::io::Write;
 
 const ATTESTATION_POLICY_JSON: &str = "attestation_policy.json";
-const PCR_VALUES_JSON: &str = "pcr_values.json";
 
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
 const EXTENDED_MODEL_SHIFT: u32 = 16;
@@ -118,7 +117,17 @@ fn main() {
                 .required(true)
                 .value_parser(value_parser!(u64)),
         )
+        .arg(
+            Arg::new("pcr")
+                .long("pcr")
+                .value_name("FILE")
+                .help("Optional path to the PCR values JSON file")
+                .required(false),
+        )
         .get_matches();
+
+    // If provided, get the PCR file path.
+    let pcr_path = matches.get_one::<String>("pcr");
 
     let mut firmware: Firmware = Firmware::open().unwrap();
     let status: SnpPlatformStatus = firmware.snp_platform_status().unwrap();
@@ -175,21 +184,22 @@ fn main() {
     let mut computation_value =
         serde_json::to_value(&computation).expect("Failed to convert computation to JSON");
 
-    // Read and parse the pcr_values.json file.
-    let pcr_content = read_to_string(PCR_VALUES_JSON).expect("Failed to read pcr_values.json");
-    let pcr_value: Value =
-        serde_json::from_str(&pcr_content).expect("Failed to parse pcr_values.json");
+    // If the PCR file path was provided, read and merge its JSON content.
+    if let Some(pcr_path) = pcr_path {
+        let pcr_content = read_to_string(pcr_path)
+            .unwrap_or_else(|_| panic!("Failed to read PCR file at {}", pcr_path));
+        let pcr_value: Value = serde_json::from_str(&pcr_content)
+            .unwrap_or_else(|_| panic!("Failed to parse PCR JSON file at {}", pcr_path));
 
-    // Merge the pcr_values into the main JSON object.
-    if let Value::Object(ref mut main_map) = computation_value {
-        if let Value::Object(pcr_map) = pcr_value {
-            // The keys in pcr_map (e.g., "pcr_values") will be added
-            main_map.extend(pcr_map);
+        if let Value::Object(ref mut main_map) = computation_value {
+            if let Value::Object(pcr_map) = pcr_value {
+                main_map.extend(pcr_map);
+            } else {
+                eprintln!("PCR file {} is not a JSON object.", pcr_path);
+            }
         } else {
-            eprintln!("{} is not a JSON object.", PCR_VALUES_JSON);
+            eprintln!("The computed JSON is not an object.");
         }
-    } else {
-        eprintln!("The computed JSON is not an object.");
     }
 
     // Serialize the merged JSON and write to file.

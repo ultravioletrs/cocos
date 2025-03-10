@@ -85,6 +85,7 @@ type managerService struct {
 	ap                          sync.Mutex
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
+	pcrValuesFilePath           string
 	logger                      *slog.Logger
 	vms                         map[string]vm.VM
 	vmFactory                   vm.Provider
@@ -97,7 +98,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -114,6 +115,7 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 		vms:                         make(map[string]vm.VM),
 		vmFactory:                   vmFactory,
 		attestationPolicyBinaryPath: attestationPolicyBinPath,
+		pcrValuesFilePath:           pcrValuesFilePath,
 		portRangeMin:                start,
 		portRangeMax:                end,
 		persistence:                 persistence,
@@ -150,7 +152,12 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
-		cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+		pcrValues := []string{"", ""}
+		policyPath := fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath)
+		if ms.pcrValuesFilePath != "" {
+			pcrValues = []string{"--pcr", ms.pcrValuesFilePath}
+		}
+		cmd := exec.Command("sudo", append([]string{policyPath, "--policy", "196608"}, pcrValues...)...)
 
 		ms.ap.Lock()
 		_, err := cmd.Output()

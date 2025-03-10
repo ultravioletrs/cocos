@@ -20,7 +20,7 @@ func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	switch behavior {
 	case "success":
 		content = []byte(`#!/bin/sh
-echo '{"policy": {"measurement": null, "host_data": null}}' > attestation_policy.json
+echo '{"pcr_values": {"sha256":null, "sha384":null}, "policy": {"measurement": null, "host_data": null}}' > attestation_policy.json
 `)
 	case "fail":
 		content = []byte(`#!/bin/sh
@@ -117,6 +117,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			ms := &managerService{
 				vms:                         make(map[string]vm.VM),
 				attestationPolicyBinaryPath: tempDir,
+				pcrValuesFilePath:           tempDir,
 				qemuCfg: qemu.Config{
 					CPU: "EPYC",
 				},

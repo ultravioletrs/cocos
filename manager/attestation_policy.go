@@ -28,7 +28,12 @@ import (
 const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
-	cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+	pcrValues := []string{"", ""}
+	policyPath := fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath)
+	if ms.pcrValuesFilePath != "" {
+		pcrValues = []string{"--pcr", ms.pcrValuesFilePath}
+	}
+	cmd := exec.Command("sudo", append([]string{policyPath, "--policy", "196608"}, pcrValues...)...)
 
 	ms.mu.Lock()
 	vm, exists := ms.vms[computationId]

@@ -43,6 +43,7 @@ type config struct {
 	TraceRatio              float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
 	InstanceID              string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
 	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build"`
+	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
 	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
 }
 
@@ -98,7 +99,7 @@ func main() {
 		return
 	}
 
-	svc, err := newService(logger, tracer, qemuCfg, cfg.AttestationPolicyBinary, cfg.EosVersion)
+	svc, err := newService(logger, tracer, qemuCfg, cfg.AttestationPolicyBinary, cfg.PcrValues, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -125,8 +126,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, logger, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, pcrValuesFilePath string, eosVersion string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion)
 	if err != nil {
 		return nil, err
 	}

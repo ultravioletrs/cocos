@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", logger, vmf.Execute, "")
+	service, err := New(cfg, "", "", logger, vmf.Execute, "")
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
@@ -95,6 +95,7 @@ func TestRun(t *testing.T) {
 			ms := &managerService{
 				qemuCfg:                     qemuCfg,
 				attestationPolicyBinaryPath: tempDir,
+				pcrValuesFilePath:           tempDir,
 				logger:                      logger,
 				vms:                         make(map[string]vm.VM),
 				vmFactory:                   vmf.Execute,
