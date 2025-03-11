@@ -298,7 +298,6 @@ func (m *MockMeasurement) Stop() error {
 }
 
 func TestNewMeasureCmd_RunSuccess(t *testing.T) {
-
 	cliInstance := &CLI{}
 	mockMeasurement := new(MockMeasurement)
 	cliInstance.measurement = mockMeasurement
