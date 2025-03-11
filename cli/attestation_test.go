@@ -34,8 +34,6 @@ func TestNewAttestationCmd(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	cmd.SetOutput(&buf)
-
 	reportData := bytes.Repeat([]byte{0x01}, quoteprovider.Nonce)
 	mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(reportData), mock.Anything).Return(nil)
 
@@ -159,7 +157,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			}
 			cmd := cli.NewGetAttestationCmd()
 			var buf bytes.Buffer
-			cmd.SetOutput(&buf)
+			cmd.SetOut(&buf)
 
 			mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(4).(*os.File).Write(tc.mockResponse)
@@ -283,6 +281,59 @@ func TestNewValidateAttestationValidationCmd(t *testing.T) {
 		err := cmd.PreRunE(cmd, []string{"../quote.dat"})
 		assert.NoError(t, err)
 	})
+}
+
+type MockMeasurement struct {
+	mock.Mock
+}
+
+func (m *MockMeasurement) Run(igvmBinaryPath string) error {
+	args := m.Called(igvmBinaryPath)
+	return args.Error(0)
+}
+
+func (m *MockMeasurement) Stop() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func TestNewMeasureCmd_RunSuccess(t *testing.T) {
+
+	cliInstance := &CLI{}
+	mockMeasurement := new(MockMeasurement)
+	cliInstance.measurement = mockMeasurement
+	mockMeasurement.On("Run", "fake_binary_path").Return(nil)
+
+	cmd := cliInstance.NewMeasureCmd("fake_binary_path")
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"testfile.igvm"})
+
+	err := cmd.Execute()
+
+	assert.NoError(t, err)
+	mockMeasurement.AssertExpectations(t)
+}
+
+func TestNewMeasureCmd_RunError(t *testing.T) {
+	cliInstance := &CLI{}
+	mockMeasurement := new(MockMeasurement)
+	cliInstance.measurement = mockMeasurement
+	expectedError := errors.New("mocked measurement error")
+	mockMeasurement.On("Run", "fake_binary_path").Return(expectedError)
+
+	cmd := cliInstance.NewMeasureCmd("fake_binary_path")
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"testfile.igvm"})
+
+	err := cmd.Execute()
+
+	assert.Error(t, err)
+	assert.Equal(t, fmt.Sprintf("error running measurement: %v", expectedError), err.Error())
+	mockMeasurement.AssertExpectations(t)
 }
 
 func TestParseConfig(t *testing.T) {

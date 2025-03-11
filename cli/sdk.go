@@ -4,9 +4,12 @@ package cli
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
@@ -22,6 +25,7 @@ type CLI struct {
 	client        grpc.Client
 	managerClient manager.ManagerServiceClient
 	connectErr    error
+	measurement   igvmmeasure.MeasurementProvider
 }
 
 func New(agentConfig grpc.AgentClientConfig, managerConfig grpc.ManagerClientConfig) *CLI {
@@ -56,6 +60,17 @@ func (c *CLI) InitializeManagerClient(cmd *cobra.Command) error {
 
 	c.managerClient = managerClient
 	return nil
+}
+
+func (c *CLI) RunMeasurement(filePathToMeasure string, igvmBinaryPath string) error {
+	if c.measurement == nil {
+		measurement, err := igvmmeasure.NewIgvmMeasurement(filePathToMeasure, os.Stderr, os.Stdout)
+		if err != nil {
+			return fmt.Errorf("failed to initialize measurement: %w", err)
+		}
+		c.measurement = measurement
+	}
+	return c.measurement.Run(igvmBinaryPath)
 }
 
 func (c *CLI) Close() {
