@@ -639,7 +639,24 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 
 			inputFile := args[0]
 
-			return cli.measurement.Run(inputFile)
+			measurement, err := cli.measurement.Run(inputFile)
+			if err != nil {
+				return err
+			}
+
+			outputString := string(measurement)
+			lines := strings.Split(strings.TrimSpace(outputString), "\n")
+
+			if len(lines) == 1 {
+				outputString = strings.TrimSpace(outputString)
+				outputString = strings.ToLower(outputString)
+			} else {
+				return fmt.Errorf("error: %s", outputString)
+			}
+
+			fmt.Println(outputString)
+
+			return nil
 		},
 	}
 

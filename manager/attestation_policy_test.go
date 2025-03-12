@@ -20,7 +20,7 @@ func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	switch behavior {
 	case "success":
 		content = []byte(`#!/bin/sh
-echo '{"pcr_values": {"sha256":null, "sha384":null}, "policy": {"measurement": null, "host_data": null}}' > attestation_policy.json
+echo '{"pcr_values": {"sha256": null, "sha384": null}, "policy": {"measurement": null, "host_data": null}}'
 `)
 	case "fail":
 		content = []byte(`#!/bin/sh
@@ -105,7 +105,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				},
 				LaunchTCB: 0,
 			},
-			expectedError: "no such file or directory",
+			expectedError: "failed to decode Attestation Policy file",
 		},
 	}
 

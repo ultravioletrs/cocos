@@ -4,10 +4,7 @@ use serde::Serialize;
 use serde_json::Value;
 use sev::firmware::host::*;
 use std::arch::x86_64::__cpuid;
-use std::fs::{read_to_string, File};
-use std::io::Write;
-
-const ATTESTATION_POLICY_JSON: &str = "attestation_policy.json";
+use std::fs::read_to_string;
 
 const EXTENDED_FAMILY_SHIFT: u32 = 20;
 const EXTENDED_MODEL_SHIFT: u32 = 16;
@@ -205,13 +202,6 @@ fn main() {
     // Serialize the merged JSON and write to file.
     let merged_json =
         serde_json::to_string_pretty(&computation_value).expect("Failed to serialize merged JSON");
-    let mut file =
-        File::create(ATTESTATION_POLICY_JSON).expect("Failed to create attestation policy file");
-    file.write_all(merged_json.as_bytes())
-        .expect("Failed to write merged JSON to file");
 
-    println!(
-        "AttestationPolicy JSON has been written to {}",
-        ATTESTATION_POLICY_JSON
-    );
+    println!("{}", merged_json);
 }

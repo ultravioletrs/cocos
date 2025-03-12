@@ -3,13 +3,14 @@
 package manager
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -152,30 +154,34 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
-		pcrValues := []string{"", ""}
+		var stdoutBuffer bytes.Buffer
+		var stderrBuffer bytes.Buffer
 		policyPath := fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath)
+		options := []string{"--policy", "196608"}
+
 		if ms.pcrValuesFilePath != "" {
-			pcrValues = []string{"--pcr", ms.pcrValuesFilePath}
+			pcrValues := []string{"--pcr", ms.pcrValuesFilePath}
+			options = append(options, pcrValues...)
 		}
-		cmd := exec.Command("sudo", append([]string{policyPath, "--policy", "196608"}, pcrValues...)...)
+
+		stdout := bufio.NewWriter(&stdoutBuffer)
+		stderr := bufio.NewWriter(&stderrBuffer)
+
+		attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr, stdout)
+		if err != nil {
+			return "", id, err
+		}
 
 		ms.ap.Lock()
-		_, err := cmd.Output()
+		stdOutByte, err := attestPolicyCmd.Run(policyPath)
 		ms.ap.Unlock()
 		if err != nil {
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 		}
 
-		ms.ap.Lock()
-		f, err := os.ReadFile("./attestation_policy.json")
-		ms.ap.Unlock()
-		if err != nil {
-			return "", id, errors.Wrap(ErrFailedToReadPolicy, err)
-		}
-
 		attestationPolicy := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
-		if err = config.ReadAttestationPolicyFromByte(f, &attestationPolicy); err != nil {
+		if err = config.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 

@@ -287,9 +287,9 @@ type MockMeasurement struct {
 	mock.Mock
 }
 
-func (m *MockMeasurement) Run(igvmBinaryPath string) error {
+func (m *MockMeasurement) Run(igvmBinaryPath string) ([]byte, error) {
 	args := m.Called(igvmBinaryPath)
-	return args.Error(0)
+	return nil, args.Error(0)
 }
 
 func (m *MockMeasurement) Stop() error {

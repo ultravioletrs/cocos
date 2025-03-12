@@ -25,6 +25,7 @@ var (
 	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
 	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
 	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
+	ErrAttestationPolicyEncode  = errors.New("failed to encode the Attestation Policy")
 )
 
 type PcrValues struct {
