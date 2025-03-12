@@ -3,6 +3,7 @@
 package igvmmeasure
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -43,17 +44,21 @@ func (m *IgvmMeasurement) Run(pathToFile string) error {
 	args = append(args, "measure")
 	args = append(args, "-b")
 
-	out, err := m.execCommand(binary, args...).CombinedOutput()
-	if err != nil {
-		fmt.Println("Error:", err)
+	outBuf := &bytes.Buffer{}
+	cmd := m.execCommand(binary, args...)
+	cmd.Stderr = m.stderr
+	cmd.Stdout = outBuf
+
+	if err := cmd.Run(); err != nil {
+		return err
 	}
-	outputString := string(out)
+	outputString := outBuf.String()
 
 	lines := strings.Split(strings.TrimSpace(outputString), "\n")
 
 	if len(lines) == 1 {
 		outputString = strings.ToLower(outputString)
-		fmt.Print(outputString)
+		m.stdout.Write([]byte(outputString))
 	} else {
 		return fmt.Errorf("error: %s", outputString)
 	}
