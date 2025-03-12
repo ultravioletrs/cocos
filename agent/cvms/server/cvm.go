@@ -32,12 +32,14 @@ type agentServer struct {
 	gs     server.Server
 	logger *slog.Logger
 	svc    agent.Service
+	host   string
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,
+		host:   host,
 	}
 }
 
@@ -49,7 +51,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 	agentGrpcServerConfig := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
 			BaseConfig: server.BaseConfig{
-				Host:         cfg.Host,
+				Host:         as.host,
 				Port:         cfg.Port,
 				CertFile:     cfg.CertFile,
 				KeyFile:      cfg.KeyFile,

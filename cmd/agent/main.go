@@ -41,8 +41,9 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
-	Vmpl     int    `env:"AGENT_VMPL" envDefault:"2"`
+	LogLevel      string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
+	Vmpl          int    `env:"AGENT_VMPL"      envDefault:"2"`
+	AgentGrpcHost string `env:"AGENT_GRPC_HOST" envDefault:"0.0.0.0"`
 }
 
 func main() {
@@ -138,7 +139,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc), storageDir, reconnectFn)
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost), storageDir, reconnectFn)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
