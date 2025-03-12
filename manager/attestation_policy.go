@@ -7,16 +7,18 @@
 package manager
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
@@ -68,28 +70,27 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	case vmi.Config.EnableSEVSNP:
-		args := []string{}
-		args = append(args, fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath))
-		args = append(args, ms.qemuCfg.IGVMConfig.File)
-		args = append(args, "measure")
-		args = append(args, "-b")
+		igvmMeasurementBinaryPath := fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath)
 
-		igvm_measure_cmd := exec.Command("sudo", args...)
+		var stdoutBuffer bytes.Buffer
+		var stderrBuffer bytes.Buffer
 
-		out, err := igvm_measure_cmd.Output()
+		stdout := bufio.NewWriter(&stdoutBuffer)
+		stderr := bufio.NewWriter(&stderrBuffer)
+
+		igvmMeasurement, err := igvmmeasure.NewIgvmMeasurement(igvmMeasurementBinaryPath, stderr, stdout)
+
 		if err != nil {
 			return nil, err
 		}
 
-		outputString := string(out)
+		err = igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
 
-		lines := strings.Split(strings.TrimSpace(outputString), "\n")
-
-		if len(lines) == 1 {
-			measurement = out
-		} else {
-			return nil, fmt.Errorf("error: %s", outputString)
+		if err != nil {
+			return nil, err
 		}
+
+		measurement = stdoutBuffer.Bytes()
 	}
 
 	if measurement != nil {
