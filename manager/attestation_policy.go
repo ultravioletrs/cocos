@@ -79,13 +79,11 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		stderr := bufio.NewWriter(&stderrBuffer)
 
 		igvmMeasurement, err := igvmmeasure.NewIgvmMeasurement(igvmMeasurementBinaryPath, stderr, stdout)
-
 		if err != nil {
 			return nil, err
 		}
 
 		err = igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
-
 		if err != nil {
 			return nil, err
 		}
