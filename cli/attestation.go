@@ -624,6 +624,28 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	return cmd
 }
 
+func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
+	igvmmeasureCmd := &cobra.Command{
+		Use:   "igvmmeasure <INPUT>",
+		Short: "Measure an IGVM file",
+		Long: `igvmmeasure measures an IGVM file and outputs the calculated measurement.
+			It ensures integrity verification for the IGVM file.`,
+
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("error: No input file provided")
+			}
+
+			inputFile := args[0]
+
+			return cli.measurement.Run(inputFile)
+		},
+	}
+
+	return igvmmeasureCmd
+}
+
 func sevsnpverify(cmd *cobra.Command, args []string) error {
 	cmd.Println("Checking attestation")
 

@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cmd "github.com/virtee/sev-snp-measure-go/sevsnpmeasure/cmd"
 )
@@ -28,7 +29,8 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"AGENT_LOG_LEVEL" envDefault:"info"`
+	LogLevel       string `env:"AGENT_LOG_LEVEL" envDefault:"info"`
+	IgvmBinaryPath string `env:"IGVM_BINARY_PATH" envDefault:"./build/igvmmeasure"`
 }
 
 func main() {
@@ -106,7 +108,14 @@ func main() {
 		return
 	}
 
-	cliSVC := cli.New(agentGRPCConfig, managerGRPCConfig)
+	measurement, err := igvmmeasure.NewIgvmMeasurement(cfg.IgvmBinaryPath, os.Stderr, os.Stdout)
+	if err != nil {
+		message := color.New(color.FgRed).Sprintf("failed to initialize measurement: %s", err) // Use %s instead of %w
+		rootCmd.Println(message)
+		return
+	}
+
+	cliSVC := cli.New(agentGRPCConfig, managerGRPCConfig, measurement)
 
 	if err := cliSVC.InitializeAgentSDK(rootCmd); err == nil {
 		defer cliSVC.Close()
@@ -136,6 +145,7 @@ func main() {
 
 	// measure.
 	rootCmd.AddCommand(cmd.NewRootCmd())
+	rootCmd.AddCommand(cliSVC.NewMeasureCmd(cfg.IgvmBinaryPath))
 
 	// Flags
 	keysCmd.PersistentFlags().StringVarP(
