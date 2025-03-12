@@ -58,7 +58,10 @@ func (m *IgvmMeasurement) Run(pathToFile string) error {
 
 	if len(lines) == 1 {
 		outputString = strings.ToLower(outputString)
-		m.stdout.Write([]byte(outputString))
+		_, err := m.stdout.Write([]byte(outputString))
+		if err != nil {
+			return err
+		}
 	} else {
 		return fmt.Errorf("error: %s", outputString)
 	}
