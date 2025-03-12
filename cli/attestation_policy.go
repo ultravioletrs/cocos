@@ -110,7 +110,7 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errDataLength
 	}
 
-	ac := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
+	ac := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
 	f, err := os.ReadFile(fileName)
 	if err != nil {
@@ -121,11 +121,15 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 
+	if ac.Config.Policy == nil {
+		ac.Config.Policy = &check.Policy{}
+	}
+
 	switch field {
 	case measurementField:
-		ac.SnpCheck.Policy.Measurement = data
+		ac.Config.Policy.Measurement = data
 	case hostDataField:
-		ac.SnpCheck.Policy.HostData = data
+		ac.Config.Policy.HostData = data
 	default:
 		return errAttestationPolicyField
 	}

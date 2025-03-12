@@ -66,7 +66,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, err
 	}
 
-	attestationPolicy := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
+	attestationPolicy := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
 	if err = config.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 	}
 
 	if measurement != nil {
-		attestationPolicy.SnpCheck.Policy.Measurement = measurement
+		attestationPolicy.Config.Policy.Measurement = measurement
 	}
 
 	if vmi.Config.SevConfig.EnableHostData {
@@ -121,10 +121,10 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		if err != nil {
 			return nil, err
 		}
-		attestationPolicy.SnpCheck.Policy.HostData = hostData
+		attestationPolicy.Config.Policy.HostData = hostData
 	}
 
-	attestationPolicy.SnpCheck.Policy.MinimumLaunchTcb = vmi.LaunchTCB
+	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
 	f, err := json.MarshalIndent(attestationPolicy, "", " ")
 	if err != nil {

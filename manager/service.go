@@ -179,14 +179,14 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 		}
 
-		attestationPolicy := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
+		attestationPolicy := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
 		if err = config.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 
 		// Define the TCB that was present at launch of the VM.
-		cfg.LaunchTCB = attestationPolicy.SnpCheck.Policy.MinimumLaunchTcb
+		cfg.LaunchTCB = attestationPolicy.Config.Policy.MinimumLaunchTcb
 	}
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)
