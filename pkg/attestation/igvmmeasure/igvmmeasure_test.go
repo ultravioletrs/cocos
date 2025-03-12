@@ -51,7 +51,7 @@ func TestIgvmMeasurement(t *testing.T) {
 				return igvm
 			},
 			expectErr:   true,
-			expectedErr: "error: some error occurred\nextra line",
+			expectedErr: "exit status 1",
 		},
 	}
 

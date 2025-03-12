@@ -7,6 +7,8 @@
 package manager
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
@@ -67,11 +70,27 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	case vmi.Config.EnableSEVSNP:
-		measurement, err = guest.CalcLaunchDigest(guest.SEV_SNP, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[vmi.Config.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
+		igvmMeasurementBinaryPath := fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath)
+
+		var stdoutBuffer bytes.Buffer
+		var stderrBuffer bytes.Buffer
+
+		stdout := bufio.NewWriter(&stdoutBuffer)
+		stderr := bufio.NewWriter(&stderrBuffer)
+
+		igvmMeasurement, err := igvmmeasure.NewIgvmMeasurement(igvmMeasurementBinaryPath, stderr, stdout)
 		if err != nil {
 			return nil, err
 		}
+
+		err = igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
+		if err != nil {
+			return nil, err
+		}
+
+		measurement = stdoutBuffer.Bytes()
 	}
+
 	if measurement != nil {
 		attestationPolicy.Policy.Measurement = measurement
 	}

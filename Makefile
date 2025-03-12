@@ -30,7 +30,7 @@ all: $(SERVICES)
 
 $(SERVICES): 
 	$(call compile_service,$@)
-	@if [ "$@" = "cli" ]; then $(MAKE) build-igvm; fi
+	@if [ "$@" = "cli" ] || [ "$@" = "manager" ]; then $(MAKE) build-igvm; fi
 
 $(ATTESTATION_POLICY):
 	$(MAKE) -C ./scripts/attestation_policy
