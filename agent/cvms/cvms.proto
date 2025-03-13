@@ -59,6 +59,7 @@ message ClientStreamMessage {
     RunResponse run_res = 3;
     StopComputationResponse stopComputationRes = 4;
     AgentStateRes agentStateRes = 5;
+    AttestationResponse vTPMattestationReport = 6;
   }
 }
 
@@ -111,4 +112,9 @@ message AgentConfig {
   string server_ca_file = 6;
   string log_level = 7;
   bool   attested_tls = 8;
+}
+
+message AttestationResponse {
+  bytes file = 1;
+  string certSerialNumber = 2;
 }

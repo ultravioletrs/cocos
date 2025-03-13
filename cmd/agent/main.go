@@ -4,6 +4,10 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log"
@@ -25,6 +29,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
+	attestationconfig "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
@@ -165,6 +170,22 @@ func main() {
 		return mc.Process(ctx, cancel)
 	})
 
+	attestation, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
+		exitCode = 1
+		return
+	}
+
+	eventsLogsQueue <- &cvms.ClientStreamMessage{
+		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
+			VTPMattestationReport: &cvms.AttestationResponse{
+				File:             attestation,
+				CertSerialNumber: certSerialNumber,
+			},
+		},
+	}
+
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
@@ -187,4 +208,30 @@ func sevGuesDeviceExists() bool {
 	}
 	d.Close()
 	return true
+}
+
+func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {
+	if certFilePath == "" {
+		return nil, "", nil
+	}
+
+	certFile, err := os.ReadFile(certFilePath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	certPem, _ := pem.Decode(certFile)
+	certx509, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+
+	nonceSNP := sha512.Sum512(certFile)
+	nonceVTPM := sha256.Sum256(certFile)
+	attestation, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestationconfig.SNPvTPM)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return attestation, certx509.SerialNumber.String(), nil
 }
