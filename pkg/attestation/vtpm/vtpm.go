@@ -126,7 +126,7 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 
 	err := proto.Unmarshal(quote, attestation)
 	if err != nil {
-		return fmt.Errorf("fail to unmarshal quote: %v", err)
+		return errors.Wrap(fmt.Errorf("failed to unmarshal quote"), err)
 	}
 
 	ak := attestation.GetAkPub()
@@ -142,7 +142,7 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 
 	reportData, err := createTEEAttestationReportNonce(pubKeyTLS, ak, teeNonce)
 	if err != nil {
-		return fmt.Errorf("fail to calculate report data: %v", err)
+		return errors.Wrap(fmt.Errorf("failed to create TEE attestation report nonce"), err)
 	}
 
 	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), reportData); err != nil {
@@ -151,7 +151,7 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 
 	_, err = server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
 	if err != nil {
-		return fmt.Errorf("verifying attestation: %w", err)
+		return errors.Wrap(fmt.Errorf("failed to verify attestation"), err)
 	}
 
 	s256, s384 := calculatePCRTLSKey(pubKeyTLS)
@@ -196,7 +196,7 @@ func createTEEAttestationReportNonce(pubKeyTLS []byte, ak []byte, nonce []byte) 
 func marshalQuote(attestation *attest.Attestation) ([]byte, error) {
 	out, err := proto.Marshal(attestation)
 	if err != nil {
-		return []byte{}, fmt.Errorf("failed to marshal vTPM attestation report: %v", err)
+		return []byte{}, errors.Wrap(fmt.Errorf("failed to marshal vTPM attestation report"), err)
 	}
 
 	return out, nil
@@ -211,7 +211,7 @@ func fetchVTPMQuote(nonce []byte) (*attest.Attestation, error) {
 
 	attestationKey, err := client.AttestationKeyRSA(rwc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create attestation key: %v", err)
+		return nil, errors.Wrap(fmt.Errorf("failed to create attestation key: %v", err), err)
 	}
 	defer attestationKey.Close()
 
@@ -222,12 +222,12 @@ func fetchVTPMQuote(nonce []byte) (*attest.Attestation, error) {
 
 	attestOpts.TCGEventLog, err = client.GetEventLog(rwc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve TCG Event Log: %w", err)
+		return nil, errors.Wrap(fmt.Errorf("failed to retrieve TCG Event Log: %v", err), err)
 	}
 
 	attestation, err := attestationKey.Attest(attestOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to collect attestation report: %v", err)
+		return nil, errors.Wrap(fmt.Errorf("failed to attest: %v", err), err)
 	}
 
 	return attestation, nil
@@ -241,7 +241,7 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.A
 
 	extReport, err := abi.ReportCertsToProto(rawTeeAttestation)
 	if err != nil {
-		return attestation, fmt.Errorf("failed to export the TEE report: %v", err)
+		return attestation, errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
 	}
 	attestation.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: extReport,
@@ -250,7 +250,7 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.A
 	return attestation, nil
 }
 
-func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePcr384 []byte) error {
+func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []byte) error {
 	quotes := attestation.GetQuotes()
 	for i := range quotes {
 		quote := quotes[i]
@@ -263,6 +263,9 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePc
 		case tpm.HashAlgo_SHA384:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha384
 			pcr15 = ePcr384
+		case tpm.HashAlgo_SHA1:
+			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha1
+			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		default:
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
 		}
@@ -275,11 +278,11 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256 []byte, ePc
 		for i, v := range pcrMap {
 			index, err := strconv.ParseInt(i, 10, 32)
 			if err != nil {
-				return fmt.Errorf("error converting PCR index to int32: %v\n", err)
+				return errors.Wrap(fmt.Errorf("error converting PCR index to int32"), err)
 			}
 			value, err := hex.DecodeString(v)
 			if err != nil {
-				return fmt.Errorf("error converting PCR value to byte: %v\n", err)
+				return errors.Wrap(fmt.Errorf("error converting PCR value to byte"), err)
 			}
 			if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], value) {
 				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(value), hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]))
