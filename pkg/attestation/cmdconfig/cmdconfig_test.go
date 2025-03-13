@@ -22,7 +22,7 @@ func TestIgvmMeasurement(t *testing.T) {
 		{
 			name: "NewIgvmMeasurement - Empty pathToBinary",
 			setup: func() *CmdConfig {
-				igvm, err := NewCmdConfig("", []string{""}, nil, nil)
+				igvm, err := NewCmdConfig("", []string{""}, nil)
 				assert.Error(t, err)
 				assert.Nil(t, igvm)
 				return nil
@@ -33,7 +33,7 @@ func TestIgvmMeasurement(t *testing.T) {
 		{
 			name: "Run - Successful Execution",
 			setup: func() *CmdConfig {
-				igvm, _ := NewCmdConfig("/valid/path", []string{""}, nil, nil)
+				igvm, _ := NewCmdConfig("/valid/path", []string{""}, nil)
 				igvm.SetExecCommand(func(name string, arg ...string) *exec.Cmd {
 					return exec.Command("sh", "-c", "echo 'measurement successful'")
 				})
@@ -44,7 +44,7 @@ func TestIgvmMeasurement(t *testing.T) {
 		{
 			name: "Run - Failure Execution",
 			setup: func() *CmdConfig {
-				igvm, _ := NewCmdConfig("/invalid/path", []string{""}, nil, nil)
+				igvm, _ := NewCmdConfig("/invalid/path", []string{""}, nil)
 				igvm.SetExecCommand(func(name string, arg ...string) *exec.Cmd {
 					return exec.Command("sh", "-c", "echo 'some error occurred\nextra line' && exit 1")
 				})
@@ -61,7 +61,6 @@ func TestIgvmMeasurement(t *testing.T) {
 
 			if igvm != nil {
 				buf := new(bytes.Buffer)
-				igvm.stdout = buf
 				igvm.stderr = buf
 
 				_, err := igvm.Run(tc.runArgs)

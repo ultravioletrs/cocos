@@ -11,7 +11,8 @@ The service is configured using the environment variables from the following tab
 | COCOS_JAEGER_URL                          | The URL for the Jaeger tracing endpoint.                                                                         | http://localhost:4318        |
 | COCOS_JAEGER_TRACE_RATIO                  | The ratio of traces to sample.                                                                                   | 1.0                          |
 | MANAGER_INSTANCE_ID                       | The instance ID for the manager service.                                                                         |                              |
-| MANAGER_ATTESTATION_POLICY_BINARY         | The file path for the attestation policy and igvmmeassure binaries.                                              | ../../build                  |
+| MANAGER_ATTESTATION_POLICY_BINARY         | The file path for the attestation policy binarie.                                                                | ../../build                  |
+| MANAGER_IGVMMEASURE_BINARY                | The file path for the igvmmeasure binarie.                                                                       | ../../build                  |
 | MANAGER_PCR_VALUES                        | The file path for the file with the expected PCR values.                                                         |                              |
 | MANAGER_GRPC_CLIENT_CERT                  | The file path for the client certificate.                                                                        |                              |
 | MANAGER_GRPC_CLIENT_KEY                   | The file path for the client private key.                                                                        |                              |

@@ -29,9 +29,7 @@ import (
 const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
-	var stdoutBuffer bytes.Buffer
 	var stderrBuffer bytes.Buffer
-	policyPath := fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath)
 	options := []string{"--policy", "196608"}
 
 	if ms.pcrValuesFilePath != "" {
@@ -39,10 +37,9 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		options = append(options, pcrValues...)
 	}
 
-	stdout := bufio.NewWriter(&stdoutBuffer)
 	stderr := bufio.NewWriter(&stderrBuffer)
 
-	attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr, stdout)
+	attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +57,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 	}
 
 	ms.ap.Lock()
-	stdOutByte, err := attestPolicyCmd.Run(policyPath)
+	stdOutByte, err := attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
 	ms.ap.Unlock()
 	if err != nil {
 		return nil, err
@@ -80,13 +77,10 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	case vmi.Config.EnableSEVSNP:
-		igvmMeasurementBinaryPath := fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath)
-
-		stdout := bufio.NewWriter(&stdoutBuffer)
 		stderr := bufio.NewWriter(&stderrBuffer)
 		options := cmdconfig.IgvmMeasureOptions
 
-		igvmMeasurement, err := cmdconfig.NewCmdConfig(igvmMeasurementBinaryPath, options, stderr, stdout)
+		igvmMeasurement, err := cmdconfig.NewCmdConfig(ms.igvmMeasurementBinaryPath, options, stderr)
 		if err != nil {
 			return nil, err
 		}

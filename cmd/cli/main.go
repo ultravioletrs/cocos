@@ -109,7 +109,7 @@ func main() {
 	}
 
 	options := cmdconfig.IgvmMeasureOptions
-	measurement, err := cmdconfig.NewCmdConfig(cfg.IgvmBinaryPath, options, os.Stderr, os.Stdout)
+	measurement, err := cmdconfig.NewCmdConfig(cfg.IgvmBinaryPath, options, os.Stderr)
 	if err != nil {
 		message := color.New(color.FgRed).Sprintf("failed to initialize measurement: %s", err) // Use %s instead of %w
 		rootCmd.Println(message)

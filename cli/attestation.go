@@ -648,13 +648,12 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 			lines := strings.Split(strings.TrimSpace(outputString), "\n")
 
 			if len(lines) == 1 {
-				outputString = strings.TrimSpace(outputString)
 				outputString = strings.ToLower(outputString)
 			} else {
 				return fmt.Errorf("error: %s", outputString)
 			}
 
-			fmt.Println(outputString)
+			cmd.Print(outputString)
 
 			return nil
 		},

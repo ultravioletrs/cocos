@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -116,7 +117,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 
 			ms := &managerService{
 				vms:                         make(map[string]vm.VM),
-				attestationPolicyBinaryPath: tempDir,
+				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
 				pcrValuesFilePath:           tempDir,
 				qemuCfg: qemu.Config{
 					CPU: "EPYC",

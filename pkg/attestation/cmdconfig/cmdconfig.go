@@ -19,12 +19,11 @@ type CmdConfig struct {
 	binPath     string
 	options     []string
 	stderr      io.Writer
-	stdout      io.Writer
 	cmd         *exec.Cmd
 	execCommand func(name string, arg ...string) *exec.Cmd
 }
 
-func NewCmdConfig(binPath string, options []string, stderr, stdout io.Writer) (*CmdConfig, error) {
+func NewCmdConfig(binPath string, options []string, stderr io.Writer) (*CmdConfig, error) {
 	if binPath == "" {
 		return nil, fmt.Errorf("pathToBinary cannot be empty")
 	}
@@ -33,7 +32,6 @@ func NewCmdConfig(binPath string, options []string, stderr, stdout io.Writer) (*
 		binPath:     binPath,
 		options:     options,
 		stderr:      stderr,
-		stdout:      stdout,
 		execCommand: exec.Command,
 	}, nil
 }

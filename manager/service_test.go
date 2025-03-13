@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", "", logger, vmf.Execute, "")
+	service, err := New(cfg, "", "", "", logger, vmf.Execute, "")
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
