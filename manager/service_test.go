@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"testing"
 
 	mglog "github.com/absmach/magistrala/logger"
@@ -94,7 +95,7 @@ func TestRun(t *testing.T) {
 
 			ms := &managerService{
 				qemuCfg:                     qemuCfg,
-				attestationPolicyBinaryPath: tempDir,
+				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
 				pcrValuesFilePath:           tempDir,
 				logger:                      logger,
 				vms:                         make(map[string]vm.VM),
