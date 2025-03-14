@@ -106,7 +106,6 @@ func TestDecompressToContext(t *testing.T) {
 
 func TestAgentConfigJSON(t *testing.T) {
 	config := AgentConfig{
-		Host:         "localhost",
 		Port:         "8080",
 		CertFile:     "cert.pem",
 		KeyFile:      "key.pem",

@@ -13,7 +13,6 @@ import (
 var _ fmt.Stringer = (*Datasets)(nil)
 
 type AgentConfig struct {
-	Host         string `json:"host,omitempty"`
 	Port         string `json:"port,omitempty"`
 	CertFile     string `json:"cert_file,omitempty"`
 	KeyFile      string `json:"server_key,omitempty"`
