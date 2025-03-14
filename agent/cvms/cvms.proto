@@ -59,6 +59,7 @@ message ClientStreamMessage {
     RunResponse run_res = 3;
     StopComputationResponse stopComputationRes = 4;
     AgentStateRes agentStateRes = 5;
+    AttestationResponse vTPMattestationReport = 6;
   }
 }
 
@@ -104,11 +105,15 @@ message Algorithm {
 
 message AgentConfig {
   string port = 1;
-  string host = 2;
-  string cert_file = 3;
-  string key_file = 4;
-  string client_ca_file = 5;
-  string server_ca_file = 6;
-  string log_level = 7;
-  bool   attested_tls = 8;
+  string cert_file = 2;
+  string key_file = 3;
+  string client_ca_file = 4;
+  string server_ca_file = 5;
+  string log_level = 6;
+  bool   attested_tls = 7;
+}
+
+message AttestationResponse {
+  bytes file = 1;
+  string certSerialNumber = 2;
 }
