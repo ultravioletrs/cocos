@@ -77,10 +77,10 @@ func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsem
 	return &goldenUEFI, nil
 }
 
-func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement) (*config.Config, error) {
+func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*config.Config, error) {
 	attestationPolicy := config.Config{PcrConfig: &config.PcrConfig{}, SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
 	attestationPolicy.SnpCheck.Policy.Policy = endorsement.SevSnp.Policy
-	attestationPolicy.SnpCheck.Policy.Measurement = endorsement.SevSnp.Measurements[2]
+	attestationPolicy.SnpCheck.Policy.Measurement = endorsement.SevSnp.Measurements[vcpuNum]
 	attestationPolicy.SnpCheck.RootOfTrust.DisallowNetwork = false
 	attestationPolicy.SnpCheck.RootOfTrust.CheckCrl = true
 	attestationPolicy.SnpCheck.RootOfTrust.Product = "Milan"
