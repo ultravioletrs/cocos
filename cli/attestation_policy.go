@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
@@ -107,12 +108,18 @@ func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
 	return &cobra.Command{
 		Use:     "gcp",
 		Short:   "Get attestation policy for GCP CVM",
-		Example: `gcp <bin_vtmp_attestation_report_file>`,
-		Args:    cobra.ExactArgs(1),
+		Example: `gcp <bin_vtmp_attestation_report_file> <vcpu_count>`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			attestationBin, err := os.ReadFile(args[0])
 			if err != nil {
 				printError(cmd, "Error reading attestation report file: %v ❌ ", err)
+				return
+			}
+
+			vcpuCount, err := strconv.Atoi(args[1])
+			if err != nil {
+				printError(cmd, "Error converting vCPU count to integer: %v ❌ ", err)
 				return
 			}
 
@@ -137,7 +144,7 @@ func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
 				return
 			}
 
-			attestationPolicy, err := gcp.GenerateAttestationPolicy(launchEndorsement)
+			attestationPolicy, err := gcp.GenerateAttestationPolicy(launchEndorsement, uint32(vcpuCount))
 			if err != nil {
 				printError(cmd, "Error generating attestation policy: %v ❌ ", err)
 				return
