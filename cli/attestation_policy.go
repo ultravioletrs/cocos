@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"bytes"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -204,6 +206,14 @@ func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
 			if err != nil {
 				printError(cmd, "Error downloading OVMF file: %v ❌ ", err)
 				return
+			}
+
+			sum384 := sha512.Sum384(ovmf)
+
+			if !bytes.Equal(sum384[:], launchEndorsement.Digest) {
+				printError(cmd, "Error OVMF file does not match the measurement: %v ❌ ", fmt.Errorf("digest mismatch"))
+			} else {
+				cmd.Println("OVMF firmware in vm is unmodified ✅")
 			}
 
 			if err := os.WriteFile("ovmf.fd", ovmf, filePermission); err != nil {
