@@ -390,7 +390,9 @@ func TestParseFiles(t *testing.T) {
 	trustedAuthorKeys = []string{authorKeyFile}
 	trustedIdKeys = []string{idKeyFile}
 
-	err = parseFiles()
+	err = parseAttestationFile()
+	assert.NoError(t, err)
+	err = parseTrustedKeys()
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("test attestation"), attestation)
 	assert.Len(t, cfg.Policy.TrustedAuthorKeys, 1)
@@ -401,7 +403,7 @@ func TestParseFiles(t *testing.T) {
 	os.Remove(idKeyFile)
 
 	attestationFile = "non_existent_file.bin"
-	err = parseFiles()
+	err = parseAttestationFile()
 	assert.Error(t, err)
 }
 
