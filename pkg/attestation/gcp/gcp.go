@@ -25,7 +25,7 @@ const (
 	measurementSize   = 48
 	bucketName        = "gce_tcb_integrity"
 	objectName        = "ovmf_x64_csm/sevsnp/%s.binarypb"
-	ovmfObjectName    = "ovmf_x64_csm/ovmf_%s.fd"
+	ovmfObjectName    = "ovmf_x64_csm/%s.fd"
 )
 
 func Extract384BitMeasurement(attestation *sevsnp.Attestation) (string, error) {
