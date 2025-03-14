@@ -42,8 +42,8 @@ type config struct {
 	JaegerURL               url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
 	TraceRatio              float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
 	InstanceID              string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
-	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build"`
-	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build"`
+	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build/attestation_policy"`
+	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build/igvmmeasure"`
 	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
 	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
 }
