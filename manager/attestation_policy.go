@@ -11,24 +11,38 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
-	cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+	var stderrBuffer bytes.Buffer
+	options := []string{"--policy", "196608"}
+
+	if ms.pcrValuesFilePath != "" {
+		pcrValues := []string{"--pcr", ms.pcrValuesFilePath}
+		options = append(options, pcrValues...)
+	}
+
+	stderr := bufio.NewWriter(&stderrBuffer)
+
+	attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr)
+	if err != nil {
+		return nil, err
+	}
 
 	ms.mu.Lock()
 	vm, exists := ms.vms[computationId]
@@ -43,22 +57,15 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 	}
 
 	ms.ap.Lock()
-	_, err := cmd.Output()
+	stdOutByte, err := attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
 	ms.ap.Unlock()
 	if err != nil {
 		return nil, err
 	}
 
-	ms.ap.Lock()
-	f, err := os.ReadFile("./attestation_policy.json")
-	ms.ap.Unlock()
-	if err != nil {
-		return nil, err
-	}
+	attestationPolicy := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
-	var attestationPolicy check.Config
-
-	if err = protojson.Unmarshal(f, &attestationPolicy); err != nil {
+	if err = config.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 		return nil, err
 	}
 
@@ -70,29 +77,37 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 			return nil, err
 		}
 	case vmi.Config.EnableSEVSNP:
-		igvmMeasurementBinaryPath := fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath)
-
-		var stdoutBuffer bytes.Buffer
-		var stderrBuffer bytes.Buffer
-
-		stdout := bufio.NewWriter(&stdoutBuffer)
 		stderr := bufio.NewWriter(&stderrBuffer)
+		options := cmdconfig.IgvmMeasureOptions
 
-		igvmMeasurement, err := igvmmeasure.NewIgvmMeasurement(igvmMeasurementBinaryPath, stderr, stdout)
+		igvmMeasurement, err := cmdconfig.NewCmdConfig(ms.igvmMeasurementBinaryPath, options, stderr)
 		if err != nil {
 			return nil, err
 		}
 
-		err = igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
+		outputByte, err := igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
 		if err != nil {
 			return nil, err
 		}
 
-		measurement = stdoutBuffer.Bytes()
+		outputString := string(outputByte)
+		lines := strings.Split(strings.TrimSpace(outputString), "\n")
+
+		if len(lines) == 1 {
+			outputString = strings.TrimSpace(outputString)
+			outputString = strings.ToLower(outputString)
+		} else {
+			return nil, fmt.Errorf("error: %s", outputString)
+		}
+
+		measurement, err = hex.DecodeString(outputString)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if measurement != nil {
-		attestationPolicy.Policy.Measurement = measurement
+		attestationPolicy.Config.Policy.Measurement = measurement
 	}
 
 	if vmi.Config.SevConfig.EnableHostData {
@@ -100,12 +115,12 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		if err != nil {
 			return nil, err
 		}
-		attestationPolicy.Policy.HostData = hostData
+		attestationPolicy.Config.Policy.HostData = hostData
 	}
 
-	attestationPolicy.Policy.MinimumLaunchTcb = vmi.LaunchTCB
+	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
-	f, err = protojson.Marshal(&attestationPolicy)
+	f, err := json.MarshalIndent(attestationPolicy, "", " ")
 	if err != nil {
 		return nil, err
 	}

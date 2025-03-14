@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/manager"
-	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
@@ -23,10 +23,10 @@ type CLI struct {
 	client        grpc.Client
 	managerClient manager.ManagerServiceClient
 	connectErr    error
-	measurement   igvmmeasure.MeasurementProvider
+	measurement   cmdconfig.MeasurementProvider
 }
 
-func New(agentConfig grpc.AgentClientConfig, managerConfig grpc.ManagerClientConfig, measurement igvmmeasure.MeasurementProvider) *CLI {
+func New(agentConfig grpc.AgentClientConfig, managerConfig grpc.ManagerClientConfig, measurement cmdconfig.MeasurementProvider) *CLI {
 	return &CLI{
 		agentConfig:   agentConfig,
 		managerConfig: managerConfig,

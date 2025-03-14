@@ -142,7 +142,7 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 }
 
 func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(config.AttestationPolicy.SnpCheck)
+	config, err := copyConfig(config.AttestationPolicy.Config)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}

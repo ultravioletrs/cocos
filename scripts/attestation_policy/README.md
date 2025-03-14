@@ -15,5 +15,5 @@ Then run the binary. Keep in mind that you have to specify the policy of the Gue
 cd ./target/release
 
 # Run with option --policy (policy is 64 bit number) 
-./attestation_policy --policy 196608
+./attestation_policy --policy 196608 --pcr ../../pcr_values.json
 ```

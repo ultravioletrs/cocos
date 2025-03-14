@@ -27,14 +27,14 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 		Example: "ca-bundle <path_to_platform_info_json>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			attestationConfiguration := config.Config{SnpCheck: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
+			attestationConfiguration := config.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
 			err := config.ReadAttestationPolicy(args[0], &attestationConfiguration)
 			if err != nil {
 				printError(cmd, "Error while reading manifest: %v ❌ ", err)
 				return
 			}
 
-			product := attestationConfiguration.SnpCheck.RootOfTrust.ProductLine
+			product := attestationConfiguration.Config.RootOfTrust.ProductLine
 
 			getter := trust.DefaultHTTPSGetter()
 			caURL := kds.ProductCertChainURL(abi.VcekReportSigner, product)

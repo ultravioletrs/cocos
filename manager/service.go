@@ -3,13 +3,14 @@
 package manager
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -85,6 +87,8 @@ type managerService struct {
 	ap                          sync.Mutex
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
+	igvmMeasurementBinaryPath   string
+	pcrValuesFilePath           string
 	logger                      *slog.Logger
 	vms                         map[string]vm.VM
 	vmFactory                   vm.Provider
@@ -97,7 +101,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -114,6 +118,8 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, logger *slog.Logger, 
 		vms:                         make(map[string]vm.VM),
 		vmFactory:                   vmFactory,
 		attestationPolicyBinaryPath: attestationPolicyBinPath,
+		igvmMeasurementBinaryPath:   igvmMeasurementBinaryPath,
+		pcrValuesFilePath:           pcrValuesFilePath,
 		portRangeMin:                start,
 		portRangeMax:                end,
 		persistence:                 persistence,
@@ -150,30 +156,36 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
-		cmd := exec.Command("sudo", fmt.Sprintf("%s/attestation_policy", ms.attestationPolicyBinaryPath), "--policy", "196608")
+		var stderrBuffer bytes.Buffer
+		options := []string{"--policy", "196608"}
+
+		if ms.pcrValuesFilePath != "" {
+			pcrValues := []string{"--pcr", ms.pcrValuesFilePath}
+			options = append(options, pcrValues...)
+		}
+
+		stderr := bufio.NewWriter(&stderrBuffer)
+
+		attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr)
+		if err != nil {
+			return "", id, err
+		}
 
 		ms.ap.Lock()
-		_, err := cmd.Output()
+		stdOutByte, err := attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
 		ms.ap.Unlock()
 		if err != nil {
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 		}
 
-		ms.ap.Lock()
-		f, err := os.ReadFile("./attestation_policy.json")
-		ms.ap.Unlock()
-		if err != nil {
-			return "", id, errors.Wrap(ErrFailedToReadPolicy, err)
-		}
+		attestationPolicy := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
-		attestationPolicy := config.Config{SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
-
-		if err = config.ReadAttestationPolicyFromByte(f, &attestationPolicy); err != nil {
+		if err = config.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 
 		// Define the TCB that was present at launch of the VM.
-		cfg.LaunchTCB = attestationPolicy.SnpCheck.Policy.MinimumLaunchTcb
+		cfg.LaunchTCB = attestationPolicy.Config.Policy.MinimumLaunchTcb
 	}
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)

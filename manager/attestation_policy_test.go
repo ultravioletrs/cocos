@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -20,7 +21,7 @@ func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
 	switch behavior {
 	case "success":
 		content = []byte(`#!/bin/sh
-echo '{"policy": {"measurement": null, "host_data": null}}' > attestation_policy.json
+echo '{"pcr_values": {"sha256": null, "sha384": null}, "policy": {"measurement": null, "host_data": null}}'
 `)
 	case "fail":
 		content = []byte(`#!/bin/sh
@@ -105,7 +106,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				},
 				LaunchTCB: 0,
 			},
-			expectedError: "no such file or directory",
+			expectedError: "failed to decode Attestation Policy file",
 		},
 	}
 
@@ -116,7 +117,8 @@ func TestFetchAttestationPolicy(t *testing.T) {
 
 			ms := &managerService{
 				vms:                         make(map[string]vm.VM),
-				attestationPolicyBinaryPath: tempDir,
+				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
+				pcrValuesFilePath:           tempDir,
 				qemuCfg: qemu.Config{
 					CPU: "EPYC",
 				},

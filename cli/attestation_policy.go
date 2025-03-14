@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"google.golang.org/protobuf/encoding/protojson"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 type fieldType int
@@ -109,27 +110,31 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errDataLength
 	}
 
-	ac := check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	ac := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
 
-	attestationPolicy, err := os.ReadFile(fileName)
+	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return errors.Wrap(errReadingAttestationPolicyFile, err)
 	}
 
-	if err = protojson.Unmarshal(attestationPolicy, &ac); err != nil {
+	if err = config.ReadAttestationPolicyFromByte(f, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
+	}
+
+	if ac.Config.Policy == nil {
+		ac.Config.Policy = &check.Policy{}
 	}
 
 	switch field {
 	case measurementField:
-		ac.Policy.Measurement = data
+		ac.Config.Policy.Measurement = data
 	case hostDataField:
-		ac.Policy.HostData = data
+		ac.Config.Policy.HostData = data
 	default:
 		return errAttestationPolicyField
 	}
 
-	fileJson, err := protojson.Marshal(&ac)
+	fileJson, err := json.MarshalIndent(&ac, "", " ")
 	if err != nil {
 		return errors.Wrap(errMarshalJSON, err)
 	}
