@@ -4,6 +4,7 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -11,15 +12,23 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	certs "github.com/absmach/certs"
+	certscli "github.com/absmach/certs/cli"
+	"github.com/absmach/certs/errors"
+	certssdk "github.com/absmach/certs/sdk"
 	"github.com/google/go-sev-guest/client"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
@@ -55,13 +64,19 @@ type Server struct {
 	quoteProvider   client.LeveledQuoteProvider
 	authSvc         auth.Authenticator
 	health          *health.Server
+	caUrl           string
+	cvmEntityId     string
+}
+
+type csrReq struct {
+	CSR string `json:"csr,omitempty"`
 }
 
 type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator, caUrl string, cvmEntityId string) server.Server {
 	base := config.GetBaseConfig()
 	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 	return &Server{
@@ -76,6 +91,8 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 		registerService: registerService,
 		quoteProvider:   qp,
 		authSvc:         authSvc,
+		caUrl:           caUrl,
+		cvmEntityId:     cvmEntityId,
 	}
 }
 
@@ -95,7 +112,7 @@ func (s *Server) Start() error {
 	var listener net.Listener
 
 	if agCfg, ok := s.Config.(server.AgentConfig); ok && agCfg.AttestedTLS {
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS()
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.caUrl, s.cvmEntityId)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
 		}
@@ -258,33 +275,96 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-func generateCertificatesForATLS() ([]byte, []byte, error) {
+func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []byte, error) {
 	curve := elliptic.P256()
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private/public key: %w", err)
 	}
 
-	certTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(202403311),
-		Subject: pkix.Name{
+	var certDERBytes []byte
+
+	if caUrl == "" || cvmEntityId == "" {
+		certTemplate := &x509.Certificate{
+			SerialNumber: big.NewInt(202403311),
+			Subject: pkix.Name{
+				Organization:  []string{organization},
+				Country:       []string{country},
+				Province:      []string{province},
+				Locality:      []string{locality},
+				StreetAddress: []string{streetAddress},
+				PostalCode:    []string{postalCode},
+			},
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay),
+			KeyUsage:              x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			BasicConstraintsValid: true,
+		}
+
+		DERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+		}
+
+		certDERBytes = DERBytes
+	} else {
+		var csrmd = certs.CSRMetadata{
 			Organization:  []string{organization},
 			Country:       []string{country},
 			Province:      []string{province},
 			Locality:      []string{locality},
 			StreetAddress: []string{streetAddress},
 			PostalCode:    []string{postalCode},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay),
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
+		}
 
-	certDERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+		csr, err := certscli.CreateCSR(csrmd, privateKey)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create CSR: %w", err)
+		}
+
+		csrData := string(csr.CSR)
+
+		r := csrReq{
+			CSR: csrData,
+		}
+
+		data, error := json.Marshal(r)
+		if error != nil {
+			return nil, nil, errors.NewSDKError(error)
+		}
+
+		notBefore := time.Now()
+		notAfter := time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay)
+		ttlString := notAfter.Sub(notBefore).String()
+
+		query := url.Values{}
+		query.Add("ttl", ttlString)
+		query_string := query.Encode()
+
+		certsEndpoint := "certs"
+		csrEndpoint := "csrs"
+		endpoint := fmt.Sprintf("%s/%s/%s", certsEndpoint, csrEndpoint, cvmEntityId)
+
+		url := fmt.Sprintf("%s/%s?%s", caUrl, endpoint, query_string)
+
+		_, body, sdkerr := processRequest(http.MethodPost, url, data, nil, http.StatusOK)
+		if sdkerr != nil {
+			return nil, nil, errors.NewSDKError(sdkerr)
+		}
+
+		// TODO: Extensions?
+		var cert certssdk.Certificate
+		if err := json.Unmarshal(body, &cert); err != nil {
+			return nil, nil, errors.NewSDKError(err)
+		}
+
+		block, errorDecode := pem.Decode([]byte(cert.Certificate))
+		if errorDecode != nil {
+			return nil, nil, fmt.Errorf("failed to decode pem certificate")
+		}
+
+		certDERBytes = block.Bytes
 	}
 
 	certBytes := pem.EncodeToMemory(&pem.Block{
@@ -317,4 +397,43 @@ func generateCertificatesForATLS() ([]byte, []byte, error) {
 	}
 
 	return certBytes, keyBytes, nil
+}
+
+func processRequest(method, reqUrl string, data []byte, headers map[string]string, expectedRespCodes ...int) (http.Header, []byte, errors.SDKError) {
+	req, err := http.NewRequest(method, reqUrl, bytes.NewReader(data))
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
+	}
+
+	// Sets a default value for the Content-Type.
+	// Overridden if Content-Type is passed in the headers arguments.
+	req.Header.Add("Content-Type", "application/json")
+
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				// TODO: verify this
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
+	}
+	defer resp.Body.Close()
+	sdkerr := errors.CheckError(resp, expectedRespCodes...)
+	if sdkerr != nil {
+		return make(http.Header), []byte{}, sdkerr
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
+	}
+	return resp.Header, body, nil
 }

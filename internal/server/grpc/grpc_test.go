@@ -73,7 +73,7 @@ func TestNew(t *testing.T) {
 	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc, "", "")
 
 	assert.NotNil(t, srv)
 	assert.IsType(t, &Server{}, srv)
@@ -123,7 +123,7 @@ func TestServerStartWithTLSFile(t *testing.T) {
 	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc, "", "")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -170,7 +170,7 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc, "", "")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -210,7 +210,7 @@ func TestServerStop(t *testing.T) {
 	qp := new(mocks.LeveledQuoteProvider)
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, qp, authSvc, "", "")
 
 	go func() {
 		err := srv.Start()
@@ -402,7 +402,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			qp := new(mocks.LeveledQuoteProvider)
 			authSvc := new(authmocks.Authenticator)
 
-			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc)
+			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, qp, authSvc, "", "")
 			var wg sync.WaitGroup
 			wg.Add(1)
 
