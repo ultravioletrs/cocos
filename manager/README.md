@@ -6,66 +6,66 @@ Manager service provides a barebones gRPC API and Service interface implementati
 
 The service is configured using the environment variables from the following table. Note that any unset variables will be replaced with their default values.
 
-| Variable                                  | Description                                                                                                      | Default                      |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| COCOS_JAEGER_URL                          | The URL for the Jaeger tracing endpoint.                                                                         | http://localhost:4318        |
-| COCOS_JAEGER_TRACE_RATIO                  | The ratio of traces to sample.                                                                                   | 1.0                          |
-| MANAGER_INSTANCE_ID                       | The instance ID for the manager service.                                                                         |                              |
-| MANAGER_ATTESTATION_POLICY_BINARY         | The file path for the attestation policy binarie.                                                                | ../../build                  |
-| MANAGER_IGVMMEASURE_BINARY                | The file path for the igvmmeasure binarie.                                                                       | ../../build                  |
-| MANAGER_PCR_VALUES                        | The file path for the file with the expected PCR values.                                                         |                              |
-| MANAGER_GRPC_CLIENT_CERT                  | The file path for the client certificate.                                                                        |                              |
-| MANAGER_GRPC_CLIENT_KEY                   | The file path for the client private key.                                                                        |                              |
-| MANAGER_GRPC_SERVER_CA_CERTS              | The file path for the server CA certificate(s).                                                                  |                              |
-| MANAGER_GRPC_URL                          | The URL for the gRPC endpoint.                                                                                   | localhost:7001               |
-| MANAGER_GRPC_TIMEOUT                      | The timeout for gRPC requests.                                                                                   | 60s                          |
-| MANAGER_EOS_VERSION                       | The EOS version used for booting SVMs.                                                                           |                              |
-| MANAGER_INSTANCE_ID                       | Manager service instance ID                                                                                      |                              |
-| MANAGER_QEMU_MEMORY_SIZE                  | The total memory size for the virtual machine. Can be specified in a human-readable format like "2048M" or "4G". | 2048M                        |
-| MANAGER_QEMU_MEMORY_SLOTS                 | The number of memory slots for the virtual machine.                                                              | 5                            |
-| MANAGER_QEMU_MAX_MEMORY                   | The maximum memory size for the virtual machine. Can be specified in a human-readable format like "30G".         | 30G                          |
-| MANAGER_QEMU_OVMF_CODE_IF                 | The interface type for the OVMF code.                                                                            | pflash                       |
-| MANAGER_QEMU_OVMF_CODE_FORMAT             | The format of the OVMF code file.                                                                                | raw                          |
-| MANAGER_QEMU_OVMF_CODE_UNIT               | The unit number for the OVMF code.                                                                               | 0                            |
-| MANAGER_QEMU_OVMF_CODE_FILE               | The file path for the OVMF code.                                                                                 | /usr/share/OVMF/OVMF_CODE.fd |
-| MANAGER_QEMU_OVMF_VERSION                 | The version number of EDKII from which OVMF was built                                                            | edk2-stable202408            |
-| MANAGER_QEMU_OVMF_CODE_READONLY           | Whether the OVMF code should be read-only.                                                                       | on                           |
-| MANAGER_QEMU_OVMF_VARS_IF                 | The interface type for the OVMF variables.                                                                       | pflash                       |
-| MANAGER_QEMU_OVMF_VARS_FORMAT             | The format of the OVMF variables file.                                                                           | raw                          |
-| MANAGER_QEMU_OVMF_VARS_UNIT               | The unit number for the OVMF variables.                                                                          | 1                            |
-| MANAGER_QEMU_OVMF_VARS_FILE               | The file path for the OVMF variables.                                                                            | /usr/share/OVMF/OVMF_VARS.fd |
-| MANAGER_QEMU_NETDEV_ID                    | The ID for the network device.                                                                                   | vmnic                        |
-| MANAGER_QEMU_HOST_FWD_AGENT               | The port number for the host forward agent.                                                                      | 7020                         |
-| MANAGER_QEMU_GUEST_FWD_AGENT              | The port number for the guest forward agent.                                                                     | 7002                         |
-| MANAGER_QEMU_VIRTIO_NET_PCI_DISABLE_LEGACY | Whether to disable the legacy PCI device.                                                                       | on                           |
-| MANAGER_QEMU_VIRTIO_NET_PCI_IOMMU_PLATFORM | Whether to enable the IOMMU platform for the virtio-net PCI device.                                             | true                         |
-| MANAGER_QEMU_VIRTIO_NET_PCI_ADDR           | The PCI address for the virtio-net PCI device.                                                                  | 0x2                          |
-| MANAGER_QEMU_VIRTIO_NET_PCI_ROMFILE        | The file path for the ROM image for the virtio-net PCI device.                                                  |                              |
-| MANAGER_QEMU_DISK_IMG_KERNEL_FILE          | The file path for the kernel image.                                                                             | img/bzImage                  |
-| MANAGER_QEMU_DISK_IMG_ROOTFS_FILE          | The file path for the root filesystem image.                                                                    | img/rootfs.cpio.gz           |
-| MANAGER_QEMU_SEV_ID                        | The ID for the Secure Encrypted Virtualization (SEV) device.                                                    | sev0                         |
-| MANAGER_QEMU_SEV_CBITPOS                   | The position of the C-bit in the physical address.                                                              | 51                           |
-| MANAGER_QEMU_SEV_REDUCED_PHYS_BITS         | The number of reduced physical address bits for SEV.                                                            | 1                            |
-| MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV host.                                                                        | false                        |
-| MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV host.                                                                               |                              |
-| MANAGER_QEMU_IGVM_ID                       | The ID of the IGVM file.                                                                                        | igvm0                        |
-| MANAGER_QEMU_IGVM_FILE                     | The file path to the IGVM file.                                                                                 | /root/coconut-qemu.igvm      |
-| MANAGER_QEMU_VSOCK_ID                      | The ID for the virtual socket device.                                                                           | vhost-vsock-pci0             |
-| MANAGER_QEMU_VSOCK_GUEST_CID               | The guest-side CID (Context ID) for the virtual socket device.                                                  | 3                            |
-| MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                            | 0                            |
-| MANAGER_QEMU_BIN_PATH                      | The file path for the QEMU binary.                                                                              | qemu-system-x86_64           |
-| MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                | false                        |
-| MANAGER_QEMU_ENABLE_SEV                    | Whether to enable Secure Encrypted Virtualization (SEV).                                                        | false                        |
-| MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                               | true                         |
-| MANAGER_QEMU_ENABLE_KVM                    | Whether to enable the Kernel-based Virtual Machine (KVM) acceleration.                                          | true                         |
-| MANAGER_QEMU_MACHINE                       | The machine type for QEMU.                                                                                      | q35                          |
-| MANAGER_QEMU_CPU                           | The CPU model for QEMU.                                                                                         | EPYC                         |
-| MANAGER_QEMU_SMP_COUNT                     | The number of virtual CPUs.                                                                                     | 4                            |
-| MANAGER_QEMU_SMP_MAXCPUS                   | The maximum number of virtual CPUs.                                                                             | 64                           |
-| MANAGER_QEMU_MEM_ID                        | The ID for the memory device.                                                                                   | ram1                         |
-| MANAGER_QEMU_NO_GRAPHIC                    | Whether to disable the graphical display.                                                                       | true                         |
-| MANAGER_QEMU_MONITOR                       | The type of monitor to use.                                                                                     | pty                          |
-| MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                             | 6100-6200                    |
+| Variable                                   | Description                                                                                                      | Default                        |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| COCOS_JAEGER_URL                           | The URL for the Jaeger tracing endpoint.                                                                         | http://localhost:4318          |
+| COCOS_JAEGER_TRACE_RATIO                   | The ratio of traces to sample.                                                                                   | 1.0                            |
+| MANAGER_INSTANCE_ID                        | The instance ID for the manager service.                                                                         |                                |
+| MANAGER_ATTESTATION_POLICY_BINARY          | The file path for the attestation policy binarie.                                                                | ../../build/attestation_policy |
+| MANAGER_IGVMMEASURE_BINARY                 | The file path for the igvmmeasure binarie.                                                                       | ../../build/igvmmeasure        |
+| MANAGER_PCR_VALUES                         | The file path for the file with the expected PCR values.                                                         |                                |
+| MANAGER_GRPC_CLIENT_CERT                   | The file path for the client certificate.                                                                        |                                |
+| MANAGER_GRPC_CLIENT_KEY                    | The file path for the client private key.                                                                        |                                |
+| MANAGER_GRPC_SERVER_CA_CERTS               | The file path for the server CA certificate(s).                                                                  |                                |
+| MANAGER_GRPC_URL                           | The URL for the gRPC endpoint.                                                                                   | localhost:7001                 |
+| MANAGER_GRPC_TIMEOUT                       | The timeout for gRPC requests.                                                                                   | 60s                            |
+| MANAGER_EOS_VERSION                        | The EOS version used for booting SVMs.                                                                           |                                |
+| MANAGER_INSTANCE_ID                        | Manager service instance ID                                                                                      |                                |
+| MANAGER_QEMU_MEMORY_SIZE                   | The total memory size for the virtual machine. Can be specified in a human-readable format like "2048M" or "4G". | 2048M                          |
+| MANAGER_QEMU_MEMORY_SLOTS                  | The number of memory slots for the virtual machine.                                                              | 5                              |
+| MANAGER_QEMU_MAX_MEMORY                    | The maximum memory size for the virtual machine. Can be specified in a human-readable format like "30G".         | 30G                            |
+| MANAGER_QEMU_OVMF_CODE_IF                  | The interface type for the OVMF code.                                                                            | pflash                         |
+| MANAGER_QEMU_OVMF_CODE_FORMAT              | The format of the OVMF code file.                                                                                | raw                            |
+| MANAGER_QEMU_OVMF_CODE_UNIT                | The unit number for the OVMF code.                                                                               | 0                              |
+| MANAGER_QEMU_OVMF_CODE_FILE                | The file path for the OVMF code.                                                                                 | /usr/share/OVMF/OVMF_CODE.fd   |
+| MANAGER_QEMU_OVMF_VERSION                  | The version number of EDKII from which OVMF was built                                                            | edk2-stable202408              |
+| MANAGER_QEMU_OVMF_CODE_READONLY            | Whether the OVMF code should be read-only.                                                                       | on                             |
+| MANAGER_QEMU_OVMF_VARS_IF                  | The interface type for the OVMF variables.                                                                       | pflash                         |
+| MANAGER_QEMU_OVMF_VARS_FORMAT              | The format of the OVMF variables file.                                                                           | raw                            |
+| MANAGER_QEMU_OVMF_VARS_UNIT                | The unit number for the OVMF variables.                                                                          | 1                              |
+| MANAGER_QEMU_OVMF_VARS_FILE                | The file path for the OVMF variables.                                                                            | /usr/share/OVMF/OVMF_VARS.fd   |
+| MANAGER_QEMU_NETDEV_ID                     | The ID for the network device.                                                                                   | vmnic                          |
+| MANAGER_QEMU_HOST_FWD_AGENT                | The port number for the host forward agent.                                                                      | 7020                           |
+| MANAGER_QEMU_GUEST_FWD_AGENT               | The port number for the guest forward agent.                                                                     | 7002                           |
+| MANAGER_QEMU_VIRTIO_NET_PCI_DISABLE_LEGACY | Whether to disable the legacy PCI device.                                                                        | on                             |
+| MANAGER_QEMU_VIRTIO_NET_PCI_IOMMU_PLATFORM | Whether to enable the IOMMU platform for the virtio-net PCI device.                                              | true                           |
+| MANAGER_QEMU_VIRTIO_NET_PCI_ADDR           | The PCI address for the virtio-net PCI device.                                                                   | 0x2                            |
+| MANAGER_QEMU_VIRTIO_NET_PCI_ROMFILE        | The file path for the ROM image for the virtio-net PCI device.                                                   |                                |
+| MANAGER_QEMU_DISK_IMG_KERNEL_FILE          | The file path for the kernel image.                                                                              | img/bzImage                    |
+| MANAGER_QEMU_DISK_IMG_ROOTFS_FILE          | The file path for the root filesystem image.                                                                     | img/rootfs.cpio.gz             |
+| MANAGER_QEMU_SEV_ID                        | The ID for the Secure Encrypted Virtualization (SEV) device.                                                     | sev0                           |
+| MANAGER_QEMU_SEV_CBITPOS                   | The position of the C-bit in the physical address.                                                               | 51                             |
+| MANAGER_QEMU_SEV_REDUCED_PHYS_BITS         | The number of reduced physical address bits for SEV.                                                             | 1                              |
+| MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV host.                                                                         | false                          |
+| MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV host.                                                                                |                                |
+| MANAGER_QEMU_IGVM_ID                       | The ID of the IGVM file.                                                                                         | igvm0                          |
+| MANAGER_QEMU_IGVM_FILE                     | The file path to the IGVM file.                                                                                  | /root/coconut-qemu.igvm        |
+| MANAGER_QEMU_VSOCK_ID                      | The ID for the virtual socket device.                                                                            | vhost-vsock-pci0               |
+| MANAGER_QEMU_VSOCK_GUEST_CID               | The guest-side CID (Context ID) for the virtual socket device.                                                   | 3                              |
+| MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                             | 0                              |
+| MANAGER_QEMU_BIN_PATH                      | The file path for the QEMU binary.                                                                               | qemu-system-x86_64             |
+| MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                 | false                          |
+| MANAGER_QEMU_ENABLE_SEV                    | Whether to enable Secure Encrypted Virtualization (SEV).                                                         | false                          |
+| MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                                | true                           |
+| MANAGER_QEMU_ENABLE_KVM                    | Whether to enable the Kernel-based Virtual Machine (KVM) acceleration.                                           | true                           |
+| MANAGER_QEMU_MACHINE                       | The machine type for QEMU.                                                                                       | q35                            |
+| MANAGER_QEMU_CPU                           | The CPU model for QEMU.                                                                                          | EPYC                           |
+| MANAGER_QEMU_SMP_COUNT                     | The number of virtual CPUs.                                                                                      | 4                              |
+| MANAGER_QEMU_SMP_MAXCPUS                   | The maximum number of virtual CPUs.                                                                              | 64                             |
+| MANAGER_QEMU_MEM_ID                        | The ID for the memory device.                                                                                    | ram1                           |
+| MANAGER_QEMU_NO_GRAPHIC                    | Whether to disable the graphical display.                                                                        | true                           |
+| MANAGER_QEMU_MONITOR                       | The type of monitor to use.                                                                                      | pty                            |
+| MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                              | 6100-6200                      |
 
 ## Setup
 
