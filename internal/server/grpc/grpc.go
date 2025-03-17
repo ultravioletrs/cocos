@@ -429,12 +429,10 @@ func processRequest(method, reqUrl string, data []byte, headers map[string]strin
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
 	defer resp.Body.Close()
-
 	sdkerr := errors.CheckError(resp, expectedRespCodes...)
 	if sdkerr != nil {
 		return make(http.Header), []byte{}, sdkerr
 	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
