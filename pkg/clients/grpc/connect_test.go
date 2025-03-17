@@ -251,13 +251,13 @@ func TestReadAttestationPolicy(t *testing.T) {
 				defer os.Remove(tt.manifestPath)
 			}
 
-			config := att.Config{SnpCheck: &check.Config{}, PcrConfig: &att.PcrConfig{}}
+			config := att.Config{Config: &check.Config{}, PcrConfig: &att.PcrConfig{}}
 			err := att.ReadAttestationPolicy(tt.manifestPath, &config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.err == nil {
-				assert.NotNil(t, config.SnpCheck.Policy)
-				assert.NotNil(t, config.SnpCheck.RootOfTrust)
+				assert.NotNil(t, config.Config.Policy)
+				assert.NotNil(t, config.Config.RootOfTrust)
 			}
 		})
 	}

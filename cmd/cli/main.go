@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
-	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cmd "github.com/virtee/sev-snp-measure-go/sevsnpmeasure/cmd"
 )
@@ -108,7 +108,8 @@ func main() {
 		return
 	}
 
-	measurement, err := igvmmeasure.NewIgvmMeasurement(cfg.IgvmBinaryPath, os.Stderr, os.Stdout)
+	options := cmdconfig.IgvmMeasureOptions
+	measurement, err := cmdconfig.NewCmdConfig(cfg.IgvmBinaryPath, options, os.Stderr)
 	if err != nil {
 		message := color.New(color.FgRed).Sprintf("failed to initialize measurement: %s", err) // Use %s instead of %w
 		rootCmd.Println(message)

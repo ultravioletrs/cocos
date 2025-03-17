@@ -1,48 +1,46 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
-package igvmmeasure
+package cmdconfig
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 )
 
+var IgvmMeasureOptions = []string{"measure", "-b"}
+
 type MeasurementProvider interface {
-	Run(igvmBinaryPath string) error
+	Run(binaryPath string) ([]byte, error)
 	Stop() error
 }
-type IgvmMeasurement struct {
+type CmdConfig struct {
 	binPath     string
 	options     []string
 	stderr      io.Writer
-	stdout      io.Writer
 	cmd         *exec.Cmd
 	execCommand func(name string, arg ...string) *exec.Cmd
 }
 
-func NewIgvmMeasurement(binPath string, stderr, stdout io.Writer) (*IgvmMeasurement, error) {
+func NewCmdConfig(binPath string, options []string, stderr io.Writer) (*CmdConfig, error) {
 	if binPath == "" {
 		return nil, fmt.Errorf("pathToBinary cannot be empty")
 	}
 
-	return &IgvmMeasurement{
+	return &CmdConfig{
 		binPath:     binPath,
+		options:     options,
 		stderr:      stderr,
-		stdout:      stdout,
 		execCommand: exec.Command,
 	}, nil
 }
 
-func (m *IgvmMeasurement) Run(pathToFile string) error {
+func (m *CmdConfig) Run(pathToFile string) ([]byte, error) {
 	binary := m.binPath
 	args := []string{}
-	args = append(args, m.options...)
 	args = append(args, pathToFile)
-	args = append(args, "measure")
-	args = append(args, "-b")
+	args = append(args, m.options...)
 
 	outBuf := &bytes.Buffer{}
 	cmd := m.execCommand(binary, args...)
@@ -50,26 +48,13 @@ func (m *IgvmMeasurement) Run(pathToFile string) error {
 	cmd.Stdout = outBuf
 
 	if err := cmd.Run(); err != nil {
-		return err
-	}
-	outputString := outBuf.String()
-
-	lines := strings.Split(strings.TrimSpace(outputString), "\n")
-
-	if len(lines) == 1 {
-		outputString = strings.ToLower(outputString)
-		_, err := m.stdout.Write([]byte(outputString))
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("error: %s", outputString)
+		return nil, err
 	}
 
-	return nil
+	return outBuf.Bytes(), nil
 }
 
-func (m *IgvmMeasurement) Stop() error {
+func (m *CmdConfig) Stop() error {
 	if m.cmd == nil || m.cmd.Process == nil {
 		return fmt.Errorf("no running process to stop")
 	}
@@ -82,6 +67,6 @@ func (m *IgvmMeasurement) Stop() error {
 }
 
 // SetExecCommand allows tests to inject a mock execCommand function.
-func (m *IgvmMeasurement) SetExecCommand(cmdFunc func(name string, arg ...string) *exec.Cmd) {
+func (m *CmdConfig) SetExecCommand(cmdFunc func(name string, arg ...string) *exec.Cmd) {
 	m.execCommand = cmdFunc
 }

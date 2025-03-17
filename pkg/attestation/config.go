@@ -21,10 +21,11 @@ const (
 )
 
 var (
-	AttestationPolicy           = Config{SnpCheck: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
+	AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
 	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
 	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
 	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
+	ErrAttestationPolicyEncode  = errors.New("failed to encode the Attestation Policy")
 )
 
 type PcrValues struct {
@@ -37,8 +38,8 @@ type PcrConfig struct {
 }
 
 type Config struct {
-	SnpCheck  *check.Config
-	PcrConfig *PcrConfig
+	*check.Config
+	*PcrConfig
 }
 
 func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {
@@ -57,7 +58,7 @@ func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) 
 func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *Config) error {
 	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
 
-	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.SnpCheck); err != nil {
+	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.Config); err != nil {
 		return errors.Wrap(ErrAttestationPolicyDecode, err)
 	}
 
