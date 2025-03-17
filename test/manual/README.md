@@ -22,14 +22,11 @@ Agent is started automatically in the VM when launched but requires configuratio
 For attested TLS, you will have to calculate the VM's measurement, which can be done using cli. This information is also contained in the Attestation Policy file.
 
 ```bash
-# Define the path to the OVMF, KERNEL, INITRD and CMD Kernel line arguments.
-OVMF_CODE="/home/cocosai/ovmf/Build/AmdSev/DEBUG_GCC5/FV/OVMF.fd"
-INITRD="/home/cocosai/initramfs.cpio.gz"
-KERNEL="/home/cocosai/bzImage"
-LINE="earlyprintk=serial console=ttyS0"
+# Define the path to the IGVM file that contains the vTPM and the OVMF.
+IGVM="<path to the IGVM file>" 
 
-# Call sev-snp-measure
-./build/cocos-cli sevsnpmeasure --mode snp --vcpus 4 --vcpu-type EPYC-v4 --ovmf $OVMF_CODE --kernel $KERNEL --initrd $INITRD --append "$LINE"
+# Call igvmmeasure
+./build/cocos-cli igvmmeasure $IGVM
 ```
 
 To speed up the verification process of attested TLS, download the ARK and ASK certificates using the CLI tool. The CLI tool will download the certificates under your home directory in the `.cocos` directory.
@@ -48,6 +45,10 @@ export AGENT_GRPC_URL=localhost:7002
 cd scripts/attestation_policy
 make
 sudo ./target/release/attestation_policy --policy 196608 # Default value of the policy should be 196608
+
+# In order to include the golden (good) PCR values in the attestation policy, call the attestation policy script with the "--pcr" option.
+sudo ./target/release/attestation_policy --policy 196608 --pcr ./pcr_values.json
+
 # The output file attestation_policy.json will be generated in the directory from which the executable has been called.
 cd ../..
 
@@ -80,6 +81,12 @@ export AGENT_GRPC_ATTESTED_TLS=true
 # Validate Attestation
 # Product name must be Milan or Genoa
 ./build/cocos-cli attestation validate '<attesation>' --report_data '<report_data>' --product <product_name>
+
+# Other options for attestation validation using the CLI are:
+# validate <attestationreportfilepath> --report_data <reportdata> --product <product data> //default
+# validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
+# validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
+# validate --mode snp-vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
 
 # Run the CLI program with algorithm input
 ./build/cocos-cli algo test/manual/algo/lin_reg.py <private_key_file_path> -a python -r test/manual/algo/requirements.py
