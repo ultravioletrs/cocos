@@ -34,14 +34,18 @@ type agentServer struct {
 	svc    agent.Service
 	host   string
 	qp     client.LeveledQuoteProvider
+	caUrl  string
+	cvmId  string
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, host string, qp client.LeveledQuoteProvider) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string, qp client.LeveledQuoteProvider, caUrl string, cvmId string) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,
 		host:   host,
 		qp:     qp,
+		caUrl:  caUrl,
+		cvmId:  cvmId,
 	}
 }
 
@@ -77,7 +81,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, as.qp, authSvc)
+	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, as.qp, authSvc, as.caUrl, as.cvmId)
 
 	go func() {
 		err := as.gs.Start()
