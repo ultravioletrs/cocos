@@ -437,6 +437,5 @@ func processRequest(method, reqUrl string, data []byte, headers map[string]strin
 	if err != nil {
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
-
 	return resp.Header, body, nil
 }
