@@ -78,13 +78,13 @@ func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsem
 }
 
 func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*config.Config, error) {
-	attestationPolicy := config.Config{PcrConfig: &config.PcrConfig{}, SnpCheck: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
-	attestationPolicy.SnpCheck.Policy.Policy = endorsement.SevSnp.Policy
-	attestationPolicy.SnpCheck.Policy.Measurement = endorsement.SevSnp.Measurements[vcpuNum]
-	attestationPolicy.SnpCheck.RootOfTrust.DisallowNetwork = false
-	attestationPolicy.SnpCheck.RootOfTrust.CheckCrl = true
-	attestationPolicy.SnpCheck.RootOfTrust.Product = "Milan"
-	attestationPolicy.SnpCheck.RootOfTrust.ProductLine = "Milan"
+	attestationPolicy := config.Config{PcrConfig: &config.PcrConfig{}, Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
+	attestationPolicy.Config.Policy.Policy = endorsement.SevSnp.Policy
+	attestationPolicy.Config.Policy.Measurement = endorsement.SevSnp.Measurements[vcpuNum]
+	attestationPolicy.Config.RootOfTrust.DisallowNetwork = false
+	attestationPolicy.Config.RootOfTrust.CheckCrl = true
+	attestationPolicy.Config.RootOfTrust.Product = "Milan"
+	attestationPolicy.Config.RootOfTrust.ProductLine = "Milan"
 
 	return &attestationPolicy, nil
 }
