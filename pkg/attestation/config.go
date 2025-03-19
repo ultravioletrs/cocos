@@ -31,6 +31,7 @@ var (
 type PcrValues struct {
 	Sha256 map[string]string `json:"sha256"`
 	Sha384 map[string]string `json:"sha384"`
+	Sha1   map[string]string `json:"sha1"`
 }
 
 type PcrConfig struct {

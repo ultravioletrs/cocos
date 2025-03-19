@@ -253,7 +253,6 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 
 	if err := client.sp.Start(agent.AgentConfig{
 		Port:         runReq.AgentConfig.Port,
-		Host:         runReq.AgentConfig.Host,
 		CertFile:     runReq.AgentConfig.CertFile,
 		KeyFile:      runReq.AgentConfig.KeyFile,
 		ServerCAFile: runReq.AgentConfig.ServerCaFile,

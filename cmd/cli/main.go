@@ -160,6 +160,8 @@ func main() {
 	// Attestation Policy commands
 	attestationPolicyCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
 	attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
+	attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
+	attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
 
 	if err := rootCmd.Execute(); err != nil {
 		logErrorCmd(*rootCmd, err)

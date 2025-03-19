@@ -3,16 +3,22 @@
 package cli
 
 import (
+	"bytes"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
+	"google.golang.org/protobuf/proto"
 )
 
 type fieldType int
@@ -96,6 +102,126 @@ func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 				printError(cmd, "Error could not change host data: %v ❌ ", err)
 				return
 			}
+		},
+	}
+}
+
+func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
+	return &cobra.Command{
+		Use:     "gcp",
+		Short:   "Get attestation policy for GCP CVM",
+		Example: `gcp <bin_vtmp_attestation_report_file> <vcpu_count>`,
+		Args:    cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			attestationBin, err := os.ReadFile(args[0])
+			if err != nil {
+				printError(cmd, "Error reading attestation report file: %v ❌ ", err)
+				return
+			}
+
+			vcpuCount, err := strconv.Atoi(args[1])
+			if err != nil {
+				printError(cmd, "Error converting vCPU count to integer: %v ❌ ", err)
+				return
+			}
+
+			attestation := &attest.Attestation{}
+
+			if err := proto.Unmarshal(attestationBin, attestation); err != nil {
+				printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
+				return
+			}
+
+			attestationPB := attestation.GetSevSnpAttestation()
+
+			measurement, err := gcp.Extract384BitMeasurement(attestationPB)
+			if err != nil {
+				printError(cmd, "Error extracting 384-bit measurement: %v ❌ ", err)
+				return
+			}
+
+			launchEndorsement, err := gcp.GetLaunchEndorsement(cmd.Context(), measurement)
+			if err != nil {
+				printError(cmd, "Error getting launch endorsement: %v ❌ ", err)
+				return
+			}
+
+			attestationPolicy, err := gcp.GenerateAttestationPolicy(launchEndorsement, uint32(vcpuCount))
+			if err != nil {
+				printError(cmd, "Error generating attestation policy: %v ❌ ", err)
+				return
+			}
+
+			attestationPolicyJson, err := json.MarshalIndent(attestationPolicy, "", "  ")
+			if err != nil {
+				printError(cmd, "Error marshaling attestation policy: %v ❌ ", err)
+				return
+			}
+
+			if err := os.WriteFile("attestation_policy.json", attestationPolicyJson, filePermission); err != nil {
+				printError(cmd, "Error writing attestation policy file: %v ❌ ", err)
+				return
+			}
+
+			cmd.Println("Attestation policy file generated successfully ✅")
+		},
+	}
+}
+
+func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
+	return &cobra.Command{
+		Use:     "download",
+		Short:   "Download GCP OVMF file",
+		Example: `download <bin_vtmp_attestation_report_file>`,
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			attestationBin, err := os.ReadFile(args[0])
+			if err != nil {
+				printError(cmd, "Error reading attestation report file: %v ❌ ", err)
+				return
+			}
+
+			attestation := &attest.Attestation{}
+
+			if err := proto.Unmarshal(attestationBin, attestation); err != nil {
+				printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
+				return
+			}
+
+			attestationPB := attestation.GetSevSnpAttestation()
+
+			measurement, err := gcp.Extract384BitMeasurement(attestationPB)
+			if err != nil {
+				printError(cmd, "Error extracting 384-bit measurement: %v ❌ ", err)
+				return
+			}
+
+			launchEndorsement, err := gcp.GetLaunchEndorsement(cmd.Context(), measurement)
+			if err != nil {
+				printError(cmd, "Error getting launch endorsement: %v ❌ ", err)
+				return
+			}
+
+			ovmf, err := gcp.DownloadOvmfFile(cmd.Context(), fmt.Sprintf("%x", launchEndorsement.Digest))
+			if err != nil {
+				printError(cmd, "Error downloading OVMF file: %v ❌ ", err)
+				return
+			}
+
+			sum384 := sha512.Sum384(ovmf)
+
+			if !bytes.Equal(sum384[:], launchEndorsement.Digest) {
+				printError(cmd, "Error OVMF file does not match the measurement: %v ❌ ", fmt.Errorf("digest mismatch"))
+			} else {
+				cmd.Println("OVMF firmware in vm is unmodified ✅")
+			}
+
+			if err := os.WriteFile("ovmf.fd", ovmf, filePermission); err != nil {
+				printError(cmd, "Error writing OVMF file: %v ❌ ", err)
+				return
+			}
+
+			cmd.Println("OVMF file downloaded successfully ✅")
 		},
 	}
 }
