@@ -19,7 +19,6 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
-	sevVerify "github.com/google/go-sev-guest/verify"
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"
 	"github.com/google/go-tpm-tools/server"
 	"github.com/google/go-tpm/legacy/tpm2"
@@ -350,7 +349,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> //default
 		validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
-		validate --mode snp-vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
+		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			mode, _ := cmd.Flags().GetString("mode")
@@ -371,13 +370,18 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				if err := cmd.MarkFlagRequired("nonce"); err != nil {
 					return fmt.Errorf("failed to mark 'nonce' as required for vTPM mode: %v", err)
 				}
+				if err := cmd.MarkFlagRequired("report_data"); err != nil {
+					return fmt.Errorf("failed to mark 'report_data' as required for SEV-SNP mode: %v", err)
+				}
+				if err := cmd.MarkFlagRequired("product"); err != nil {
+					return fmt.Errorf("failed to mark flag as required: %v ❌ ", err)
+				}
 				if err := cmd.MarkFlagRequired("format"); err != nil {
 					return fmt.Errorf("failed to mark 'format' as required for vTPM mode: %v", err)
 				}
 				if err := cmd.MarkFlagRequired("output"); err != nil {
 					return fmt.Errorf("failed to mark 'output' as required for vTPM mode: %v", err)
 				}
-
 			case "vtpm":
 				if err := cmd.MarkFlagRequired("nonce"); err != nil {
 					return fmt.Errorf("failed to mark 'nonce' as required for vTPM mode: %v", err)
@@ -436,13 +440,6 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		"output",
 		"",
 		"output file",
-	)
-
-	cmd.Flags().BytesHexVar(
-		&teeNonce,
-		"tee-nonce",
-		[]byte{},
-		"hex encoded teenonce for hardware attestation, can be empty",
 	)
 
 	// SEV-SNP FLAGS
@@ -666,28 +663,18 @@ func sevsnpverify(cmd *cobra.Command, args []string) error {
 	cmd.Println("Checking attestation")
 
 	attestationFile = string(args[0])
-
-	if err := parseConfig(); err != nil {
+	if err := parseAttestationFile(); err != nil {
 		return fmt.Errorf("error parsing config: %v ❌ ", err)
 	}
-	if err := parseHashes(); err != nil {
-		return fmt.Errorf("error parsing hashes: %v ❌ ", err)
-	}
-	if err := parseFiles(); err != nil {
-		return fmt.Errorf("error parsing files: %v ❌ ", err)
-	}
+
 	// This format is the attestation report in AMD's specified ABI format, immediately
 	// followed by the certificate table bytes.
 	if len(attestation) < abi.ReportSize {
 		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestation), abi.ReportSize)
 	}
-	if err := parseUints(); err != nil {
-		return fmt.Errorf("error parsing uints: %v ❌ ", err)
-	}
-	cfg.Policy.Vmpl = wrapperspb.UInt32(0)
 
-	if err := validateInput(); err != nil {
-		return fmt.Errorf("error validating input: %v ❌ ", err)
+	if err := parseAttestationConfig(); err != nil {
+		return err
 	}
 
 	attestationPB, err := abi.ReportCertsToProto(attestation)
@@ -698,111 +685,80 @@ func sevsnpverify(cmd *cobra.Command, args []string) error {
 	if err := quoteprovider.VerifyAndValidate(attestationPB, &cfg); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
+
 	cmd.Println("Attestation validation and verification is successful!")
 	return nil
 }
 
+func parseAttestationConfig() error {
+	if err := parseConfig(); err != nil {
+		return fmt.Errorf("error parsing config: %v ❌ ", err)
+	}
+	if err := parseHashes(); err != nil {
+		return fmt.Errorf("error parsing hashes: %v ❌ ", err)
+	}
+	if err := parseTrustedKeys(); err != nil {
+		return fmt.Errorf("error parsing files: %v ❌ ", err)
+	}
+
+	if err := parseUints(); err != nil {
+		return fmt.Errorf("error parsing uints: %v ❌ ", err)
+	}
+
+	if err := validateInput(); err != nil {
+		return fmt.Errorf("error validating input: %v ❌ ", err)
+	}
+
+	return nil
+}
+
 func vtpmSevSnpverify(args []string) error {
-	tpmAttestationFile = string(args[0])
-	input, err := openInputFile()
-	if err != nil {
-		return err
-	}
-	if closer, ok := input.(*os.File); ok {
-		defer closer.Close()
-	}
-	attestationBytes, err := io.ReadAll(input)
-	if err != nil {
-		return err
-	}
-	attestation := &tpmAttest.Attestation{}
-
-	if format == FormatBinaryPB {
-		err = proto.Unmarshal(attestationBytes, attestation)
-	} else if format == FormatTextProto {
-		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
-	} else {
-		return fmt.Errorf("format should be either binarypb or textproto")
-	}
-	if err != nil {
-		return fmt.Errorf("fail to unmarshal attestation report: %v", err)
-	}
-
-	pub, err := tpm2.DecodePublic(attestation.GetAkPub())
-	if err != nil {
-		return err
-	}
-	cryptoPub, err := pub.Key()
+	attestation, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
 	}
 
-	var validateOpts interface{}
+	var teeAttestation *sevsnp.Attestation
 	switch attestation.GetTeeAttestation().(type) {
 	case *tpmAttest.Attestation_SevSnpAttestation:
-		if len(teeNonce) != 0 {
-			validateOpts = &server.VerifySnpOpts{
-				Validation:   server.SevSnpDefaultValidateOpts(teeNonce),
-				Verification: &sevVerify.Options{},
-			}
-		} else {
-			validateOpts = &server.VerifySnpOpts{
-				Validation:   server.SevSnpDefaultValidateOpts(nonce),
-				Verification: &sevVerify.Options{},
-			}
-		}
+		teeAttestation = attestation.GetSevSnpAttestation()
 	default:
-		validateOpts = nil
+		teeAttestation = nil
 	}
 
-	ms, err := server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: nonce, TrustedAKs: []crypto.PublicKey{cryptoPub}, TEEOpts: validateOpts})
-	if err != nil {
-		return fmt.Errorf("verifying attestation: %w", err)
+	if teeAttestation == nil {
+		return fmt.Errorf("tee attestation not fetched")
 	}
-	out, err := marshalOptions.Marshal(ms)
-	if err != nil {
-		return nil
-	}
-	output, err := createOutputFile()
-	if err != nil {
+
+	if err := parseAttestationConfig(); err != nil {
 		return err
 	}
-	if closer, ok := output.(*os.File); ok {
-		defer closer.Close()
+
+	if err := quoteprovider.VerifyAndValidate(teeAttestation, &cfg); err != nil {
+		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
-	if _, err := output.Write(out); err != nil {
-		return fmt.Errorf("failed to write verified attestation report: %v", err)
+
+	if err := verifyvTPM(attestation); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func vtpmverify(args []string) error {
-	tpmAttestationFile = string(args[0])
-	input, err := openInputFile()
+	attestation, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
 	}
-	if closer, ok := input.(*os.File); ok {
-		defer closer.Close()
-	}
-	attestationBytes, err := io.ReadAll(input)
-	if err != nil {
+
+	if err := verifyvTPM(attestation); err != nil {
 		return err
 	}
-	attestation := &tpmAttest.Attestation{}
 
-	if format == FormatBinaryPB {
-		err = proto.Unmarshal(attestationBytes, attestation)
-	} else if format == FormatTextProto {
-		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
-	} else {
-		return fmt.Errorf("format should be either binarypb or textproto")
-	}
-	if err != nil {
-		return fmt.Errorf("fail to unmarshal attestation report: %v", err)
-	}
+	return nil
+}
 
+func verifyvTPM(attestation *tpmAttest.Attestation) error {
 	pub, err := tpm2.DecodePublic(attestation.GetAkPub())
 	if err != nil {
 		return err
@@ -832,6 +788,35 @@ func vtpmverify(args []string) error {
 	}
 
 	return nil
+}
+
+func returnvTPMAttestation(args []string) (*tpmAttest.Attestation, error) {
+	tpmAttestationFile = string(args[0])
+	input, err := openInputFile()
+	if err != nil {
+		return nil, err
+	}
+	if closer, ok := input.(*os.File); ok {
+		defer closer.Close()
+	}
+	attestationBytes, err := io.ReadAll(input)
+	if err != nil {
+		return nil, err
+	}
+	attestation := &tpmAttest.Attestation{}
+
+	if format == FormatBinaryPB {
+		err = proto.Unmarshal(attestationBytes, attestation)
+	} else if format == FormatTextProto {
+		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
+	} else {
+		return nil, fmt.Errorf("format should be either binarypb or textproto")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("fail to unmarshal attestation report: %v", err)
+	}
+
+	return attestation, nil
 }
 
 func openInputFile() (io.Reader, error) {
@@ -936,7 +921,7 @@ func parseHashes() error {
 	return nil
 }
 
-func parseFiles() error {
+func parseAttestationFile() error {
 	file, err := os.ReadFile(attestationFile)
 	if err != nil {
 		return err
@@ -949,6 +934,10 @@ func parseFiles() error {
 		}
 	}
 
+	return nil
+}
+
+func parseTrustedKeys() error {
 	for _, path := range trustedAuthorKeys {
 		file, err := os.ReadFile(path)
 		if err != nil {
