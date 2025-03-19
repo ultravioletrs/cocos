@@ -215,8 +215,10 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 
 	as.cancel()
 
-	if err := as.algorithm.Stop(); err != nil {
-		return fmt.Errorf("error stopping computation: %v", err)
+	if as.algorithm != nil {
+		if err := as.algorithm.Stop(); err != nil {
+			return fmt.Errorf("error stopping computation: %v", err)
+		}
 	}
 
 	sm := statemachine.NewStateMachine(Idle)

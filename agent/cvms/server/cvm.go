@@ -94,5 +94,8 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 }
 
 func (as *agentServer) Stop() error {
+	if as.gs == nil {
+		return nil
+	}
 	return as.gs.Stop()
 }
