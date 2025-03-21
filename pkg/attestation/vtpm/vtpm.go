@@ -42,6 +42,8 @@ var (
 	ErrNoHashAlgo = errors.New("hash algo is not supported")
 )
 
+type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
+
 type tpmWrapper struct {
 	io.ReadWriteCloser
 }
@@ -161,6 +163,11 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 	}
 
 	return nil
+}
+
+// EmptyAttest is a dummy attestation function that returns an empty attestation report.
+func EmptyAttest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error) {
+	return []byte{}, nil
 }
 
 func publicKeyToBytes(pubKey interface{}) ([]byte, error) {

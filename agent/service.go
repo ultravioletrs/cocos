@@ -129,12 +129,13 @@ type agentService struct {
 	resultsConsumed bool                        // Indicates if the results have been consumed.
 	cancel          context.CancelFunc          // Cancels the computation context.
 	vmpl            int                         // VMPL at which the Agent is running.
+	vtpmAttest      vtpm.VtpmAttest             // Attestation function.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int, vtpmAttest vtpm.VtpmAttest) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
@@ -144,6 +145,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quot
 		logger:        logger,
 		cancel:        cancel,
 		vmpl:          vmlp,
+		vtpmAttest:    vtpmAttest,
 	}
 
 	transitions := []statemachine.Transition{
@@ -413,13 +415,13 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 		}
 		return rawQuote, nil
 	case config.VTPM:
-		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], false)
+		vTPMQuote, err := as.vtpmAttest(reportData[:], nonce[:], false)
 		if err != nil {
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
 	case config.SNPvTPM:
-		vTPMQuote, err := vtpm.Attest(reportData[:], nonce[:], true)
+		vTPMQuote, err := as.vtpmAttest(reportData[:], nonce[:], true)
 		if err != nil {
 			return []byte{}, err
 		}
