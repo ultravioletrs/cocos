@@ -15,7 +15,7 @@ The service is configured using the environment variables from the following tab
 | AGENT_CVM_GRPC_SERVER_KEY      | Path to gRPC server key in pem format                                      | ""                             |
 | AGENT_CVM_GRPC_SERVER_CA_CERTS | Path to gRPC server CA certificate                                         | ""                             |
 | AGENT_CVM_GRPC_CLIENT_CA_CERTS | Path to gRPC client CA certificate                                         | ""                             |
-| AGENT_CA_URL                   | URL for CA service, if provided it will be used for certificate generation | ""                             |
+| AGENT_CVM_CA_URL               | URL for CA service, if provided it will be used for certificate generation | ""                             |
 
 
 ## Deployment
