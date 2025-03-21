@@ -50,7 +50,7 @@ type config struct {
 	LogLevel      string `env:"AGENT_LOG_LEVEL" envDefault:"debug"`
 	Vmpl          int    `env:"AGENT_VMPL" envDefault:"2"`
 	AgentGrpcHost string `env:"AGENT_GRPC_HOST" envDefault:"0.0.0.0"`
-	CAUrl         string `env:"AGENT_CA_URL" envDefault:""`
+	CAUrl         string `env:"AGENT_CVM_CA_URL" envDefault:""`
 	CVMId         string `env:"AGENT_CVM_ID" envDefault:""`
 }
 
