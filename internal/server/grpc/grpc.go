@@ -65,7 +65,7 @@ type Server struct {
 	authSvc         auth.Authenticator
 	health          *health.Server
 	caUrl           string
-	cvmEntityId     string
+	cvmId           string
 }
 
 type csrReq struct {
@@ -76,7 +76,7 @@ type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator, caUrl string, cvmEntityId string) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator, caUrl string, cvmId string) server.Server {
 	base := config.GetBaseConfig()
 	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 	return &Server{
@@ -92,7 +92,7 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 		quoteProvider:   qp,
 		authSvc:         authSvc,
 		caUrl:           caUrl,
-		cvmEntityId:     cvmEntityId,
+		cvmId:           cvmId,
 	}
 }
 
@@ -112,7 +112,7 @@ func (s *Server) Start() error {
 	var listener net.Listener
 
 	if agCfg, ok := s.Config.(server.AgentConfig); ok && agCfg.AttestedTLS {
-		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.caUrl, s.cvmEntityId)
+		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.caUrl, s.cvmId)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate: %w", err)
 		}
@@ -275,7 +275,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []byte, error) {
+func generateCertificatesForATLS(caUrl string, cvmId string) ([]byte, []byte, error) {
 	curve := elliptic.P256()
 
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -285,7 +285,7 @@ func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []by
 
 	var certDERBytes []byte
 
-	if caUrl == "" || cvmEntityId == "" {
+	if caUrl == "" || cvmId == "" {
 		certTemplate := &x509.Certificate{
 			SerialNumber: big.NewInt(202403311),
 			Subject: pkix.Name{
@@ -345,7 +345,7 @@ func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []by
 
 		certsEndpoint := "certs"
 		csrEndpoint := "csrs"
-		endpoint := fmt.Sprintf("%s/%s/%s", certsEndpoint, csrEndpoint, cvmEntityId)
+		endpoint := fmt.Sprintf("%s/%s/%s", certsEndpoint, csrEndpoint, cvmId)
 
 		url := fmt.Sprintf("%s/%s?%s", caUrl, endpoint, query_string)
 
