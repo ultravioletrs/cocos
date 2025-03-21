@@ -277,6 +277,7 @@ func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 
 func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []byte, error) {
 	curve := elliptic.P256()
+
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private/public key: %w", err)
@@ -353,15 +354,17 @@ func generateCertificatesForATLS(caUrl string, cvmEntityId string) ([]byte, []by
 			return nil, nil, errors.NewSDKError(sdkerr)
 		}
 
-		// TODO: Extensions?
 		var cert certssdk.Certificate
 		if err := json.Unmarshal(body, &cert); err != nil {
 			return nil, nil, errors.NewSDKError(err)
 		}
 
-		block, errorDecode := pem.Decode([]byte(cert.Certificate))
-		if errorDecode != nil {
-			return nil, nil, fmt.Errorf("failed to decode pem certificate")
+		cleanCertificateString := strings.ReplaceAll(cert.Certificate, "\\n", "\n")
+
+		block, rest := pem.Decode([]byte(cleanCertificateString))
+
+		if len(rest) != 0 {
+			return nil, nil, fmt.Errorf("failed to convert generated certificate to DER format: %s", cleanCertificateString)
 		}
 
 		certDERBytes = block.Bytes
@@ -416,7 +419,6 @@ func processRequest(method, reqUrl string, data []byte, headers map[string]strin
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				// TODO: verify this
 				InsecureSkipVerify: true,
 			},
 		},
@@ -427,13 +429,16 @@ func processRequest(method, reqUrl string, data []byte, headers map[string]strin
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
 	defer resp.Body.Close()
+
 	sdkerr := errors.CheckError(resp, expectedRespCodes...)
 	if sdkerr != nil {
 		return make(http.Header), []byte{}, sdkerr
 	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
+
 	return resp.Header, body, nil
 }
