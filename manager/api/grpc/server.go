@@ -35,22 +35,22 @@ func (s *grpcServer) CreateVm(ctx context.Context, req *manager.CreateReq) (*man
 
 	return &manager.CreateRes{
 		ForwardedPort: port,
-		SvmId:         id,
+		CvmId:         id,
 	}, nil
 }
 
 func (s *grpcServer) RemoveVm(ctx context.Context, req *manager.RemoveReq) (*emptypb.Empty, error) {
-	if err := s.svc.RemoveVM(ctx, req.SvmId); err != nil {
+	if err := s.svc.RemoveVM(ctx, req.CvmId); err != nil {
 		return nil, err
 	}
 
 	return &emptypb.Empty{}, nil
 }
 
-func (s *grpcServer) SVMInfo(ctx context.Context, req *manager.SVMInfoReq) (*manager.SVMInfoRes, error) {
-	ovmf, cpunum, cputype, eosversion := s.svc.ReturnSVMInfo(ctx)
+func (s *grpcServer) CVMInfo(ctx context.Context, req *manager.CVMInfoReq) (*manager.CVMInfoRes, error) {
+	ovmf, cpunum, cputype, eosversion := s.svc.ReturnCVMInfo(ctx)
 
-	return &manager.SVMInfoRes{
+	return &manager.CVMInfoRes{
 		OvmfVersion: ovmf,
 		CpuNum:      int32(cpunum),
 		CpuType:     cputype,

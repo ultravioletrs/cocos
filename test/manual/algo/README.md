@@ -205,7 +205,7 @@ Here we will use the docker with the linear regression example (`lin_reg.py`). T
 cocos
 ```
 
-The docker image must have a `cocos` directory containing the `datasets` and `results` directories. The Agent will run this image inside the SVM and will mount the datasets and results onto the `/cocos/datasets` and `/cocos/results` directories inside the image. The docker image must also contain the command that will be run when the docker container is run.
+The docker image must have a `cocos` directory containing the `datasets` and `results` directories. The Agent will run this image inside the CVM and will mount the datasets and results onto the `/cocos/datasets` and `/cocos/results` directories inside the image. The docker image must also contain the command that will be run when the docker container is run.
 
 Run the build command and then save the docker image as a `tar` file.
 

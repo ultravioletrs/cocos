@@ -42,9 +42,9 @@ func (tm *tracingMiddleware) FetchAttestationPolicy(ctx context.Context, computa
 	return tm.svc.FetchAttestationPolicy(ctx, computationId)
 }
 
-func (tm *tracingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
-	_, span := tm.tracer.Start(ctx, "return_svm_info")
+func (tm *tracingMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, string, string) {
+	_, span := tm.tracer.Start(ctx, "return_cvm_info")
 	defer span.End()
 
-	return tm.svc.ReturnSVMInfo(ctx)
+	return tm.svc.ReturnCVMInfo(ctx)
 }
