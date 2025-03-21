@@ -216,7 +216,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
 	}
 
-	cvm := ms.vmFactory(cfg, id)
+	cvm := ms.vmFactory(cfg, id, ms.logger)
 	if err = cvm.Start(); err != nil {
 		return "", id, err
 	}
@@ -350,7 +350,7 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm := ms.vmFactory(state.VMinfo, state.ID)
+		cvm := ms.vmFactory(state.VMinfo, state.ID, ms.logger)
 
 		if err = cvm.SetProcess(state.PID); err != nil {
 			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)
