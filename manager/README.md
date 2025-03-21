@@ -19,7 +19,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_GRPC_SERVER_CA_CERTS               | The file path for the server CA certificate(s).                                                                  |                                |
 | MANAGER_GRPC_URL                           | The URL for the gRPC endpoint.                                                                                   | localhost:7001                 |
 | MANAGER_GRPC_TIMEOUT                       | The timeout for gRPC requests.                                                                                   | 60s                            |
-| MANAGER_EOS_VERSION                        | The EOS version used for booting SVMs.                                                                           |                                |
+| MANAGER_EOS_VERSION                        | The EOS version used for booting CVMs.                                                                           |                                |
 | MANAGER_INSTANCE_ID                        | Manager service instance ID                                                                                      |                                |
 | MANAGER_QEMU_MEMORY_SIZE                   | The total memory size for the virtual machine. Can be specified in a human-readable format like "2048M" or "4G". | 2048M                          |
 | MANAGER_QEMU_MEMORY_SLOTS                  | The number of memory slots for the virtual machine.                                                              | 5                              |

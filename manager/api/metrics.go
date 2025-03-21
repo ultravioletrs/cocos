@@ -59,11 +59,11 @@ func (ms *metricsMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId s
 	return ms.svc.FetchAttestationPolicy(ctx, cmpId)
 }
 
-func (ms *metricsMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+func (ms *metricsMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, string, string) {
 	defer func(begin time.Time) {
-		ms.counter.With("method", "ReturnSVMInfo").Add(1)
-		ms.latency.With("method", "ReturnSVMInfo").Observe(time.Since(begin).Seconds())
+		ms.counter.With("method", "ReturnCVMInfo").Add(1)
+		ms.latency.With("method", "ReturnCVMInfo").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return ms.svc.ReturnSVMInfo(ctx)
+	return ms.svc.ReturnCVMInfo(ctx)
 }

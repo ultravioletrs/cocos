@@ -3,6 +3,7 @@
 package qemu
 
 import (
+	"log/slog"
 	"os"
 	"os/exec"
 	"testing"
@@ -17,7 +18,7 @@ const testComputationID = "test-computation"
 func TestNewVM(t *testing.T) {
 	config := VMInfo{Config: Config{}}
 
-	vm := NewVM(config, testComputationID)
+	vm := NewVM(config, testComputationID, slog.Default())
 
 	assert.NotNil(t, vm)
 	assert.IsType(t, &qemuVM{}, vm)
@@ -36,7 +37,7 @@ func TestStart(t *testing.T) {
 		QemuBinPath: "echo",
 	}}
 
-	vm := NewVM(config, testComputationID).(*qemuVM)
+	vm := NewVM(config, testComputationID, slog.Default()).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)
@@ -59,7 +60,7 @@ func TestStartSudo(t *testing.T) {
 		UseSudo:     true,
 	}}
 
-	vm := NewVM(config, testComputationID).(*qemuVM)
+	vm := NewVM(config, testComputationID, slog.Default()).(*qemuVM)
 
 	err = vm.Start()
 	assert.NoError(t, err)

@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -33,13 +33,15 @@ type agentServer struct {
 	logger *slog.Logger
 	svc    agent.Service
 	host   string
+	qp     client.LeveledQuoteProvider
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, host string) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string, qp client.LeveledQuoteProvider) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,
 		host:   host,
+		qp:     qp,
 	}
 }
 
@@ -73,15 +75,9 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 		return err
 	}
 
-	qp, err := quoteprovider.GetLeveledQuoteProvider()
-	if err != nil {
-		as.logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
-	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, qp, authSvc)
+	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, as.qp, authSvc)
 
 	go func() {
 		err := as.gs.Start()

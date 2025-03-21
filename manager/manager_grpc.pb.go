@@ -25,7 +25,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ManagerService_CreateVm_FullMethodName          = "/manager.ManagerService/CreateVm"
 	ManagerService_RemoveVm_FullMethodName          = "/manager.ManagerService/RemoveVm"
-	ManagerService_SVMInfo_FullMethodName           = "/manager.ManagerService/SVMInfo"
+	ManagerService_CVMInfo_FullMethodName           = "/manager.ManagerService/CVMInfo"
 	ManagerService_AttestationPolicy_FullMethodName = "/manager.ManagerService/AttestationPolicy"
 )
 
@@ -35,7 +35,7 @@ const (
 type ManagerServiceClient interface {
 	CreateVm(ctx context.Context, in *CreateReq, opts ...grpc.CallOption) (*CreateRes, error)
 	RemoveVm(ctx context.Context, in *RemoveReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	SVMInfo(ctx context.Context, in *SVMInfoReq, opts ...grpc.CallOption) (*SVMInfoRes, error)
+	CVMInfo(ctx context.Context, in *CVMInfoReq, opts ...grpc.CallOption) (*CVMInfoRes, error)
 	AttestationPolicy(ctx context.Context, in *AttestationPolicyReq, opts ...grpc.CallOption) (*AttestationPolicyRes, error)
 }
 
@@ -67,10 +67,10 @@ func (c *managerServiceClient) RemoveVm(ctx context.Context, in *RemoveReq, opts
 	return out, nil
 }
 
-func (c *managerServiceClient) SVMInfo(ctx context.Context, in *SVMInfoReq, opts ...grpc.CallOption) (*SVMInfoRes, error) {
+func (c *managerServiceClient) CVMInfo(ctx context.Context, in *CVMInfoReq, opts ...grpc.CallOption) (*CVMInfoRes, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SVMInfoRes)
-	err := c.cc.Invoke(ctx, ManagerService_SVMInfo_FullMethodName, in, out, cOpts...)
+	out := new(CVMInfoRes)
+	err := c.cc.Invoke(ctx, ManagerService_CVMInfo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (c *managerServiceClient) AttestationPolicy(ctx context.Context, in *Attest
 type ManagerServiceServer interface {
 	CreateVm(context.Context, *CreateReq) (*CreateRes, error)
 	RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error)
-	SVMInfo(context.Context, *SVMInfoReq) (*SVMInfoRes, error)
+	CVMInfo(context.Context, *CVMInfoReq) (*CVMInfoRes, error)
 	AttestationPolicy(context.Context, *AttestationPolicyReq) (*AttestationPolicyRes, error)
 	mustEmbedUnimplementedManagerServiceServer()
 }
@@ -111,8 +111,8 @@ func (UnimplementedManagerServiceServer) CreateVm(context.Context, *CreateReq) (
 func (UnimplementedManagerServiceServer) RemoveVm(context.Context, *RemoveReq) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveVm not implemented")
 }
-func (UnimplementedManagerServiceServer) SVMInfo(context.Context, *SVMInfoReq) (*SVMInfoRes, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SVMInfo not implemented")
+func (UnimplementedManagerServiceServer) CVMInfo(context.Context, *CVMInfoReq) (*CVMInfoRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CVMInfo not implemented")
 }
 func (UnimplementedManagerServiceServer) AttestationPolicy(context.Context, *AttestationPolicyReq) (*AttestationPolicyRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AttestationPolicy not implemented")
@@ -174,20 +174,20 @@ func _ManagerService_RemoveVm_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ManagerService_SVMInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SVMInfoReq)
+func _ManagerService_CVMInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CVMInfoReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ManagerServiceServer).SVMInfo(ctx, in)
+		return srv.(ManagerServiceServer).CVMInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ManagerService_SVMInfo_FullMethodName,
+		FullMethod: ManagerService_CVMInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagerServiceServer).SVMInfo(ctx, req.(*SVMInfoReq))
+		return srv.(ManagerServiceServer).CVMInfo(ctx, req.(*CVMInfoReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -226,8 +226,8 @@ var ManagerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ManagerService_RemoveVm_Handler,
 		},
 		{
-			MethodName: "SVMInfo",
-			Handler:    _ManagerService_SVMInfo_Handler,
+			MethodName: "CVMInfo",
+			Handler:    _ManagerService_CVMInfo_Handler,
 		},
 		{
 			MethodName: "AttestationPolicy",

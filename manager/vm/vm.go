@@ -3,6 +3,8 @@
 package vm
 
 import (
+	"log/slog"
+
 	"github.com/ultravioletrs/cocos/agent"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,7 +23,7 @@ type VM interface {
 	GetConfig() interface{}
 }
 
-type Provider func(config interface{}, computationId string) VM
+type Provider func(config interface{}, computationId string, logger *slog.Logger) VM
 
 type Event struct {
 	EventType     string

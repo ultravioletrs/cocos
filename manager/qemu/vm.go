@@ -4,6 +4,7 @@ package qemu
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"syscall"
@@ -30,17 +31,19 @@ type VMInfo struct {
 }
 
 type qemuVM struct {
-	vmi           VMInfo
-	cmd           *exec.Cmd
-	computationId string
+	vmi    VMInfo
+	cmd    *exec.Cmd
+	cvmId  string
+	logger *slog.Logger
 	vm.StateMachine
 }
 
-func NewVM(config interface{}, computationId string) vm.VM {
+func NewVM(config interface{}, cvmId string, logger *slog.Logger) vm.VM {
 	return &qemuVM{
-		vmi:           config.(VMInfo),
-		computationId: computationId,
-		StateMachine:  vm.NewStateMachine(),
+		vmi:          config.(VMInfo),
+		cvmId:        cvmId,
+		StateMachine: vm.NewStateMachine(),
+		logger:       logger,
 	}
 }
 
@@ -76,8 +79,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.cmd = exec.Command(exe, args...)
-	v.cmd.Stdout = os.Stdout
-	v.cmd.Stderr = os.Stderr
+	v.cmd.Stdout = &vm.Stdout{StateMachine: v.StateMachine, Logger: v.logger.With(slog.String("cvm", v.cvmId))}
+	v.cmd.Stderr = &vm.Stderr{StateMachine: v.StateMachine, Logger: v.logger.With(slog.String("cvm", v.cvmId))}
 
 	return v.cmd.Start()
 }
