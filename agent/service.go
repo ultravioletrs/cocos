@@ -215,6 +215,8 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 	as.mu.Lock()
 	defer as.mu.Unlock()
 
+	as.eventSvc.SendEvent(as.computation.ID, "Stopped", "Stopped", json.RawMessage{})
+
 	as.cancel()
 
 	if as.algorithm != nil {
