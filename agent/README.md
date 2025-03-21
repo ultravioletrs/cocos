@@ -6,15 +6,16 @@ Agent service provides a barebones HTTP and gRPC API and Service interface imple
 
 The service is configured using the environment variables from the following table. Note that any unset variables will be replaced with their default values.
 
-| Variable                       | Description                                            | Default                        |
-| ------------------------------ | ------------------------------------------------------ | ------------------------------ |
-| AGENT_LOG_LEVEL                | Log level for agent service (debug, info, warn, error) | debug                          |
-| AGENT_CVM_GRPC_HOST            | Agent service gRPC host                                | ""                             |
-| AGENT_CVM_GRPC_PORT            | Agent service gRPC port                                | 7001                           |
-| AGENT_CVM_GRPC_SERVER_CERT     | Path to gRPC server certificate in pem format          | ""                             |
-| AGENT_CVM_GRPC_SERVER_KEY      | Path to gRPC server key in pem format                  | ""                             |
-| AGENT_CVM_GRPC_SERVER_CA_CERTS | Path to gRPC server CA certificate                     | ""                             |
-| AGENT_CVM_GRPC_CLIENT_CA_CERTS | Path to gRPC client CA certificate                     | ""                             |
+| Variable                       | Description                                                                | Default                        |
+| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------ |
+| AGENT_LOG_LEVEL                | Log level for agent service (debug, info, warn, error)                     | debug                          |
+| AGENT_CVM_GRPC_HOST            | Agent service gRPC host                                                    | ""                             |
+| AGENT_CVM_GRPC_PORT            | Agent service gRPC port                                                    | 7001                           |
+| AGENT_CVM_GRPC_SERVER_CERT     | Path to gRPC server certificate in pem format                              | ""                             |
+| AGENT_CVM_GRPC_SERVER_KEY      | Path to gRPC server key in pem format                                      | ""                             |
+| AGENT_CVM_GRPC_SERVER_CA_CERTS | Path to gRPC server CA certificate                                         | ""                             |
+| AGENT_CVM_GRPC_CLIENT_CA_CERTS | Path to gRPC client CA certificate                                         | ""                             |
+| AGENT_CA_URL                   | URL for CA service, if provided it will be used for certificate generation | ""                             |
 
 
 ## Deployment
