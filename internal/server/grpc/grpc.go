@@ -310,7 +310,7 @@ func generateCertificatesForATLS(caUrl string, cvmId string) ([]byte, []byte, er
 
 		certDERBytes = DERBytes
 	} else {
-		var csrmd = certs.CSRMetadata{
+		csrmd := certs.CSRMetadata{
 			Organization:  []string{organization},
 			Country:       []string{country},
 			Province:      []string{province},
