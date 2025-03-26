@@ -32,14 +32,16 @@ type agentServer struct {
 	gs     server.Server
 	logger *slog.Logger
 	svc    agent.Service
+	host   string
 	caUrl  string
 	cvmId  string
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, caUrl string, cvmId string) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string, caUrl string, cvmId string) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,
+		host:   host,
 		caUrl:  caUrl,
 		cvmId:  cvmId,
 	}
