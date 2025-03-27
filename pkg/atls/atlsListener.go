@@ -5,6 +5,7 @@ package atls
 
 // #cgo LDFLAGS: -lssl -lcrypto
 // #include "extensions.h"
+// #include <string.h>
 import "C"
 
 import (
@@ -20,6 +21,7 @@ import (
 	"unsafe"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
@@ -134,6 +136,11 @@ func callFetchAttestationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKe
 	C.memcpy(resultC, unsafe.Pointer(&quote[0]), C.size_t(len(quote)))
 
 	return (*C.uchar)(resultC)
+}
+
+//export returnCCPlatformType
+func returnCCPlatformType() int32 {
+	return int32(config.CCPlatform())
 }
 
 type ATLSServerListener struct {
