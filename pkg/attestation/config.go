@@ -5,6 +5,9 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -18,6 +21,20 @@ const (
 	SNP AttestationType = iota
 	VTPM
 	SNPvTPM
+)
+
+type ConfidentialComputing int
+
+const (
+	SEVSNP ConfidentialComputing = iota
+	Azure
+	NoCC
+)
+
+const (
+	devSnp           = "/dev/sev-guest"
+	azureMetadataUrl = "http://169.254.169.254/metadata/instance"
+	azureApiVersion  = "2021-02-01"
 )
 
 var (
@@ -68,4 +85,46 @@ func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *
 	}
 
 	return nil
+}
+
+// CCPlatform returns the type of the confidential computing platform.
+func CCPlatform() ConfidentialComputing {
+	if checkSEVSNP() {
+		return SEVSNP
+	}
+
+	if isAzureVM() {
+		return Azure
+	}
+
+	return NoCC
+}
+
+func checkSEVSNP() bool {
+	if _, err := os.Stat("/dev/sev-snp"); err == nil {
+		return true
+	}
+
+	return false
+}
+
+func isAzureVM() bool {
+	client := &http.Client{}
+	url := fmt.Sprintf("%s?api-version=%s", azureMetadataUrl, azureApiVersion)
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Metadata", "true")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return len(body) > 0
+	}
+
+	return false
 }
