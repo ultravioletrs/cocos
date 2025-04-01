@@ -32,6 +32,7 @@ import (
 	attestationconfig "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
@@ -83,12 +84,14 @@ func main() {
 	}
 
 	var qp client.LeveledQuoteProvider
+	vtpmAttest := vtpm.Attest
 
 	if !sevGuesDeviceExists() {
 		logger.Info("SEV-SNP device not found")
 		qpMock := new(mocks.LeveledQuoteProvider)
 		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
 		qp = qpMock
+		vtpmAttest = vtpm.EmptyAttest
 	} else {
 		qp, err = quoteprovider.GetLeveledQuoteProvider()
 		if err != nil {
@@ -136,7 +139,7 @@ func main() {
 		return
 	}
 
-	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl)
+	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl, vtpmAttest)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -144,7 +147,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost), storageDir, reconnectFn)
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, qp), storageDir, reconnectFn)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -191,8 +194,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, qp, vmpl)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int, vtpmAttest vtpm.VtpmAttest) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, qp, vmpl, vtpmAttest)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")

@@ -12,7 +12,7 @@ option go_package = "./manager";
 service ManagerService {
   rpc CreateVm(CreateReq) returns (CreateRes) {}
   rpc RemoveVm(RemoveReq) returns (google.protobuf.Empty) {}
-  rpc SVMInfo(SVMInfoReq) returns (SVMInfoRes) {}
+  rpc CVMInfo(CVMInfoReq) returns (CVMInfoRes) {}
   rpc AttestationPolicy(AttestationPolicyReq) returns (AttestationPolicyRes) {}
 }
 
@@ -26,11 +26,11 @@ message CreateReq{
 
 message CreateRes{
   string forwarded_port = 1;
-  string svm_id = 2;
+  string cvm_id = 2;
 }
 
 message RemoveReq{
-  string svm_id = 1;
+  string cvm_id = 1;
 }
 
 message AttestationPolicyRes{
@@ -38,7 +38,7 @@ message AttestationPolicyRes{
   string id = 2;
 }
 
-message SVMInfoRes{
+message CVMInfoRes{
   string id = 1;
   string ovmf_version = 2;
   int32 cpu_num = 3;
@@ -51,7 +51,7 @@ message AttestationPolicyReq {
   string id = 1;
 }
 
-message SVMInfoReq {
+message CVMInfoReq {
   string id = 1;
 }
 

@@ -78,8 +78,8 @@ type Service interface {
 	RemoveVM(ctx context.Context, computationID string) error
 	// FetchAttestationPolicy measures and fetches the attestation policy.
 	FetchAttestationPolicy(ctx context.Context, computationID string) ([]byte, error)
-	// ReturnSVMInfo returns SVM information needed for attestation verification and validation.
-	ReturnSVMInfo(ctx context.Context) (string, int, string, string)
+	// ReturnCVMInfo returns CVM information needed for attestation verification and validation.
+	ReturnCVMInfo(ctx context.Context) (string, int, string, string)
 }
 
 type managerService struct {
@@ -216,7 +216,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
 	}
 
-	cvm := ms.vmFactory(cfg, id)
+	cvm := ms.vmFactory(cfg, id, ms.logger)
 	if err = cvm.Start(); err != nil {
 		return "", id, err
 	}
@@ -263,7 +263,7 @@ func (ms *managerService) RemoveVM(ctx context.Context, computationID string) er
 	return nil
 }
 
-func (ms *managerService) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+func (ms *managerService) ReturnCVMInfo(ctx context.Context) (string, int, string, string) {
 	return ms.qemuCfg.OVMFCodeConfig.Version, ms.qemuCfg.SMPCount, ms.qemuCfg.CPU, ms.eosVersion
 }
 
@@ -350,7 +350,7 @@ func (ms *managerService) restoreVMs() error {
 			continue
 		}
 
-		cvm := ms.vmFactory(state.VMinfo, state.ID)
+		cvm := ms.vmFactory(state.VMinfo, state.ID, ms.logger)
 
 		if err = cvm.SetProcess(state.PID); err != nil {
 			ms.logger.Warn("Failed to reattach to process", "computation", state.ID, "pid", state.PID, "error", err)

@@ -121,7 +121,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, qp, 0)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -365,7 +365,7 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)

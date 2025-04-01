@@ -77,7 +77,7 @@ func TestSendAlgorithm(t *testing.T) {
 			req, err = os.Open(req.Name())
 			assert.NoError(t, err)
 
-			algoStream := new(mocks.AgentService_AlgoClient)
+			algoStream := new(mocks.AgentService_AlgoClient[agent.AlgoRequest, agent.AlgoResponse])
 			algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
@@ -141,7 +141,7 @@ func TestSendData(t *testing.T) {
 			dataset, err = os.Open(dataset.Name())
 			assert.NoError(t, err)
 
-			dataStream := new(mocks.AgentService_DataClient)
+			dataStream := new(mocks.AgentService_DataClient[agent.DataRequest, agent.DataResponse])
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}

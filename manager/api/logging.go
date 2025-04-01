@@ -67,11 +67,11 @@ func (lm *loggingMiddleware) FetchAttestationPolicy(ctx context.Context, cmpId s
 	return lm.svc.FetchAttestationPolicy(ctx, cmpId)
 }
 
-func (lm *loggingMiddleware) ReturnSVMInfo(ctx context.Context) (string, int, string, string) {
+func (lm *loggingMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, string, string) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method ReturnSVMInfo for computation took %s to complete", time.Since(begin))
+		message := fmt.Sprintf("Method ReturnCVMInfo for computation took %s to complete", time.Since(begin))
 		lm.logger.Info(message)
 	}(time.Now())
 
-	return lm.svc.ReturnSVMInfo(ctx)
+	return lm.svc.ReturnCVMInfo(ctx)
 }
