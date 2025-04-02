@@ -225,8 +225,6 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 		}
 	}
 
-	sm := statemachine.NewStateMachine(Idle)
-
 	if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
 		return fmt.Errorf("error removing datasets directory: %v", err)
 	}
@@ -235,12 +233,23 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 		return fmt.Errorf("error removing results directory: %v", err)
 	}
 
-	as.sm = sm
+	as.sm.Reset(Idle)
+
 	as.computation = Computation{}
 	as.algorithm = nil
 	as.result = nil
 	as.runError = nil
 	as.resultsConsumed = false
+
+	ctx, cancel := context.WithCancel(ctx)
+	as.cancel = cancel
+
+	go func() {
+		if err := as.sm.Start(ctx); err != nil {
+			as.logger.Error(err.Error())
+		}
+	}()
+	as.sm.SendEvent(Start)
 
 	return nil
 }

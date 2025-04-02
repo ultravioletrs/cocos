@@ -30,6 +30,7 @@ type StateMachine interface {
 	GetState() State
 	SendEvent(event Event)
 	Start(ctx context.Context) error
+	Reset(initialState State)
 }
 
 type stateMachine struct {
@@ -87,6 +88,20 @@ func (sm *stateMachine) Start(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+}
+
+func (sm *stateMachine) Reset(initialState State) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	// Reset current state to initial state
+	sm.currentState = initialState
+
+	// Close the existing event channel to stop processing events
+	close(sm.eventChan)
+
+	// Create a new event channel
+	sm.eventChan = make(chan Event)
 }
 
 func (sm *stateMachine) handleEvent(event Event) error {
