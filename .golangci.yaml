@@ -1,84 +1,100 @@
-run:
-  timeout: 3m
-
-issues:
-  max-issues-per-linter: 10
-  max-same-issues: 10
-  exclude-rules:
-    - linters:
-        - makezero
-      text: "with non-zero initialized length"
-
-linters-settings:
-  importas:
-    no-unaliased: true
-    no-extra-aliases: false
-    alias:
-      - pkg: github.com/absmach/magistrala/logger
-        alias: mglog
-
-  gocritic:
-    enabled-checks:
-      - dupImport
-      - importShadow
-      - httpNoBody
-      - paramTypeCombine
-      - emptyStringTest
-      - builtinShadow
-      - exposedSyncMutex
-    disabled-checks:
-      - appendAssign
-    enabled-tags:
-      - diagnostic
-    disabled-tags:
-      - performance
-      - style
-      - experimental
-      - opinionated
-  stylecheck:
-    checks: ["-ST1000", "-ST1003", "-ST1020", "-ST1021", "-ST1022"]
-  goheader:
-    template: |-
-      Copyright (c) Ultraviolet
-      SPDX-License-Identifier: Apache-2.0
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - importas
-    - gocritic
-    - gosimple
-    - errcheck
-    - govet
-    - unused
-    - goconst
-    - godot
-    - godox
-    - ineffassign
-    - misspell
-    - stylecheck
-    - whitespace
-    - gci
-    - gofmt
-    - goimports
-    - loggercheck
-    - goheader
     - asasalint
     - asciicheck
     - bidichk
     - contextcheck
+    - copyloopvar
     - decorder
     - dogsled
+    - dupword
+    - errcheck
     - errchkjson
     - errname
-    - copyloopvar
     - ginkgolinter
     - gocheckcompilerdirectives
-    - gofumpt
+    - goconst
+    - gocritic
+    - godot
+    - godox
+    - goheader
     - goprintffuncname
+    - govet
     - importas
+    - ineffassign
+    - loggercheck
     - makezero
     - mirror
+    - misspell
     - nakedret
-    - dupword
-
+    - staticcheck
+    - unused
+    - whitespace
+  settings:
+    gocritic:
+      enabled-checks:
+        - dupImport
+        - importShadow
+        - httpNoBody
+        - paramTypeCombine
+        - emptyStringTest
+        - builtinShadow
+        - exposedSyncMutex
+      disabled-checks:
+        - appendAssign
+      enabled-tags:
+        - diagnostic
+      disabled-tags:
+        - performance
+        - style
+        - experimental
+        - opinionated
+    goheader:
+      template: |-
+        Copyright (c) Ultraviolet
+        SPDX-License-Identifier: Apache-2.0
+    importas:
+      alias:
+        - pkg: github.com/absmach/magistrala/logger
+          alias: mglog
+      no-unaliased: true
+      no-extra-aliases: false
+    staticcheck:
+      checks:
+        - -ST1000
+        - -ST1003
+        - -ST1020
+        - -ST1021
+        - -ST1022
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - makezero
+        text: with non-zero initialized length
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 10
+  max-same-issues: 10
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
