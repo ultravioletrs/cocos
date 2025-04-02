@@ -9,8 +9,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -26,9 +28,40 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) 
 		return nil, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
 	}
 
+	var insecureSkipVerify bool = true
+	var rootCAs *x509.CertPool = nil
+
+	if len(cfg.ServerCAFile) > 0 {
+		insecureSkipVerify = false
+
+		// Read the certificate file
+		certPEM, err := os.ReadFile(cfg.ServerCAFile)
+		if err != nil {
+			return nil, errors.Wrap(fmt.Errorf("failed to read certificate file"), err)
+		}
+
+		// Decode the PEM block
+		block, _ := pem.Decode(certPEM)
+		if block == nil {
+			return nil, fmt.Errorf("failed to decode PEM block")
+		}
+
+		// Parse the certificate
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, errors.Wrap(fmt.Errorf("failed to parse certificate"), err)
+		}
+
+		rootCAs = x509.NewCertPool()
+		rootCAs.AddCert(cert)
+	}
+
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify:    true,
-		VerifyPeerCertificate: verifyPeerCertificateATLS,
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            rootCAs,
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPeerCertificateATLS(rawCerts, verifiedChains, cfg)
+		},
 	}
 	return credentials.NewTLS(tlsConfig), nil
 }
@@ -52,7 +85,11 @@ func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate, cfg AgentClientConfig) error {
+	if len(cfg.ServerCAFile) > 0 {
+		return nil
+	}
+
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
 		return errors.Wrap(errCertificateParse, err)

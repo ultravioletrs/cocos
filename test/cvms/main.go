@@ -5,11 +5,13 @@ package main
 import (
 	"context"
 	"encoding/pem"
+	"flag"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
@@ -32,10 +34,14 @@ const (
 )
 
 var (
-	algoPath    = "./test/manual/algo/lin_reg.py"
-	dataPaths   []string
-	attestedTLS = false
-	pubKeyFile  string
+	algoPath          string
+	dataPathString    string
+	dataPaths         []string
+	attestedTLSString string
+	attestedTLS       bool
+	pubKeyFile        string
+	caUrl             string
+	cvmId             string
 )
 
 type svc struct {
@@ -95,19 +101,65 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 }
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>", os.Args[0])
-	}
-	algoPath = os.Args[1]
-	pubKeyFile = os.Args[2]
-	attestedTLSParam, err := strconv.ParseBool(os.Args[3])
-	if err != nil {
-		log.Fatalf("usage: %s <algo-path> <public-key-path> <attested-tls-bool> <data-paths>, <attested-tls-bool> must be a bool value", os.Args[0])
-	}
-	attestedTLS = attestedTLSParam
+	flagSet := flag.NewFlagSet("tests/cvms/main.go", flag.ContinueOnError)
+	flagSet.StringVar(&algoPath, "algo-path", "", "Path to the algorithm")
+	flagSet.StringVar(&pubKeyFile, "public-key-path", "", "Path to the public key file")
+	flagSet.StringVar(&attestedTLSString, "attested-tls-bool", "", "Should aTLS be used, must be 'true' or 'false'")
+	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas")
+	flagSet.StringVar(&caUrl, "ca-url", "", "URL for certificate authority, must be specified if aTLS is used")
+	flagSet.StringVar(&cvmId, "cvm-id", "", "UUID for a CVM, must be specified if aTLS is used")
 
-	for i := 4; i < len(os.Args); i++ {
-		dataPaths = append(dataPaths, os.Args[i])
+	flagSetParseError := flagSet.Parse(os.Args[1:])
+	if flagSetParseError != nil {
+		log.Fatalf("Error parsing flagas: %v", flagSetParseError)
+	}
+
+	parsingError := !flagSet.Parsed()
+	var parsingErrorString strings.Builder
+
+	parsingErrorString.WriteString("\n")
+
+	if algoPath == "" {
+		parsingErrorString.WriteString("Algorithm path is required\n")
+		parsingError = true
+	}
+
+	if pubKeyFile == "" {
+		parsingErrorString.WriteString("Public key path is required\n")
+		parsingError = true
+	}
+
+	attestedTLSBoolValue, err := strconv.ParseBool(attestedTLSString)
+	if err != nil {
+		parsingErrorString.WriteString("Attested TLS flag is required and it must be a boolean value\n")
+		parsingError = true
+		attestedTLS = false
+	} else {
+		attestedTLS = attestedTLSBoolValue
+	}
+
+	if dataPathString == "" {
+		parsingErrorString.WriteString("Date source paths are required\n")
+		parsingError = true
+	} else {
+		dataPaths = strings.Split(dataPathString, ",")
+	}
+
+	if err == nil && attestedTLS && caUrl == "" {
+		parsingErrorString.WriteString("CA URL is required if attested TLS is used\n")
+		parsingError = true
+	}
+
+	if err == nil && attestedTLS && cvmId == "" {
+		parsingErrorString.WriteString("CVM UUID is required if attested TLS is used\n")
+		parsingError = true
+	}
+
+	if parsingError {
+		parsingErrorString.WriteString("Usage :\n")
+		flagSet.SetOutput(&parsingErrorString)
+		flagSet.PrintDefaults()
+		log.Fatal(parsingErrorString.String())
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -139,7 +191,7 @@ func main() {
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil, nil)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil, nil, caUrl, cvmId)
 
 	g.Go(func() error {
 		return gs.Start()

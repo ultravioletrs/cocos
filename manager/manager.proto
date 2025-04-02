@@ -22,6 +22,7 @@ message CreateReq{
   bytes agent_cvm_client_key = 3;
   bytes agent_cvm_client_cert = 4;
   string agent_cvm_server_url = 5;
+  string agent_cvm_ca_url = 6;
 }
 
 message CreateRes{

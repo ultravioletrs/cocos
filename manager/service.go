@@ -35,6 +35,8 @@ const (
 	agentCvmClientCertKey   = "AGENT_CVM_GRPC_CLIENT_CERT"
 	agentCvmClientKey       = "AGENT_CVM_GRPC_CLIENT_KEY"
 	agentCvmServerCaCertKey = "AGENT_CVM_GRPC_SERVER_CA_CERTS"
+	agentCvmId              = "AGENT_CVM_ID"
+	agentCvmCaUrl           = "AGENT_CVM_CA_URL"
 	defClientCertPath       = "/etc/certs/cert.pem"
 	defClientKeyPath        = "/etc/certs/key.pem"
 	defServerCaCertPath     = "/etc/certs/ca.pem"
@@ -414,6 +416,8 @@ func tmpEnvironment(id string, req *CreateReq) (string, error) {
 	envMap := map[string]string{
 		agentLogLevelKey:   req.AgentLogLevel,
 		agentCvmGrpcUrlKey: req.AgentCvmServerUrl,
+		agentCvmId:         id,
+		agentCvmCaUrl:      req.AgentCvmCaUrl,
 	}
 
 	if req.AgentCvmClientCert != nil {

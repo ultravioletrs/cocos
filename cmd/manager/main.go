@@ -112,7 +112,7 @@ func main() {
 		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(svc))
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, nil)
+	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, nil, "", "")
 
 	g.Go(func() error {
 		return gs.Start()

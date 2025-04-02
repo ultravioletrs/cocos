@@ -15,6 +15,7 @@ const (
 	serverCA  = "server-ca"
 	clientKey = "client-key"
 	clientCrt = "client-crt"
+	caUrl     = "ca-url"
 	logLevel  = "log-level"
 )
 
@@ -23,6 +24,7 @@ var (
 	agentCVMServerCA  string
 	agentCVMClientKey string
 	agentCVMClientCrt string
+	agentCVMCaUrl     string
 	agentLogLevel     string
 )
 
@@ -47,6 +49,7 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 
 			createReq.AgentCvmServerUrl = agentCVMServerUrl
 			createReq.AgentLogLevel = agentLogLevel
+			createReq.AgentCvmCaUrl = agentCVMCaUrl
 
 			cmd.Println("🔗 Creating a new virtual machine")
 
@@ -64,6 +67,7 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().StringVar(&agentCVMServerCA, serverCA, "", "CVM server CA")
 	cmd.Flags().StringVar(&agentCVMClientKey, clientKey, "", "CVM client key")
 	cmd.Flags().StringVar(&agentCVMClientCrt, clientCrt, "", "CVM client crt")
+	cmd.Flags().StringVar(&agentCVMCaUrl, agentCVMCaUrl, "", "CVM CA service URL")
 	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
 
 	return cmd
