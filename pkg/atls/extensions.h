@@ -11,13 +11,8 @@
 #define TLS_CLIENT_CTX 0
 #define TLS_SERVER_CTX 1
 
-#define SEV_GUEST_DRIVER_PATH "/dev/sev-guest"
-#define NO_TEE 0
-#define AMD_TEE 1
-
 typedef struct evidence_request
 {
-    int tee_type;
     char vtpm_nonce[CLIENT_RANDOM_SIZE];
     char tee_nonce[REPORT_DATA_SIZE];
 } evidence_request;
@@ -26,6 +21,7 @@ typedef struct tls_extension_data
 {
     uintptr_t fetch_attestation_handler;
     uintptr_t verification_validation_handler;
+    int tee_type;
     evidence_request er;
 } tls_extension_data;
 
