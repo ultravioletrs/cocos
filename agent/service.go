@@ -447,6 +447,19 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 	}
 }
 
+func (as *agentService) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+	switch attType {
+	case config.AzureToken:
+		token, err := as.fetchAzureToken(nonce[:])
+		if err != nil {
+			return []byte{}, err
+		}
+		return token, nil
+	default:
+		return []byte{}, ErrAttestationType
+	}
+}
+
 func (as *agentService) runComputation(state statemachine.State) {
 	as.publishEvent(Starting.String())(state)
 	as.logger.Debug("computation run started")

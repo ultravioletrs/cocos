@@ -131,3 +131,29 @@ func (lm *loggingMiddleware) IMAMeasurements(ctx context.Context) (file []byte, 
 
 	return lm.svc.IMAMeasurements(ctx)
 }
+
+func (lm *loggingMiddleware) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) (response []byte, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.AttestationResult(ctx, nonce, attType)
+}
+
+func (lm *loggingMiddleware) IMAMeasurements(ctx context.Context) (file []byte, pcr10 []byte, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method IMAMeasurements took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.IMAMeasurements(ctx)
+}

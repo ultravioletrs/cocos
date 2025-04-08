@@ -198,6 +198,15 @@ func main() {
 		},
 	}
 
+	eventsLogsQueue <- &cvms.ClientStreamMessage{
+		Message: &cvms.ClientStreamMessage_AzureAttestationResult{
+			AzureAttestationResult: &cvms.AzureAttestationResponse{
+				File:             azureAttestationResult,
+				CertSerialNumber: azureCertSerialNumber,
+			},
+		},
+	}
+
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}

@@ -135,6 +135,66 @@ func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]b
 	return _c
 }
 
+// AttestationResult provides a mock function with given fields: ctx, nonce, attType
+func (_m *Service) AttestationResult(ctx context.Context, nonce [32]byte, attType config.AttestationType) ([]byte, error) {
+	ret := _m.Called(ctx, nonce, attType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttestationResult")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) ([]byte, error)); ok {
+		return rf(ctx, nonce, attType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) []byte); ok {
+		r0 = rf(ctx, nonce, attType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, config.AttestationType) error); ok {
+		r1 = rf(ctx, nonce, attType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Service_AttestationResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttestationResult'
+type Service_AttestationResult_Call struct {
+	*mock.Call
+}
+
+// AttestationResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce [32]byte
+//   - attType config.AttestationType
+func (_e *Service_Expecter) AttestationResult(ctx interface{}, nonce interface{}, attType interface{}) *Service_AttestationResult_Call {
+	return &Service_AttestationResult_Call{Call: _e.mock.On("AttestationResult", ctx, nonce, attType)}
+}
+
+func (_c *Service_AttestationResult_Call) Run(run func(ctx context.Context, nonce [32]byte, attType config.AttestationType)) *Service_AttestationResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([32]byte), args[2].(config.AttestationType))
+	})
+	return _c
+}
+
+func (_c *Service_AttestationResult_Call) Return(_a0 []byte, _a1 error) *Service_AttestationResult_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Service_AttestationResult_Call) RunAndReturn(run func(context.Context, [32]byte, config.AttestationType) ([]byte, error)) *Service_AttestationResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Data provides a mock function with given fields: ctx, dataset
 func (_m *Service) Data(ctx context.Context, dataset agent.Dataset) error {
 	ret := _m.Called(ctx, dataset)
@@ -178,6 +238,133 @@ func (_c *Service_Data_Call) Return(_a0 error) *Service_Data_Call {
 }
 
 func (_c *Service_Data_Call) RunAndReturn(run func(context.Context, agent.Dataset) error) *Service_Data_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IMAMeasurements provides a mock function with given fields: ctx
+func (_m *Service) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IMAMeasurements")
+	}
+
+	var r0 []byte
+	var r1 []byte
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]byte, []byte, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []byte); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) []byte); ok {
+		r1 = rf(ctx)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// Service_IMAMeasurements_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IMAMeasurements'
+type Service_IMAMeasurements_Call struct {
+	*mock.Call
+}
+
+// IMAMeasurements is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Service_Expecter) IMAMeasurements(ctx interface{}) *Service_IMAMeasurements_Call {
+	return &Service_IMAMeasurements_Call{Call: _e.mock.On("IMAMeasurements", ctx)}
+}
+
+func (_c *Service_IMAMeasurements_Call) Run(run func(ctx context.Context)) *Service_IMAMeasurements_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Service_IMAMeasurements_Call) Return(_a0 []byte, _a1 []byte, _a2 error) *Service_IMAMeasurements_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *Service_IMAMeasurements_Call) RunAndReturn(run func(context.Context) ([]byte, []byte, error)) *Service_IMAMeasurements_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FetchAttestationResult provides a mock function with given fields: ctx, nonce, attType
+func (_m *Service) FetchAttestationResult(ctx context.Context, nonce [32]byte, attType config.AttestationType) ([]byte, error) {
+	ret := _m.Called(ctx, nonce, attType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchAttestationResult")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) ([]byte, error)); ok {
+		return rf(ctx, nonce, attType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) []byte); ok {
+		r0 = rf(ctx, nonce, attType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, config.AttestationType) error); ok {
+		r1 = rf(ctx, nonce, attType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Service_FetchAttestationResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchAttestationResult'
+type Service_FetchAttestationResult_Call struct {
+	*mock.Call
+}
+
+// FetchAttestationResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce [32]byte
+//   - attType config.AttestationType
+func (_e *Service_Expecter) FetchAttestationResult(ctx interface{}, nonce interface{}, attType interface{}) *Service_FetchAttestationResult_Call {
+	return &Service_FetchAttestationResult_Call{Call: _e.mock.On("FetchAttestationResult", ctx, nonce, attType)}
+}
+
+func (_c *Service_FetchAttestationResult_Call) Run(run func(ctx context.Context, nonce [32]byte, attType config.AttestationType)) *Service_FetchAttestationResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([32]byte), args[2].(config.AttestationType))
+	})
+	return _c
+}
+
+func (_c *Service_FetchAttestationResult_Call) Return(_a0 []byte, _a1 error) *Service_FetchAttestationResult_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Service_FetchAttestationResult_Call) RunAndReturn(run func(context.Context, [32]byte, config.AttestationType) ([]byte, error)) *Service_FetchAttestationResult_Call {
 	_c.Call.Return(run)
 	return _c
 }

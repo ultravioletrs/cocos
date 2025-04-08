@@ -95,3 +95,33 @@ func imaMeasurementsEndpoint(svc agent.Service) endpoint.Endpoint {
 		return imaMeasurementsRes{File: file, PCR10: pcr10}, nil
 	}
 }
+
+func AttestationResultEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(FetchAttestationResultReq)
+		if err := req.validate(); err != nil {
+			return fetchAttestationResultRes{}, err
+		}
+		file, err := svc.AttestationResult(ctx, req.tokenNonce, config.AttestationType(req.AttType))
+		if err != nil {
+			return fetchAttestationResultRes{}, err
+		}
+		return fetchAttestationResultRes{File: file}, nil
+	}
+}
+
+func imaMeasurementsEndpoint(svc agent.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(imaMeasurementsReq)
+
+		if err := req.validate(); err != nil {
+			return imaMeasurementsRes{}, err
+		}
+		file, pcr10, err := svc.IMAMeasurements(ctx)
+		if err != nil {
+			return imaMeasurementsRes{}, err
+		}
+
+		return imaMeasurementsRes{File: file, PCR10: pcr10}, nil
+	}
+}

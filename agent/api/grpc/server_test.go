@@ -165,6 +165,21 @@ func TestAttestation(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+func TestAttestationResult(t *testing.T) {
+	mockService := new(mocks.Service)
+	server := NewServer(mockService)
+
+	vtpmNonce := [vtpm.Nonce]byte{}
+	attestationType := config.SNP
+	mockService.On("AttestationResult", mock.Anything, vtpmNonce, attestationType).Return([]byte("attestation data"), nil)
+
+	resp, err := server.AttestationResult(context.Background(), &agent.AttestationResultRequest{TokenNonce: vtpmNonce[:]})
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("attestation data"), resp.File)
+
+	mockService.AssertExpectations(t)
+}
+
 func TestDecodeAlgoRequest(t *testing.T) {
 	req := &agent.AlgoRequest{Algorithm: []byte("algo"), Requirements: []byte("req")}
 	decoded, err := decodeAlgoRequest(context.Background(), req)
@@ -215,4 +230,18 @@ func TestEncodeAttestationResponse(t *testing.T) {
 	encoded, err := encodeAttestationResponse(context.Background(), attestationRes{File: []byte("attestation")})
 	assert.NoError(t, err)
 	assert.Equal(t, &agent.AttestationResponse{File: []byte("attestation")}, encoded)
+}
+
+func TestEncodeAttestationResultResponse(t *testing.T) {
+	encoded, err := encodeAttestationResultResponse(context.Background(), fetchAttestationResultRes{File: []byte("attestation")})
+	assert.NoError(t, err)
+	assert.Equal(t, &agent.AttestationResultResponse{File: []byte("attestation")}, encoded)
+}
+
+func TestDecodeAttestationResultRequest(t *testing.T) {
+	nonce := [vtpm.Nonce]byte{}
+	req := &agent.AttestationResultRequest{TokenNonce: nonce[:]}
+	decoded, err := decodeAttestationResultRequest(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, FetchAttestationResultReq{tokenNonce: nonce}, decoded)
 }

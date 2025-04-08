@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
@@ -169,6 +170,58 @@ func TestAttestationEndpoint(t *testing.T) {
 					t.Errorf("attestationEndpoint() returned unexpected type %T", res)
 				}
 			}
+		})
+	}
+}
+
+func TestAttestationResultEndpoint(t *testing.T) {
+	svc := new(mocks.Service)
+	tests := []struct {
+		name        string
+		req         FetchAttestationResultReq
+		mockErr     error
+		expectedErr bool
+	}{
+		{
+			name:        "Success",
+			req:         FetchAttestationResultReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: config.AzureToken},
+			mockErr:     nil,
+			expectedErr: false,
+		},
+		{
+			name:        "Service Error",
+			req:         FetchAttestationResultReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: config.AzureToken},
+			mockErr:     errors.New("mock failure"),
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Only call service mock if validation is expected to pass
+			if err := tt.req.validate(); err == nil {
+				svc.On("AttestationResult", mock.Anything, tt.req.tokenNonce, config.AttestationType(tt.req.AttType)).
+					Return([]byte("mock file"), tt.mockErr).Once()
+			}
+
+			endpoint := attestationResultEndpoint(svc)
+			res, err := endpoint(context.Background(), tt.req)
+
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("attestationResultEndpoint() error = %v, expectedErr %v", err, tt.expectedErr)
+			}
+
+			if !tt.expectedErr {
+				r, ok := res.(fetchAttestationResultRes)
+				if !ok {
+					t.Errorf("attestationResultEndpoint() returned unexpected type %T", res)
+				}
+				if string(r.File) != "mock file" {
+					t.Errorf("expected file content 'mock file', got %s", r.File)
+				}
+			}
+
+			svc.AssertExpectations(t)
 		})
 	}
 }

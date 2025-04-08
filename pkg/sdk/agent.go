@@ -28,6 +28,8 @@ type SDK interface {
 	Result(ctx context.Context, privKey any, resultFile *os.File) error
 	Attestation(ctx context.Context, reportData [size64]byte, nonce [size32]byte, attType int, attestationFile *os.File) error
 	IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error)
+	AttestationResult(ctx context.Context, nonce [size32]byte, attType int, attestationFile *os.File) error
+	IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error)
 }
 
 const (
@@ -154,6 +156,25 @@ func (sdk *agentSDK) Attestation(ctx context.Context, reportData [size64]byte, n
 	pb := progressbar.New(true)
 
 	return pb.ReceiveAttestation(attestationProgressDescription, fileSize, stream, attestationFile)
+}
+
+func (sdk *agentSDK) AttestationResult(ctx context.Context, nonce [size32]byte, attType int, attestationResultFile *os.File) error {
+	request := &agent.AttestationResultRequest{
+		TokenNonce: nonce[:],
+		Type:       int32(attType),
+	}
+
+	result, err := sdk.client.AttestationResult(ctx, request)
+	if err != nil {
+		return errors.Wrap(errors.New("failed to fetch attestation token"), err)
+	}
+
+	_, err = attestationResultFile.Write(result.GetFile())
+	if err != nil {
+		return errors.Wrap(errors.New("failed to write attestation result to file"), err)
+	}
+
+	return nil
 }
 
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {
