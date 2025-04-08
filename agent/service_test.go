@@ -392,7 +392,7 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, provider, 0)
+			svc := New(ctx, mglog.NewMock(), events, nil, 0)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)

@@ -48,7 +48,7 @@ var (
 	ExternalTPM        io.ReadWriteCloser
 	ErrNoHashAlgo      = errors.New("hash algo is not supported")
 	ErrFetchQuote      = errors.New("failed to fetch vTPM quote")
-	ErrFetchAzureToken = errors.New("failed to fetch azure token")
+	ErrFetchAzureToken = errors.New("failed to fetch Azure token")
 	AzureURL           string
 )
 

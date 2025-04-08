@@ -21,6 +21,10 @@ func (e *EmptyProvider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	return cocosai.EmbeddedAttestation, nil
 }
 
+func (e *EmptyProvider) AzureAttestationToken(nonce []byte) ([]byte, error) {
+	return cocosai.EmbeddedAttestation, nil
+}
+
 func (e *EmptyProvider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 	return nil
 }

@@ -19,7 +19,6 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
-	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -89,6 +88,10 @@ func main() {
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
 
+	azureConfig := azure.NewEnvConfig()
+	azure.InitializeDefaultMAAVars(azureConfig)
+	vtpm.AzureURL = azureConfig.MaaURL
+
 	switch ccPlatform {
 	case attestation.SNP:
 		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
@@ -144,10 +147,6 @@ func main() {
 		return
 	}
 
-	azure.MaaURL = cfg.AgentMaaURL
-	maa.OSBuild = cfg.AgentOSBuild
-	maa.OSDistro = cfg.AgentOSDistro
-	maa.OSType = cfg.AgentOSType
 	svc := newService(ctx, logger, eventSvc, provider, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
