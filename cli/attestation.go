@@ -109,9 +109,10 @@ const (
 		}
 	}
 	`
-	SNP     = "snp"
-	VTPM    = "vtpm"
-	SNPvTPM = "snp-vtpm"
+	SNP        = "snp"
+	VTPM       = "vtpm"
+	SNPvTPM    = "snp-vtpm"
+	AzureToken = "azure-token"
 )
 
 var (
@@ -184,11 +185,12 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:       "get",
 		Short:     "Retrieve attestation information from agent. The argument of the command must be the type of the report (snp or vtpm or snp-vtpm).",
-		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM},
+		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM, AzureToken},
 		Example: fmt.Sprintf(`Based on attestation report type:
 		get %s --tee <512 bit hex value>
 		get %s --vtpm <256 bit hex value>
-		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>`, SNP, VTPM, SNPvTPM),
+		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>
+		get %s`, SNP, VTPM, SNPvTPM, AzureToken),
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -213,6 +215,9 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
 				attType = config.SNPvTPM
+			case AzureToken:
+				cmd.Println("Fetching Azure token")
+				attType = config.AzureToken
 			}
 
 			if (attType == config.VTPM || attType == config.SNPvTPM) && len(nonce) == 0 {

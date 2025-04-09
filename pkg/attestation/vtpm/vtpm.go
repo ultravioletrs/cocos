@@ -5,17 +5,21 @@ package vtpm
 
 import (
 	"bytes"
+	"context"
 	"crypto"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
@@ -43,6 +47,7 @@ var (
 )
 
 type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
+type AzureAttestFunc func() ([]byte, error)
 
 type tpmWrapper struct {
 	io.ReadWriteCloser
@@ -102,6 +107,42 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, erro
 	}
 
 	return marshalQuote(attestation)
+}
+
+func FetchAzureAttestation() ([]byte, error) {
+	const maaURL = "https://sharedeus.eus.attest.azure.net"
+
+	fmt.Println("Hello, fetching attestation report.")
+
+	nonce, err := generateNonce()
+	if err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	fmt.Printf("Nonce: %s\n", hex.EncodeToString(nonce))
+	fmt.Printf("\nTesting Attest from go-azure\n\n")
+
+	maa.OSBuild = "UVC"
+	maa.OSType = "Linux"
+	maa.OSDistro = "UVC"
+
+	token, err := maa.Attest(context.Background(), nonce, maaURL, http.DefaultClient)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching azure token: %w", err)
+	}
+
+	fmt.Printf("Token: %s\n", token)
+
+	return []byte(token), nil
+}
+
+func generateNonce() ([]byte, error) {
+	nonce := make([]byte, 16)
+	_, err := rand.Read(nonce)
+	if err != nil {
+		return nil, err
+	}
+	return nonce, nil
 }
 
 func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {

@@ -49,7 +49,7 @@ type attestationReq struct {
 
 func (req attestationReq) validate() error {
 	switch req.AttType {
-	case config.SNP, config.VTPM, config.SNPvTPM:
+	case config.SNP, config.VTPM, config.SNPvTPM, config.AzureToken:
 		return nil
 	default:
 		return errors.New("invalid attestation type in attestation request")
