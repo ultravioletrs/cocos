@@ -34,7 +34,7 @@ func LoggingMiddleware(svc agent.Service, logger *slog.Logger) agent.Service {
 func (lm *loggingMiddleware) State() (state string) {
 	defer func(begin time.Time) {
 		message := fmt.Sprintf("Method State took %s to complete with state %s", time.Since(begin), state)
-		lm.logger.Info(message)
+		lm.logger.Debug(message)
 	}(time.Now())
 	return lm.svc.State()
 }
