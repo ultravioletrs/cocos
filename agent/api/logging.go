@@ -118,3 +118,16 @@ func (lm *loggingMiddleware) Attestation(ctx context.Context, reportData [quotep
 
 	return lm.svc.Attestation(ctx, reportData, nonce, attType)
 }
+
+func (lm *loggingMiddleware) FetchAttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) (response []byte, err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors", message))
+	}(time.Now())
+
+	return lm.svc.FetchAttestationResult(ctx, nonce, attType)
+}

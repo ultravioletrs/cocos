@@ -182,6 +182,66 @@ func (_c *Service_Data_Call) RunAndReturn(run func(context.Context, agent.Datase
 	return _c
 }
 
+// FetchAttestationResult provides a mock function with given fields: ctx, nonce, attType
+func (_m *Service) FetchAttestationResult(ctx context.Context, nonce [32]byte, attType config.AttestationType) ([]byte, error) {
+	ret := _m.Called(ctx, nonce, attType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchAttestationResult")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) ([]byte, error)); ok {
+		return rf(ctx, nonce, attType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, config.AttestationType) []byte); ok {
+		r0 = rf(ctx, nonce, attType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, config.AttestationType) error); ok {
+		r1 = rf(ctx, nonce, attType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Service_FetchAttestationResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchAttestationResult'
+type Service_FetchAttestationResult_Call struct {
+	*mock.Call
+}
+
+// FetchAttestationResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce [32]byte
+//   - attType config.AttestationType
+func (_e *Service_Expecter) FetchAttestationResult(ctx interface{}, nonce interface{}, attType interface{}) *Service_FetchAttestationResult_Call {
+	return &Service_FetchAttestationResult_Call{Call: _e.mock.On("FetchAttestationResult", ctx, nonce, attType)}
+}
+
+func (_c *Service_FetchAttestationResult_Call) Run(run func(ctx context.Context, nonce [32]byte, attType config.AttestationType)) *Service_FetchAttestationResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([32]byte), args[2].(config.AttestationType))
+	})
+	return _c
+}
+
+func (_c *Service_FetchAttestationResult_Call) Return(_a0 []byte, _a1 error) *Service_FetchAttestationResult_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Service_FetchAttestationResult_Call) RunAndReturn(run func(context.Context, [32]byte, config.AttestationType) ([]byte, error)) *Service_FetchAttestationResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InitComputation provides a mock function with given fields: ctx, cmp
 func (_m *Service) InitComputation(ctx context.Context, cmp agent.Computation) error {
 	ret := _m.Called(ctx, cmp)

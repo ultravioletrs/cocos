@@ -113,6 +113,7 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	FetchAttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
 	State() string
 }
 
@@ -130,6 +131,7 @@ type agentService struct {
 	cancel          context.CancelFunc          // Cancels the computation context.
 	vmpl            int                         // VMPL at which the Agent is running.
 	vtpmAttest      vtpm.VtpmAttest             // Attestation function.
+	azureToken      vtpm.AzureAttestFunc        // Azure token for attestation verification.
 }
 
 var _ Service = (*agentService)(nil)
@@ -146,6 +148,7 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quot
 		cancel:        cancel,
 		vmpl:          vmlp,
 		vtpmAttest:    vtpmAttest,
+		azureToken:    vtpm.FetchAzureAttestation,
 	}
 
 	transitions := []statemachine.Transition{
@@ -437,6 +440,19 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
+	default:
+		return []byte{}, ErrAttestationType
+	}
+}
+
+func (as *agentService) FetchAttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+	switch attType {
+	case config.AzureToken:
+		token, err := as.azureToken()
+		if err != nil {
+			return []byte{}, err
+		}
+		return token, nil
 	default:
 		return []byte{}, ErrAttestationType
 	}

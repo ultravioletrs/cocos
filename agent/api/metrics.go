@@ -100,3 +100,12 @@ func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [quotep
 
 	return ms.svc.Attestation(ctx, reportData, nonce, attType)
 }
+
+func (ms *metricsMiddleware) FetchAttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "attestation_result").Add(1)
+		ms.latency.With("method", "attestation_result").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.FetchAttestationResult(ctx, nonce, attType)
+}

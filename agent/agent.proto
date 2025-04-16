@@ -12,6 +12,7 @@ service AgentService {
   rpc Data(stream DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (stream ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (stream AttestationResponse) {}
+  rpc FetchAttestationResult(FetchAttestationResultRequest) returns (FetchAttestationResultResponse);
 }
 
 message AlgoRequest {
@@ -42,5 +43,13 @@ message AttestationRequest {
 }
 
 message AttestationResponse {
+  bytes file = 1;
+}
+
+message FetchAttestationResultRequest{
+  bytes tokenNonce = 1; // Should be less or equal 32 bytes
+  int32 type = 3;
+}
+message FetchAttestationResultResponse{
   bytes file = 1;
 }

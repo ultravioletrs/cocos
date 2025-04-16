@@ -173,6 +173,55 @@ func (_c *SDK_Data_Call) RunAndReturn(run func(context.Context, *os.File, string
 	return _c
 }
 
+// FetchAttestationResult provides a mock function with given fields: ctx, nonce, attType, attestationFile
+func (_m *SDK) FetchAttestationResult(ctx context.Context, nonce [32]byte, attType int, attestationFile *os.File) error {
+	ret := _m.Called(ctx, nonce, attType, attestationFile)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchAttestationResult")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, int, *os.File) error); ok {
+		r0 = rf(ctx, nonce, attType, attestationFile)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SDK_FetchAttestationResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchAttestationResult'
+type SDK_FetchAttestationResult_Call struct {
+	*mock.Call
+}
+
+// FetchAttestationResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce [32]byte
+//   - attType int
+//   - attestationFile *os.File
+func (_e *SDK_Expecter) FetchAttestationResult(ctx interface{}, nonce interface{}, attType interface{}, attestationFile interface{}) *SDK_FetchAttestationResult_Call {
+	return &SDK_FetchAttestationResult_Call{Call: _e.mock.On("FetchAttestationResult", ctx, nonce, attType, attestationFile)}
+}
+
+func (_c *SDK_FetchAttestationResult_Call) Run(run func(ctx context.Context, nonce [32]byte, attType int, attestationFile *os.File)) *SDK_FetchAttestationResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([32]byte), args[2].(int), args[3].(*os.File))
+	})
+	return _c
+}
+
+func (_c *SDK_FetchAttestationResult_Call) Return(_a0 error) *SDK_FetchAttestationResult_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *SDK_FetchAttestationResult_Call) RunAndReturn(run func(context.Context, [32]byte, int, *os.File) error) *SDK_FetchAttestationResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Result provides a mock function with given fields: ctx, privKey, resultFile
 func (_m *SDK) Result(ctx context.Context, privKey interface{}, resultFile *os.File) error {
 	ret := _m.Called(ctx, privKey, resultFile)

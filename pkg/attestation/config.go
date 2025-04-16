@@ -18,6 +18,7 @@ const (
 	SNP AttestationType = iota
 	VTPM
 	SNPvTPM
+	AzureToken
 )
 
 var (
