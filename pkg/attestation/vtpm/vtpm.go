@@ -19,7 +19,7 @@ import (
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
-	"github.com/google/go-tpm-tools/proto/tpm"
+	ptpm "github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/google/go-tpm-tools/server"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
@@ -45,20 +45,30 @@ var (
 
 type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
 
-type tpmWrapper struct {
+type AttestationData struct {
+	TpmQuote []byte `json:"quote"`
+	Data     []byte `json:"data"`
+}
+
+type AttestationProvider interface {
+	FetchAttestation(teeNonce []byte, vtpmNonce []byte) ([]byte, error)
+	VerifyAttestation(report []byte, teeNonce []byte, pubKeyTLS []byte) error
+}
+
+type tpm struct {
 	io.ReadWriteCloser
 }
 
-func (et tpmWrapper) EventLog() ([]byte, error) {
+func (et tpm) EventLog() ([]byte, error) {
 	return os.ReadFile(eventLog)
 }
 
 func OpenTpm() (io.ReadWriteCloser, error) {
 	if ExternalTPM != nil {
-		return tpmWrapper{ExternalTPM}, nil
+		return tpm{ExternalTPM}, nil
 	}
 
-	tw := tpmWrapper{}
+	tw := tpm{}
 	var err error
 
 	tw.ReadWriteCloser, err = tpm2.OpenTPM("/dev/tpmrm0")
@@ -171,6 +181,38 @@ func EmptyAttest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte,
 	return []byte{}, nil
 }
 
+func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte) error {
+	attestation := &attest.Attestation{}
+
+	err := proto.Unmarshal(quote, attestation)
+	if err != nil {
+		return errors.Wrap(fmt.Errorf("failed to unmarshal quote"), err)
+	}
+
+	ak := attestation.GetAkPub()
+	pub, err := tpm2.DecodePublic(ak)
+	if err != nil {
+		return err
+	}
+
+	cryptoPub, err := pub.Key()
+	if err != nil {
+		return err
+	}
+	_, err = server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
+	if err != nil {
+		return errors.Wrap(fmt.Errorf("failed to verify attestation"), err)
+	}
+
+	s256, s384 := calculatePCRTLSKey(pubKeyTLS)
+
+	if err := checkExpectedPCRValues(attestation, s256, s384); err != nil {
+		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
+	}
+
+	return nil
+}
+
 func publicKeyToBytes(pubKey interface{}) ([]byte, error) {
 	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
@@ -265,22 +307,22 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []
 		var pcrMap map[string]string
 		var pcr15 []byte
 		switch quote.Pcrs.Hash {
-		case tpm.HashAlgo_SHA256:
+		case ptpm.HashAlgo_SHA256:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha256
 			pcr15 = ePcr256
-		case tpm.HashAlgo_SHA384:
+		case ptpm.HashAlgo_SHA384:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha384
 			pcr15 = ePcr384
-		case tpm.HashAlgo_SHA1:
+		case ptpm.HashAlgo_SHA1:
 			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha1
 			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		default:
-			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
+			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))
 		}
 
 		pcr15Index := uint32(15)
 		if !bytes.Equal(quote.Pcrs.Pcrs[pcr15Index], pcr15) {
-			return fmt.Errorf("for algo %s PCR[15] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], hex.EncodeToString(pcr15), hex.EncodeToString(quote.Pcrs.Pcrs[pcr15Index]))
+			return fmt.Errorf("for algo %s PCR[15] expected %s but found %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)], hex.EncodeToString(pcr15), hex.EncodeToString(quote.Pcrs.Pcrs[pcr15Index]))
 		}
 
 		for i, v := range pcrMap {
@@ -293,7 +335,7 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []
 				return errors.Wrap(fmt.Errorf("error converting PCR value to byte"), err)
 			}
 			if !bytes.Equal(quote.Pcrs.Pcrs[uint32(index)], value) {
-				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", tpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(value), hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]))
+				return fmt.Errorf("for algo %s PCR[%d] expected %s but found %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)], index, hex.EncodeToString(value), hex.EncodeToString(quote.Pcrs.Pcrs[uint32(index)]))
 			}
 		}
 	}
