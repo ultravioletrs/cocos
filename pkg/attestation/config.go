@@ -101,7 +101,7 @@ func CCPlatform() ConfidentialComputing {
 }
 
 func checkSEVSNP() bool {
-	if _, err := os.Stat("/dev/sev-snp"); err == nil {
+	if _, err := os.Stat(devSnp); err == nil {
 		return true
 	}
 
