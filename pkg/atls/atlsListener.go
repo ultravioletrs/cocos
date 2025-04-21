@@ -13,7 +13,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"runtime/cgo"
 	"strconv"
 	"sync"
 	"syscall"
@@ -22,13 +21,9 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
-)
-
-const (
-	NoTee int = iota
-	AmdSevSnp
 )
 
 const (
@@ -53,57 +48,34 @@ var (
 	errConnCreate    = errors.New("could not create connection")
 )
 
-type ValidationVerification func(data1, data2, data3, data4 []byte) error
-type FetchAttestation func(data1, data2, data3 []byte) ([]byte, error)
-
-func registerFetchAttestation(callback FetchAttestation) uintptr {
-	handle := cgo.NewHandle(callback)
-	return uintptr(handle)
-}
-
-func registerValidationVerification(callback ValidationVerification) uintptr {
-	handle := cgo.NewHandle(callback)
-	return uintptr(handle)
-}
-
-//export validationVerificationCallback
-func validationVerificationCallback(teeType C.int) uintptr {
-	switch int(teeType) {
-	case NoTee:
-		return uintptr(0)
-	case AmdSevSnp:
-		return registerValidationVerification(vtpm.VTPMVerify)
+func getPlatformTypeHandle(platformType config.PlatformType, pubKey []byte, teeNonce []byte, vtpmNonce []byte) (config.AttestationProvider, error) {
+	switch platformType {
+	case config.SNPvTPM:
+		return vtpm.VTPMProvider{TeeNonce: teeNonce, VTpmNonce: vtpmNonce, PubKeyTLS: pubKey, TeeAttestaion: true}, nil
+	case config.Azure:
+		return azure.AzureProvider{TeeNonce: teeNonce, VTpmNonce: vtpmNonce}, nil
 	default:
-		return uintptr(0)
-	}
-}
-
-//export fetchAttestationCallback
-func fetchAttestationCallback(teeType C.int) uintptr {
-	switch int(teeType) {
-	case NoTee:
-		return uintptr(0)
-	case AmdSevSnp:
-		return registerFetchAttestation(vtpm.FetchATLSQuote)
-	default:
-		return uintptr(0)
+		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
 }
 
 //export callVerificationValidationCallback
-func callVerificationValidationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, quote *C.uchar, quoteSize C.int, teeNonce *C.uchar, nonce *C.uchar) C.int {
-	handle := cgo.Handle(callbackHandle)
-	defer handle.Delete()
-
-	callback := handle.Value().(ValidationVerification)
+func callVerificationValidationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen C.int, attestReport *C.uchar, attestReportSize C.int, teeNonceByte *C.uchar, vTPMNonceByte *C.uchar) C.int {
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
-	attestationReport := C.GoBytes(unsafe.Pointer(quote), quoteSize)
-	teeData := C.GoBytes(unsafe.Pointer(teeNonce), quoteprovider.Nonce)
-	nonceData := C.GoBytes(unsafe.Pointer(nonce), vtpm.Nonce)
-
-	err := callback(attestationReport, pubKeyCert, teeData, nonceData)
+	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
+	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
+	pType := config.PlatformType(int(platformType))
+	attestationReport := C.GoBytes(unsafe.Pointer(attestReport), attestReportSize)
+	
+	provider, err := getPlatformTypeHandle(pType, pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "callback failed %v", err)
+		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
+		return C.int(-1)
+	}
+
+	err = provider.VerifyAttestation(attestationReport)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "verification callback failed %s", err.Error())
 		return C.int(-1)
 	}
 
@@ -111,18 +83,21 @@ func callVerificationValidationCallback(callbackHandle uintptr, pubKey *C.uchar,
 }
 
 //export callFetchAttestationCallback
-func callFetchAttestationCallback(callbackHandle uintptr, pubKey *C.uchar, pubKeyLen C.int, teeNonceByte *C.uchar, vTPMNonceByte *C.uchar, outlen *C.ulong) *C.uchar {
-	handle := cgo.Handle(callbackHandle)
-	defer handle.Delete()
-
-	callback := handle.Value().(FetchAttestation)
+func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen C.int, teeNonceByte *C.uchar, vTPMNonceByte *C.uchar, outlen *C.ulong) *C.uchar {
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
+	pType := config.PlatformType(int(platformType))
 
-	quote, err := callback(pubKeyCert, teeNonceData, vTPMNonce)
+	provider, err := getPlatformTypeHandle(pType, pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "attestation callback returned nil")
+		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
+		return nil
+	}
+
+	quote, err := provider.FetchAttestation()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "attestation callback returned nil: %s", err.Error())
 		return nil
 	}
 
@@ -259,7 +234,7 @@ func (c *ATLSConn) Read(b []byte) (int, error) {
 		return 0, syscall.ECONNRESET // return connection reset error.
 	default:
 		fmt.Fprintf(os.Stderr, "SSL error occurred: %d\n", errCode)
-		return 0, fmt.Errorf("SSL error\n")
+		return 0, fmt.Errorf("SSL error")
 	}
 }
 

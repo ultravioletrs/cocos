@@ -44,7 +44,7 @@ func (req resultReq) validate() error {
 type attestationReq struct {
 	TeeNonce  [quoteprovider.Nonce]byte
 	VtpmNonce [vtpm.Nonce]byte
-	AttType   config.AttestationType
+	AttType   config.PlatformType
 }
 
 func (req attestationReq) validate() error {

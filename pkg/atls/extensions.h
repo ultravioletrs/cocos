@@ -19,9 +19,7 @@ typedef struct evidence_request
 
 typedef struct tls_extension_data
 {
-    uintptr_t fetch_attestation_handler;
-    uintptr_t verification_validation_handler;
-    int tee_type;
+    int platform_type;
     evidence_request er;
 } tls_extension_data;
 
@@ -33,7 +31,6 @@ typedef struct tls_server_connection
     char* key;
     int key_len;
     struct sockaddr_storage addr;
-    uintptr_t fetch_attestation_handler;
 } tls_server_connection;
 
 typedef struct tls_connection
@@ -57,7 +54,6 @@ int set_socket_read_timeout(tls_connection* conn, int timeout_sec, int timeout_u
 int set_socket_write_timeout(tls_connection* conn, int timeout_sec, int timeout_usec);
 char* tls_return_addr(struct sockaddr_storage *addr);
 int tls_return_port(struct sockaddr_storage *addr);
-int compute_sha256_of_public_key(X509 *cert, unsigned char *hash);
 
 // Extensions
 void evidence_request_ext_free_cb(SSL *s, unsigned int ext_type,

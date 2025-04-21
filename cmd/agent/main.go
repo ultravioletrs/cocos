@@ -88,7 +88,7 @@ func main() {
 	var qp client.LeveledQuoteProvider
 	vtpmAttest := vtpm.Attest
 
-	if !sevGuesDeviceExists() {
+	if !attestationconfig.SevGuesDeviceExists() {
 		logger.Info("SEV-SNP device not found")
 		qpMock := new(mocks.LeveledQuoteProvider)
 		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
@@ -209,15 +209,6 @@ func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Servic
 	svc = api.MetricsMiddleware(svc, counter, latency)
 
 	return svc
-}
-
-func sevGuesDeviceExists() bool {
-	d, err := client.OpenDevice()
-	if err != nil {
-		return false
-	}
-	d.Close()
-	return true
 }
 
 func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {

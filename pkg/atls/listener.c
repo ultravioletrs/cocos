@@ -289,9 +289,8 @@ tls_connection* tls_server_accept(tls_server_connection *tls_server) {
         goto cleanup_fd;
     }
 
-    // Set file descriptor and assign handlers
+    // Set file descriptor
     conn->socket_fd = client_fd;
-    conn->tls_ext_data.fetch_attestation_handler = tls_server->fetch_attestation_handler;
     SSL_set_fd(conn->ssl, client_fd);
 
     // Get local address

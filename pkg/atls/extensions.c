@@ -7,28 +7,28 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-extern int callVerificationValidationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* quote, int quoteSize, const u_char* teeNonce, const u_char* nonce);
-extern u_char* callFetchAttestationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* teeNonceByte, const u_char* vTPMNonceByte, unsigned long* outlen);
+extern int callVerificationValidationCallback(int platformType, const u_char* pubKey, int pubKeyLen, const u_char* quote, int quoteSize, const u_char* teeNonceByte, const u_char* vTPMNonceByte);
+extern u_char* callFetchAttestationCallback(int platformType, const u_char* pubKey, int pubKeyLen, const u_char* teeNonceByte, const u_char* vTPMNonceByte, unsigned long* outlen);
 extern uintptr_t validationVerificationCallback(int teeType);
-extern uintptr_t fetchAttestationCallback(int teeType);
+extern uintptr_t getPlatformTypeHandle(int platformType, u_char *teeNonce, u_char *vtpmNonce);
 extern int returnCCPlatformType();
 
-int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *vtpm_nonce) {
+int triggerVerificationValidationCallback(int platformType, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *vtpm_nonce) {
     if (quote == NULL || vtpm_nonce == NULL || tee_nonce == NULL || pub_key == NULL) {
         fprintf(stderr, "attestation and noce and public key cannot be NULL\n");
         return -1;
     }
 
-    return callVerificationValidationCallback(callbackHandle, pub_key, pub_key_len, quote, quote_size, tee_nonce, vtpm_nonce);
+    return callVerificationValidationCallback(platformType, pub_key, pub_key_len, quote, quote_size, tee_nonce, vtpm_nonce);
 }
 
-u_char* triggerFetchAttestationCallback(uintptr_t callback_handle, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
+u_char* triggerFetchAttestationCallback(int platformType, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
     if(tee_nonce == NULL || vtpm_nonce == NULL) {
         fprintf(stderr, "Report data cannot be NULL");
         return NULL;
     }
 
-    return callFetchAttestationCallback(callback_handle, pub_key, pub_key_len, tee_nonce, vtpm_nonce, outlen);
+    return callFetchAttestationCallback(platformType, pub_key, pub_key_len, tee_nonce, vtpm_nonce, outlen);
 }
 
 /*
@@ -102,14 +102,7 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
             }
 
             *platform_type = returnCCPlatformType();
-
-            ext_data->tee_type = *platform_type;
-            ext_data->fetch_attestation_handler = fetchAttestationCallback(ext_data->tee_type);
-            if (ext_data->fetch_attestation_handler == 0) {
-                fprintf(stderr, "fetch attestation handler is NULL\n");
-                *al = SSL_AD_INTERNAL_ERROR;
-                return -1;
-            }
+            ext_data->platform_type = *platform_type;
 
             *out = (u_char*)platform_type;
             *outlen = sizeof(int32_t);
@@ -155,16 +148,11 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
     }
     case SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS:
     {
-        int *tee_type = (int*)in;
+        int *platform_type = (int*)in;
         tls_extension_data *ext_data = (tls_extension_data*)parse_arg;
 
         if (ext_data != NULL) {
-            ext_data->tee_type = *tee_type;
-            ext_data->verification_validation_handler = validationVerificationCallback(ext_data->tee_type);
-            if (ext_data->verification_validation_handler == 0) {
-                fprintf(stderr, "verification handler is NULL\n");
-                return 0;
-            }
+            ext_data->platform_type = *platform_type;
         } else {
             fprintf(stderr, "parse_arg is NULL\n");
             return 0;
@@ -231,7 +219,7 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
                 return -1;
             }
 
-            quote = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, pubkey_buf, pubkey_len, ext_data->er.tee_nonce, ext_data->er.vtpm_nonce, &len);
+            quote = triggerFetchAttestationCallback(ext_data->platform_type, pubkey_buf, pubkey_len, ext_data->er.tee_nonce, ext_data->er.vtpm_nonce, &len);
             if (quote == NULL) {
                 fprintf(stderr, "attestation report is NULL\n");
                 *al = SSL_AD_INTERNAL_ERROR;
@@ -302,7 +290,7 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
                 }
                 memcpy(quote, in, inlen);
 
-                res = triggerVerificationValidationCallback(ext_data->verification_validation_handler,
+                res = triggerVerificationValidationCallback(ext_data->platform_type,
                                                     pubkey_buf,
                                                     pubkey_len,
                                                     quote,

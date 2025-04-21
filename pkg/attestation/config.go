@@ -11,28 +11,23 @@ import (
 	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-tpm/legacy/tpm2"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-type AttestationType int32
+type PlatformType int
 
 const (
-	SNP AttestationType = iota
+	SNP PlatformType = iota
 	VTPM
 	SNPvTPM
-)
-
-type ConfidentialComputing int
-
-const (
-	SEVSNP ConfidentialComputing = iota
 	Azure
 	NoCC
 )
 
 const (
-	devSnp           = "/dev/sev-guest"
 	azureMetadataUrl = "http://169.254.169.254/metadata/instance"
 	azureApiVersion  = "2021-02-01"
 )
@@ -58,6 +53,16 @@ type PcrConfig struct {
 type Config struct {
 	*check.Config
 	*PcrConfig
+}
+
+type ccCheck struct {
+	checkFunc func() bool
+	platform  PlatformType
+}
+
+type AttestationProvider interface {
+	FetchAttestation() ([]byte, error)
+	VerifyAttestation(report []byte) error
 }
 
 func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {
@@ -88,24 +93,39 @@ func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *
 }
 
 // CCPlatform returns the type of the confidential computing platform.
-func CCPlatform() ConfidentialComputing {
-	if checkSEVSNP() {
-		return SEVSNP
+func CCPlatform() PlatformType {
+	checks := []ccCheck{
+		{SevGuestvTPMExists, SNPvTPM},
+		{SevGuesDeviceExists, SNP},
+		{isAzureVM, Azure},
 	}
 
-	if isAzureVM() {
-		return Azure
+	for _, c := range checks {
+		if c.checkFunc() {
+			return c.platform
+		}
 	}
-
 	return NoCC
 }
 
-func checkSEVSNP() bool {
-	if _, err := os.Stat(devSnp); err == nil {
-		return true
+func SevGuesDeviceExists() bool {
+	d, err := client.OpenDevice()
+	if err != nil {
+		return false
 	}
+	d.Close()
 
-	return false
+	return true
+}
+
+func SevGuestvTPMExists() bool {
+	d, err := tpm2.OpenTPM()
+	if err != nil {
+		return false
+	}
+	d.Close()
+
+	return SevGuesDeviceExists()
 }
 
 func isAzureVM() bool {
@@ -122,7 +142,11 @@ func isAzureVM() bool {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+
 		return len(body) > 0
 	}
 

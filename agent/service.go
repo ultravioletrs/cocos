@@ -117,7 +117,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
 	State() string
 }
@@ -423,7 +423,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.PlatformType) ([]byte, error) {
 	switch attType {
 	case config.SNP:
 		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, uint(as.vmpl))

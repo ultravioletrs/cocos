@@ -99,14 +99,45 @@ func ExtendPCR(pcrIndex int, value []byte) error {
 	return nil
 }
 
+type VTPMProvider struct {
+	TeeNonce      []byte
+	VTpmNonce     []byte
+	PubKeyTLS     []byte
+	TeeAttestaion bool
+}
+
+func (v VTPMProvider) FetchAttestation() ([]byte, error) {
+	attestation, err := FetchQuote(v.VTpmNonce)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if v.TeeAttestaion {
+		err = addTEEAttestation(attestation, v.TeeNonce)
+		if err != nil {
+			return []byte{}, err
+		}
+	}
+	attestationByte, err := proto.Marshal(attestation)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to marshal vTPM attestation report: %w", err)
+	}
+
+	return attestationByte, nil
+}
+
+func (v VTPMProvider) VerifyAttestation(report []byte) error {
+	return VTPMVerify(report, v.PubKeyTLS, v.TeeNonce, v.VTpmNonce)
+}
+
 func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error) {
-	attestation, err := fetchVTPMQuote(vTPMNonce)
+	attestation, err := FetchQuote(vTPMNonce)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	if teeAttestaion {
-		attestation, err = addTEEAttestation(attestation, teeNonce)
+		err = addTEEAttestation(attestation, teeNonce)
 		if err != nil {
 			return []byte{}, err
 		}
@@ -116,7 +147,7 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, erro
 }
 
 func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {
-	attestation, err := fetchVTPMQuote(vTPMNonce)
+	attestation, err := FetchQuote(vTPMNonce)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -126,7 +157,7 @@ func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	attestation, err = addTEEAttestation(attestation, reportData)
+	err = addTEEAttestation(attestation, reportData)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -252,7 +283,7 @@ func marshalQuote(attestation *attest.Attestation) ([]byte, error) {
 	return out, nil
 }
 
-func fetchVTPMQuote(nonce []byte) (*attest.Attestation, error) {
+func FetchQuote(nonce []byte) (*attest.Attestation, error) {
 	rwc, err := OpenTpm()
 	if err != nil {
 		return nil, err
@@ -283,21 +314,21 @@ func fetchVTPMQuote(nonce []byte) (*attest.Attestation, error) {
 	return attestation, nil
 }
 
-func addTEEAttestation(attestation *attest.Attestation, nonce []byte) (*attest.Attestation, error) {
+func addTEEAttestation(attestation *attest.Attestation, nonce []byte) error {
 	rawTeeAttestation, err := quoteprovider.FetchAttestation(nonce)
 	if err != nil {
-		return attestation, fmt.Errorf("failed to fetch TEE attestation report: %v", err)
+		return fmt.Errorf("failed to fetch TEE attestation report: %v", err)
 	}
 
 	extReport, err := abi.ReportCertsToProto(rawTeeAttestation)
 	if err != nil {
-		return attestation, errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
+		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
 	}
 	attestation.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: extReport,
 	}
 
-	return attestation, nil
+	return nil
 }
 
 func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []byte) error {
