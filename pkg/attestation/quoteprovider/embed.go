@@ -13,7 +13,11 @@ import (
 	cocosai "github.com/ultravioletrs/cocos"
 )
 
-const Nonce = 64
+const (
+	Nonce               = 64
+	sevProductNameMilan = "Milan"
+	sevProductNameGenoa = "Genoa"
+)
 
 var _ client.LeveledQuoteProvider = (*embeddedQuoteProvider)(nil)
 
@@ -46,4 +50,15 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 
 func VerifyAttestationReportTLS(attestation *sevsnp.Attestation, reportData []byte) error {
 	return nil
+}
+
+func GetProductName(product string) sevsnp.SevProduct_SevProductName {
+	switch product {
+	case sevProductNameMilan:
+		return sevsnp.SevProduct_SEV_PRODUCT_MILAN
+	case sevProductNameGenoa:
+		return sevsnp.SevProduct_SEV_PRODUCT_GENOA
+	default:
+		return sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
+	}
 }

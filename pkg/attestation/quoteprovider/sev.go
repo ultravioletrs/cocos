@@ -32,7 +32,6 @@ const (
 	sevProductNameMilan = "Milan"
 	sevProductNameGenoa = "Genoa"
 	sevVMPL             = 2
-	SMTbit              = 16
 )
 
 var (
