@@ -21,7 +21,6 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
-
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
