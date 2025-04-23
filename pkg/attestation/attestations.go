@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package config
+package attestations
 
 import (
 	"encoding/json"
@@ -60,7 +60,7 @@ type ccCheck struct {
 	platform  PlatformType
 }
 
-type AttestationProvider interface {
+type Provider interface {
 	FetchAttestation() ([]byte, error)
 	VerifyAttestation(report []byte) error
 }

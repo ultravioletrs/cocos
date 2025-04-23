@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/ultravioletrs/cocos/agent"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 func algoEndpoint(svc agent.Service) endpoint.Endpoint {
@@ -71,7 +71,7 @@ func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return attestationRes{}, err
 		}
-		file, err := svc.Attestation(ctx, req.TeeNonce, req.VtpmNonce, config.PlatformType(req.AttType))
+		file, err := svc.Attestation(ctx, req.TeeNonce, req.VtpmNonce, attestations.PlatformType(req.AttType))
 		if err != nil {
 			return attestationRes{}, err
 		}

@@ -20,10 +20,10 @@ import (
 	"unsafe"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -48,12 +48,12 @@ var (
 	errConnCreate    = errors.New("could not create connection")
 )
 
-func getPlatformTypeHandle(platformType config.PlatformType, pubKey []byte, teeNonce []byte, vtpmNonce []byte) (config.AttestationProvider, error) {
+func getPlatformProvider(platformType attestations.PlatformType, pubKey []byte, teeNonce []byte, vtpmNonce []byte) (attestations.Provider, error) {
 	switch platformType {
-	case config.SNPvTPM:
-		return vtpm.VTPMProvider{TeeNonce: teeNonce, VTpmNonce: vtpmNonce, PubKeyTLS: pubKey, TeeAttestaion: true}, nil
-	case config.Azure:
-		return azure.AzureProvider{TeeNonce: teeNonce, VTpmNonce: vtpmNonce}, nil
+	case attestations.SNPvTPM:
+		return vtpm.New(teeNonce, vtpmNonce, pubKey, true), nil
+	case attestations.Azure:
+		return azure.New(teeNonce, vtpmNonce), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
@@ -64,10 +64,10 @@ func callVerificationValidationCallback(platformType C.int, pubKey *C.uchar, pub
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
-	pType := config.PlatformType(int(platformType))
+	pType := attestations.PlatformType(int(platformType))
 	attestationReport := C.GoBytes(unsafe.Pointer(attestReport), attestReportSize)
 	
-	provider, err := getPlatformTypeHandle(pType, pubKeyCert, teeNonceData, vTPMNonce)
+	provider, err := getPlatformProvider(pType, pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
 		return C.int(-1)
@@ -87,9 +87,9 @@ func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
-	pType := config.PlatformType(int(platformType))
+	pType := attestations.PlatformType(int(platformType))
 
-	provider, err := getPlatformTypeHandle(pType, pubKeyCert, teeNonceData, vTPMNonce)
+	provider, err := getPlatformProvider(pType, pubKeyCert, teeNonceData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
 		return nil
@@ -115,7 +115,7 @@ func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen
 
 //export returnCCPlatformType
 func returnCCPlatformType() int32 {
-	return int32(config.CCPlatform())
+	return int32(attestations.CCPlatform())
 }
 
 type ATLSServerListener struct {

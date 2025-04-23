@@ -20,6 +20,7 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
+	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/google/go-sev-guest/client"
 	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
@@ -29,7 +30,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
-	attestationconfig "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -52,6 +54,10 @@ type config struct {
 	AgentGrpcHost string `env:"AGENT_GRPC_HOST" envDefault:"0.0.0.0"`
 	CAUrl         string `env:"AGENT_CVM_CA_URL" envDefault:""`
 	CVMId         string `env:"AGENT_CVM_ID" envDefault:""`
+	AgentMaaURL   string `env:"AGENT_MAA_URL"   envDefault:"https://sharedeus2.eus2.attest.azure.net"`
+	AgentOSBuild  string `env:"AGENT_OS_BUILD"  envDefault:"UVC"`
+	AgentOSDistro string `env:"AGENT_OS_DISTRO" envDefault:"UVC"`
+	AgentOSType   string `env:"AGENT_OS_TYPE"   envDefault:"UVC"`
 }
 
 func main() {
@@ -88,7 +94,7 @@ func main() {
 	var qp client.LeveledQuoteProvider
 	vtpmAttest := vtpm.Attest
 
-	if !attestationconfig.SevGuesDeviceExists() {
+	if !attestations.SevGuesDeviceExists() {
 		logger.Info("SEV-SNP device not found")
 		qpMock := new(mocks.LeveledQuoteProvider)
 		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
@@ -146,6 +152,10 @@ func main() {
 		return
 	}
 
+	azure.MaaURL = cfg.AgentMaaURL
+	maa.OSBuild = cfg.AgentOSBuild
+	maa.OSDistro = cfg.AgentOSDistro
+	maa.OSType = cfg.AgentOSType
 	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl, vtpmAttest)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
@@ -229,7 +239,7 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 
 	nonceSNP := sha512.Sum512(certFile)
 	nonceVTPM := sha256.Sum256(certFile)
-	attestation, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestationconfig.SNPvTPM)
+	attestation, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestations.SNPvTPM)
 	if err != nil {
 		return nil, "", err
 	}

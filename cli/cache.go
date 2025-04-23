@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 const (
@@ -27,8 +27,8 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 		Example: "ca-bundle <path_to_platform_info_json>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			attestationConfiguration := config.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
-			err := config.ReadAttestationPolicy(args[0], &attestationConfiguration)
+			attestationConfiguration := attestations.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestations.PcrConfig{}}
+			err := attestations.ReadAttestationPolicy(args[0], &attestationConfiguration)
 			if err != nil {
 				printError(cmd, "Error while reading manifest: %v ❌ ", err)
 				return

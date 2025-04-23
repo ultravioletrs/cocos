@@ -21,18 +21,18 @@ import (
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	cocosDirectory        = ".cocos"
-	caBundleName          = "ask_ark.pem"
-	attestationReportSize = 0x4A0
-	Nonce                 = 64
-	sevProductNameMilan   = "Milan"
-	sevProductNameGenoa   = "Genoa"
-	sevVMPL               = 2
+	cocosDirectory      = ".cocos"
+	caBundleName        = "ask_ark.pem"
+	Nonce               = 64
+	sevProductNameMilan = "Milan"
+	sevProductNameGenoa = "Genoa"
+	sevVMPL             = 2
+	SMTbit              = 16
 )
 
 var (
@@ -87,15 +87,7 @@ func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	}
 
 	if cfg.Policy.Product == nil {
-		productName := sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
-		switch cfg.RootOfTrust.ProductLine {
-		case sevProductNameMilan:
-			productName = sevsnp.SevProduct_SEV_PRODUCT_MILAN
-		case sevProductNameGenoa:
-			productName = sevsnp.SevProduct_SEV_PRODUCT_GENOA
-		default:
-		}
-
+		productName := GetProductName(cfg.RootOfTrust.ProductLine)
 		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
 			return errProductLine
 		}
@@ -127,7 +119,7 @@ func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	opts, err := validate.PolicyToOptions(cfg.Policy)
 	if err != nil {
-		return fmt.Errorf("failed to get policy for validation %v", errors.Wrap(errAttVerification, err))
+		return fmt.Errorf("failed to get policy for validation: %v", errors.Wrap(errAttVerification, err))
 	}
 
 	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
@@ -142,7 +134,7 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 }
 
 func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(config.AttestationPolicy.Config)
+	config, err := copyConfig(attestations.AttestationPolicy.Config)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}
@@ -187,4 +179,15 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	}
 
 	return rawQuote, nil
+}
+
+func GetProductName(product string) sevsnp.SevProduct_SevProductName {
+	switch product {
+	case sevProductNameMilan:
+		return sevsnp.SevProduct_SEV_PRODUCT_MILAN
+	case sevProductNameGenoa:
+		return sevsnp.SevProduct_SEV_PRODUCT_GENOA
+	default:
+		return sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
+	}
 }

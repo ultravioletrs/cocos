@@ -163,6 +163,7 @@ func main() {
 	attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 	attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
 	attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
+	attestationPolicyCmd.AddCommand(cliSVC.NewAzureAttestationPolicy())
 
 	if err := rootCmd.Execute(); err != nil {
 		logErrorCmd(*rootCmd, err)

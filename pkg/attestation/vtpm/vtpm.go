@@ -23,11 +23,13 @@ import (
 	"github.com/google/go-tpm-tools/server"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 )
+
+var _ attestations.Provider = (*provider)(nil)
 
 const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
@@ -99,34 +101,26 @@ func ExtendPCR(pcrIndex int, value []byte) error {
 	return nil
 }
 
-type VTPMProvider struct {
+type provider struct {
 	TeeNonce      []byte
 	VTpmNonce     []byte
 	PubKeyTLS     []byte
 	TeeAttestaion bool
 }
 
-func (v VTPMProvider) FetchAttestation() ([]byte, error) {
-	attestation, err := FetchQuote(v.VTpmNonce)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	if v.TeeAttestaion {
-		err = addTEEAttestation(attestation, v.TeeNonce)
-		if err != nil {
-			return []byte{}, err
-		}
-	}
-	attestationByte, err := proto.Marshal(attestation)
-	if err != nil {
-		return []byte{}, fmt.Errorf("failed to marshal vTPM attestation report: %w", err)
-	}
-
-	return attestationByte, nil
+func New(teeNonce, vtpmNonce, pubKeyTLS []byte, teeAttestation bool) attestations.Provider {
+	return &provider{
+		TeeNonce:      teeNonce,
+		VTpmNonce:     vtpmNonce,
+		PubKeyTLS:     pubKeyTLS,
+		TeeAttestaion: teeAttestation}
 }
 
-func (v VTPMProvider) VerifyAttestation(report []byte) error {
+func (v provider) FetchAttestation() ([]byte, error) {
+	return Attest(v.TeeNonce, v.VTpmNonce, v.TeeAttestaion)
+}
+
+func (v provider) VerifyAttestation(report []byte) error {
 	return VTPMVerify(report, v.PubKeyTLS, v.TeeNonce, v.VTpmNonce)
 }
 
@@ -141,25 +135,6 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, erro
 		if err != nil {
 			return []byte{}, err
 		}
-	}
-
-	return marshalQuote(attestation)
-}
-
-func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {
-	attestation, err := FetchQuote(vTPMNonce)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	reportData, err := createTEEAttestationReportNonce(pubKey, attestation.GetAkPub(), teeNonce)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	err = addTEEAttestation(attestation, reportData)
-	if err != nil {
-		return []byte{}, err
 	}
 
 	return marshalQuote(attestation)
@@ -339,13 +314,13 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []
 		var pcr15 []byte
 		switch quote.Pcrs.Hash {
 		case ptpm.HashAlgo_SHA256:
-			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha256
+			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha256
 			pcr15 = ePcr256
 		case ptpm.HashAlgo_SHA384:
-			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha384
+			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha384
 			pcr15 = ePcr384
 		case ptpm.HashAlgo_SHA1:
-			pcrMap = config.AttestationPolicy.PcrConfig.PCRValues.Sha1
+			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha1
 			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		default:
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))

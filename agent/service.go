@@ -23,7 +23,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
@@ -117,7 +117,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.PlatformType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestations.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
 	State() string
 }
@@ -423,21 +423,21 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.PlatformType) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestations.PlatformType) ([]byte, error) {
 	switch attType {
-	case config.SNP:
+	case attestations.SNP:
 		rawQuote, err := as.quoteProvider.GetRawQuoteAtLevel(reportData, uint(as.vmpl))
 		if err != nil {
 			return []byte{}, err
 		}
 		return rawQuote, nil
-	case config.VTPM:
+	case attestations.VTPM:
 		vTPMQuote, err := as.vtpmAttest(reportData[:], nonce[:], false)
 		if err != nil {
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
-	case config.SNPvTPM:
+	case attestations.SNPvTPM:
 		vTPMQuote, err := as.vtpmAttest(reportData[:], nonce[:], true)
 		if err != nil {
 			return []byte{}, err

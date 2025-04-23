@@ -5,40 +5,75 @@ package azure
 
 import (
 	"context"
-	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/kds"
+	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/google/go-sev-guest/tools/lib/report"
+	"github.com/google/go-tpm-tools/proto/attest"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/proto"
 )
 
-const maaURL = "https://sharedeus.eus.attest.azure.net"
+var MaaURL = "https://sharedeus2.eus2.attest.azure.net"
+
+var _ attestations.Provider = (*provider)(nil)
 
 type AttestationData struct {
-	TpmQuote []byte `json:"quote"`
-	Token    []byte `json:"data"`
+	TpmQuote    []byte `json:"quote"`
+	Token       []byte `json:"data"`
+	RuntimeData []byte `json:"runtime_data"`
 }
 
-type AzureProvider struct {
-	TeeNonce  []byte
-	VTpmNonce []byte
+type provider struct {
+	ToeknNonce []byte
+	VTpmNonce  []byte
 }
 
-func (a AzureProvider) FetchAttestation() ([]byte, error) {
-	token, err := maa.Attest(context.Background(), a.TeeNonce, maaURL, http.DefaultClient)
+func New(teeNonce, vtpmNonce []byte) attestations.Provider {
+	var fixedNonce [vtpm.Nonce]byte
+	copy(fixedNonce[:], teeNonce)
+
+	return &provider{
+		ToeknNonce: fixedNonce[:],
+		VTpmNonce:  vtpmNonce,
+	}
+}
+
+func (a provider) FetchAttestation() ([]byte, error) {
+	token, err := maa.Attest(context.Background(), a.ToeknNonce, MaaURL, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Azure attestation token: %w", err)
+	}
+
+	params, err := maa.NewParameters(context.Background(), a.ToeknNonce, http.DefaultClient, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get report: %w", err)
+	}
+
+	snpReport, err := report.ParseAttestation(params.SNPReport, "bin")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SNP report: %w", err)
 	}
 
 	quote, err := vtpm.FetchQuote(a.VTpmNonce)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch quote: %w", err)
+	}
+
+	quote.TeeAttestation = &attest.Attestation_SevSnpAttestation{
+		SevSnpAttestation: snpReport,
 	}
 
 	quoteByte, err := proto.Marshal(quote)
@@ -47,8 +82,9 @@ func (a AzureProvider) FetchAttestation() ([]byte, error) {
 	}
 
 	attestationData := &AttestationData{
-		TpmQuote: quoteByte,
-		Token:    []byte(token),
+		TpmQuote:    quoteByte,
+		Token:       []byte(token),
+		RuntimeData: params.RuntimeData,
 	}
 
 	attestDataByte, err := json.Marshal(attestationData)
@@ -59,7 +95,7 @@ func (a AzureProvider) FetchAttestation() ([]byte, error) {
 	return attestDataByte, nil
 }
 
-func (a AzureProvider) VerifyAttestation(report []byte) error {
+func (a provider) VerifyAttestation(report []byte) error {
 	var attestationData AttestationData
 	err := json.Unmarshal(report, &attestationData)
 	if err != nil {
@@ -68,91 +104,199 @@ func (a AzureProvider) VerifyAttestation(report []byte) error {
 
 	token := string(attestationData.Token)
 
-	unverifiedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
+	claims, err := validateToken(token)
 	if err != nil {
-		return fmt.Errorf("failed to parse token: %w", err)
+		return fmt.Errorf("failed to validate token: %w", err)
 	}
 
-	jku, jkuOk := unverifiedToken.Header["jku"].(string)
-	kid, kidOk := unverifiedToken.Header["kid"].(string)
-	if !jkuOk || !kidOk {
-		return fmt.Errorf("token is missing jku or kid in header")
+	if err = validateClaims(claims, a.ToeknNonce); err != nil {
+		return fmt.Errorf("failed to validate claims: %w", err)
 	}
 
-	keySet, err := fetchJWKS(jku)
+	quote := &attest.Attestation{}
+	err = proto.Unmarshal(attestationData.TpmQuote, quote)
 	if err != nil {
-		return fmt.Errorf("failed to fetch JWKS: %w", err)
+		return fmt.Errorf("failed to unmarshal vTPM quote: %w", err)
 	}
 
-	pubKey, err := getKeyFromJWKS(keySet, kid)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve public key: %w", err)
-	}
+	runtimeData := attestationData.RuntimeData
+	rData := sha256.Sum256(runtimeData)
+	reportData := make([]byte, abi.ReportDataSize)
+	copy(reportData, rData[:])
 
-	vToken, err := verifyToken(token, pubKey)
-	if err != nil {
-		return fmt.Errorf("token verification failed: %w", err)
-	}
+	snpReport := quote.GetSevSnpAttestation()
 
-	if !vToken.Valid {
-		return fmt.Errorf("token is invalid")
+	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, reportData); err != nil {
+		return fmt.Errorf("failed to verify vTPM attestation report: %w", err)
 	}
 
 	return nil
 }
 
-// verifyToken verifies the JWT using the public key.
-func verifyToken(tokenString string, pubKey *rsa.PublicKey) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token is signed with RS256
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return pubKey, nil
-	})
-
+func GenerateAttestationPolicy(token string, product string, policy uint64) (*attestations.Config, error) {
+	claims, err := validateToken(token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify token: %w", err)
+		return nil, fmt.Errorf("failed to validate token: %w", err)
 	}
 
-	return token, nil
+	tee, ok := claims["x-ms-isolation-tee"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("failed to get tee from claims")
+	}
+
+	familyIdString, ok := tee["x-ms-sevsnpvm-familyId"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get familyId from claims")
+	}
+
+	familyId, err := hex.DecodeString(familyIdString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode familyId: %w", err)
+	}
+
+	imageIdString, ok := tee["x-ms-sevsnpvm-imageId"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get imageId from claims")
+	}
+	imageId, err := hex.DecodeString(imageIdString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode imageId: %w", err)
+	}
+
+	measurementString, ok := tee["x-ms-sevsnpvm-launchmeasurement"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get measurement from claims")
+	}
+	measurement, err := hex.DecodeString(measurementString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode measurement: %w", err)
+	}
+
+	bootloaderVersion, ok := tee["x-ms-sevsnpvm-bootloader-svn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get bootloader version from claims")
+	}
+
+	teeVersion, ok := tee["x-ms-sevsnpvm-tee-svn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get tee version from claims")
+	}
+
+	snpVersion, ok := tee["x-ms-sevsnpvm-snpfw-svn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get snp version from claims")
+	}
+
+	microcodeVersion, ok := tee["x-ms-sevsnpvm-microcode-svn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get microcode version from claims")
+	}
+
+	minimalTCBParts := kds.TCBParts{
+		BlSpl:    uint8(bootloaderVersion),
+		TeeSpl:   uint8(teeVersion),
+		SnpSpl:   uint8(snpVersion),
+		UcodeSpl: uint8(microcodeVersion),
+	}
+
+	minimalTCB, err := kds.ComposeTCBParts(minimalTCBParts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compose TCB parts: %w", err)
+	}
+
+	guestSVN, ok := tee["x-ms-sevsnpvm-guestsvn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get guest SVN from claims")
+	}
+
+	idKeyDigestString, ok := tee["x-ms-sevsnpvm-idkeydigest"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get idKeyDigest from claims")
+	}
+	idKeyDigest, err := hex.DecodeString(idKeyDigestString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode idKeyDigest: %w", err)
+	}
+
+	reportIDString, ok := tee["x-ms-sevsnpvm-reportid"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get reportID from claims")
+	}
+	reportID, err := hex.DecodeString(reportIDString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode reportID: %w", err)
+	}
+
+	sevProduct := quoteprovider.GetProductName(product)
+
+	return &attestations.Config{
+		Config: &check.Config{
+			RootOfTrust: &check.RootOfTrust{
+				CheckCrl: true,
+			},
+			Policy: &check.Policy{
+				ImageId:         imageId,
+				FamilyId:        familyId,
+				Measurement:     measurement,
+				MinimumGuestSvn: uint32(guestSVN),
+				MinimumTcb:      uint64(minimalTCB),
+				TrustedIdKeys:   [][]byte{idKeyDigest},
+				ReportId:        reportID,
+				Product:         &sevsnp.SevProduct{Name: sevProduct},
+				Policy:          policy,
+			},
+		},
+	}, nil
 }
 
-func fetchJWKS(jku string) (jwk.Set, error) {
-	resp, err := http.Get(jku)
+func validateToken(token string) (map[string]interface{}, error) {
+	unverifiedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch JWKS: status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	jku, jkuOk := unverifiedToken.Header["jku"].(string)
+	if !jkuOk {
+		return nil, fmt.Errorf("token is missing jku or kid in header")
+	}
+
+	MaaUrlCerts := MaaURL
+	if MaaURL == "" {
+		MaaUrlCerts = jku
+	}
+
+	keySet, err := maa.GetKeySet(context.Background(), MaaUrlCerts, http.DefaultClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read JWKS response body: %w", err)
+		return nil, fmt.Errorf("failed to get key set: %w", err)
 	}
 
-	keySet, err := jwk.Parse(body)
+	claims, err := maa.ValidateToken(token, keySet)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWKS: %w", err)
+		return nil, fmt.Errorf("failed to validate token: %w", err)
 	}
 
-	return keySet, nil
+	return claims, nil
 }
 
-// getKeyFromJWKS retrieves the public key corresponding to the given kid from the JWKS.
-func getKeyFromJWKS(keySet jwk.Set, kid string) (*rsa.PublicKey, error) {
-	keys, matched := keySet.LookupKeyID(kid)
-	if !matched {
-		return nil, fmt.Errorf("no key found for kid: %s", kid)
+func validateClaims(claims map[string]interface{}, nonce []byte) error {
+	runtime, ok := claims["x-ms-runtime"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("failed to get runtime from claims")
 	}
 
-	var pubKey rsa.PublicKey
-	if err := keys.Raw(&pubKey); err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	payload, ok := runtime["client-payload"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("failed to get client payload from claims")
 	}
 
-	return &pubKey, nil
+	tokenNonce, ok := payload["nonce"].(string)
+	if !ok {
+		return fmt.Errorf("failed to get nonce from claims")
+	}
+
+	if tokenNonce != base64.StdEncoding.EncodeToString(nonce) {
+		return fmt.Errorf("nonce mismatch: expected %s, got %s", base64.StdEncoding.EncodeToString(nonce), tokenNonce)
+	}
+
+	return nil
 }
