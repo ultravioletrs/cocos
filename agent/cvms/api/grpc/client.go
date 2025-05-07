@@ -13,6 +13,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
+	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -42,11 +43,12 @@ type CVMSClient struct {
 	runReqManager *runRequestManager
 	sp            server.AgentServer
 	storage       storage.Storage
-	reconnectFn   func(context.Context) (cvms.Service_ProcessClient, error)
+	reconnectFn   func(context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error)
+	grpcClient    pkggrpc.Client
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (cvms.Service_ProcessClient, error)) (*CVMSClient, error) {
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error), grpcClient pkggrpc.Client) (*CVMSClient, error) {
 	store, err := storage.NewFileStorage(storageDir)
 	if err != nil {
 		return nil, err
@@ -61,6 +63,7 @@ func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueu
 		sp:            sp,
 		storage:       store,
 		reconnectFn:   reconnectFn,
+		grpcClient:    grpcClient,
 	}, nil
 }
 
@@ -74,7 +77,7 @@ func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc
 		client.logger.Info("Connection lost, attempting to reconnect...", "error", err)
 		time.Sleep(reconnectInterval)
 
-		stream, err := client.reconnectFn(ctx)
+		grpcClient, stream, err := client.reconnectFn(ctx)
 		if err != nil {
 			client.logger.Error("Failed to reconnect", "error", err)
 			continue
@@ -82,6 +85,7 @@ func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc
 
 		client.mu.Lock()
 		client.stream = stream
+		client.grpcClient = grpcClient
 		client.mu.Unlock()
 	}
 }
@@ -172,6 +176,13 @@ func (client *CVMSClient) processIncomingMessage(ctx context.Context, req *cvms.
 		go client.handleStopComputation(ctx, mes)
 	case *cvms.ServerStreamMessage_AgentStateReq:
 		client.handleAgentStateReq(mes)
+	case *cvms.ServerStreamMessage_DisconnectReq:
+		client.logger.Info("Received disconnect request")
+		client.mu.Lock()
+		if err := client.grpcClient.Close(); err != nil {
+			client.logger.Error("Failed to close gRPC client", "error", err)
+		}
+		client.mu.Unlock()
 	default:
 		return errUnknonwMessageType
 	}

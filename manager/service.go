@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
@@ -225,6 +226,24 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	ms.mu.Lock()
 	ms.vms[id] = cvm
 	ms.mu.Unlock()
+
+	if req.Ttl != "" {
+		ttl, err := time.ParseDuration(req.Ttl)
+		if err != nil {
+			return "", id, err
+		}
+
+		go func() {
+			select {
+			case <-time.After(ttl):
+				if err := ms.RemoveVM(ctx, id); err != nil {
+					ms.logger.Error("Failed to remove VM after TTL", "error", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}()
+	}
 
 	pid := cvm.GetProcess()
 

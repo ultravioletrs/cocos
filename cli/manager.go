@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ const (
 	clientCrt = "client-crt"
 	caUrl     = "ca-url"
 	logLevel  = "log-level"
+	ttlFlag   = "ttl"
 )
 
 var (
@@ -26,6 +28,7 @@ var (
 	agentCVMClientCrt string
 	agentCVMCaUrl     string
 	agentLogLevel     string
+	ttl               time.Duration
 )
 
 func (c *CLI) NewCreateVMCmd() *cobra.Command {
@@ -51,6 +54,10 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 			createReq.AgentLogLevel = agentLogLevel
 			createReq.AgentCvmCaUrl = agentCVMCaUrl
 
+			if ttl > 0 {
+				createReq.Ttl = ttl.String()
+			}
+
 			cmd.Println("🔗 Creating a new virtual machine")
 
 			res, err := c.managerClient.CreateVm(cmd.Context(), createReq)
@@ -69,6 +76,8 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().StringVar(&agentCVMClientCrt, clientCrt, "", "CVM client crt")
 	cmd.Flags().StringVar(&agentCVMCaUrl, agentCVMCaUrl, "", "CVM CA service URL")
 	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
+	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
+	cmd.MarkFlagRequired(serverURL)
 
 	return cmd
 }

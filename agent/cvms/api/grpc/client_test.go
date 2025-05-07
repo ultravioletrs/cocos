@@ -13,6 +13,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	servermocks "github.com/ultravioletrs/cocos/agent/cvms/server/mocks"
 	"github.com/ultravioletrs/cocos/agent/mocks"
+	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	clientmocks "github.com/ultravioletrs/cocos/pkg/clients/grpc/mocks"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -88,7 +90,9 @@ func TestManagerClient_Process(t *testing.T) {
 				<-messageQueue
 			}()
 
-			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+			grpcClient := new(clientmocks.Client)
+
+			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 			assert.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -116,8 +120,9 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	mockServerSvc := new(servermocks.AgentServer)
 	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
+	grpcClient := new(clientmocks.Client)
 
-	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 	assert.NoError(t, err)
 
 	runReq := &cvms.ComputationRunReq{
@@ -167,8 +172,9 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 	mockServerSvc := new(servermocks.AgentServer)
 	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
 	logger := mglog.NewMock()
+	grpcClient := new(clientmocks.Client)
 
-	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (cvms.Service_ProcessClient, error) { return nil, nil })
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 	assert.NoError(t, err)
 
 	stopReq := &cvms.ServerStreamMessage_StopComputation{

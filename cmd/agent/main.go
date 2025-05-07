@@ -118,14 +118,19 @@ func main() {
 	}
 	defer cvmGRPCClient.Close()
 
-	reconnectFn := func(ctx context.Context) (cvms.Service_ProcessClient, error) {
-		_, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
+	reconnectFn := func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) {
+		grpcClient, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		// Don't defer close here as we want to keep the connection open
 
-		return newClient.Process(ctx)
+		pc, err := newClient.Process(ctx)
+		if err != nil {
+			grpcClient.Close()
+			return nil, nil, err
+		}
+		return grpcClient, pc, nil
 	}
 
 	pc, err := cvmsClient.Process(ctx)
@@ -149,7 +154,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, qp, cfg.CAUrl, cfg.CVMId), storageDir, reconnectFn)
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, qp, cfg.CAUrl, cfg.CVMId), storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1

@@ -69,7 +69,12 @@ message ServerStreamMessage {
     ComputationRunReq runReq = 2;
     StopComputation stopComputation = 3;
     AgentStateReq agentStateReq = 4;
+    DisconnectReq disconnectReq = 5;
   }
+}
+
+message DisconnectReq {
+  string id = 1;
 }
 
 message RunReqChunks {

@@ -119,3 +119,10 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "storage.go"
           mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/pkg/clients/grpc:
+    interfaces:
+      Client:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "client.go"
+          mockname: "{{.InterfaceName}}"
