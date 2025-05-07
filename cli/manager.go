@@ -77,7 +77,10 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().StringVar(&agentCVMCaUrl, agentCVMCaUrl, "", "CVM CA service URL")
 	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
 	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
-	cmd.MarkFlagRequired(serverURL)
+	if err := cmd.MarkFlagRequired(serverURL); err != nil {
+		printError(cmd, "Error marking flag as required: %v ❌ ", err)
+		return cmd
+	}
 
 	return cmd
 }
