@@ -338,6 +338,22 @@ func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream ag
 	}, resultFile)
 }
 
+func (p *ProgressBar) ReceiveIMAMeasurements(description string, totalSize int, stream agent.AgentService_IMAMeasurementsClient, resultFile *os.File) ([]byte, error) {
+	pcr10 := make([]byte, 20)
+	err := p.receiveStream(description, totalSize, func() ([]byte, error) {
+		response, err := stream.Recv()
+		if err != nil {
+			return nil, err
+		}
+
+		copy(pcr10, response.Pcr10[:20])
+
+		return response.File, nil
+	}, resultFile)
+
+	return pcr10, err
+}
+
 func (p *ProgressBar) ReceiveAttestation(description string, totalSize int, stream agent.AgentService_AttestationClient, attestationFile *os.File) error {
 	return p.receiveStream(description, totalSize, func() ([]byte, error) {
 		response, err := stream.Recv()
