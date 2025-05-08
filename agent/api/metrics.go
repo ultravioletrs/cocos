@@ -100,3 +100,12 @@ func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [quotep
 
 	return ms.svc.Attestation(ctx, reportData, nonce, attType)
 }
+
+func (ms *metricsMiddleware) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "imameasurements").Add(1)
+		ms.latency.With("method", "imameasurements").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.IMAMeasurements(ctx)
+}

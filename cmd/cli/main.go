@@ -139,6 +139,7 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
 	rootCmd.AddCommand(cliSVC.NewCreateVMCmd())
 	rootCmd.AddCommand(cliSVC.NewRemoveVMCmd())
+	rootCmd.AddCommand(cliSVC.NewIMAMeasurementsCmd())
 
 	// Attestation commands
 	attestationCmd.AddCommand(cliSVC.NewGetAttestationCmd())

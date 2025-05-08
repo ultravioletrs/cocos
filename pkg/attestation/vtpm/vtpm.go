@@ -315,3 +315,30 @@ func calculatePCRTLSKey(pubKey []byte) ([]byte, []byte) {
 
 	return newPcr256[:], newPcr384[:]
 }
+
+func getPCRValue(index int, algorithm tpm2.Algorithm) ([]byte, error) {
+	rwc, err := OpenTpm()
+	if err != nil {
+		return nil, err
+	}
+	defer rwc.Close()
+
+	pcrValue, err := tpm2.ReadPCR(rwc, index, algorithm)
+	if err != nil {
+		return nil, err
+	}
+
+	return pcrValue, nil
+}
+
+func GetPCRSHA1Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA1)
+}
+
+func GetPCRSHA256Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA256)
+}
+
+func GetPCRSHA384Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA384)
+}

@@ -27,15 +27,17 @@ type SDK interface {
 	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
 	Result(ctx context.Context, privKey any, resultFile *os.File) error
 	Attestation(ctx context.Context, reportData [size64]byte, nonce [size32]byte, attType int, attestationFile *os.File) error
+	IMAMeasurements(ctx context.Context, privKey any, resultFile *os.File) ([]byte, error)
 }
 
 const (
-	size64                         = 64
-	size32                         = 32
-	algoProgressBarDescription     = "Uploading algorithm"
-	dataProgressBarDescription     = "Uploading data"
-	resultProgressDescription      = "Downloading result"
-	attestationProgressDescription = "Downloading attestation"
+	size64                             = 64
+	size32                             = 32
+	algoProgressBarDescription         = "Uploading algorithm"
+	dataProgressBarDescription         = "Uploading data"
+	resultProgressDescription          = "Downloading result"
+	attestationProgressDescription     = "Downloading attestation"
+	imaMeasurementsProgressDescription = "Downloading Linux IMA measurements"
 )
 
 type agentSDK struct {
@@ -185,4 +187,39 @@ func generateMetadata(userID string, privateKey crypto.PrivateKey) (metadata.MD,
 	kv[auth.UserMetadataKey] = userID
 	kv[auth.SignatureMetadataKey] = base64.StdEncoding.EncodeToString(signature)
 	return metadata.New(kv), nil
+}
+
+func (sdk *agentSDK) IMAMeasurements(ctx context.Context, privKey any, resultFile *os.File) ([]byte, error) {
+	request := &agent.IMAMeasurementsRequest{}
+
+	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	stream, err := sdk.client.IMAMeasurements(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	incomingmd, err := stream.Header()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
+
+	if len(fileSizeStr) == 0 {
+		fileSizeStr = append(fileSizeStr, "0")
+	}
+
+	fileSize, err := strconv.Atoi(fileSizeStr[0])
+	if err != nil {
+		return nil, err
+	}
+
+	pb := progressbar.New(true)
+
+	return pb.ReceiveIMAMeasurements(imaMeasurementsProgressDescription, fileSize, stream, resultFile)
 }

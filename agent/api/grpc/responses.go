@@ -13,3 +13,8 @@ type resultRes struct {
 type attestationRes struct {
 	File []byte
 }
+
+type imaMeasurementsRes struct {
+	File  []byte
+	PCR10 []byte
+}
