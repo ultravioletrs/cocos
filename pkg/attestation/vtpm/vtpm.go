@@ -8,7 +8,6 @@ import (
 	"crypto"
 	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
 	ptpm "github.com/google/go-tpm-tools/proto/tpm"
@@ -26,6 +26,7 @@ import (
 	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,6 +44,7 @@ const (
 var (
 	ExternalTPM   io.ReadWriteCloser
 	ErrNoHashAlgo = errors.New("hash algo is not supported")
+	ErrFetchQuote = errors.New("failed to fetch vTPM quote")
 )
 
 type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
@@ -50,11 +52,6 @@ type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]b
 type AttestationData struct {
 	TpmQuote []byte `json:"quote"`
 	Data     []byte `json:"data"`
-}
-
-type AttestationProvider interface {
-	FetchAttestation(teeNonce []byte, vtpmNonce []byte) ([]byte, error)
-	VerifyAttestation(report []byte, teeNonce []byte, pubKeyTLS []byte) error
 }
 
 type tpm struct {
@@ -102,37 +99,64 @@ func ExtendPCR(pcrIndex int, value []byte) error {
 }
 
 type provider struct {
-	TeeNonce      []byte
-	VTpmNonce     []byte
-	PubKeyTLS     []byte
-	TeeAttestaion bool
+	pubKey        []byte
+	teeAttestaion bool
+	vmpl          uint
+	writer        io.Writer
 }
 
-func New(teeNonce, vtpmNonce, pubKeyTLS []byte, teeAttestation bool) attestations.Provider {
+func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer) attestations.Provider {
 	return &provider{
-		TeeNonce:      teeNonce,
-		VTpmNonce:     vtpmNonce,
-		PubKeyTLS:     pubKeyTLS,
-		TeeAttestaion: teeAttestation,
+		pubKey:        pubKey,
+		teeAttestaion: teeAttestation,
+		vmpl:          vmpl,
+		writer:        writer,
 	}
 }
 
-func (v provider) FetchAttestation() ([]byte, error) {
-	return Attest(v.TeeNonce, v.VTpmNonce, v.TeeAttestaion)
+func (v provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
+	return Attest(teeNonce, vTpmNonce, v.teeAttestaion, v.vmpl)
 }
 
-func (v provider) VerifyAttestation(report []byte) error {
-	return VTPMVerify(report, v.PubKeyTLS, v.TeeNonce, v.VTpmNonce)
+func (v provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
+	return quoteprovider.FetchAttestation(teeNonce, v.vmpl)
 }
 
-func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error) {
+func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
+	quote, err := FetchQuote(vTpmNonce)
+	if err != nil {
+		return []byte{}, errors.Wrap(ErrFetchQuote, err)
+	}
+
+	return proto.Marshal(quote)
+}
+
+func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+	attestReport, err := abi.ReportToProto(report)
+	if err != nil {
+		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
+	}
+
+	attestationReport := sevsnp.Attestation{Report: attestReport, CertificateChain: nil}
+	return quoteprovider.VerifyAttestationReportTLS(&attestationReport, teeNonce)
+}
+
+func (v provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
+	return VerifyQuote(report, v.pubKey, vTpmNonce, v.writer)
+}
+
+func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+	return VTPMVerify(report, v.pubKey, teeNonce, vTpmNonce, v.writer)
+}
+
+func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([]byte, error) {
 	attestation, err := FetchQuote(vTPMNonce)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	if teeAttestaion {
-		err = addTEEAttestation(attestation, teeNonce)
+		err = addTEEAttestation(attestation, teeNonce, vmpl)
 		if err != nil {
 			return []byte{}, err
 		}
@@ -141,7 +165,11 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, erro
 	return marshalQuote(attestation)
 }
 
-func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte) error {
+func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte, writer io.Writer) error {
+	if err := VerifyQuote(quote, pubKeyTLS, vtpmNonce, writer); err != nil {
+		return fmt.Errorf("failed to verify vTPM quote: %v", err)
+	}
+
 	attestation := &attest.Attestation{}
 
 	err := proto.Unmarshal(quote, attestation)
@@ -149,46 +177,14 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 		return errors.Wrap(fmt.Errorf("failed to unmarshal quote"), err)
 	}
 
-	ak := attestation.GetAkPub()
-	pub, err := tpm2.DecodePublic(ak)
-	if err != nil {
-		return err
-	}
-
-	cryptoPub, err := pub.Key()
-	if err != nil {
-		return err
-	}
-
-	reportData, err := createTEEAttestationReportNonce(pubKeyTLS, ak, teeNonce)
-	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to create TEE attestation report nonce"), err)
-	}
-
-	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), reportData); err != nil {
+	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), teeNonce); err != nil {
 		return fmt.Errorf("failed to verify TEE attestation report: %v", err)
 	}
 
-	_, err = server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
-	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to verify attestation"), err)
-	}
-
-	s256, s384 := calculatePCRTLSKey(pubKeyTLS)
-
-	if err := checkExpectedPCRValues(attestation, s256, s384); err != nil {
-		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
-	}
-
 	return nil
 }
 
-// EmptyAttest is a dummy attestation function that returns an empty attestation report.
-func EmptyAttest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error) {
-	return []byte{}, nil
-}
-
-func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte) error {
+func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte, writer io.Writer) error {
 	attestation := &attest.Attestation{}
 
 	err := proto.Unmarshal(quote, attestation)
@@ -206,7 +202,8 @@ func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
+
+	ms, err := server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to verify attestation"), err)
 	}
@@ -217,37 +214,20 @@ func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte) error {
 		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
 	}
 
+	if writer != nil {
+		marshalOptions := prototext.MarshalOptions{Multiline: true, EmitASCII: true}
+
+		out, err := marshalOptions.Marshal(ms)
+		if err != nil {
+			return nil
+		}
+
+		if _, err := writer.Write(out); err != nil {
+			return fmt.Errorf("failed to write verified attestation report: %v", err)
+		}
+	}
+
 	return nil
-}
-
-func publicKeyToBytes(pubKey interface{}) ([]byte, error) {
-	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return nil, err
-	}
-	return derBytes, nil
-}
-
-func createTEEAttestationReportNonce(pubKeyTLS []byte, ak []byte, nonce []byte) ([]byte, error) {
-	pub, err := tpm2.DecodePublic(ak)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	cryptoPub, err := pub.Key()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	pubKeyBytes, err := publicKeyToBytes(cryptoPub)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	reportData := append(append(pubKeyTLS, pubKeyBytes...), nonce...)
-	hash := sha3.Sum512(reportData)
-
-	return hash[:], nil
 }
 
 func marshalQuote(attestation *attest.Attestation) ([]byte, error) {
@@ -290,8 +270,8 @@ func FetchQuote(nonce []byte) (*attest.Attestation, error) {
 	return attestation, nil
 }
 
-func addTEEAttestation(attestation *attest.Attestation, nonce []byte) error {
-	rawTeeAttestation, err := quoteprovider.FetchAttestation(nonce)
+func addTEEAttestation(attestation *attest.Attestation, nonce []byte, vmpl uint) error {
+	rawTeeAttestation, err := quoteprovider.FetchAttestation(nonce, vmpl)
 	if err != nil {
 		return fmt.Errorf("failed to fetch TEE attestation report: %v", err)
 	}
@@ -316,10 +296,18 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []
 		switch quote.Pcrs.Hash {
 		case ptpm.HashAlgo_SHA256:
 			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha256
-			pcr15 = ePcr256
+			if ePcr256 == nil {
+				pcr15 = make([]byte, 32)
+			} else {
+				pcr15 = ePcr256
+			}
 		case ptpm.HashAlgo_SHA384:
 			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha384
-			pcr15 = ePcr384
+			if ePcr384 == nil {
+				pcr15 = make([]byte, 48)
+			} else {
+				pcr15 = ePcr384
+			}
 		case ptpm.HashAlgo_SHA1:
 			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha1
 			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -351,6 +339,10 @@ func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []
 
 // Return SHA256 and SHA384 values of the input public key.
 func calculatePCRTLSKey(pubKey []byte) ([]byte, []byte) {
+	if len(pubKey) == 0 {
+		return nil, nil
+	}
+
 	init256 := make([]byte, Hash256)
 	init384 := make([]byte, Hash384)
 

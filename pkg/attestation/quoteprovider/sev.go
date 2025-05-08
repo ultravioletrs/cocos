@@ -31,7 +31,6 @@ const (
 	Nonce               = 64
 	sevProductNameMilan = "Milan"
 	sevProductNameGenoa = "Genoa"
-	sevVMPL             = 2
 )
 
 var (
@@ -159,7 +158,7 @@ func VerifyAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) err
 	return nil
 }
 
-func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
+func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 	var reportData [Nonce]byte
 
 	qp, err := GetLeveledQuoteProvider()
@@ -172,7 +171,7 @@ func FetchAttestation(reportDataSlice []byte) ([]byte, error) {
 	}
 	copy(reportData[:], reportDataSlice)
 
-	rawQuote, err := qp.GetRawQuoteAtLevel(reportData, sevVMPL)
+	rawQuote, err := qp.GetRawQuoteAtLevel(reportData, vmpl)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to get raw quote")
 	}

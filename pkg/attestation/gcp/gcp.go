@@ -9,12 +9,12 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
 	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"google.golang.org/protobuf/proto"
 )
 
 const (

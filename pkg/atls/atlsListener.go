@@ -9,6 +9,7 @@ package atls
 import "C"
 
 import (
+	"crypto/sha3"
 	"fmt"
 	"io"
 	"net"
@@ -21,9 +22,9 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -34,6 +35,7 @@ const (
 	errorSyscall    = 5
 	errorSsl        = 1
 	waitTime        = 2
+	vmpl2           = 2
 )
 
 var (
@@ -48,12 +50,18 @@ var (
 	errConnCreate    = errors.New("could not create connection")
 )
 
-func getPlatformProvider(platformType attestations.PlatformType, pubKey []byte, teeNonce []byte, vtpmNonce []byte) (attestations.Provider, error) {
+func formTeeData(pubKey []byte, teeNonce []byte) []byte {
+	combined := append(pubKey, teeNonce...)
+	sum := sha3.Sum512(combined)
+	return sum[:]
+}
+
+func getPlatformProvider(platformType attestations.PlatformType, pubKey []byte) (attestations.Provider, error) {
 	switch platformType {
 	case attestations.SNPvTPM:
-		return vtpm.New(teeNonce, vtpmNonce, pubKey, true), nil
+		return vtpm.New(pubKey, true, vmpl2, nil), nil
 	case attestations.Azure:
-		return azure.New(teeNonce, vtpmNonce), nil
+		return azure.New(nil), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
@@ -67,13 +75,15 @@ func callVerificationValidationCallback(platformType C.int, pubKey *C.uchar, pub
 	pType := attestations.PlatformType(int(platformType))
 	attestationReport := C.GoBytes(unsafe.Pointer(attestReport), attestReportSize)
 	
-	provider, err := getPlatformProvider(pType, pubKeyCert, teeNonceData, vTPMNonce)
+	teeData := formTeeData(pubKeyCert, teeNonceData)
+
+	provider, err := getPlatformProvider(pType, pubKeyCert)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
 		return C.int(-1)
 	}
 
-	err = provider.VerifyAttestation(attestationReport)
+	err = provider.VerifyAttestation(attestationReport, teeData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "verification callback failed %s", err.Error())
 		return C.int(-1)
@@ -89,13 +99,15 @@ func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
 	pType := attestations.PlatformType(int(platformType))
 
-	provider, err := getPlatformProvider(pType, pubKeyCert, teeNonceData, vTPMNonce)
+	teeData := formTeeData(pubKeyCert, teeNonceData)
+
+	provider, err := getPlatformProvider(pType, pubKeyCert)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
 		return nil
 	}
 
-	quote, err := provider.FetchAttestation()
+	quote, err := provider.Attestation(teeData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "attestation callback returned nil: %s", err.Error())
 		return nil

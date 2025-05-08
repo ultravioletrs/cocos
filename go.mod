@@ -30,7 +30,6 @@ require (
 	github.com/edgelesssys/go-azguestattestation v0.0.0-20250408071817-8c4457b235ff
 	github.com/goccy/go-json v0.10.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/golang/protobuf v1.5.4
 	github.com/google/gce-tcb-verifier v0.3.1
 )
 

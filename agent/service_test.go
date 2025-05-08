@@ -20,8 +20,9 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
@@ -36,9 +37,6 @@ var (
 const datasetFile = "iris.csv"
 
 func TestAlgo(t *testing.T) {
-	qp, err := quoteprovider.GetLeveledQuoteProvider()
-	require.NoError(t, err)
-
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
 
@@ -121,7 +119,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, &attestations.EmptyProvider{}, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -140,9 +138,6 @@ func TestAlgo(t *testing.T) {
 }
 
 func TestData(t *testing.T) {
-	qp, err := quoteprovider.GetLeveledQuoteProvider()
-	require.NoError(t, err)
-
 	algo, err := os.ReadFile(algoPath)
 	require.NoError(t, err)
 
@@ -216,7 +211,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, &attestations.EmptyProvider{}, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -241,9 +236,6 @@ func TestData(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	qp, err := quoteprovider.GetLeveledQuoteProvider()
-	require.NoError(t, err)
-
 	cases := []struct {
 		name     string
 		err      error
@@ -301,10 +293,10 @@ func TestResult(t *testing.T) {
 			sm.On("SendEvent", mock.Anything).Return()
 
 			svc := &agentService{
-				sm:            sm,
-				eventSvc:      events,
-				quoteProvider: qp,
-				computation:   testComputation(t),
+				sm:          sm,
+				eventSvc:    events,
+				provider:    &attestations.EmptyProvider{},
+				computation: testComputation(t),
 			}
 
 			go func() {
@@ -324,28 +316,63 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	qp := new(mocks2.LeveledQuoteProvider)
+	provider := new(mocks2.Provider)
 
 	cases := []struct {
 		name       string
 		reportData [quoteprovider.Nonce]byte
 		nonce      [vtpm.Nonce]byte
 		rawQuote   []uint8
+		platform   attestations.PlatformType
 		err        error
 	}{
 		{
-			name:       "Test attestation successful",
+			name:       "Test SNP attestation successful",
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   make([]uint8, 0),
+			platform:   attestations.SNP,
 			err:        nil,
 		},
 		{
-			name:       "Test attestation failed",
+			name:       "Test SNP attestation failed",
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   nil,
+			platform:   attestations.SNP,
 			err:        ErrAttestationFailed,
+		},
+		{
+			name:       "Test vTPM attestation successful",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   make([]uint8, 0),
+			platform:   attestations.VTPM,
+			err:        nil,
+		},
+		{
+			name:       "Test vTPM attestation failed",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   nil,
+			platform:   attestations.VTPM,
+			err:        ErrAttestationVTpmFailed,
+		},
+		{
+			name:       "Test SNP-vTPM attestation successful",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   make([]uint8, 0),
+			platform:   attestations.SNPvTPM,
+			err:        nil,
+		},
+		{
+			name:       "Test SNP-vTPM attestation failed",
+			reportData: generateReportData(),
+			nonce:      [32]byte{},
+			rawQuote:   nil,
+			platform:   attestations.SNPvTPM,
+			err:        ErrAttestationVTpmFailed,
 		},
 	}
 	for _, tc := range cases {
@@ -359,13 +386,13 @@ func TestAttestation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			getQuote := qp.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
-			if tc.err != ErrAttestationFailed {
-				getQuote = qp.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return(tc.nonce, nil)
+			getQuote := provider.On("TeeAttestation", mock.Anything).Return(tc.rawQuote, tc.err)
+			if tc.err != ErrAttestationFailed && tc.err != ErrAttestationVTpmFailed {
+				getQuote = provider.On("TeeAttestation", mock.Anything).Return(tc.nonce, nil)
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)

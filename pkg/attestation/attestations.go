@@ -61,8 +61,12 @@ type ccCheck struct {
 }
 
 type Provider interface {
-	FetchAttestation() ([]byte, error)
-	VerifyAttestation(report []byte) error
+	Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
+	TeeAttestation(teeNonce []byte) ([]byte, error)
+	VTpmAttestation(vTpmNonce []byte) ([]byte, error)
+	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
+	VerifTeeAttestation(report []byte, teeNonce []byte) error
+	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
 }
 
 func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {

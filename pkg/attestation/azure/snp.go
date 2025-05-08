@@ -9,8 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
@@ -37,27 +39,23 @@ type AttestationData struct {
 }
 
 type provider struct {
-	ToeknNonce []byte
-	VTpmNonce  []byte
+	writer io.Writer
 }
 
-func New(teeNonce, vtpmNonce []byte) attestations.Provider {
-	var fixedNonce [vtpm.Nonce]byte
-	copy(fixedNonce[:], teeNonce)
-
-	return &provider{
-		ToeknNonce: fixedNonce[:],
-		VTpmNonce:  vtpmNonce,
-	}
+func New(writer io.Writer) attestations.Provider {
+	return provider{writer: writer}
 }
 
-func (a provider) FetchAttestation() ([]byte, error) {
-	token, err := maa.Attest(context.Background(), a.ToeknNonce, MaaURL, http.DefaultClient)
+func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
+	var tokenNonce [vtpm.Nonce]byte
+	copy(tokenNonce[:], teeNonce)
+
+	token, err := maa.Attest(context.Background(), tokenNonce[:], MaaURL, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Azure attestation token: %w", err)
 	}
 
-	params, err := maa.NewParameters(context.Background(), a.ToeknNonce, http.DefaultClient, nil)
+	params, err := maa.NewParameters(context.Background(), tokenNonce[:], http.DefaultClient, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get report: %w", err)
 	}
@@ -67,7 +65,7 @@ func (a provider) FetchAttestation() ([]byte, error) {
 		return nil, fmt.Errorf("failed to parse SNP report: %w", err)
 	}
 
-	quote, err := vtpm.FetchQuote(a.VTpmNonce)
+	quote, err := vtpm.FetchQuote(vTpmNonce)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch quote: %w", err)
 	}
@@ -95,7 +93,44 @@ func (a provider) FetchAttestation() ([]byte, error) {
 	return attestDataByte, nil
 }
 
-func (a provider) VerifyAttestation(report []byte) error {
+func (a provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
+	var tokenNonce [vtpm.Nonce]byte
+	copy(tokenNonce[:], teeNonce)
+
+	params, err := maa.NewParameters(context.Background(), tokenNonce[:], http.DefaultClient, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get report: %w", err)
+	}
+
+	return params.SNPReport, nil
+}
+
+func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
+	quote, err := vtpm.FetchQuote(vTpmNonce)
+	if err != nil {
+		return []byte{}, errors.Wrap(vtpm.ErrFetchQuote, err)
+	}
+
+	return proto.Marshal(quote)
+}
+
+func (a provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+	attestationReport, err := abi.ReportCertsToProto(report)
+	if err != nil {
+		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
+	}
+
+	return quoteprovider.VerifyAttestationReportTLS(attestationReport, teeNonce)
+}
+
+func (a provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
+	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer)
+}
+
+func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+	var tokenNonce [vtpm.Nonce]byte
+	copy(tokenNonce[:], teeNonce)
+
 	var attestationData AttestationData
 	err := json.Unmarshal(report, &attestationData)
 	if err != nil {
@@ -109,7 +144,7 @@ func (a provider) VerifyAttestation(report []byte) error {
 		return fmt.Errorf("failed to validate token: %w", err)
 	}
 
-	if err = validateClaims(claims, a.ToeknNonce); err != nil {
+	if err = validateClaims(claims, tokenNonce[:]); err != nil {
 		return fmt.Errorf("failed to validate claims: %w", err)
 	}
 

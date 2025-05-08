@@ -8,7 +8,6 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -21,8 +20,6 @@ import (
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
 	"github.com/edgelesssys/go-azguestattestation/maa"
-	"github.com/google/go-sev-guest/client"
-	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -32,8 +29,6 @@ import (
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
@@ -91,22 +86,19 @@ func main() {
 		return
 	}
 
-	var qp client.LeveledQuoteProvider
-	vtpmAttest := vtpm.Attest
+	var provider attestations.Provider
+	ccPlatform := attestations.CCPlatform()
 
-	if !attestations.SevGuesDeviceExists() {
-		logger.Info("SEV-SNP device not found")
-		qpMock := new(mocks.LeveledQuoteProvider)
-		qpMock.On("GetRawQuoteAtLevel", mock.Anything, mock.Anything).Return([]uint8{}, errors.New("SEV-SNP device not found"))
-		qp = qpMock
-		vtpmAttest = vtpm.EmptyAttest
-	} else {
-		qp, err = quoteprovider.GetLeveledQuoteProvider()
-		if err != nil {
-			logger.Error(fmt.Sprintf("failed to create quote provider %s", err.Error()))
-			exitCode = 1
-			return
-		}
+	switch ccPlatform {
+	case attestations.SNP:
+		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
+	case attestations.SNPvTPM:
+		provider = vtpm.New(nil, true, uint(cfg.Vmpl), nil)
+	case attestations.Azure:
+		provider = azure.New(nil)
+	case attestations.NoCC:
+		logger.Info("TEE device not found")
+		provider = &attestations.EmptyProvider{}
 	}
 
 	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
@@ -156,7 +148,7 @@ func main() {
 	maa.OSBuild = cfg.AgentOSBuild
 	maa.OSDistro = cfg.AgentOSDistro
 	maa.OSType = cfg.AgentOSType
-	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl, vtpmAttest)
+	svc := newService(ctx, logger, eventSvc, provider, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -164,7 +156,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, qp, cfg.CAUrl, cfg.CVMId), storageDir, reconnectFn, cvmGRPCClient)
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, cfg.CAUrl, cfg.CVMId), storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -211,8 +203,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int, vtpmAttest vtpm.VtpmAttest) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, qp, vmpl, vtpmAttest)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestations.Provider, vmpl int) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, provider, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")

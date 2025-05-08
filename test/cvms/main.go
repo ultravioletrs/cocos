@@ -191,7 +191,7 @@ func main() {
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil, nil, caUrl, cvmId)
+	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil, caUrl, cvmId)
 
 	g.Go(func() error {
 		return gs.Start()
