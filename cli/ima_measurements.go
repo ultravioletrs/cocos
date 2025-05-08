@@ -59,7 +59,6 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 			defer imaMeasurementsFile.Close()
 
 			pcr10, err := cli.agentSDK.IMAMeasurements(cmd.Context(), privKey, imaMeasurementsFile)
-
 			if err != nil {
 				printError(cmd, "Error retrieving Linux IMA measurements file: %v ❌ ", err)
 				return
