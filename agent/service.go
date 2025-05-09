@@ -76,8 +76,8 @@ const (
 )
 
 const (
-	IMA_MEASUREMENTS_FILE_PATH = "/sys/kernel/security/integrity/ima/ascii_runtime_measurements"
-	IMA_PCR_INDEX              = 10
+	ImaMeasurementsFilePath = "/sys/kernel/security/integrity/ima/ascii_runtime_measurements"
+	ImaPcrIndex             = 10
 )
 
 var (
@@ -503,12 +503,12 @@ func (as *agentService) publishEvent(status string) statemachine.Action {
 }
 
 func (as *agentService) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
-	data, err := os.ReadFile(IMA_MEASUREMENTS_FILE_PATH)
+	data, err := os.ReadFile(ImaMeasurementsFilePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error reading Linux IMA measurements file: %s", err.Error())
 	}
 
-	pcr10, err := vtpm.GetPCRSHA1Value(IMA_PCR_INDEX)
+	pcr10, err := vtpm.GetPCRSHA1Value(ImaPcrIndex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error reading TPM PCR #10: %s", err.Error())
 	}

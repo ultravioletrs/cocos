@@ -12,6 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -66,7 +67,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 
 			cmd.Println(color.New(color.FgGreen).Sprintf("Linux IMA measurements file retrieved and saved successfully as %s! PCR10 = %s ✔ ", filename, hex.EncodeToString(pcr10)))
 
-			calculatedPCR10 := make([]byte, 20)
+			calculatedPCR10 := make([]byte, vtpm.Hash1)
 
 			file, err := os.Open(filename)
 			if err != nil {

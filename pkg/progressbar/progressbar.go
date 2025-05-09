@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/term"
 )
 
@@ -339,7 +340,7 @@ func (p *ProgressBar) ReceiveResult(description string, totalSize int, stream ag
 }
 
 func (p *ProgressBar) ReceiveIMAMeasurements(description string, totalSize int, stream agent.AgentService_IMAMeasurementsClient, resultFile *os.File) ([]byte, error) {
-	pcr10 := make([]byte, 20)
+	pcr10 := make([]byte, vtpm.Hash1)
 	err := p.receiveStream(description, totalSize, func() ([]byte, error) {
 		response, err := stream.Recv()
 		if err != nil {
