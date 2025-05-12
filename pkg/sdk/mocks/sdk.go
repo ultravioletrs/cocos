@@ -173,9 +173,9 @@ func (_c *SDK_Data_Call) RunAndReturn(run func(context.Context, *os.File, string
 	return _c
 }
 
-// IMAMeasurements provides a mock function with given fields: ctx, privKey, resultFile
-func (_m *SDK) IMAMeasurements(ctx context.Context, privKey interface{}, resultFile *os.File) ([]byte, error) {
-	ret := _m.Called(ctx, privKey, resultFile)
+// IMAMeasurements provides a mock function with given fields: ctx, resultFile
+func (_m *SDK) IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error) {
+	ret := _m.Called(ctx, resultFile)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IMAMeasurements")
@@ -183,19 +183,19 @@ func (_m *SDK) IMAMeasurements(ctx context.Context, privKey interface{}, resultF
 
 	var r0 []byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, interface{}, *os.File) ([]byte, error)); ok {
-		return rf(ctx, privKey, resultFile)
+	if rf, ok := ret.Get(0).(func(context.Context, *os.File) ([]byte, error)); ok {
+		return rf(ctx, resultFile)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, interface{}, *os.File) []byte); ok {
-		r0 = rf(ctx, privKey, resultFile)
+	if rf, ok := ret.Get(0).(func(context.Context, *os.File) []byte); ok {
+		r0 = rf(ctx, resultFile)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, interface{}, *os.File) error); ok {
-		r1 = rf(ctx, privKey, resultFile)
+	if rf, ok := ret.Get(1).(func(context.Context, *os.File) error); ok {
+		r1 = rf(ctx, resultFile)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -210,15 +210,14 @@ type SDK_IMAMeasurements_Call struct {
 
 // IMAMeasurements is a helper method to define mock.On call
 //   - ctx context.Context
-//   - privKey interface{}
 //   - resultFile *os.File
-func (_e *SDK_Expecter) IMAMeasurements(ctx interface{}, privKey interface{}, resultFile interface{}) *SDK_IMAMeasurements_Call {
-	return &SDK_IMAMeasurements_Call{Call: _e.mock.On("IMAMeasurements", ctx, privKey, resultFile)}
+func (_e *SDK_Expecter) IMAMeasurements(ctx interface{}, resultFile interface{}) *SDK_IMAMeasurements_Call {
+	return &SDK_IMAMeasurements_Call{Call: _e.mock.On("IMAMeasurements", ctx, resultFile)}
 }
 
-func (_c *SDK_IMAMeasurements_Call) Run(run func(ctx context.Context, privKey interface{}, resultFile *os.File)) *SDK_IMAMeasurements_Call {
+func (_c *SDK_IMAMeasurements_Call) Run(run func(ctx context.Context, resultFile *os.File)) *SDK_IMAMeasurements_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(interface{}), args[2].(*os.File))
+		run(args[0].(context.Context), args[1].(*os.File))
 	})
 	return _c
 }
@@ -228,7 +227,7 @@ func (_c *SDK_IMAMeasurements_Call) Return(_a0 []byte, _a1 error) *SDK_IMAMeasur
 	return _c
 }
 
-func (_c *SDK_IMAMeasurements_Call) RunAndReturn(run func(context.Context, interface{}, *os.File) ([]byte, error)) *SDK_IMAMeasurements_Call {
+func (_c *SDK_IMAMeasurements_Call) RunAndReturn(run func(context.Context, *os.File) ([]byte, error)) *SDK_IMAMeasurements_Call {
 	_c.Call.Return(run)
 	return _c
 }

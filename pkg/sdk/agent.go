@@ -27,7 +27,7 @@ type SDK interface {
 	Data(ctx context.Context, dataset *os.File, filename string, privKey any) error
 	Result(ctx context.Context, privKey any, resultFile *os.File) error
 	Attestation(ctx context.Context, reportData [size64]byte, nonce [size32]byte, attType int, attestationFile *os.File) error
-	IMAMeasurements(ctx context.Context, privKey any, resultFile *os.File) ([]byte, error)
+	IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error)
 }
 
 const (
@@ -189,15 +189,9 @@ func generateMetadata(userID string, privateKey crypto.PrivateKey) (metadata.MD,
 	return metadata.New(kv), nil
 }
 
-func (sdk *agentSDK) IMAMeasurements(ctx context.Context, privKey any, resultFile *os.File) ([]byte, error) {
+func (sdk *agentSDK) IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error) {
 	request := &agent.IMAMeasurementsRequest{}
 
-	md, err := generateMetadata(string(auth.ConsumerRole), privKey)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx = metadata.NewOutgoingContext(ctx, md)
 	stream, err := sdk.client.IMAMeasurements(ctx, request)
 	if err != nil {
 		return nil, err

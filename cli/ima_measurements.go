@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/pem"
 	"os"
 	"strings"
 
@@ -23,7 +22,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "ima-measurements",
 		Short:   "Retrieve Linux IMA measurements file",
-		Example: "ima-measurements <private_key_file_path> <optional_file_name>",
+		Example: "ima-measurements <optional_file_name>",
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -33,23 +32,9 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 
 			cmd.Println("⏳ Retrieving computation Linux IMA measurements file")
 
-			privKeyFile, err := os.ReadFile(args[0])
-			if err != nil {
-				printError(cmd, "Error reading private key file: %v ❌ ", err)
-				return
-			}
-
 			filename := imaMeasurementsFilename
-			if len(args) > 1 {
-				filename = args[1]
-			}
-
-			pemBlock, _ := pem.Decode(privKeyFile)
-
-			privKey, err := decodeKey(pemBlock)
-			if err != nil {
-				printError(cmd, "Error decoding private key: %v ❌ ", err)
-				return
+			if len(args) >= 1 {
+				filename = args[0]
 			}
 
 			imaMeasurementsFile, err := os.Create(filename)
@@ -59,7 +44,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 			}
 			defer imaMeasurementsFile.Close()
 
-			pcr10, err := cli.agentSDK.IMAMeasurements(cmd.Context(), privKey, imaMeasurementsFile)
+			pcr10, err := cli.agentSDK.IMAMeasurements(cmd.Context(), imaMeasurementsFile)
 			if err != nil {
 				printError(cmd, "Error retrieving Linux IMA measurements file: %v ❌ ", err)
 				return

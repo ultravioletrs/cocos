@@ -111,8 +111,6 @@ construct_qemu_args() {
     fi
 
     args+=("-monitor" "$MONITOR")
-    # commented so the VM can be rebooted and Linux IMA enabled
-    # args+=("-no-reboot")
     args+=("-vnc" ":9")
 
     echo "${args[@]}"
