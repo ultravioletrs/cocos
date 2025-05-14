@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
@@ -32,10 +33,11 @@ var (
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
 type grpcServer struct {
-	algo        grpc.Handler
-	data        grpc.Handler
-	result      grpc.Handler
-	attestation grpc.Handler
+	algo            grpc.Handler
+	data            grpc.Handler
+	result          grpc.Handler
+	attestation     grpc.Handler
+	imaMeasurements grpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
@@ -61,6 +63,11 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			attestationEndpoint(svc),
 			decodeAttestationRequest,
 			encodeAttestationResponse,
+		),
+		imaMeasurements: grpc.NewServer(
+			imaMeasurementsEndpoint(svc),
+			decodeIMAMeasurementsRequest,
+			encodeIMAMeasurementsResponse,
 		),
 	}
 }
@@ -229,6 +236,59 @@ func (s *grpcServer) Attestation(req *agent.AttestationRequest, stream agent.Age
 		}
 
 		if err := stream.Send(&agent.AttestationResponse{File: buf[:n]}); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	return nil
+}
+
+func decodeIMAMeasurementsRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	return imaMeasurementsReq{}, nil
+}
+
+func encodeIMAMeasurementsResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(imaMeasurementsRes)
+	return &agent.IMAMeasurementsResponse{
+		File:  res.File,
+		Pcr10: res.PCR10,
+	}, nil
+}
+
+func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream agent.AgentService_IMAMeasurementsServer) error {
+	_, res, err := s.imaMeasurements.ServeGRPC(stream.Context(), req)
+	if err != nil {
+		return err
+	}
+	rr := res.(*agent.IMAMeasurementsResponse)
+
+	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: strconv.Itoa(len(rr.File))})); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	imaBuff := bytes.NewBuffer(rr.File)
+	pcr10Buff := bytes.NewBuffer(rr.Pcr10)
+
+	imaResBuff := make([]byte, bufferSize)
+	pcr10ResBuff := make([]byte, bufferSize)
+
+	for {
+		nIma, errIma := imaBuff.Read(imaResBuff)
+		if errIma != nil && errIma != io.EOF {
+			return status.Error(codes.Internal, errIma.Error())
+		}
+
+		nPcr, errPcr := pcr10Buff.Read(pcr10ResBuff)
+		if errPcr != nil && errPcr != io.EOF {
+			return status.Error(codes.Internal, errPcr.Error())
+		}
+
+		if nIma == 0 && errIma == io.EOF &&
+			nPcr == 0 && errPcr == io.EOF {
+			break
+		}
+
+		if err := stream.Send(&agent.IMAMeasurementsResponse{File: imaResBuff[:nIma], Pcr10: pcr10ResBuff[:nPcr]}); err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
 	}

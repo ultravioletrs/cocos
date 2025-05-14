@@ -12,6 +12,7 @@ service AgentService {
   rpc Data(stream DataRequest) returns (DataResponse) {}
   rpc Result(ResultRequest) returns (stream ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (stream AttestationResponse) {}
+  rpc IMAMeasurements(IMAMeasurementsRequest) returns (stream IMAMeasurementsResponse) {}
 }
 
 message AlgoRequest {
@@ -43,4 +44,12 @@ message AttestationRequest {
 
 message AttestationResponse {
   bytes file = 1;
+}
+
+message IMAMeasurementsRequest {
+}
+
+message IMAMeasurementsResponse {
+  bytes file = 1;
+  bytes pcr10 = 2;
 }

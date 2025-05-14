@@ -75,6 +75,11 @@ const (
 	algoFilePermission = 0o700
 )
 
+const (
+	ImaMeasurementsFilePath = "/sys/kernel/security/integrity/ima/ascii_runtime_measurements"
+	ImaPcrIndex             = 10
+)
+
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
@@ -113,6 +118,7 @@ type Service interface {
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
 	State() string
 }
 
@@ -494,4 +500,18 @@ func (as *agentService) publishEvent(status string) statemachine.Action {
 	return func(state statemachine.State) {
 		as.eventSvc.SendEvent(as.computation.ID, state.String(), status, json.RawMessage{})
 	}
+}
+
+func (as *agentService) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
+	data, err := os.ReadFile(ImaMeasurementsFilePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error reading Linux IMA measurements file: %s", err.Error())
+	}
+
+	pcr10, err := vtpm.GetPCRSHA1Value(ImaPcrIndex)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error reading TPM PCR #10: %s", err.Error())
+	}
+
+	return data, pcr10, nil
 }

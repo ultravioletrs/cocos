@@ -33,6 +33,7 @@ const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
 	Nonce    = 32
 	PCR15    = 15
+	Hash1    = 20
 	Hash256  = 32
 	Hash384  = 48
 )
@@ -314,4 +315,31 @@ func calculatePCRTLSKey(pubKey []byte) ([]byte, []byte) {
 	newPcr384 := sha512.Sum384(pcrValue384)
 
 	return newPcr256[:], newPcr384[:]
+}
+
+func getPCRValue(index int, algorithm tpm2.Algorithm) ([]byte, error) {
+	rwc, err := OpenTpm()
+	if err != nil {
+		return nil, err
+	}
+	defer rwc.Close()
+
+	pcrValue, err := tpm2.ReadPCR(rwc, index, algorithm)
+	if err != nil {
+		return nil, err
+	}
+
+	return pcrValue, nil
+}
+
+func GetPCRSHA1Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA1)
+}
+
+func GetPCRSHA256Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA256)
+}
+
+func GetPCRSHA384Value(index int) ([]byte, error) {
+	return getPCRValue(index, tpm2.AlgSHA384)
 }

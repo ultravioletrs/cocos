@@ -111,7 +111,6 @@ construct_qemu_args() {
     fi
 
     args+=("-monitor" "$MONITOR")
-    args+=("-no-reboot")
     args+=("-vnc" ":9")
 
     echo "${args[@]}"

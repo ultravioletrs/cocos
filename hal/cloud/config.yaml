@@ -233,8 +233,39 @@ write_files:
       
       echo "algo_user setup completed successfully"
     permissions: "0755"
+    
+  # IMA setup for first boot
+  - path: /cocos_init/linux_ima_init.sh
+    content: |
+      #!/bin/bash
+      
+      GRUB_FILE="/etc/default/grub"
+      
+      if ! grep -q '^GRUB_CMDLINE_LINUX=.*ima_policy' "$GRUB_FILE"; then
+        echo "First boot, rebooting with fix IMA appraise policy"
+
+        NEW_PARAMS='ima_policy=tcb'
+        
+        # Modify the GRUB_CMDLINE_LINUX line
+        sed -i -E \
+            "s#^(GRUB_CMDLINE_LINUX=\")(.*)(\")#\1\2 $NEW_PARAMS\3#" \
+            "$GRUB_FILE"
+      
+        echo "Updated GRUB_CMDLINE_LINUX:"
+        grep "^GRUB_CMDLINE_LINUX=" "$GRUB_FILE"
+        
+        sudo update-grub
+        sudo reboot
+      else
+        sudo find / -fstype ext4 -type f -uid 0 -exec dd if='{}' of=/dev/null count=0 status=none \;
+      fi
+    permissions: "0755"
 
 runcmd:
+  # Enable Linux IMA with fix policy
+  - echo "Enable Linux IMA with fix policy and rebooting if necessary"
+  - sh /cocos_init/linux_ima_init.sh
+
   # Create necessary directories
   - mkdir -p /cocos
   - mkdir -p /cocos_init
