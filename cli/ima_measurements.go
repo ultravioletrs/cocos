@@ -23,7 +23,6 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 		Use:     "ima-measurements",
 		Short:   "Retrieve Linux IMA measurements file",
 		Example: "ima-measurements <optional_file_name>",
-		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
