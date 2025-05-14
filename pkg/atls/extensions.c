@@ -65,9 +65,9 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         }
 
         if (ext_data != NULL) {
-            if (RAND_bytes(ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE) != 1) {
+            if (RAND_bytes(ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE) != 1) {
                 perror("could not generate random bytes for vtpm nonce, will use SSL client random");
-                SSL_get_client_random(s, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+                SSL_get_client_random(s, ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE);
             }
 
             if (RAND_bytes(ext_data->er.tee_nonce, REPORT_DATA_SIZE) != 1) {
@@ -81,7 +81,7 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
             return -1;
         }
 
-        memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+        memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE);
         memcpy(er->tee_nonce, ext_data->er.tee_nonce, REPORT_DATA_SIZE);
 
         *out = (const u_char *)er;
@@ -138,7 +138,7 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
         evidence_request *er = (evidence_request*)in;
 
         if (ext_data != NULL) {
-            memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, CLIENT_RANDOM_SIZE);
+            memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, NONCE_RANDOM_SIZE);
             memcpy(ext_data->er.tee_nonce, er->tee_nonce, REPORT_DATA_SIZE);
         } else {
             fprintf(stderr, "parse_arg is NULL\n");
@@ -257,7 +257,6 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
     switch (context)
     {
     case SSL_EXT_CLIENT_HELLO:
-        // Return 1 so the server can return the custom certificate extension.
         return 1;
     case SSL_EXT_TLS1_3_CERTIFICATE:
     {

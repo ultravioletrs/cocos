@@ -5,7 +5,6 @@ package azure
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/edgelesssys/go-azguestattestation/maa"
-	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/kds"
@@ -32,12 +30,6 @@ var MaaURL = "https://sharedeus2.eus2.attest.azure.net"
 
 var _ attestations.Provider = (*provider)(nil)
 
-type AttestationData struct {
-	TpmQuote    []byte `json:"quote"`
-	Token       []byte `json:"data"`
-	RuntimeData []byte `json:"runtime_data"`
-}
-
 type provider struct {
 	writer io.Writer
 }
@@ -49,11 +41,6 @@ func New(writer io.Writer) attestations.Provider {
 func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
-
-	token, err := maa.Attest(context.Background(), tokenNonce[:], MaaURL, http.DefaultClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch Azure attestation token: %w", err)
-	}
 
 	params, err := maa.NewParameters(context.Background(), tokenNonce[:], http.DefaultClient, nil)
 	if err != nil {
@@ -74,23 +61,7 @@ func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 		SevSnpAttestation: snpReport,
 	}
 
-	quoteByte, err := proto.Marshal(quote)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal quote: %w", err)
-	}
-
-	attestationData := &AttestationData{
-		TpmQuote:    quoteByte,
-		Token:       []byte(token),
-		RuntimeData: params.RuntimeData,
-	}
-
-	attestDataByte, err := json.Marshal(attestationData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal attestation data: %w", err)
-	}
-
-	return attestDataByte, nil
+	return proto.Marshal(quote)
 }
 
 func (a provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
@@ -131,37 +102,14 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
 
-	var attestationData AttestationData
-	err := json.Unmarshal(report, &attestationData)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal attestation data: %w", err)
-	}
-
-	token := string(attestationData.Token)
-
-	claims, err := validateToken(token)
-	if err != nil {
-		return fmt.Errorf("failed to validate token: %w", err)
-	}
-
-	if err = validateClaims(claims, tokenNonce[:]); err != nil {
-		return fmt.Errorf("failed to validate claims: %w", err)
-	}
-
 	quote := &attest.Attestation{}
-	err = proto.Unmarshal(attestationData.TpmQuote, quote)
+	err := proto.Unmarshal(report, quote)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal vTPM quote: %w", err)
 	}
 
-	runtimeData := attestationData.RuntimeData
-	rData := sha256.Sum256(runtimeData)
-	reportData := make([]byte, abi.ReportDataSize)
-	copy(reportData, rData[:])
-
 	snpReport := quote.GetSevSnpAttestation()
-
-	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, reportData); err != nil {
+	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, nil); err != nil {
 		return fmt.Errorf("failed to verify vTPM attestation report: %w", err)
 	}
 
@@ -270,15 +218,15 @@ func GenerateAttestationPolicy(token string, product string, policy uint64) (*at
 				CheckCrl: true,
 			},
 			Policy: &check.Policy{
-				ImageId:         imageId,
-				FamilyId:        familyId,
-				Measurement:     measurement,
-				MinimumGuestSvn: uint32(guestSVN),
-				MinimumTcb:      uint64(minimalTCB),
-				TrustedIdKeys:   [][]byte{idKeyDigest},
-				ReportId:        reportID,
-				Product:         &sevsnp.SevProduct{Name: sevProduct},
-				Policy:          policy,
+				ImageId:            imageId,
+				FamilyId:           familyId,
+				Measurement:        measurement,
+				MinimumGuestSvn:    uint32(guestSVN),
+				MinimumTcb:         uint64(minimalTCB),
+				TrustedIdKeyHashes: [][]byte{idKeyDigest},
+				ReportId:           reportID,
+				Product:            &sevsnp.SevProduct{Name: sevProduct},
+				Policy:             policy,
 			},
 		},
 	}, nil

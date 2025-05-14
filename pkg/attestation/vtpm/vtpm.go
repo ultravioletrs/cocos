@@ -47,13 +47,6 @@ var (
 	ErrFetchQuote = errors.New("failed to fetch vTPM quote")
 )
 
-type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
-
-type AttestationData struct {
-	TpmQuote []byte `json:"quote"`
-	Data     []byte `json:"data"`
-}
-
 type tpm struct {
 	io.ReadWriteCloser
 }

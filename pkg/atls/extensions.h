@@ -7,13 +7,13 @@
 #define EVIDENCE_REQUEST_HELLO_EXTENSION_TYPE 65
 #define ATTESTATION_CERTIFICATE_EXTENSION_TYPE 66
 #define REPORT_DATA_SIZE 64
-#define CLIENT_RANDOM_SIZE 32
+#define NONCE_RANDOM_SIZE 32
 #define TLS_CLIENT_CTX 0
 #define TLS_SERVER_CTX 1
 
 typedef struct evidence_request
 {
-    char vtpm_nonce[CLIENT_RANDOM_SIZE];
+    char vtpm_nonce[NONCE_RANDOM_SIZE];
     char tee_nonce[REPORT_DATA_SIZE];
 } evidence_request;
 
