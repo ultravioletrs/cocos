@@ -266,32 +266,29 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 		return status.Error(codes.Internal, err.Error())
 	}
 
-	imaMeasurementsBuffer := bytes.NewBuffer(rr.File)
-	pcr10Buffer := bytes.NewBuffer(rr.Pcr10)
+	imaBuff := bytes.NewBuffer(rr.File)
+	pcr10Buff := bytes.NewBuffer(rr.Pcr10)
 
-	imaMeasurementsResultBuffer := make([]byte, bufferSize)
-	pcr10ResultBuffer := make([]byte, bufferSize)
+	imaResBuff := make([]byte, bufferSize)
+	pcr10ResBuff := make([]byte, bufferSize)
 
 	for {
-		iman, imaErr := imaMeasurementsBuffer.Read(imaMeasurementsResultBuffer)
-		pcrn, pcrErr := pcr10Buffer.Read(pcr10ResultBuffer)
-
-		if imaErr != nil && imaErr != io.EOF {
-			return status.Error(codes.Internal, imaErr.Error())
+		nIma, errIma := imaBuff.Read(imaResBuff)
+		if errIma != nil && errIma != io.EOF {
+			return status.Error(codes.Internal, errIma.Error())
 		}
 
-		if pcrErr != nil && pcrErr != io.EOF {
-			return status.Error(codes.Internal, pcrErr.Error())
+		nPcr, errPcr := pcr10Buff.Read(pcr10ResBuff)
+		if errPcr != nil && errPcr != io.EOF {
+			return status.Error(codes.Internal, errPcr.Error())
 		}
 
-		imaEmpty := iman == 0 && imaErr == io.EOF
-		pcrEmpty := pcrn == 0 && pcrErr == io.EOF
-
-		if imaEmpty && pcrEmpty {
+		if nIma == 0 && errIma == io.EOF &&
+			nPcr == 0 && errPcr == io.EOF {
 			break
 		}
 
-		if err := stream.Send(&agent.IMAMeasurementsResponse{File: imaMeasurementsResultBuffer[:iman], Pcr10: pcr10ResultBuffer[:pcrn]}); err != nil {
+		if err := stream.Send(&agent.IMAMeasurementsResponse{File: imaResBuff[:nIma], Pcr10: pcr10ResBuff[:nPcr]}); err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
