@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
@@ -261,7 +262,7 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 	}
 	rr := res.(*agent.IMAMeasurementsResponse)
 
-	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: fmt.Sprint(len(rr.File))})); err != nil {
+	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: strconv.Itoa(len(rr.File))})); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
@@ -272,20 +273,22 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 	pcr10ResultBuffer := make([]byte, bufferSize)
 
 	for {
-		iman, err := imaMeasurementsBuffer.Read(imaMeasurementsResultBuffer)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
+		iman, imaErr := imaMeasurementsBuffer.Read(imaMeasurementsResultBuffer)
+		pcrn, pcrErr := pcr10Buffer.Read(pcr10ResultBuffer)
+
+		if imaErr != nil && imaErr != io.EOF {
+			return status.Error(codes.Internal, imaErr.Error())
 		}
 
-		pcrn, err := pcr10Buffer.Read(pcr10ResultBuffer)
-		if err == io.EOF {
-			break
+		if pcrErr != nil && pcrErr != io.EOF {
+			return status.Error(codes.Internal, pcrErr.Error())
 		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
+
+		imaEmpty := iman == 0 && imaErr == io.EOF
+		pcrEmpty := pcrn == 0 && pcrErr == io.EOF
+
+		if imaEmpty && pcrEmpty {
+			break
 		}
 
 		if err := stream.Send(&agent.IMAMeasurementsResponse{File: imaMeasurementsResultBuffer[:iman], Pcr10: pcr10ResultBuffer[:pcrn]}); err != nil {
