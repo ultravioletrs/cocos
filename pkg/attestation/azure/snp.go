@@ -116,10 +116,14 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	return nil
 }
 
-func GenerateAttestationPolicy(token string, product string, policy uint64) (*attestations.Config, error) {
+func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestations.Config, error) {
 	claims, err := validateToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate token: %w", err)
+	}
+
+	if err := validateClaims(claims, nonce); err != nil {
+		return nil, fmt.Errorf("failed to validate claims: %w", err)
 	}
 
 	tee, ok := claims["x-ms-isolation-tee"].(map[string]interface{})
