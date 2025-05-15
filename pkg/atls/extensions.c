@@ -7,41 +7,28 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-extern int callVerificationValidationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* quote, int quoteSize, const u_char* teeNonce, const u_char* nonce);
-extern u_char* callFetchAttestationCallback(uintptr_t callbackHandle, const u_char* pubKey, int pubKeyLen, const u_char* teeNonceByte, const u_char* vTPMNonceByte, unsigned long* outlen);
+extern int callVerificationValidationCallback(int platformType, const u_char* pubKey, int pubKeyLen, const u_char* quote, int quoteSize, const u_char* teeNonceByte, const u_char* vTPMNonceByte);
+extern u_char* callFetchAttestationCallback(int platformType, const u_char* pubKey, int pubKeyLen, const u_char* teeNonceByte, const u_char* vTPMNonceByte, unsigned long* outlen);
 extern uintptr_t validationVerificationCallback(int teeType);
-extern uintptr_t fetchAttestationCallback(int teeType);
+extern uintptr_t getPlatformTypeHandle(int platformType, u_char *teeNonce, u_char *vtpmNonce);
+extern int returnCCPlatformType();
 
-int triggerVerificationValidationCallback(uintptr_t callbackHandle, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *vtpm_nonce) {
+int triggerVerificationValidationCallback(int platformType, u_char* pub_key, int pub_key_len, u_char *quote, int quote_size, u_char *tee_nonce, u_char *vtpm_nonce) {
     if (quote == NULL || vtpm_nonce == NULL || tee_nonce == NULL || pub_key == NULL) {
         fprintf(stderr, "attestation and noce and public key cannot be NULL\n");
         return -1;
     }
 
-    return callVerificationValidationCallback(callbackHandle, pub_key, pub_key_len, quote, quote_size, tee_nonce, vtpm_nonce);
+    return callVerificationValidationCallback(platformType, pub_key, pub_key_len, quote, quote_size, tee_nonce, vtpm_nonce);
 }
 
-u_char* triggerFetchAttestationCallback(uintptr_t callback_handle, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
+u_char* triggerFetchAttestationCallback(int platformType, u_char* pub_key, int pub_key_len, char *tee_nonce, char *vtpm_nonce, unsigned long *outlen) {
     if(tee_nonce == NULL || vtpm_nonce == NULL) {
         fprintf(stderr, "Report data cannot be NULL");
         return NULL;
     }
 
-    return callFetchAttestationCallback(callback_handle, pub_key, pub_key_len, tee_nonce, vtpm_nonce, outlen);
-}
-
-int check_sev_snp() {
-    int fd = open(SEV_GUEST_DRIVER_PATH, O_RDONLY);
-
-    if (fd == -1) {
-        perror("Error opening /dev/sev-guest");
-        fprintf(stderr, "SEV guest driver is not available.\n");
-        return -1;
-    } else {
-        close(fd);
-    }
-
-    return 1;
+    return callFetchAttestationCallback(platformType, pub_key, pub_key_len, tee_nonce, vtpm_nonce, outlen);
 }
 
 /*
@@ -78,9 +65,9 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
         }
 
         if (ext_data != NULL) {
-            if (RAND_bytes(ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE) != 1) {
+            if (RAND_bytes(ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE) != 1) {
                 perror("could not generate random bytes for vtpm nonce, will use SSL client random");
-                SSL_get_client_random(s, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+                SSL_get_client_random(s, ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE);
             }
 
             if (RAND_bytes(ext_data->er.tee_nonce, REPORT_DATA_SIZE) != 1) {
@@ -94,10 +81,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
             return -1;
         }
 
-        memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, CLIENT_RANDOM_SIZE);
+        memcpy(er->vtpm_nonce, ext_data->er.vtpm_nonce, NONCE_RANDOM_SIZE);
         memcpy(er->tee_nonce, ext_data->er.tee_nonce, REPORT_DATA_SIZE);
-        er->tee_type = AMD_TEE;
-        ext_data->er.tee_type = AMD_TEE;
 
         *out = (const u_char *)er;
         *outlen = sizeof(evidence_request);
@@ -116,19 +101,8 @@ int evidence_request_ext_add_cb(SSL *s, unsigned int ext_type,
                 return -1;
             }
 
-            if (check_sev_snp() > 0) {
-                *platform_type = AMD_TEE; 
-            } else {
-                *platform_type = NO_TEE;
-            }
-
-            if ((*platform_type != ext_data->er.tee_type) || (*platform_type == NO_TEE)) {
-                *platform_type = NO_TEE;
-                ext_data->er.tee_type = NO_TEE;
-            } else {
-                ext_data->er.tee_type = AMD_TEE;
-                ext_data->fetch_attestation_handler = fetchAttestationCallback(ext_data->er.tee_type);
-            }
+            *platform_type = returnCCPlatformType();
+            ext_data->platform_type = *platform_type;
 
             *out = (u_char*)platform_type;
             *outlen = sizeof(int32_t);
@@ -164,9 +138,8 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
         evidence_request *er = (evidence_request*)in;
 
         if (ext_data != NULL) {
-            memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, CLIENT_RANDOM_SIZE);
+            memcpy(ext_data->er.vtpm_nonce, er->vtpm_nonce, NONCE_RANDOM_SIZE);
             memcpy(ext_data->er.tee_nonce, er->tee_nonce, REPORT_DATA_SIZE);
-            ext_data->er.tee_type = er->tee_type;
         } else {
             fprintf(stderr, "parse_arg is NULL\n");
             return 0;
@@ -175,18 +148,11 @@ int evidence_request_ext_parse_cb(SSL *s, unsigned int ext_type,
     }
     case SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS:
     {
-        int *tee_type = (int*)in;
+        int *platform_type = (int*)in;
         tls_extension_data *ext_data = (tls_extension_data*)parse_arg;
 
         if (ext_data != NULL) {
-            ext_data->er.tee_type = *tee_type;
-
-            if (ext_data->er.tee_type != NO_TEE) {
-                ext_data->verification_validation_handler = validationVerificationCallback(ext_data->er.tee_type);
-            } else {
-                fprintf(stderr, "must use a TEE for aTLS\n");
-                return 0;
-            }
+            ext_data->platform_type = *platform_type;
         } else {
             fprintf(stderr, "parse_arg is NULL\n");
             return 0;
@@ -253,7 +219,7 @@ int attestation_certificate_ext_add_cb(SSL *s, unsigned int ext_type,
                 return -1;
             }
 
-            quote = triggerFetchAttestationCallback(ext_data->fetch_attestation_handler, pubkey_buf, pubkey_len, ext_data->er.tee_nonce, ext_data->er.vtpm_nonce, &len);
+            quote = triggerFetchAttestationCallback(ext_data->platform_type, pubkey_buf, pubkey_len, ext_data->er.tee_nonce, ext_data->er.vtpm_nonce, &len);
             if (quote == NULL) {
                 fprintf(stderr, "attestation report is NULL\n");
                 *al = SSL_AD_INTERNAL_ERROR;
@@ -291,7 +257,6 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
     switch (context)
     {
     case SSL_EXT_CLIENT_HELLO:
-        // Return 1 so the server can return the custom certificate extension.
         return 1;
     case SSL_EXT_TLS1_3_CERTIFICATE:
     {
@@ -324,7 +289,7 @@ int  attestation_certificate_ext_parse_cb(SSL *s, unsigned int ext_type,
                 }
                 memcpy(quote, in, inlen);
 
-                res = triggerVerificationValidationCallback(ext_data->verification_validation_handler,
+                res = triggerVerificationValidationCallback(ext_data->platform_type,
                                                     pubkey_buf,
                                                     pubkey_len,
                                                     quote,

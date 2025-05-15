@@ -19,7 +19,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	att "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 func TestNewClient(t *testing.T) {
@@ -221,25 +221,25 @@ func TestReadAttestationPolicy(t *testing.T) {
 			name:         "Invalid JSON",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSON,
-			err:          att.ErrAttestationPolicyDecode,
+			err:          attestations.ErrAttestationPolicyDecode,
 		},
 		{
 			name:         "Non-existent file",
 			manifestPath: "nonexistent.json",
 			fileContent:  "",
-			err:          att.ErrAttestationPolicyOpen,
+			err:          attestations.ErrAttestationPolicyOpen,
 		},
 		{
 			name:         "Empty manifest path",
 			manifestPath: "",
 			fileContent:  "",
-			err:          att.ErrAttestationPolicyMissing,
+			err:          attestations.ErrAttestationPolicyMissing,
 		},
 		{
 			name:         "Invalid JSON PCR",
 			manifestPath: "invalid_manifest.json",
 			fileContent:  invalidJSONPCR,
-			err:          att.ErrAttestationPolicyDecode,
+			err:          attestations.ErrAttestationPolicyDecode,
 		},
 	}
 
@@ -251,8 +251,8 @@ func TestReadAttestationPolicy(t *testing.T) {
 				defer os.Remove(tt.manifestPath)
 			}
 
-			config := att.Config{Config: &check.Config{}, PcrConfig: &att.PcrConfig{}}
-			err := att.ReadAttestationPolicy(tt.manifestPath, &config)
+			config := attestations.Config{Config: &check.Config{}, PcrConfig: &attestations.PcrConfig{}}
+			err := attestations.ReadAttestationPolicy(tt.manifestPath, &config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.err == nil {

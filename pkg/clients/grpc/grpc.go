@@ -27,16 +27,15 @@ const (
 )
 
 const (
-	AttestationReportSize = 0x4A0
-	WithATLS              = "with aTLS"
-	WithTLS               = "with TLS"
+	WithATLS = "with aTLS"
+	WithTLS  = "with TLS"
 )
 
 var (
 	errGrpcConnect               = errors.New("failed to connect to grpc server")
 	errGrpcClose                 = errors.New("failed to close grpc connection")
 	errCertificateParse          = errors.New("failed to parse x509 certificate")
-	errAttVerification           = errors.New("certificat is not sefl signed")
+	errAttVerification           = errors.New("certificat is not self signed")
 	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
 	errFailedToLoadRootCA        = errors.New("failed to load root ca file")
 )
@@ -57,6 +56,7 @@ type AgentClientConfig struct {
 	BaseConfig
 	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
 	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
+	ProductName       string `env:"PRODUCT_NAME"       envDefault:"Milan"`
 }
 
 type ManagerClientConfig struct {
@@ -147,7 +147,7 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 		secure = withaTLS
 	} else {
 		conf := cfg.GetBaseConfig()
-		transportCreds, err, sec := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
+		transportCreds, sec, err := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
 		if err != nil {
 			return nil, secure, err
 		}
@@ -162,7 +162,7 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 	return conn, secure, nil
 }
 
-func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, error, security) {
+func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, security, error) {
 	tlsConfig := &tls.Config{}
 	secure := withoutTLS
 	tc := insecure.NewCredentials()
@@ -170,12 +170,12 @@ func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.Tran
 	if serverCAFile != "" {
 		rootCA, err := os.ReadFile(serverCAFile)
 		if err != nil {
-			return nil, errors.Wrap(errFailedToLoadRootCA, err), secure
+			return nil, secure, errors.Wrap(errFailedToLoadRootCA, err)
 		}
 		if len(rootCA) > 0 {
 			capool := x509.NewCertPool()
 			if !capool.AppendCertsFromPEM(rootCA) {
-				return nil, fmt.Errorf("failed to append root ca to tls.Config"), secure
+				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
 			}
 			tlsConfig.RootCAs = capool
 			secure = withTLS
@@ -186,12 +186,12 @@ func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.Tran
 	if clientCert != "" || clientKey != "" {
 		certificate, err := tls.LoadX509KeyPair(clientCert, clientKey)
 		if err != nil {
-			return nil, errors.Wrap(errFailedToLoadClientCertKey, err), secure
+			return nil, secure, errors.Wrap(errFailedToLoadClientCertKey, err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{certificate}
 		secure = withmTLS
 		tc = credentials.NewTLS(tlsConfig)
 	}
 
-	return tc, nil, secure
+	return tc, secure, nil
 }

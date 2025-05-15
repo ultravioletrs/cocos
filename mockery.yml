@@ -41,13 +41,6 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "state.go"
           mockname: "{{.InterfaceName}}"
-  github.com/ultravioletrs/cocos/internal/logger:
-    interfaces:
-      io.Writer:
-        config:
-          dir: "{{.InterfaceDir}}/mocks"
-          filename: "io_writer.go"
-          mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/internal/server:
     interfaces:
       Server:
@@ -105,13 +98,6 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "server.go"
           mockname: "{{.InterfaceName}}"
-  github.com/google/go-sev-guest/client:
-    interfaces:
-      LeveledQuoteProvider:
-        config:
-          dir: "./pkg/attestation/quoteprovider/mocks"
-          filename: "QuoteProvider.go"
-          mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage:
     interfaces:
       Storage:
@@ -125,4 +111,11 @@ packages:
         config:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "client.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/pkg/attestation:
+    interfaces:
+      Provider:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "attestations.go"
           mockname: "{{.InterfaceName}}"

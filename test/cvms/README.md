@@ -15,10 +15,20 @@ The service is configured using the environment variables from the following tab
 
 ## Running
 ```shell
-go run main.go <algo_path> <public_key_path> <attested_tls_bool> <dataset(s)_path> 
-```
+Usage of tests/cvms/main.go:
+  -algo-path string
+        Path to the algorithm
+  -attested-tls-bool string
+        Should aTLS be used, must be 'true' or 'false'
+  -ca-url string
+        URL for certificate authority, optional flag that can only be used if aTLS is enabled
+  -cvm-id string
+        UUID for a CVM, optional flag that can only be used if aTLS is enabled
+  -data-paths string
+        Paths to data sources, list of string separated with commas
+  -public-key-path string
+        Path to the public key file
 
-- `algo_path`: Path to the algorithm file (python file,docker image file, wasm, compiled binary) \
-- `public_key_path`: Path to the public key file (PEM format) \
-- `attested_tls_bool`: Boolean flag to enable/disable attested TLS (true/false) \
-- `dataset(s)_path`: Path to one or more dataset files.
+# Example
+go run ./tests/cvms/main.go -algo-path <alog_path> -attested-tls-bool false -data-paths <data_paths> -public-key-path <public_key_path>
+```

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/go-sev-guest/client"
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
@@ -33,17 +32,15 @@ type agentServer struct {
 	logger *slog.Logger
 	svc    agent.Service
 	host   string
-	qp     client.LeveledQuoteProvider
 	caUrl  string
 	cvmId  string
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, host string, qp client.LeveledQuoteProvider, caUrl string, cvmId string) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string, caUrl string, cvmId string) AgentServer {
 	return &agentServer{
 		logger: logger,
 		svc:    svc,
 		host:   host,
-		qp:     qp,
 		caUrl:  caUrl,
 		cvmId:  cvmId,
 	}
@@ -81,7 +78,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, as.qp, authSvc, as.caUrl, as.cvmId)
+	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, authSvc, as.caUrl, as.cvmId)
 
 	go func() {
 		err := as.gs.Start()

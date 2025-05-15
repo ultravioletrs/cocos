@@ -9,7 +9,7 @@ import (
 
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -142,11 +142,11 @@ func TestAttestationEndpoint(t *testing.T) {
 	}{
 		{
 			name: "Success",
-			req:  attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), VtpmNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: config.SNP},
+			req:  attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), VtpmNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: attestations.SNP},
 		},
 		{
 			name:        "Service Error",
-			req:         attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), VtpmNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: config.SNP},
+			req:         attestationReq{TeeNonce: sha3.Sum512([]byte("report data")), VtpmNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: attestations.SNP},
 			expectedErr: true,
 		},
 	}

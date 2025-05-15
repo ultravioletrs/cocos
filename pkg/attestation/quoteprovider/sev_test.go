@@ -185,8 +185,8 @@ func prepVerifyAttReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 	file, err := os.ReadFile("../../../attestation.bin")
 	require.NoError(t, err)
 
-	if len(file) < attestationReportSize {
-		file = append(file, make([]byte, attestationReportSize-len(file))...)
+	if len(file) < abi.ReportSize {
+		file = append(file, make([]byte, abi.ReportSize-len(file))...)
 	}
 
 	rr, err := abi.ReportCertsToProto(file)
