@@ -140,7 +140,11 @@ func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []
 	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
 	// This data is not part of the attestation report and it will be ignored.
 	attestationPB.CertificateChain = nil
-	config.Policy.ReportData = reportData[:]
+
+	if len(reportData) != 0 {
+		config.Policy.ReportData = reportData[:]
+	}
+
 	return VerifyAndValidate(attestationPB, config)
 }
 
