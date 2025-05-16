@@ -62,11 +62,3 @@ message AttestationResultRequest{
 message AttestationResultResponse{
   bytes file = 1;
 }
-
-message IMAMeasurementsRequest {
-}
-
-message IMAMeasurementsResponse {
-  bytes file = 1;
-  bytes pcr10 = 2;
-}
