@@ -30,6 +30,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	attestationconfig "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -87,6 +88,10 @@ func main() {
 
 	var qp client.LeveledQuoteProvider
 	vtpmAttest := vtpm.Attest
+
+	azureConfig := azure.NewEnvConfig()
+	azure.InitializeDefaultMAAVars(azureConfig)
+	vtpm.AzureURL = azureConfig.MaaURL
 
 	if !sevGuesDeviceExists() {
 		logger.Info("SEV-SNP device not found")
@@ -146,7 +151,7 @@ func main() {
 		return
 	}
 
-	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl, vtpmAttest)
+	svc := newService(ctx, logger, eventSvc, qp, cfg.Vmpl, vtpmAttest, vtpm.FetchAzureAttestation)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -187,6 +192,13 @@ func main() {
 		return
 	}
 
+	azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
+		exitCode = 1
+		return
+	}
+
 	eventsLogsQueue <- &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
 			VTPMattestationReport: &cvms.AttestationResponse{
@@ -196,13 +208,22 @@ func main() {
 		},
 	}
 
+	eventsLogsQueue <- &cvms.ClientStreamMessage{
+		Message: &cvms.ClientStreamMessage_AzureAttestationResult{
+			AzureAttestationResult: &cvms.AzureAttestationResponse{
+				File:             azureAttestationResult,
+				CertSerialNumber: azureCertSerialNumber,
+			},
+		},
+	}
+
 	if err := g.Wait(); err != nil {
 		logger.Error(fmt.Sprintf("%s service terminated: %s", svcName, err))
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int, vtpmAttest vtpm.VtpmAttest) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, qp, vmpl, vtpmAttest)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, qp client.LeveledQuoteProvider, vmpl int, vtpmAttest vtpm.VtpmAttest, fetchAzureToken vtpm.AzureAttestFunc) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, qp, vmpl, vtpmAttest, vtpm.FetchAzureAttestation)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
@@ -239,6 +260,31 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 	nonceSNP := sha512.Sum512(certFile)
 	nonceVTPM := sha256.Sum256(certFile)
 	attestation, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestationconfig.SNPvTPM)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return attestation, certx509.SerialNumber.String(), nil
+}
+
+func azureAttestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {
+	if certFilePath == "" {
+		return nil, "", nil
+	}
+
+	certFile, err := os.ReadFile(certFilePath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	certPem, _ := pem.Decode(certFile)
+	certx509, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+
+	nonceAzure := sha256.Sum256(certFile)
+	attestation, err := svc.AttestationResult(ctx, nonceAzure, attestationconfig.AzureToken)
 	if err != nil {
 		return nil, "", err
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
+	config "github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -121,7 +122,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest, vtpm.EmptyAzureToken)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -216,7 +217,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest, vtpm.EmptyAzureToken)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -365,10 +366,64 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest)
+			svc := New(ctx, mglog.NewMock(), events, qp, 0, vtpm.EmptyAttest, vtpm.EmptyAzureToken)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
+		})
+	}
+}
+
+func TestAttestationResult(t *testing.T) {
+	cases := []struct {
+		name    string
+		nonce   [vtpm.Nonce]byte
+		attType config.AttestationType
+		token   []byte
+		err     error
+	}{
+		{
+			name:    "Azure token fetch successful",
+			nonce:   [32]byte{1, 2, 3}, // any test nonce
+			attType: config.AzureToken,
+			token:   []byte("mockToken"),
+			err:     nil,
+		},
+		{
+			name:    "Azure token fetch failed",
+			nonce:   [32]byte{4, 5, 6},
+			attType: config.AzureToken,
+			token:   []byte{},
+			err:     ErrFetchAzureToken,
+		},
+		{
+			name:    "Invalid attestation type",
+			nonce:   [32]byte{7, 8, 9},
+			attType: config.SNP,
+			token:   []byte{},
+			err:     ErrAttestationType,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := new(mocks.Service)
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+			ctx := context.Background()
+
+			svc := New(ctx, mglog.NewMock(), events, nil, 0, func(_ []byte, _ []byte, _ bool) ([]byte, error) {
+				return nil, nil
+			}, func(nonce []byte) ([]byte, error) {
+				if tc.err != nil {
+					return nil, tc.err
+				}
+				return tc.token, nil
+			})
+
+			result, err := svc.AttestationResult(ctx, tc.nonce, tc.attType)
+			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
+			assert.Equal(t, tc.token, result)
 		})
 	}
 }

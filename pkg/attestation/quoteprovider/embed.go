@@ -17,8 +17,7 @@ const Nonce = 64
 
 var _ client.LeveledQuoteProvider = (*embeddedQuoteProvider)(nil)
 
-type embeddedQuoteProvider struct {
-}
+type embeddedQuoteProvider struct{}
 
 func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return &embeddedQuoteProvider{}, nil

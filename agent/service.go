@@ -105,6 +105,8 @@ var (
 	ErrAllResultsConsumed = errors.New("all results have been consumed by declared consumers")
 	// ErrAttestationFailed attestation failed.
 	ErrAttestationFailed = errors.New("failed to get raw quote")
+	// ErrFetchAzureToken azure token fetch failed.
+	ErrFetchAzureToken = errors.New("failed to get azure token")
 	// ErrAttType indicates that the attestation type that is requested does not exist or is not supported.
 	ErrAttestationType = errors.New("attestation type does not exist or is not supported")
 )
@@ -119,6 +121,7 @@ type Service interface {
 	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
+	AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
 	State() string
 }
 
@@ -136,22 +139,24 @@ type agentService struct {
 	cancel          context.CancelFunc          // Cancels the computation context.
 	vmpl            int                         // VMPL at which the Agent is running.
 	vtpmAttest      vtpm.VtpmAttest             // Attestation function.
+	fetchAzureToken vtpm.AzureAttestFunc        // Azure token for attestation verification.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int, vtpmAttest vtpm.VtpmAttest) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, quoteProvider client.LeveledQuoteProvider, vmlp int, vtpmAttest vtpm.VtpmAttest, fetchAzureToken vtpm.AzureAttestFunc) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
-		sm:            sm,
-		eventSvc:      eventSvc,
-		quoteProvider: quoteProvider,
-		logger:        logger,
-		cancel:        cancel,
-		vmpl:          vmlp,
-		vtpmAttest:    vtpmAttest,
+		sm:              sm,
+		eventSvc:        eventSvc,
+		quoteProvider:   quoteProvider,
+		logger:          logger,
+		cancel:          cancel,
+		vmpl:            vmlp,
+		vtpmAttest:      vtpmAttest,
+		fetchAzureToken: fetchAzureToken,
 	}
 
 	transitions := []statemachine.Transition{
@@ -443,6 +448,19 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 			return []byte{}, err
 		}
 		return vTPMQuote, nil
+	default:
+		return []byte{}, ErrAttestationType
+	}
+}
+
+func (as *agentService) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+	switch attType {
+	case config.AzureToken:
+		token, err := as.fetchAzureToken(nonce[:])
+		if err != nil {
+			return []byte{}, err
+		}
+		return token, nil
 	default:
 		return []byte{}, ErrAttestationType
 	}

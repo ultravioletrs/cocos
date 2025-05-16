@@ -5,6 +5,7 @@ package vtpm
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -12,10 +13,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
@@ -41,9 +44,13 @@ const (
 var (
 	ExternalTPM   io.ReadWriteCloser
 	ErrNoHashAlgo = errors.New("hash algo is not supported")
+	AzureURL      string
 )
 
-type VtpmAttest func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
+type (
+	VtpmAttest      func(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error)
+	AzureAttestFunc func(tokenNonce []byte) ([]byte, error)
+)
 
 type tpmWrapper struct {
 	io.ReadWriteCloser
@@ -103,6 +110,14 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, erro
 	}
 
 	return marshalQuote(attestation)
+}
+
+func FetchAzureAttestation(tokenNonce []byte) ([]byte, error) {
+	token, err := maa.Attest(context.Background(), tokenNonce, AzureURL, http.DefaultClient)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching azure token: %w", err)
+	}
+	return []byte(token), nil
 }
 
 func FetchATLSQuote(pubKey, teeNonce, vTPMNonce []byte) ([]byte, error) {
@@ -168,6 +183,10 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 
 // EmptyAttest is a dummy attestation function that returns an empty attestation report.
 func EmptyAttest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func EmptyAzureToken(tokenNonce []byte) ([]byte, error) {
 	return []byte{}, nil
 }
 
