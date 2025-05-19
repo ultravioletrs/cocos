@@ -15,7 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/mocks"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -113,7 +113,7 @@ func TestAgentClientIntegration(t *testing.T) {
 				},
 				AttestedTLS: true,
 			},
-			err: config.ErrAttestationPolicyMissing,
+			err: attestation.ErrAttestationPolicyMissing,
 		},
 	}
 

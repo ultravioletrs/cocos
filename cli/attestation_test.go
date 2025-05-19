@@ -182,7 +182,8 @@ func TestNewValidateAttestationValidationCmdDefaults(t *testing.T) {
 	cmd := cli.NewValidateAttestationValidationCmd()
 
 	assert.Equal(t, "validate", cmd.Use)
-	assert.Equal(t, "Validate and verify attestation information. You can choose from 3 modes: snp,vtpm and snp-vtpm.Default mode is snp.", cmd.Short)
+	expectedMessage := fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 3 modes: %s, %s and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, SNP)
+	assert.Equal(t, expectedMessage, cmd.Short)
 
 	assert.Equal(t, fmt.Sprint(defaultMinimumTcb), cmd.Flag("minimum_tcb").Value.String())
 	assert.Equal(t, fmt.Sprint(defaultMinimumLaunchTcb), cmd.Flag("minimum_lauch_tcb").Value.String())
@@ -394,7 +395,7 @@ func TestParseFiles(t *testing.T) {
 	assert.NoError(t, err)
 	err = parseTrustedKeys()
 	assert.NoError(t, err)
-	assert.Equal(t, []byte("test attestation"), attestation)
+	assert.Equal(t, []byte("test attestation"), attestationRaw)
 	assert.Len(t, cfg.Policy.TrustedAuthorKeys, 1)
 	assert.Len(t, cfg.Policy.TrustedIdKeys, 1)
 

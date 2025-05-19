@@ -29,7 +29,6 @@ import (
 	certscli "github.com/absmach/certs/cli"
 	"github.com/absmach/certs/errors"
 	certssdk "github.com/absmach/certs/sdk"
-	"github.com/google/go-sev-guest/client"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
@@ -61,7 +60,6 @@ type Server struct {
 	server.BaseServer
 	server          *grpc.Server
 	registerService serviceRegister
-	quoteProvider   client.LeveledQuoteProvider
 	authSvc         auth.Authenticator
 	health          *health.Server
 	caUrl           string
@@ -76,7 +74,7 @@ type serviceRegister func(srv *grpc.Server)
 
 var _ server.Server = (*Server)(nil)
 
-func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, qp client.LeveledQuoteProvider, authSvc auth.Authenticator, caUrl string, cvmId string) server.Server {
+func New(ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration, registerService serviceRegister, logger *slog.Logger, authSvc auth.Authenticator, caUrl string, cvmId string) server.Server {
 	base := config.GetBaseConfig()
 	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 	return &Server{
@@ -89,7 +87,6 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 			Logger:  logger,
 		},
 		registerService: registerService,
-		quoteProvider:   qp,
 		authSvc:         authSvc,
 		caUrl:           caUrl,
 		cvmId:           cvmId,

@@ -5,7 +5,7 @@ package grpc
 import (
 	"errors"
 
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
@@ -44,12 +44,12 @@ func (req resultReq) validate() error {
 type attestationReq struct {
 	TeeNonce  [quoteprovider.Nonce]byte
 	VtpmNonce [vtpm.Nonce]byte
-	AttType   config.AttestationType
+	AttType   attestation.PlatformType
 }
 
 func (req attestationReq) validate() error {
 	switch req.AttType {
-	case config.SNP, config.VTPM, config.SNPvTPM:
+	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM:
 		return nil
 	default:
 		return errors.New("invalid attestation type in attestation request")

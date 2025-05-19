@@ -16,7 +16,8 @@ import (
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
 	"google.golang.org/protobuf/proto"
 )
@@ -37,13 +38,14 @@ const (
 )
 
 var (
-	errDecode                       = errors.New("base64 string could not be decoded")
-	errDataLength                   = errors.New("data does not have an adequate length")
-	errReadingAttestationPolicyFile = errors.New("error while reading the attestation policy file")
-	errUnmarshalJSON                = errors.New("failed to unmarshal json")
-	errMarshalJSON                  = errors.New("failed to marshal json")
-	errWriteFile                    = errors.New("failed to write to file")
-	errAttestationPolicyField       = errors.New("the specified field type does not exist in the attestation policy")
+	errDecode                              = errors.New("base64 string could not be decoded")
+	errDataLength                          = errors.New("data does not have an adequate length")
+	errReadingAttestationPolicyFile        = errors.New("error while reading the attestation policy file")
+	errUnmarshalJSON                       = errors.New("failed to unmarshal json")
+	errMarshalJSON                         = errors.New("failed to marshal json")
+	errWriteFile                           = errors.New("failed to write to file")
+	errAttestationPolicyField              = errors.New("the specified field type does not exist in the attestation policy")
+	policy                          uint64 = 196639
 )
 
 func (cli *CLI) NewAttestationPolicyCmd() *cobra.Command {
@@ -226,6 +228,53 @@ func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
 	}
 }
 
+func (cli *CLI) NewAzureAttestationPolicy() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "azure",
+		Short:   "Get attestation policy for Azure CVM",
+		Example: `azure <azure_maa_token_file> <token_nonce> <product_name>`,
+		Args:    cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			token, err := os.ReadFile(args[0])
+			if err != nil {
+				printError(cmd, "Error reading attestation report file: %v ❌ ", err)
+				return
+			}
+
+			nonce := []byte(args[1])
+			product := args[2]
+
+			config, err := azure.GenerateAttestationPolicy(string(token), product, policy, nonce)
+			if err != nil {
+				printError(cmd, "Error generating attestation policy: %v ❌ ", err)
+				return
+			}
+
+			attestationPolicyJson, err := json.MarshalIndent(&config, "", " ")
+			if err != nil {
+				printError(cmd, "Error marshaling attestation policy: %v ❌ ", err)
+				return
+			}
+
+			if err := os.WriteFile("attestation_policy.json", attestationPolicyJson, filePermission); err != nil {
+				printError(cmd, "Error writing attestation policy file: %v ❌ ", err)
+				return
+			}
+
+			cmd.Println("Attestation policy file generated successfully ✅")
+		},
+	}
+
+	cmd.Flags().Uint64Var(
+		&policy,
+		"policy",
+		policy,
+		"Policy of the guest CVM",
+	)
+
+	return cmd
+}
+
 func changeAttestationConfiguration(fileName, base64Data string, expectedLength int, field fieldType) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
@@ -236,14 +285,14 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errDataLength
 	}
 
-	ac := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
+	ac := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
 	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return errors.Wrap(errReadingAttestationPolicyFile, err)
 	}
 
-	if err = config.ReadAttestationPolicyFromByte(f, &ac); err != nil {
+	if err = attestation.ReadAttestationPolicyFromByte(f, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 

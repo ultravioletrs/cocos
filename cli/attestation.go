@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"crypto"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -20,11 +19,10 @@ import (
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"
-	"github.com/google/go-tpm-tools/server"
-	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -112,6 +110,9 @@ const (
 	SNP     = "snp"
 	VTPM    = "vtpm"
 	SNPvTPM = "snp-vtpm"
+	CCNone  = "none"
+	CCAzure = "azure"
+	CCGCP   = "gcp"
 )
 
 var (
@@ -128,7 +129,7 @@ var (
 	trustedIdKeyHashes      []string
 	attestationFile         string
 	tpmAttestationFile      string
-	attestation             []byte
+	attestationRaw          []byte
 	empty16                 = [size16]byte{}
 	empty32                 = [size32]byte{}
 	empty64                 = [size64]byte{}
@@ -140,15 +141,10 @@ var (
 	format                  string
 	teeNonce                []byte
 	getTextProtoAttestation bool
+	cloud                   string
 )
 
 var errEmptyFile = errors.New("input file is empty")
-
-var marshalOptions = prototext.MarshalOptions{
-	Multiline: true,
-	EmitASCII: true,
-}
-var unmarshalOptions = prototext.UnmarshalOptions{}
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
 	return &cobra.Command{
@@ -203,32 +199,32 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			attestationType := args[0]
 
-			attType := config.SNP
+			attType := attestation.SNP
 			switch attestationType {
 			case SNP:
 				cmd.Println("Fetching SEV-SNP attestation report")
 			case VTPM:
 				cmd.Println("Fetching vTPM report")
-				attType = config.VTPM
+				attType = attestation.VTPM
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
-				attType = config.SNPvTPM
+				attType = attestation.SNPvTPM
 			}
 
-			if (attType == config.VTPM || attType == config.SNPvTPM) && len(nonce) == 0 {
+			if (attType == attestation.VTPM || attType == attestation.SNPvTPM) && len(nonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
-			if (attType == config.SNP || attType == config.SNPvTPM) && len(teeNonce) == 0 {
+			if (attType == attestation.SNP || attType == attestation.SNPvTPM) && len(teeNonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("TEE nonce must be defined for SEV-SNP attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
 			var fixedReportData [quoteprovider.Nonce]byte
-			if attType != config.VTPM {
+			if attType != attestation.VTPM {
 				if len(teeNonce) > quoteprovider.Nonce {
 					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", quoteprovider.Nonce)
 					cmd.Println(msg)
@@ -239,7 +235,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			}
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
-			if attType != config.SNP {
+			if attType != attestation.SNP {
 				if len(nonce) > vtpm.Nonce {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)
@@ -344,13 +340,15 @@ func isFileJSON(filename string) bool {
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
-		Short: "Validate and verify attestation information. You can choose from 3 modes: snp,vtpm and snp-vtpm.Default mode is snp.",
+		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 3 modes: %s, %s and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, SNP),
 		Example: `Based on mode:
-		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> //default
+		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> --platform <cc platform> //default
 		validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
-		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
-
+		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
+		validate --cloud none --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
+		validate --cloud azure --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
+		validate --cloud gcp --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			mode, _ := cmd.Flags().GetString("mode")
 			if len(args) != 1 {
@@ -359,38 +357,38 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 
 			// Validate flags based on the mode
 			switch mode {
-			case "snp":
+			case SNP:
 				if err := cmd.MarkFlagRequired("report_data"); err != nil {
-					return fmt.Errorf("failed to mark 'report_data' as required for SEV-SNP mode: %v", err)
+					return fmt.Errorf("failed to mark 'report_data' as required for SEV-%s mode: %v", SNP, err)
 				}
 				if err := cmd.MarkFlagRequired("product"); err != nil {
 					return fmt.Errorf("failed to mark flag as required: %v ❌ ", err)
 				}
-			case "snp-vtpm":
+			case SNPvTPM:
 				if err := cmd.MarkFlagRequired("nonce"); err != nil {
-					return fmt.Errorf("failed to mark 'nonce' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'nonce' as required for %s mode: %v", VTPM, err)
 				}
 				if err := cmd.MarkFlagRequired("report_data"); err != nil {
-					return fmt.Errorf("failed to mark 'report_data' as required for SEV-SNP mode: %v", err)
+					return fmt.Errorf("failed to mark 'report_data' as required for SEV-%s mode: %v", SNP, err)
 				}
 				if err := cmd.MarkFlagRequired("product"); err != nil {
 					return fmt.Errorf("failed to mark flag as required: %v ❌ ", err)
 				}
 				if err := cmd.MarkFlagRequired("format"); err != nil {
-					return fmt.Errorf("failed to mark 'format' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'format' as required for %s mode: %v", VTPM, err)
 				}
 				if err := cmd.MarkFlagRequired("output"); err != nil {
-					return fmt.Errorf("failed to mark 'output' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'output' as required for %s mode: %v", VTPM, err)
 				}
-			case "vtpm":
+			case VTPM:
 				if err := cmd.MarkFlagRequired("nonce"); err != nil {
-					return fmt.Errorf("failed to mark 'nonce' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'nonce' as required for %s mode: %v", VTPM, err)
 				}
 				if err := cmd.MarkFlagRequired("format"); err != nil {
-					return fmt.Errorf("failed to mark 'format' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'format' as required for %s mode: %v", VTPM, err)
 				}
 				if err := cmd.MarkFlagRequired("output"); err != nil {
-					return fmt.Errorf("failed to mark 'output' as required for vTPM mode: %v", err)
+					return fmt.Errorf("failed to mark 'output' as required for %s mode: %v", VTPM, err)
 				}
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
@@ -399,13 +397,35 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mode, _ := cmd.Flags().GetString("mode")
+			cloud, _ := cmd.Flags().GetString("cloud")
+
+			output, err := createOutputFile()
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %v ❌ ", err)
+			}
+			if closer, ok := output.(*os.File); ok {
+				defer closer.Close()
+			}
+
+			var provider attestation.Provider
+			switch cloud {
+			case CCNone:
+				provider = vtpm.New(nil, false, 0, output)
+			case CCAzure:
+				provider = azure.New(output)
+			case CCGCP:
+				provider = vtpm.New(nil, false, 0, output)
+			default:
+				provider = vtpm.New(nil, false, 0, output)
+			}
+
 			switch mode {
-			case "snp":
-				return sevsnpverify(cmd, args)
-			case "snp-vtpm":
-				return vtpmSevSnpverify(args)
-			case "vtpm":
-				return vtpmverify(args)
+			case SNP:
+				return sevsnpverify(cmd, provider, args)
+			case SNPvTPM:
+				return vtpmSevSnpverify(args, provider)
+			case VTPM:
+				return vtpmverify(args, provider)
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
 			}
@@ -414,10 +434,17 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	cmd.Flags().StringVar(
+		&cloud,
+		"cloud",
+		"none", // default CC provider
+		"The confidential computing cloud provider. Example: azure",
+	)
+
+	cmd.Flags().StringVar(
 		&mode,
 		"mode",
 		"snp", // default mode
-		"The attestation validation mode. Example: sevsnp",
+		"The attestation validation mode. Example: snp",
 	)
 
 	// VTPM FLAGS
@@ -659,7 +686,7 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 	return igvmmeasureCmd
 }
 
-func sevsnpverify(cmd *cobra.Command, args []string) error {
+func sevsnpverify(cmd *cobra.Command, provider attestation.Provider, args []string) error {
 	cmd.Println("Checking attestation")
 
 	attestationFile = string(args[0])
@@ -669,20 +696,18 @@ func sevsnpverify(cmd *cobra.Command, args []string) error {
 
 	// This format is the attestation report in AMD's specified ABI format, immediately
 	// followed by the certificate table bytes.
-	if len(attestation) < abi.ReportSize {
-		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestation), abi.ReportSize)
+	if len(attestationRaw) < abi.ReportSize {
+		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestationRaw), abi.ReportSize)
 	}
 
 	if err := parseAttestationConfig(); err != nil {
 		return err
 	}
 
-	attestationPB, err := abi.ReportCertsToProto(attestation)
-	if err != nil {
-		return fmt.Errorf("failed to convert attestation bytes to struct %v ❌ ", err)
-	}
+	// Used for verification of SNP attestation report
+	attestation.AttestationPolicy.Config = &cfg
 
-	if err := quoteprovider.VerifyAndValidate(attestationPB, &cfg); err != nil {
+	if err := provider.VerifTeeAttestation(attestationRaw, cfg.Policy.ReportData); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
@@ -712,85 +737,40 @@ func parseAttestationConfig() error {
 	return nil
 }
 
-func vtpmSevSnpverify(args []string) error {
-	attestation, err := returnvTPMAttestation(args)
+func vtpmSevSnpverify(args []string, provider attestation.Provider) error {
+	attest, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
-	}
-
-	var teeAttestation *sevsnp.Attestation
-	switch attestation.GetTeeAttestation().(type) {
-	case *tpmAttest.Attestation_SevSnpAttestation:
-		teeAttestation = attestation.GetSevSnpAttestation()
-	default:
-		teeAttestation = nil
-	}
-
-	if teeAttestation == nil {
-		return fmt.Errorf("tee attestation not fetched")
 	}
 
 	if err := parseAttestationConfig(); err != nil {
 		return err
 	}
 
-	if err := quoteprovider.VerifyAndValidate(teeAttestation, &cfg); err != nil {
-		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
-	}
+	// Used for verification of SNP attestation report
+	attestation.AttestationPolicy.Config = &cfg
 
-	if err := verifyvTPM(attestation); err != nil {
-		return err
+	if err := provider.VerifyAttestation(attest, cfg.Policy.ReportData, nonce); err != nil {
+		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
 	return nil
 }
 
-func vtpmverify(args []string) error {
+func vtpmverify(args []string, provider attestation.Provider) error {
 	attestation, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
 	}
 
-	if err := verifyvTPM(attestation); err != nil {
-		return err
+	if err := provider.VerifVTpmAttestation(attestation, nonce); err != nil {
+		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
 	return nil
 }
 
-func verifyvTPM(attestation *tpmAttest.Attestation) error {
-	pub, err := tpm2.DecodePublic(attestation.GetAkPub())
-	if err != nil {
-		return err
-	}
-	cryptoPub, err := pub.Key()
-	if err != nil {
-		return err
-	}
-
-	ms, err := server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: nonce, TrustedAKs: []crypto.PublicKey{cryptoPub}, TEEOpts: nil})
-	if err != nil {
-		return nil
-	}
-	out, err := marshalOptions.Marshal(ms)
-	if err != nil {
-		return nil
-	}
-	output, err := createOutputFile()
-	if err != nil {
-		return err
-	}
-	if closer, ok := output.(*os.File); ok {
-		defer closer.Close()
-	}
-	if _, err := output.Write(out); err != nil {
-		return fmt.Errorf("failed to write verified attestation report: %v", err)
-	}
-
-	return nil
-}
-
-func returnvTPMAttestation(args []string) (*tpmAttest.Attestation, error) {
+func returnvTPMAttestation(args []string) ([]byte, error) {
 	tpmAttestationFile = string(args[0])
 	input, err := openInputFile()
 	if err != nil {
@@ -806,8 +786,9 @@ func returnvTPMAttestation(args []string) (*tpmAttest.Attestation, error) {
 	attestation := &tpmAttest.Attestation{}
 
 	if format == FormatBinaryPB {
-		err = proto.Unmarshal(attestationBytes, attestation)
+		return attestationBytes, nil
 	} else if format == FormatTextProto {
+		unmarshalOptions := prototext.UnmarshalOptions{}
 		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
 	} else {
 		return nil, fmt.Errorf("format should be either binarypb or textproto")
@@ -816,7 +797,12 @@ func returnvTPMAttestation(args []string) (*tpmAttest.Attestation, error) {
 		return nil, fmt.Errorf("fail to unmarshal attestation report: %v", err)
 	}
 
-	return attestation, nil
+	attestationBytes, err = proto.Marshal(attestation)
+	if err != nil {
+		return nil, fmt.Errorf("fail to marshal vTPM attestation report: %v", err)
+	}
+
+	return attestationBytes, nil
 }
 
 func openInputFile() (io.Reader, error) {
@@ -926,9 +912,9 @@ func parseAttestationFile() error {
 	if err != nil {
 		return err
 	}
-	attestation = file
+	attestationRaw = file
 	if isFileJSON(attestationFile) {
-		attestation, err = attesationFromJSON(attestation)
+		attestationRaw, err = attesationFromJSON(attestationRaw)
 		if err != nil {
 			return err
 		}

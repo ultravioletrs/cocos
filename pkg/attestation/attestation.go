@@ -1,23 +1,35 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package config
+package attestation
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
+	"github.com/google/go-tpm/legacy/tpm2"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-type AttestationType int32
+type PlatformType int
 
 const (
-	SNP AttestationType = iota
+	SNP PlatformType = iota
 	VTPM
 	SNPvTPM
+	Azure
+	NoCC
+)
+
+const (
+	azureMetadataUrl = "http://169.254.169.254/metadata/instance"
+	azureApiVersion  = "2021-02-01"
 )
 
 var (
@@ -41,6 +53,20 @@ type PcrConfig struct {
 type Config struct {
 	*check.Config
 	*PcrConfig
+}
+
+type ccCheck struct {
+	checkFunc func() bool
+	platform  PlatformType
+}
+
+type Provider interface {
+	Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
+	TeeAttestation(teeNonce []byte) ([]byte, error)
+	VTpmAttestation(vTpmNonce []byte) ([]byte, error)
+	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
+	VerifTeeAttestation(report []byte, teeNonce []byte) error
+	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
 }
 
 func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {
@@ -68,4 +94,65 @@ func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *
 	}
 
 	return nil
+}
+
+// CCPlatform returns the type of the confidential computing platform.
+func CCPlatform() PlatformType {
+	checks := []ccCheck{
+		{SevGuestvTPMExists, SNPvTPM},
+		{SevGuesDeviceExists, SNP},
+		{isAzureVM, Azure},
+	}
+
+	for _, c := range checks {
+		if c.checkFunc() {
+			return c.platform
+		}
+	}
+	return NoCC
+}
+
+func SevGuesDeviceExists() bool {
+	d, err := client.OpenDevice()
+	if err != nil {
+		return false
+	}
+	d.Close()
+
+	return true
+}
+
+func SevGuestvTPMExists() bool {
+	d, err := tpm2.OpenTPM()
+	if err != nil {
+		return false
+	}
+	d.Close()
+
+	return SevGuesDeviceExists()
+}
+
+func isAzureVM() bool {
+	client := &http.Client{}
+	url := fmt.Sprintf("%s?api-version=%s", azureMetadataUrl, azureApiVersion)
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Metadata", "true")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+
+		return len(body) > 0
+	}
+
+	return false
 }

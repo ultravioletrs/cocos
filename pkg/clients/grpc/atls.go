@@ -18,12 +18,12 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/atls"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/grpc/credentials"
 )
 
 func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) {
-	err := config.ReadAttestationPolicy(cfg.AttestationPolicy, &config.AttestationPolicy)
+	err := attestation.ReadAttestationPolicy(cfg.AttestationPolicy, &attestation.AttestationPolicy)
 	if err != nil {
 		return nil, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
 	}

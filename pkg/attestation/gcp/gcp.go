@@ -9,12 +9,12 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -77,8 +77,8 @@ func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsem
 	return &goldenUEFI, nil
 }
 
-func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*config.Config, error) {
-	attestationPolicy := config.Config{PcrConfig: &config.PcrConfig{}, Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
+func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*attestation.Config, error) {
+	attestationPolicy := attestation.Config{PcrConfig: &attestation.PcrConfig{}, Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
 	attestationPolicy.Config.Policy.Policy = endorsement.SevSnp.Policy
 	attestationPolicy.Config.Policy.Measurement = endorsement.SevSnp.Measurements[vcpuNum]
 	attestationPolicy.Config.RootOfTrust.DisallowNetwork = false

@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
 func TestChangeAttestationConfiguration(t *testing.T) {
@@ -19,7 +19,7 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 
-	initialConfig := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
+	initialConfig := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
 	initialJSON, err := json.Marshal(initialConfig)
 	require.NoError(t, err)
@@ -87,8 +87,8 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 				content, err := os.ReadFile(tmpfile.Name())
 				require.NoError(t, err)
 
-				ap := config.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &config.PcrConfig{}}
-				err = config.ReadAttestationPolicyFromByte(content, &ap)
+				ap := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
+				err = attestation.ReadAttestationPolicyFromByte(content, &ap)
 				require.NoError(t, err)
 
 				decodedData, _ := base64.StdEncoding.DecodeString(tt.base64Data)
