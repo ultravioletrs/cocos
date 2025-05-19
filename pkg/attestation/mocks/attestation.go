@@ -79,6 +79,64 @@ func (_c *Provider_Attestation_Call) RunAndReturn(run func([]byte, []byte) ([]by
 	return _c
 }
 
+// AzureAttestationToken provides a mock function with given fields: tokenNonce
+func (_m *Provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	ret := _m.Called(tokenNonce)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AzureAttestationToken")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]byte) ([]byte, error)); ok {
+		return rf(tokenNonce)
+	}
+	if rf, ok := ret.Get(0).(func([]byte) []byte); ok {
+		r0 = rf(tokenNonce)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+		r1 = rf(tokenNonce)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Provider_AzureAttestationToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AzureAttestationToken'
+type Provider_AzureAttestationToken_Call struct {
+	*mock.Call
+}
+
+// AzureAttestationToken is a helper method to define mock.On call
+//   - tokenNonce []byte
+func (_e *Provider_Expecter) AzureAttestationToken(tokenNonce interface{}) *Provider_AzureAttestationToken_Call {
+	return &Provider_AzureAttestationToken_Call{Call: _e.mock.On("AzureAttestationToken", tokenNonce)}
+}
+
+func (_c *Provider_AzureAttestationToken_Call) Run(run func(tokenNonce []byte)) *Provider_AzureAttestationToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].([]byte))
+	})
+	return _c
+}
+
+func (_c *Provider_AzureAttestationToken_Call) Return(_a0 []byte, _a1 error) *Provider_AzureAttestationToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Provider_AzureAttestationToken_Call) RunAndReturn(run func([]byte) ([]byte, error)) *Provider_AzureAttestationToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // TeeAttestation provides a mock function with given fields: teeNonce
 func (_m *Provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
 	ret := _m.Called(teeNonce)

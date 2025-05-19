@@ -170,7 +170,7 @@ func TestAttestationResult(t *testing.T) {
 	server := NewServer(mockService)
 
 	vtpmNonce := [vtpm.Nonce]byte{}
-	attestationType := config.SNP
+	attestationType := attestation.SNP
 	mockService.On("AttestationResult", mock.Anything, vtpmNonce, attestationType).Return([]byte("attestation data"), nil)
 
 	resp, err := server.AttestationResult(context.Background(), &agent.AttestationResultRequest{TokenNonce: vtpmNonce[:]})

@@ -49,7 +49,7 @@ type attestationReq struct {
 
 type FetchAttestationResultReq struct {
 	tokenNonce [vtpm.Nonce]byte
-	AttType    config.AttestationType
+	AttType    attestation.PlatformType
 }
 
 func (req attestationReq) validate() error {

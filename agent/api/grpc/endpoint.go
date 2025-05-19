@@ -102,7 +102,7 @@ func attestationResultEndpoint(svc agent.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return fetchAttestationResultRes{}, err
 		}
-		file, err := svc.AttestationResult(ctx, req.tokenNonce, config.AttestationType(req.AttType))
+		file, err := svc.AttestationResult(ctx, req.tokenNonce, attestation.PlatformType(req.AttType))
 		if err != nil {
 			return fetchAttestationResultRes{}, err
 		}

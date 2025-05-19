@@ -106,6 +106,8 @@ var (
 	ErrAttestationFailed = errors.New("failed to get raw quote")
 	// ErrAttestationVTpmFailed vTPM attestation failed.
 	ErrAttestationVTpmFailed = errors.New("failed to get vTPM quote")
+	// ErrFetchAzureToken azure token fetch failed.
+	ErrFetchAzureToken = errors.New("failed to get azure token")
 	// ErrAttType indicates that the attestation type that is requested does not exist or is not supported.
 	ErrAttestationType = errors.New("attestation type does not exist or is not supported")
 )
@@ -118,9 +120,9 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
-	AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error)
+	AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
 	State() string
 }
 
@@ -448,10 +450,10 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 	}
 }
 
-func (as *agentService) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType config.AttestationType) ([]byte, error) {
+func (as *agentService) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	switch attType {
-	case config.AzureToken:
-		token, err := as.fetchAzureToken(nonce[:])
+	case attestation.AzureToken:
+		token, err := as.provider.AzureAttestationToken(nonce[:])
 		if err != nil {
 			return []byte{}, err
 		}

@@ -157,7 +157,7 @@ func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (int
 	}
 
 	copy(nonce[:], req.TokenNonce)
-	return FetchAttestationResultReq{tokenNonce: nonce, AttType: config.AttestationType(req.Type)}, nil
+	return FetchAttestationResultReq{tokenNonce: nonce, AttType: attestation.PlatformType(req.Type)}, nil
 }
 
 // Algo implements agent.AgentServiceServer.
