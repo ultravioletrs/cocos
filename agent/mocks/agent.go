@@ -7,7 +7,7 @@ package mocks
 
 import (
 	agent "github.com/ultravioletrs/cocos/agent"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	attestation "github.com/ultravioletrs/cocos/pkg/attestation"
 
 	context "context"
 
@@ -75,7 +75,7 @@ func (_c *Service_Algo_Call) RunAndReturn(run func(context.Context, agent.Algori
 }
 
 // Attestation provides a mock function with given fields: ctx, reportData, nonce, attType
-func (_m *Service) Attestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestations.PlatformType) ([]byte, error) {
+func (_m *Service) Attestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
 	ret := _m.Called(ctx, reportData, nonce, attType)
 
 	if len(ret) == 0 {
@@ -84,10 +84,10 @@ func (_m *Service) Attestation(ctx context.Context, reportData [64]byte, nonce [
 
 	var r0 []byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, [32]byte, attestations.PlatformType) ([]byte, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, [32]byte, attestation.PlatformType) ([]byte, error)); ok {
 		return rf(ctx, reportData, nonce, attType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, [32]byte, attestations.PlatformType) []byte); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [64]byte, [32]byte, attestation.PlatformType) []byte); ok {
 		r0 = rf(ctx, reportData, nonce, attType)
 	} else {
 		if ret.Get(0) != nil {
@@ -95,7 +95,7 @@ func (_m *Service) Attestation(ctx context.Context, reportData [64]byte, nonce [
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [64]byte, [32]byte, attestations.PlatformType) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, [64]byte, [32]byte, attestation.PlatformType) error); ok {
 		r1 = rf(ctx, reportData, nonce, attType)
 	} else {
 		r1 = ret.Error(1)
@@ -113,14 +113,14 @@ type Service_Attestation_Call struct {
 //   - ctx context.Context
 //   - reportData [64]byte
 //   - nonce [32]byte
-//   - attType attestations.PlatformType
+//   - attType attestation.PlatformType
 func (_e *Service_Expecter) Attestation(ctx interface{}, reportData interface{}, nonce interface{}, attType interface{}) *Service_Attestation_Call {
 	return &Service_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData, nonce, attType)}
 }
 
-func (_c *Service_Attestation_Call) Run(run func(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestations.PlatformType)) *Service_Attestation_Call {
+func (_c *Service_Attestation_Call) Run(run func(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType)) *Service_Attestation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([64]byte), args[2].([32]byte), args[3].(attestations.PlatformType))
+		run(args[0].(context.Context), args[1].([64]byte), args[2].([32]byte), args[3].(attestation.PlatformType))
 	})
 	return _c
 }
@@ -130,7 +130,7 @@ func (_c *Service_Attestation_Call) Return(_a0 []byte, _a1 error) *Service_Attes
 	return _c
 }
 
-func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte, [32]byte, attestations.PlatformType) ([]byte, error)) *Service_Attestation_Call {
+func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]byte, [32]byte, attestation.PlatformType) ([]byte, error)) *Service_Attestation_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -117,5 +117,5 @@ packages:
       Provider:
         config:
           dir: "{{.InterfaceDir}}/mocks"
-          filename: "attestations.go"
+          filename: "attestation.go"
           mockname: "{{.InterfaceName}}"

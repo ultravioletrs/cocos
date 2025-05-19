@@ -21,7 +21,7 @@ import (
 	"unsafe"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -56,11 +56,11 @@ func formTeeData(pubKey []byte, teeNonce []byte) []byte {
 	return sum[:]
 }
 
-func getPlatformProvider(platformType attestations.PlatformType, pubKey []byte) (attestations.Provider, error) {
+func getPlatformProvider(platformType attestation.PlatformType, pubKey []byte) (attestation.Provider, error) {
 	switch platformType {
-	case attestations.SNPvTPM:
+	case attestation.SNPvTPM:
 		return vtpm.New(pubKey, true, vmpl2, nil), nil
-	case attestations.Azure:
+	case attestation.Azure:
 		return azure.New(nil), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
@@ -72,7 +72,7 @@ func callVerificationValidationCallback(platformType C.int, pubKey *C.uchar, pub
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
-	pType := attestations.PlatformType(int(platformType))
+	pType := attestation.PlatformType(int(platformType))
 	attestationReport := C.GoBytes(unsafe.Pointer(attestReport), attestReportSize)
 	
 	teeData := formTeeData(pubKeyCert, teeNonceData)
@@ -97,7 +97,7 @@ func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen
 	pubKeyCert := C.GoBytes(unsafe.Pointer(pubKey), pubKeyLen)
 	teeNonceData := C.GoBytes(unsafe.Pointer(teeNonceByte), quoteprovider.Nonce)
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
-	pType := attestations.PlatformType(int(platformType))
+	pType := attestation.PlatformType(int(platformType))
 
 	teeData := formTeeData(pubKeyCert, teeNonceData)
 
@@ -127,7 +127,7 @@ func callFetchAttestationCallback(platformType C.int, pubKey *C.uchar, pubKeyLen
 
 //export returnCCPlatformType
 func returnCCPlatformType() int32 {
-	return int32(attestations.CCPlatform())
+	return int32(attestation.CCPlatform())
 }
 
 type ATLSServerListener struct {
