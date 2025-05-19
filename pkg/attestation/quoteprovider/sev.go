@@ -21,7 +21,7 @@ import (
 	"github.com/google/go-sev-guest/verify"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -132,7 +132,7 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 }
 
 func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(attestations.AttestationPolicy.Config)
+	config, err := copyConfig(attestation.AttestationPolicy.Config)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
 	}

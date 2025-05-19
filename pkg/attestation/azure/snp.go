@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/google/go-tpm-tools/proto/attest"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/proto"
@@ -28,13 +28,13 @@ import (
 
 var MaaURL = "https://sharedeus2.eus2.attest.azure.net"
 
-var _ attestations.Provider = (*provider)(nil)
+var _ attestation.Provider = (*provider)(nil)
 
 type provider struct {
 	writer io.Writer
 }
 
-func New(writer io.Writer) attestations.Provider {
+func New(writer io.Writer) attestation.Provider {
 	return provider{writer: writer}
 }
 
@@ -116,7 +116,7 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	return nil
 }
 
-func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestations.Config, error) {
+func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestation.Config, error) {
 	claims, err := validateToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate token: %w", err)
@@ -216,7 +216,7 @@ func GenerateAttestationPolicy(token string, product string, policy uint64, nonc
 
 	sevProduct := quoteprovider.GetProductName(product)
 
-	return &attestations.Config{
+	return &attestation.Config{
 		Config: &check.Config{
 			RootOfTrust: &check.RootOfTrust{
 				CheckCrl: true,

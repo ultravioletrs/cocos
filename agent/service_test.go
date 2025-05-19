@@ -20,7 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -119,7 +119,7 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, &attestations.EmptyProvider{}, 0)
+			svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, &attestations.EmptyProvider{}, 0)
+			svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestResult(t *testing.T) {
 			svc := &agentService{
 				sm:          sm,
 				eventSvc:    events,
-				provider:    &attestations.EmptyProvider{},
+				provider:    &attestation.EmptyProvider{},
 				computation: testComputation(t),
 			}
 
@@ -323,7 +323,7 @@ func TestAttestation(t *testing.T) {
 		reportData [quoteprovider.Nonce]byte
 		nonce      [vtpm.Nonce]byte
 		rawQuote   []uint8
-		platform   attestations.PlatformType
+		platform   attestation.PlatformType
 		err        error
 	}{
 		{
@@ -331,7 +331,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   make([]uint8, 0),
-			platform:   attestations.SNP,
+			platform:   attestation.SNP,
 			err:        nil,
 		},
 		{
@@ -339,7 +339,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   nil,
-			platform:   attestations.SNP,
+			platform:   attestation.SNP,
 			err:        ErrAttestationFailed,
 		},
 		{
@@ -347,7 +347,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   make([]uint8, 0),
-			platform:   attestations.VTPM,
+			platform:   attestation.VTPM,
 			err:        nil,
 		},
 		{
@@ -355,7 +355,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   nil,
-			platform:   attestations.VTPM,
+			platform:   attestation.VTPM,
 			err:        ErrAttestationVTpmFailed,
 		},
 		{
@@ -363,7 +363,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   make([]uint8, 0),
-			platform:   attestations.SNPvTPM,
+			platform:   attestation.SNPvTPM,
 			err:        nil,
 		},
 		{
@@ -371,7 +371,7 @@ func TestAttestation(t *testing.T) {
 			reportData: generateReportData(),
 			nonce:      [32]byte{},
 			rawQuote:   nil,
-			platform:   attestations.SNPvTPM,
+			platform:   attestation.SNPvTPM,
 			err:        ErrAttestationVTpmFailed,
 		},
 	}

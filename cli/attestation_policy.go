@@ -16,7 +16,7 @@ import (
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
 	"google.golang.org/protobuf/proto"
@@ -285,14 +285,14 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errDataLength
 	}
 
-	ac := attestations.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestations.PcrConfig{}}
+	ac := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
 	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return errors.Wrap(errReadingAttestationPolicyFile, err)
 	}
 
-	if err = attestations.ReadAttestationPolicyFromByte(f, &ac); err != nil {
+	if err = attestation.ReadAttestationPolicyFromByte(f, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 

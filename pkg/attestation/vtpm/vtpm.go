@@ -23,14 +23,14 @@ import (
 	"github.com/google/go-tpm-tools/server"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
-var _ attestations.Provider = (*provider)(nil)
+var _ attestation.Provider = (*provider)(nil)
 
 const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
@@ -98,7 +98,7 @@ type provider struct {
 	writer        io.Writer
 }
 
-func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer) attestations.Provider {
+func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer) attestation.Provider {
 	return &provider{
 		pubKey:        pubKey,
 		teeAttestaion: teeAttestation,
@@ -280,29 +280,29 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte, vmpl uint)
 	return nil
 }
 
-func checkExpectedPCRValues(attestation *attest.Attestation, ePcr256, ePcr384 []byte) error {
-	quotes := attestation.GetQuotes()
+func checkExpectedPCRValues(attQuote *attest.Attestation, ePcr256, ePcr384 []byte) error {
+	quotes := attQuote.GetQuotes()
 	for i := range quotes {
 		quote := quotes[i]
 		var pcrMap map[string]string
 		var pcr15 []byte
 		switch quote.Pcrs.Hash {
 		case ptpm.HashAlgo_SHA256:
-			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha256
+			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha256
 			if ePcr256 == nil {
 				pcr15 = make([]byte, 32)
 			} else {
 				pcr15 = ePcr256
 			}
 		case ptpm.HashAlgo_SHA384:
-			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha384
+			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha384
 			if ePcr384 == nil {
 				pcr15 = make([]byte, 48)
 			} else {
 				pcr15 = ePcr384
 			}
 		case ptpm.HashAlgo_SHA1:
-			pcrMap = attestations.AttestationPolicy.PcrConfig.PCRValues.Sha1
+			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha1
 			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		default:
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))

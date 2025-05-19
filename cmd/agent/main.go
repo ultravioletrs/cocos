@@ -27,7 +27,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
@@ -86,19 +86,19 @@ func main() {
 		return
 	}
 
-	var provider attestations.Provider
-	ccPlatform := attestations.CCPlatform()
+	var provider attestation.Provider
+	ccPlatform := attestation.CCPlatform()
 
 	switch ccPlatform {
-	case attestations.SNP:
+	case attestation.SNP:
 		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
-	case attestations.SNPvTPM:
+	case attestation.SNPvTPM:
 		provider = vtpm.New(nil, true, uint(cfg.Vmpl), nil)
-	case attestations.Azure:
+	case attestation.Azure:
 		provider = azure.New(nil)
-	case attestations.NoCC:
+	case attestation.NoCC:
 		logger.Info("TEE device not found")
-		provider = &attestations.EmptyProvider{}
+		provider = &attestation.EmptyProvider{}
 	}
 
 	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
@@ -182,7 +182,7 @@ func main() {
 		return mc.Process(ctx, cancel)
 	})
 
-	attestation, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
 		exitCode = 1
@@ -192,7 +192,7 @@ func main() {
 	eventsLogsQueue <- &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
 			VTPMattestationReport: &cvms.AttestationResponse{
-				File:             attestation,
+				File:             attest,
 				CertSerialNumber: certSerialNumber,
 			},
 		},
@@ -203,7 +203,7 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestations.Provider, vmpl int) agent.Service {
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestation.Provider, vmpl int) agent.Service {
 	svc := agent.New(ctx, logger, eventSvc, provider, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
@@ -231,10 +231,10 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 
 	nonceSNP := sha512.Sum512(certFile)
 	nonceVTPM := sha256.Sum256(certFile)
-	attestation, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestations.SNPvTPM)
+	attest, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestation.SNPvTPM)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return attestation, certx509.SerialNumber.String(), nil
+	return attest, certx509.SerialNumber.String(), nil
 }

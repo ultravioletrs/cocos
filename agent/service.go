@@ -22,7 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
@@ -118,7 +118,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestations.PlatformType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
 	State() string
 }
@@ -131,7 +131,7 @@ type agentService struct {
 	sm              statemachine.StateMachine // Manages the state transitions of the agent service.
 	runError        error                     // Stores any error encountered during the computation run.
 	eventSvc        events.Service            // Service for publishing events related to computation.
-	provider        attestations.Provider     // Provider for generating attestation quotes.
+	provider        attestation.Provider      // Provider for generating attestation quotes.
 	logger          *slog.Logger              // Logger for the agent service.
 	resultsConsumed bool                      // Indicates if the results have been consumed.
 	cancel          context.CancelFunc        // Cancels the computation context.
@@ -141,7 +141,7 @@ type agentService struct {
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestations.Provider, vmlp int) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestation.Provider, vmlp int) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
@@ -422,21 +422,21 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestations.PlatformType) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	switch attType {
-	case attestations.SNP:
+	case attestation.SNP:
 		rawQuote, err := as.provider.TeeAttestation(reportData[:])
 		if err != nil {
 			return []byte{}, errors.Wrap(ErrAttestationFailed, err)
 		}
 		return rawQuote, nil
-	case attestations.VTPM:
+	case attestation.VTPM:
 		vTPMQuote, err := as.provider.VTpmAttestation(nonce[:])
 		if err != nil {
 			return []byte{}, errors.Wrap(ErrAttestationVTpmFailed, err)
 		}
 		return vTPMQuote, nil
-	case attestations.SNPvTPM:
+	case attestation.SNPvTPM:
 		vTPMQuote, err := as.provider.Attestation(reportData[:], nonce[:])
 		if err != nil {
 			return []byte{}, errors.Wrap(ErrAttestationVTpmFailed, err)

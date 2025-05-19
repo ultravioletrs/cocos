@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/ultravioletrs/cocos/agent"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
@@ -92,7 +92,7 @@ func (ms *metricsMiddleware) Result(ctx context.Context) ([]byte, error) {
 	return ms.svc.Result(ctx)
 }
 
-func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestations.PlatformType) ([]byte, error) {
+func (ms *metricsMiddleware) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	defer func(begin time.Time) {
 		ms.counter.With("method", "attestation").Add(1)
 		ms.latency.With("method", "attestation").Observe(time.Since(begin).Seconds())

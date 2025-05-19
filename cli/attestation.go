@@ -21,7 +21,7 @@ import (
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -129,7 +129,7 @@ var (
 	trustedIdKeyHashes      []string
 	attestationFile         string
 	tpmAttestationFile      string
-	attestation             []byte
+	attestationRaw          []byte
 	empty16                 = [size16]byte{}
 	empty32                 = [size32]byte{}
 	empty64                 = [size64]byte{}
@@ -199,32 +199,32 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			attestationType := args[0]
 
-			attType := attestations.SNP
+			attType := attestation.SNP
 			switch attestationType {
 			case SNP:
 				cmd.Println("Fetching SEV-SNP attestation report")
 			case VTPM:
 				cmd.Println("Fetching vTPM report")
-				attType = attestations.VTPM
+				attType = attestation.VTPM
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
-				attType = attestations.SNPvTPM
+				attType = attestation.SNPvTPM
 			}
 
-			if (attType == attestations.VTPM || attType == attestations.SNPvTPM) && len(nonce) == 0 {
+			if (attType == attestation.VTPM || attType == attestation.SNPvTPM) && len(nonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
-			if (attType == attestations.SNP || attType == attestations.SNPvTPM) && len(teeNonce) == 0 {
+			if (attType == attestation.SNP || attType == attestation.SNPvTPM) && len(teeNonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("TEE nonce must be defined for SEV-SNP attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
 			var fixedReportData [quoteprovider.Nonce]byte
-			if attType != attestations.VTPM {
+			if attType != attestation.VTPM {
 				if len(teeNonce) > quoteprovider.Nonce {
 					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", quoteprovider.Nonce)
 					cmd.Println(msg)
@@ -235,7 +235,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			}
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
-			if attType != attestations.SNP {
+			if attType != attestation.SNP {
 				if len(nonce) > vtpm.Nonce {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)
@@ -407,7 +407,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				defer closer.Close()
 			}
 
-			var provider attestations.Provider
+			var provider attestation.Provider
 			switch cloud {
 			case CCNone:
 				provider = vtpm.New(nil, false, 0, output)
@@ -686,7 +686,7 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 	return igvmmeasureCmd
 }
 
-func sevsnpverify(cmd *cobra.Command, provider attestations.Provider, args []string) error {
+func sevsnpverify(cmd *cobra.Command, provider attestation.Provider, args []string) error {
 	cmd.Println("Checking attestation")
 
 	attestationFile = string(args[0])
@@ -696,8 +696,8 @@ func sevsnpverify(cmd *cobra.Command, provider attestations.Provider, args []str
 
 	// This format is the attestation report in AMD's specified ABI format, immediately
 	// followed by the certificate table bytes.
-	if len(attestation) < abi.ReportSize {
-		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestation), abi.ReportSize)
+	if len(attestationRaw) < abi.ReportSize {
+		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestationRaw), abi.ReportSize)
 	}
 
 	if err := parseAttestationConfig(); err != nil {
@@ -705,9 +705,9 @@ func sevsnpverify(cmd *cobra.Command, provider attestations.Provider, args []str
 	}
 
 	// Used for verification of SNP attestation report
-	attestations.AttestationPolicy.Config = &cfg
+	attestation.AttestationPolicy.Config = &cfg
 
-	if err := provider.VerifTeeAttestation(attestation, cfg.Policy.ReportData); err != nil {
+	if err := provider.VerifTeeAttestation(attestationRaw, cfg.Policy.ReportData); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
@@ -737,8 +737,8 @@ func parseAttestationConfig() error {
 	return nil
 }
 
-func vtpmSevSnpverify(args []string, provider attestations.Provider) error {
-	attestation, err := returnvTPMAttestation(args)
+func vtpmSevSnpverify(args []string, provider attestation.Provider) error {
+	attest, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
 	}
@@ -748,16 +748,16 @@ func vtpmSevSnpverify(args []string, provider attestations.Provider) error {
 	}
 
 	// Used for verification of SNP attestation report
-	attestations.AttestationPolicy.Config = &cfg
+	attestation.AttestationPolicy.Config = &cfg
 
-	if err := provider.VerifyAttestation(attestation, cfg.Policy.ReportData, nonce); err != nil {
+	if err := provider.VerifyAttestation(attest, cfg.Policy.ReportData, nonce); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
 	return nil
 }
 
-func vtpmverify(args []string, provider attestations.Provider) error {
+func vtpmverify(args []string, provider attestation.Provider) error {
 	attestation, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
@@ -912,9 +912,9 @@ func parseAttestationFile() error {
 	if err != nil {
 		return err
 	}
-	attestation = file
+	attestationRaw = file
 	if isFileJSON(attestationFile) {
-		attestation, err = attesationFromJSON(attestation)
+		attestationRaw, err = attesationFromJSON(attestationRaw)
 		if err != nil {
 			return err
 		}

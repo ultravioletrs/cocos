@@ -22,7 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
@@ -181,9 +181,9 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
 		}
 
-		attestationPolicy := attestations.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestations.PcrConfig{}}
+		attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-		if err = attestations.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+		if err = attestation.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 

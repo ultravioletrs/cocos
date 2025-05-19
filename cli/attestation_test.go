@@ -395,7 +395,7 @@ func TestParseFiles(t *testing.T) {
 	assert.NoError(t, err)
 	err = parseTrustedKeys()
 	assert.NoError(t, err)
-	assert.Equal(t, []byte("test attestation"), attestation)
+	assert.Equal(t, []byte("test attestation"), attestationRaw)
 	assert.Len(t, cfg.Policy.TrustedAuthorKeys, 1)
 	assert.Len(t, cfg.Policy.TrustedIdKeys, 1)
 

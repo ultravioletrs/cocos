@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	attestations "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
@@ -63,9 +63,9 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, err
 	}
 
-	attestationPolicy := attestations.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestations.PcrConfig{}}
+	attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-	if err = attestations.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+	if err = attestation.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 		return nil, err
 	}
 
