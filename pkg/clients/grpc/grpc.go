@@ -23,12 +23,12 @@ const (
 	withoutTLS security = iota
 	withTLS
 	withmTLS
-	withaTLS
+	withmaTLS
 )
 
 const (
 	AttestationReportSize = 0x4A0
-	WithATLS              = "with aTLS"
+	WithMATLS             = "with maTLS"
 	WithTLS               = "with TLS"
 )
 
@@ -119,8 +119,8 @@ func (c *client) Secure() string {
 		return WithTLS
 	case withmTLS:
 		return "with mTLS"
-	case withaTLS:
-		return WithATLS
+	case withmaTLS:
+		return WithMATLS
 	default:
 		return "without TLS"
 	}
@@ -144,7 +144,7 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 
 		opts = append(opts, grpc.WithTransportCredentials(tc))
 		opts = append(opts, grpc.WithContextDialer(CustomDialer))
-		secure = withaTLS
+		secure = withmaTLS
 	} else {
 		conf := cfg.GetBaseConfig()
 		transportCreds, err, sec := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)

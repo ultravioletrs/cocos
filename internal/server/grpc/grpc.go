@@ -111,6 +111,7 @@ func (s *Server) Start() error {
 	creds := grpc.Creds(insecure.NewCredentials())
 	var listener net.Listener
 
+	c := s.Config.GetBaseConfig()
 	if agCfg, ok := s.Config.(server.AgentConfig); ok && agCfg.AttestedTLS {
 		certificateBytes, privateKeyBytes, err := generateCertificatesForATLS(s.caUrl, s.cvmId)
 		if err != nil {
@@ -127,6 +128,41 @@ func (s *Server) Start() error {
 			Certificates: []tls.Certificate{certificate},
 		}
 
+		var mtls bool
+		mtls = false
+
+		// Loading Server CA file
+		rootCA, err := loadCertFile(c.ServerCAFile)
+		if err != nil {
+			return fmt.Errorf("failed to load root ca file: %w", err)
+		}
+		if len(rootCA) > 0 {
+			if tlsConfig.RootCAs == nil {
+				tlsConfig.RootCAs = x509.NewCertPool()
+			}
+			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
+				return fmt.Errorf("failed to append root ca to tls.Config")
+			}
+			mtls = true
+		}
+
+		// Loading Client CA File
+		clientCA, err := loadCertFile(c.ClientCAFile)
+		if err != nil {
+			return fmt.Errorf("failed to load client ca file: %w", err)
+		}
+		if len(clientCA) > 0 {
+			if tlsConfig.ClientCAs == nil {
+				tlsConfig.ClientCAs = x509.NewCertPool()
+			}
+			if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
+				return fmt.Errorf("failed to append client ca to tls.Config")
+			}
+
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			mtls = true
+		}
+
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
 
 		listener, err = atls.Listen(
@@ -134,12 +170,15 @@ func (s *Server) Start() error {
 			certificateBytes,
 			privateKeyBytes,
 		)
+
 		if err != nil {
 			return fmt.Errorf("failed to create Listener for aTLS: %w", err)
+		} else if mtls {
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested mTLS", s.Name, s.Address))
+		} else {
+			s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
 		}
-		s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with Attested TLS", s.Name, s.Address))
 	} else {
-		c := s.Config.GetBaseConfig()
 		switch {
 		case c.CertFile != "" || c.KeyFile != "":
 			certificate, err := loadX509KeyPair(c.CertFile, c.KeyFile)

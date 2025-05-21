@@ -20,7 +20,7 @@ func NewAgentClient(ctx context.Context, cfg grpc.AgentClientConfig) (grpc.Clien
 		return nil, nil, err
 	}
 
-	if client.Secure() != grpc.WithATLS && client.Secure() != grpc.WithTLS {
+	if client.Secure() != grpc.WithMATLS && client.Secure() != grpc.WithTLS {
 		health := grpchealth.NewHealthClient(client.Connection())
 		resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
 			Service: "agent",
