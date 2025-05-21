@@ -49,7 +49,6 @@ var (
 	ErrNoHashAlgo      = errors.New("hash algo is not supported")
 	ErrFetchQuote      = errors.New("failed to fetch vTPM quote")
 	ErrFetchAzureToken = errors.New("failed to fetch Azure token")
-	AzureURL           string
 )
 
 type tpm struct {
@@ -173,7 +172,7 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([
 }
 
 func FetchAzureAttestation(tokenNonce []byte) ([]byte, error) {
-	token, err := maa.Attest(context.Background(), tokenNonce, AzureURL, http.DefaultClient)
+	token, err := maa.Attest(context.Background(), tokenNonce, os.Getenv("AgentMaaURL"), http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching azure token: %w", err)
 	}

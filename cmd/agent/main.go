@@ -88,7 +88,12 @@ func main() {
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
 
-	azureConfig := azure.NewEnvConfig()
+	azureConfig := azure.NewEnvConfigFromAgent(
+		cfg.AgentOSBuild,
+		cfg.AgentOSType,
+		cfg.AgentOSDistro,
+		cfg.AgentMaaURL,
+	)
 	azure.InitializeDefaultMAAVars(azureConfig)
 	vtpm.AzureURL = azureConfig.MaaURL
 

@@ -10,13 +10,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewEnvConfig(t *testing.T) {
-	cfg := NewEnvConfig()
+func TestNewEnvConfigFromAgent(t *testing.T) {
+	// Given
+	expectedBuild := "CustomBuild123"
+	expectedType := "Linux"
+	expectedDistro := "UVC-Debian"
+	expectedURL := "https://test.attest.azure.net"
 
-	assert.Equal(t, "UVC", cfg.OSBuild)
-	assert.Equal(t, "Linux", cfg.OSType)
-	assert.Equal(t, "UVC", cfg.OSDistro)
-	assert.Equal(t, "https://sharedeus.eus.attest.azure.net", cfg.MaaURL)
+	// When
+	cfg := NewEnvConfigFromAgent(expectedBuild, expectedType, expectedDistro, expectedURL)
+
+	// Then
+	if cfg.OSBuild != expectedBuild {
+		t.Errorf("expected OSBuild = %s, got %s", expectedBuild, cfg.OSBuild)
+	}
+	if cfg.OSType != expectedType {
+		t.Errorf("expected OSType = %s, got %s", expectedType, cfg.OSType)
+	}
+	if cfg.OSDistro != expectedDistro {
+		t.Errorf("expected OSDistro = %s, got %s", expectedDistro, cfg.OSDistro)
+	}
+	if cfg.MaaURL != expectedURL {
+		t.Errorf("expected MaaURL = %s, got %s", expectedURL, cfg.MaaURL)
+	}
 }
 
 func TestInitializeDefaultMAAVars(t *testing.T) {

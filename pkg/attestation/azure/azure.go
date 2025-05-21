@@ -14,12 +14,12 @@ type EnvConfig struct {
 	MaaURL   string
 }
 
-func NewEnvConfig() *EnvConfig {
+func NewEnvConfigFromAgent(agentOSBuild, agentOSType, agentOSDistro, maaURL string) *EnvConfig {
 	return &EnvConfig{
-		OSBuild:  "UVC",
-		OSType:   "Linux",
-		OSDistro: "UVC",
-		MaaURL:   "https://sharedeus.eus.attest.azure.net",
+		OSBuild:  agentOSBuild,
+		OSType:   agentOSType,
+		OSDistro: agentOSDistro,
+		MaaURL:   maaURL,
 	}
 }
 
