@@ -27,7 +27,7 @@ const (
 
 var (
 	ErrTEENonceLength   = errors.New("malformed report data, expect less or equal to 64 bytes")
-	ErrVTpmNonceLength  = errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
+	ErrVTPMNonceLength  = errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
 	ErrTokenNonceLength = errors.New("malformed token nonce, expect less or equal to 32 bytes")
 )
 
@@ -126,7 +126,7 @@ func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface
 	}
 
 	if len(req.VtpmNonce) > vtpm.Nonce {
-		return nil, ErrVTpmNonceLength
+		return nil, ErrVTPMNonceLength
 	}
 
 	copy(reportData[:], req.TeeNonce)
@@ -153,7 +153,7 @@ func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (int
 	var nonce [vtpm.Nonce]byte
 
 	if len(req.TokenNonce) > vtpm.Nonce {
-		return nil, ErrVTpmNonceLength
+		return nil, ErrVTPMNonceLength
 	}
 
 	copy(nonce[:], req.TokenNonce)
