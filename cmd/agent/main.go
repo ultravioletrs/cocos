@@ -188,6 +188,13 @@ func main() {
 		return
 	}
 
+	azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
+		exitCode = 1
+		return
+	}
+
 	eventsLogsQueue <- &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
 			VTPMattestationReport: &cvms.AttestationResponse{
@@ -245,4 +252,29 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 	}
 
 	return attest, certx509.SerialNumber.String(), nil
+}
+
+func azureAttestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {
+	if certFilePath == "" {
+		return nil, "", nil
+	}
+
+	certFile, err := os.ReadFile(certFilePath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	certPem, _ := pem.Decode(certFile)
+	certx509, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+
+	nonceAzure := sha256.Sum256(certFile)
+	attestation, err := svc.AttestationResult(ctx, nonceAzure, attestation.AzureToken)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return attestation, certx509.SerialNumber.String(), nil
 }
