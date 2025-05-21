@@ -392,7 +392,7 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, nil, 0)
+			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -401,6 +401,7 @@ func TestAttestation(t *testing.T) {
 }
 
 func TestAttestationResult(t *testing.T) {
+	provider := new(mocks2.Provider)
 	cases := []struct {
 		name     string
 		nonce    [vtpm.Nonce]byte
@@ -436,9 +437,13 @@ func TestAttestationResult(t *testing.T) {
 			events := new(mocks.Service)
 			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
+			if tc.platform == attestation.AzureToken {
+				provider.On("AzureAttestationToken", tc.nonce[:]).Return(tc.token, tc.err)
+			}
+
 			ctx := context.Background()
 
-			svc := New(ctx, mglog.NewMock(), events, nil, 0)
+			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 
 			result, err := svc.AttestationResult(ctx, tc.nonce, tc.platform)
 			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
