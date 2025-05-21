@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -32,29 +33,31 @@ import (
 )
 
 const (
-	defaultMinimumTcb       = 0
-	defaultMinimumLaunchTcb = 0
-	defaultMinimumGuestSvn  = 0
-	defaultGuestPolicy      = 0x0000000000030000
-	defaultMinimumBuild     = 0
-	defaultCheckCrl         = false
-	defaultTimeout          = 2 * time.Minute
-	defaultMaxRetryDelay    = 30 * time.Second
-	defaultRequireAuthor    = false
-	defaultRequireIdBlock   = false
-	defaultMinVersion       = "0.0"
-	size16                  = 16
-	size32                  = 32
-	size48                  = 48
-	size64                  = 64
-	attestationFilePath     = "attestation.bin"
-	vtpmFilePath            = "../quote.dat"
-	attestationJson         = "attestation.json"
-	sevProductNameMilan     = "Milan"
-	sevProductNameGenoa     = "Genoa"
-	FormatBinaryPB          = "binarypb"
-	FormatTextProto         = "textproto"
-	exampleJSONConfig       = `
+	defaultMinimumTcb         = 0
+	defaultMinimumLaunchTcb   = 0
+	defaultMinimumGuestSvn    = 0
+	defaultGuestPolicy        = 0x0000000000030000
+	defaultMinimumBuild       = 0
+	defaultCheckCrl           = false
+	defaultTimeout            = 2 * time.Minute
+	defaultMaxRetryDelay      = 30 * time.Second
+	defaultRequireAuthor      = false
+	defaultRequireIdBlock     = false
+	defaultMinVersion         = "0.0"
+	size16                    = 16
+	size32                    = 32
+	size48                    = 48
+	size64                    = 64
+	attestationFilePath       = "attestation.bin"
+	azureAttestResultFilePath = "azure_attest_result.json"
+	azureAttestTokenFilePath  = "azure_attest_token.jwt"
+	vtpmFilePath              = "../quote.dat"
+	attestationReportJson     = "attestation.json"
+	sevProductNameMilan       = "Milan"
+	sevProductNameGenoa       = "Genoa"
+	FormatBinaryPB            = "binarypb"
+	FormatTextProto           = "textproto"
+	exampleJSONConfig         = `
 	{
 		"rootOfTrust":{
 		   "product":"test_product",
@@ -107,41 +110,44 @@ const (
 		}
 	}
 	`
-	SNP     = "snp"
-	VTPM    = "vtpm"
-	SNPvTPM = "snp-vtpm"
-	CCNone  = "none"
-	CCAzure = "azure"
-	CCGCP   = "gcp"
+	SNP        = "snp"
+	VTPM       = "vtpm"
+	SNPvTPM    = "snp-vtpm"
+	AzureToken = "azure-token"
+	CCNone     = "none"
+	CCAzure    = "azure"
+	CCGCP      = "gcp"
 )
 
 var (
-	mode                    string
-	cfg                     = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-	cfgString               string
-	timeout                 time.Duration
-	maxRetryDelay           time.Duration
-	platformInfo            string
-	stepping                string
-	trustedAuthorKeys       []string
-	trustedAuthorHashes     []string
-	trustedIdKeys           []string
-	trustedIdKeyHashes      []string
-	attestationFile         string
-	tpmAttestationFile      string
-	attestationRaw          []byte
-	empty16                 = [size16]byte{}
-	empty32                 = [size32]byte{}
-	empty64                 = [size64]byte{}
-	defaultReportIdMa       = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	errReportSize           = errors.New("attestation contents too small")
-	ErrBadAttestation       = errors.New("attestation file is corrupted or in wrong format")
-	output                  string
-	nonce                   []byte
-	format                  string
-	teeNonce                []byte
-	getTextProtoAttestation bool
-	cloud                   string
+	mode                          string
+	cfg                           = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
+	cfgString                     string
+	timeout                       time.Duration
+	maxRetryDelay                 time.Duration
+	platformInfo                  string
+	stepping                      string
+	trustedAuthorKeys             []string
+	trustedAuthorHashes           []string
+	trustedIdKeys                 []string
+	trustedIdKeyHashes            []string
+	attestationFile               string
+	tpmAttestationFile            string
+	attestationRaw                []byte
+	empty16                       = [size16]byte{}
+	empty32                       = [size32]byte{}
+	empty64                       = [size64]byte{}
+	defaultReportIdMa             = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	errReportSize                 = errors.New("attestation contents too small")
+	ErrBadAttestation             = errors.New("attestation file is corrupted or in wrong format")
+	output                        string
+	nonce                         []byte
+	format                        string
+	teeNonce                      []byte
+	tokenNonce                    []byte
+	getTextProtoAttestationReport bool
+	getAzureTokenJWT              bool
+	cloud                         string
 )
 
 var errEmptyFile = errors.New("input file is empty")
@@ -180,11 +186,12 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:       "get",
 		Short:     "Retrieve attestation information from agent. The argument of the command must be the type of the report (snp or vtpm or snp-vtpm).",
-		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM},
+		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM, AzureToken},
 		Example: fmt.Sprintf(`Based on attestation report type:
 		get %s --tee <512 bit hex value>
 		get %s --vtpm <256 bit hex value>
-		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>`, SNP, VTPM, SNPvTPM),
+		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>
+		get %s --token <256 bit hex value>`, SNP, VTPM, SNPvTPM, AzureToken),
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -209,6 +216,9 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			case SNPvTPM:
 				cmd.Println("Fetching SEV-SNP and vTPM report")
 				attType = attestation.SNPvTPM
+			case AzureToken:
+				cmd.Println("Fetching Azure token")
+				attType = attestation.AzureToken
 			}
 
 			if (attType == attestation.VTPM || attType == attestation.SNPvTPM) && len(nonce) == 0 {
@@ -223,8 +233,14 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
+			if (attType == attestation.AzureToken) && len(tokenNonce) == 0 {
+				msg := color.New(color.FgRed).Sprint("Token nonce must be defined for Azure attestation ❌ ")
+				cmd.Println(msg)
+				return
+			}
+
 			var fixedReportData [quoteprovider.Nonce]byte
-			if attType != attestation.VTPM {
+			if attType == attestation.SNP || attType == attestation.SNPvTPM {
 				if len(teeNonce) > quoteprovider.Nonce {
 					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", quoteprovider.Nonce)
 					cmd.Println(msg)
@@ -236,18 +252,28 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
 			if attType != attestation.SNP {
-				if len(nonce) > vtpm.Nonce {
+				if (len(nonce) > vtpm.Nonce) || (len(tokenNonce) > vtpm.Nonce) {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)
 					return
 				}
-
-				copy(fixedVtpmNonceByte[:], nonce)
+				if attType == attestation.AzureToken {
+					copy(fixedVtpmNonceByte[:], tokenNonce)
+				} else {
+					copy(fixedVtpmNonceByte[:], nonce)
+				}
 			}
 
 			filename := attestationFilePath
-			if getTextProtoAttestation {
-				filename = attestationJson
+
+			if attType == attestation.AzureToken {
+				filename = azureAttestResultFilePath
+			}
+
+			if getTextProtoAttestationReport {
+				filename = attestationReportJson
+			} else if getAzureTokenJWT {
+				filename = azureAttestTokenFilePath
 			}
 
 			attestationFile, err := os.Create(filename)
@@ -256,9 +282,21 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if err := cli.agentSDK.Attestation(cmd.Context(), fixedReportData, fixedVtpmNonceByte, int(attType), attestationFile); err != nil {
-				printError(cmd, "Failed to get attestation due to error: %v ❌ ", err)
-				return
+			var returnJsonAzureToken bool
+
+			if attType == attestation.AzureToken {
+				err := cli.agentSDK.AttestationResult(cmd.Context(), fixedVtpmNonceByte, int(attType), attestationFile)
+				if err != nil {
+					printError(cmd, "Failed to get attestation result due to error: %v ❌", err)
+					return
+				}
+				returnJsonAzureToken = !getAzureTokenJWT
+			} else {
+				err := cli.agentSDK.Attestation(cmd.Context(), fixedReportData, fixedVtpmNonceByte, int(attType), attestationFile)
+				if err != nil {
+					printError(cmd, "Failed to get attestation due to error: %v ❌", err)
+					return
+				}
 			}
 
 			if err := attestationFile.Close(); err != nil {
@@ -266,7 +304,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if getTextProtoAttestation {
+			if getTextProtoAttestationReport || returnJsonAzureToken {
 				result, err := os.ReadFile(filename)
 				if err != nil {
 					printError(cmd, "Error reading attestation file: %v ❌ ", err)
@@ -276,6 +314,11 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				switch attestationType {
 				case SNP:
 					result, err = attesationToJSON(result)
+					if err != nil {
+						printError(cmd, "Error converting SNP attestation to JSON: %v ❌", err)
+						return
+					}
+
 				case VTPM, SNPvTPM:
 					marshalOptions := prototext.MarshalOptions{
 						Multiline: true,
@@ -284,15 +327,17 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 					var attvTPM tpmAttest.Attestation
 					err = proto.Unmarshal(result, &attvTPM)
 					if err != nil {
-						printError(cmd, "failed to unmarshal the attestation report: %v ❌ ", ErrBadAttestation)
+						printError(cmd, "Failed to unmarshal the attestation report: %v ❌", err)
+						return
 					}
-
 					result = []byte(marshalOptions.Format(&attvTPM))
-				}
 
-				if err != nil {
-					printError(cmd, "Error converting attestation to textproto: %v ❌ ", err)
-					return
+				case AzureToken:
+					result, err = decodeJWTToJSON(result)
+					if err != nil {
+						printError(cmd, "Error decoding Azure token: %v ❌", err)
+						return
+					}
 				}
 
 				if err := os.WriteFile(filename, result, 0o644); err != nil {
@@ -305,9 +350,11 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&getTextProtoAttestation, "textproto", "p", false, "Get attestation in textproto format")
-	cmd.Flags().BytesHexVarP(&teeNonce, "tee", "e", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
-	cmd.Flags().BytesHexVarP(&nonce, "vtpm", "t", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
+	cmd.Flags().BoolVarP(&getAzureTokenJWT, "azurejwt", "t", false, "Get azure attestation token as jwt format")
+	cmd.Flags().BoolVarP(&getTextProtoAttestationReport, "reporttextproto", "r", false, "Get attestation report in textproto format")
+	cmd.Flags().BytesHexVar(&teeNonce, "tee", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
+	cmd.Flags().BytesHexVar(&nonce, "vtpm", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
+	cmd.Flags().BytesHexVar(&tokenNonce, "token", []byte{}, "Define the nonce for the Azure attestation token (must be used with attestation type azure-token)")
 
 	return cmd
 }
@@ -1035,4 +1082,48 @@ func validateFieldLength(fieldName string, field []byte, expectedLength int) err
 		return fmt.Errorf("%s length should be at least %d bytes long", fieldName, expectedLength)
 	}
 	return nil
+}
+
+func decodeJWTToJSON(tokenBytes []byte) ([]byte, error) {
+	token := string(tokenBytes) // convert to string
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid JWT: must have at least 2 parts")
+	}
+
+	decode := func(seg string) (map[string]interface{}, error) {
+		// Add padding if missing
+		if m := len(seg) % 4; m != 0 {
+			seg += strings.Repeat("=", 4-m)
+		}
+
+		data, err := base64.URLEncoding.DecodeString(seg)
+		if err != nil {
+			return nil, err
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	}
+
+	header, err := decode(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode header: %v", err)
+	}
+
+	payload, err := decode(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode payload: %v", err)
+	}
+
+	combined := map[string]interface{}{
+		"header":  header,
+		"payload": payload,
+	}
+
+	return json.MarshalIndent(combined, "", "  ")
 }

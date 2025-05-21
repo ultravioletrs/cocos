@@ -26,18 +26,20 @@ const (
 )
 
 var (
-	ErrTEENonceLength  = errors.New("malformed report data, expect less or equal to 64 bytes")
-	ErrVTpmNonceLength = errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
+	ErrTEENonceLength   = errors.New("malformed report data, expect less or equal to 64 bytes")
+	ErrVTPMNonceLength  = errors.New("malformed vTPM nonce, expect less or equal to 32 bytes")
+	ErrTokenNonceLength = errors.New("malformed token nonce, expect less or equal to 32 bytes")
 )
 
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
 type grpcServer struct {
-	algo            grpc.Handler
-	data            grpc.Handler
-	result          grpc.Handler
-	attestation     grpc.Handler
-	imaMeasurements grpc.Handler
+	algo              grpc.Handler
+	data              grpc.Handler
+	result            grpc.Handler
+	attestation       grpc.Handler
+	imaMeasurements   grpc.Handler
+	attestationResult grpc.Handler
 	agent.UnimplementedAgentServiceServer
 }
 
@@ -68,6 +70,11 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			imaMeasurementsEndpoint(svc),
 			decodeIMAMeasurementsRequest,
 			encodeIMAMeasurementsResponse,
+		),
+		attestationResult: grpc.NewServer(
+			attestationResultEndpoint(svc),
+			decodeAttestationResultRequest,
+			encodeAttestationResultResponse,
 		),
 	}
 }
@@ -119,7 +126,7 @@ func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface
 	}
 
 	if len(req.VtpmNonce) > vtpm.Nonce {
-		return nil, ErrVTpmNonceLength
+		return nil, ErrVTPMNonceLength
 	}
 
 	copy(reportData[:], req.TeeNonce)
@@ -132,6 +139,25 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 	return &agent.AttestationResponse{
 		File: res.File,
 	}, nil
+}
+
+func encodeAttestationResultResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(fetchAttestationResultRes)
+	return &agent.AttestationResultResponse{
+		File: res.File,
+	}, nil
+}
+
+func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	req := grpcReq.(*agent.AttestationResultRequest)
+	var nonce [vtpm.Nonce]byte
+
+	if len(req.TokenNonce) > vtpm.Nonce {
+		return nil, ErrVTPMNonceLength
+	}
+
+	copy(nonce[:], req.TokenNonce)
+	return FetchAttestationResultReq{tokenNonce: nonce, AttType: attestation.PlatformType(req.Type)}, nil
 }
 
 // Algo implements agent.AgentServiceServer.
@@ -294,4 +320,18 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 	}
 
 	return nil
+}
+
+func (s *grpcServer) AttestationResult(ctx context.Context, req *agent.AttestationResultRequest) (*agent.AttestationResultResponse, error) {
+	_, res, err := s.attestationResult.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := res.(*agent.AttestationResultResponse)
+
+	if !ok {
+		return nil, status.Error(codes.Internal, "failed to cast response to FetchAttestationResultResponse")
+	}
+
+	return rr, nil
 }

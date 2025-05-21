@@ -400,6 +400,58 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
+func TestAttestationResult(t *testing.T) {
+	provider := new(mocks2.Provider)
+	cases := []struct {
+		name     string
+		nonce    [vtpm.Nonce]byte
+		platform attestation.PlatformType
+		token    []byte
+		err      error
+	}{
+		{
+			name:     "Azure token fetch successful",
+			nonce:    [32]byte{1, 2, 3}, // any test nonce
+			platform: attestation.AzureToken,
+			token:    []byte("mockToken"),
+			err:      nil,
+		},
+		{
+			name:     "Azure token fetch failed",
+			nonce:    [32]byte{4, 5, 6},
+			platform: attestation.AzureToken,
+			token:    []byte{},
+			err:      ErrFetchAzureToken,
+		},
+		{
+			name:     "Invalid attestation type",
+			nonce:    [32]byte{7, 8, 9},
+			platform: attestation.SNP,
+			token:    []byte{},
+			err:      ErrAttestationType,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := new(mocks.Service)
+			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+			if tc.platform == attestation.AzureToken {
+				provider.On("AzureAttestationToken", tc.nonce[:]).Return(tc.token, tc.err)
+			}
+
+			ctx := context.Background()
+
+			svc := New(ctx, mglog.NewMock(), events, provider, 0)
+
+			result, err := svc.AttestationResult(ctx, tc.nonce, tc.platform)
+			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
+			assert.Equal(t, tc.token, result)
+		})
+	}
+}
+
 func generateReportData() [quoteprovider.Nonce]byte {
 	bytes := make([]byte, quoteprovider.Nonce)
 	_, err := rand.Read(bytes)

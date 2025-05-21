@@ -135,6 +135,66 @@ func (_c *Service_Attestation_Call) RunAndReturn(run func(context.Context, [64]b
 	return _c
 }
 
+// AttestationResult provides a mock function with given fields: ctx, nonce, attType
+func (_m *Service) AttestationResult(ctx context.Context, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
+	ret := _m.Called(ctx, nonce, attType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AttestationResult")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, attestation.PlatformType) ([]byte, error)); ok {
+		return rf(ctx, nonce, attType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, attestation.PlatformType) []byte); ok {
+		r0 = rf(ctx, nonce, attType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, attestation.PlatformType) error); ok {
+		r1 = rf(ctx, nonce, attType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Service_AttestationResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AttestationResult'
+type Service_AttestationResult_Call struct {
+	*mock.Call
+}
+
+// AttestationResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce [32]byte
+//   - attType attestation.PlatformType
+func (_e *Service_Expecter) AttestationResult(ctx interface{}, nonce interface{}, attType interface{}) *Service_AttestationResult_Call {
+	return &Service_AttestationResult_Call{Call: _e.mock.On("AttestationResult", ctx, nonce, attType)}
+}
+
+func (_c *Service_AttestationResult_Call) Run(run func(ctx context.Context, nonce [32]byte, attType attestation.PlatformType)) *Service_AttestationResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([32]byte), args[2].(attestation.PlatformType))
+	})
+	return _c
+}
+
+func (_c *Service_AttestationResult_Call) Return(_a0 []byte, _a1 error) *Service_AttestationResult_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Service_AttestationResult_Call) RunAndReturn(run func(context.Context, [32]byte, attestation.PlatformType) ([]byte, error)) *Service_AttestationResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Data provides a mock function with given fields: ctx, dataset
 func (_m *Service) Data(ctx context.Context, dataset agent.Dataset) error {
 	ret := _m.Called(ctx, dataset)

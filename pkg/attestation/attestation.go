@@ -23,6 +23,7 @@ const (
 	SNP PlatformType = iota
 	VTPM
 	SNPvTPM
+	AzureToken
 	Azure
 	NoCC
 )
@@ -67,6 +68,7 @@ type Provider interface {
 	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
 	VerifTeeAttestation(report []byte, teeNonce []byte) error
 	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
+	AzureAttestationToken(tokenNonce []byte) ([]byte, error)
 }
 
 func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {

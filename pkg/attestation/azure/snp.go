@@ -116,6 +116,15 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	return nil
 }
 
+func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	quote, err := vtpm.FetchAzureAttestation(tokenNonce)
+	if err != nil {
+		return nil, errors.Wrap(vtpm.ErrFetchAzureToken, err)
+	}
+
+	return quote, nil
+}
+
 func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestation.Config, error) {
 	claims, err := validateToken(token)
 	if err != nil {

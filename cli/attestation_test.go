@@ -49,6 +49,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 
 	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))
 	vtpmNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
+	tokenNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
 
 	testCases := []struct {
 		name         string
@@ -102,7 +103,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		},
 		{
 			name:         "invalid vTPM data size",
-			args:         []string{"vtpm", "-t", hex.EncodeToString(bytes.Repeat([]byte{0x00}, 33))},
+			args:         []string{"vtpm", "--vtpm", hex.EncodeToString(bytes.Repeat([]byte{0x00}, 33))},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
 			expectedErr:  "vTPM nonce must be a hex encoded string of length lesser or equal 32 bytes",
@@ -116,31 +117,52 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		},
 		{
 			name:         "failed to get attestation",
-			args:         []string{"snp", "-e", teeNonce},
+			args:         []string{"snp", "--tee", teeNonce},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
 			expectedErr:  "Failed to get attestation due to error",
 		},
 		{
 			name:         "Textproto report error",
-			args:         []string{"snp", "-e", teeNonce, "--textproto"},
+			args:         []string{"snp", "--tee", teeNonce, "--reporttextproto"},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
-			expectedErr:  "Error converting attestation to textproto",
+			expectedErr:  "Fetching SEV-SNP attestation report\nError converting SNP attestation to JSON: attestation contents too small : attestation contents too small (0x10 bytes). Want at least 0x4a0 bytes ❌\n",
 		},
 		{
 			name:         "successful Textproto report",
-			args:         []string{"snp", "-e", teeNonce, "--textproto"},
+			args:         []string{"snp", "--tee", teeNonce, "--reporttextproto"},
 			mockResponse: validattestation,
 			mockError:    nil,
 			expectedOut:  "Attestation result retrieved and saved successfully!",
 		},
 		{
 			name:         "connection error",
-			args:         []string{"snp", "-e", teeNonce},
+			args:         []string{"snp", "--tee", teeNonce},
 			mockResponse: nil,
 			mockError:    errors.New("failed to connect to agent"),
 			expectedErr:  "Failed to connect to agent",
+		},
+		{
+			name:         "successful Azure token retrieval",
+			args:         []string{"azure-token", "--token", tokenNonce},
+			mockResponse: []byte("eyJhbGciOiAiUlMyNTYifQ.eyJzdWIiOiAidGVzdC11c2VyIn0.signature"),
+			mockError:    nil,
+			expectedOut:  "Fetching Azure token\nAttestation result retrieved and saved successfully!\n",
+		},
+		{
+			name:         "failed to retrieve Azure token",
+			args:         []string{"azure-token", "--token", tokenNonce},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "Fetching Azure token\nFailed to get attestation result due to error: error ❌\n",
+		},
+		{
+			name:         "invalid token nonce size",
+			args:         []string{"azure-token", "--token", hex.EncodeToString(bytes.Repeat([]byte{0x00}, 33))},
+			mockResponse: nil,
+			mockError:    errors.New("error"),
+			expectedErr:  "Fetching Azure token\nvTPM nonce must be a hex encoded string of length lesser or equal 32 bytes ❌ \n",
 		},
 	}
 
@@ -148,7 +170,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Cleanup(func() {
 				os.Remove(attestationFilePath)
-				os.Remove(attestationJson)
+				os.Remove(attestationReportJson)
 			})
 			mockSDK := new(mocks.SDK)
 			cli := &CLI{agentSDK: mockSDK}
@@ -161,6 +183,11 @@ func TestNewGetAttestationCmd(t *testing.T) {
 
 			mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(4).(*os.File).Write(tc.mockResponse)
+				require.NoError(t, err)
+			})
+
+			mockSDK.On("AttestationResult", mock.Anything, [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+				_, err := args.Get(3).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})
 
@@ -626,4 +653,57 @@ func TestRoundTrip(t *testing.T) {
 	roundTripReport, err := attesationFromJSON(jsonData)
 	require.NoError(t, err)
 	require.NotNil(t, roundTripReport)
+}
+
+func TestDecodeJWTToJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		err      error
+		validate func(t *testing.T, output []byte)
+	}{
+		{
+			name: "Valid JWT",
+			input: []byte("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+				"eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
+				"SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"),
+			err: nil,
+			validate: func(t *testing.T, output []byte) {
+				assert.NotEmpty(t, output)
+				assert.Contains(t, string(output), `"header"`)
+				assert.Contains(t, string(output), `"payload"`)
+			},
+		},
+		{
+			name:  "Invalid JWT - one part",
+			input: []byte("justonepart"),
+			err:   fmt.Errorf("invalid JWT: must have at least 2 parts"),
+			validate: func(t *testing.T, output []byte) {
+				assert.Nil(t, output)
+			},
+		},
+		{
+			name:  "Invalid Base64",
+			input: []byte("bad@@@.header"),
+			err:   errors.New("illegal base64 data"),
+			validate: func(t *testing.T, output []byte) {
+				assert.Nil(t, output)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := decodeJWTToJSON(tt.input)
+
+			if tt.err != nil {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.err.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+
+			tt.validate(t, got)
+		})
+	}
 }

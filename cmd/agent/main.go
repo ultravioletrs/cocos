@@ -19,7 +19,6 @@ import (
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
-	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -89,6 +88,14 @@ func main() {
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
 
+	azureConfig := azure.NewEnvConfigFromAgent(
+		cfg.AgentOSBuild,
+		cfg.AgentOSType,
+		cfg.AgentOSDistro,
+		cfg.AgentMaaURL,
+	)
+	azure.InitializeDefaultMAAVars(azureConfig)
+
 	switch ccPlatform {
 	case attestation.SNP:
 		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
@@ -144,10 +151,6 @@ func main() {
 		return
 	}
 
-	azure.MaaURL = cfg.AgentMaaURL
-	maa.OSBuild = cfg.AgentOSBuild
-	maa.OSDistro = cfg.AgentOSDistro
-	maa.OSType = cfg.AgentOSType
 	svc := newService(ctx, logger, eventSvc, provider, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
@@ -189,11 +192,27 @@ func main() {
 		return
 	}
 
+	azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
+		exitCode = 1
+		return
+	}
+
 	eventsLogsQueue <- &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
 			VTPMattestationReport: &cvms.AttestationResponse{
 				File:             attest,
 				CertSerialNumber: certSerialNumber,
+			},
+		},
+	}
+
+	eventsLogsQueue <- &cvms.ClientStreamMessage{
+		Message: &cvms.ClientStreamMessage_AzureAttestationResult{
+			AzureAttestationResult: &cvms.AzureAttestationResponse{
+				File:             azureAttestationResult,
+				CertSerialNumber: azureCertSerialNumber,
 			},
 		},
 	}
@@ -237,4 +256,29 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 	}
 
 	return attest, certx509.SerialNumber.String(), nil
+}
+
+func azureAttestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {
+	if certFilePath == "" {
+		return nil, "", nil
+	}
+
+	certFile, err := os.ReadFile(certFilePath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	certPem, _ := pem.Decode(certFile)
+	certx509, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+
+	nonceAzure := sha256.Sum256(certFile)
+	attestation, err := svc.AttestationResult(ctx, nonceAzure, attestation.AzureToken)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return attestation, certx509.SerialNumber.String(), nil
 }

@@ -475,6 +475,89 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
+func TestAttestationResult(t *testing.T) {
+	reportData := make([]byte, 64)
+	nonce := make([]byte, 64)
+	report := []byte{
+		0x01, 0x02, 0x03, 0x04,
+		0x05, 0x06, 0x07, 0x08,
+	}
+
+	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(bufDialer))
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer conn.Close()
+
+	client := agent.NewAgentServiceClient(conn)
+
+	sdk := sdk.NewAgentSDK(client)
+
+	_, err = rand.Read(reportData)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name     string
+		nonce    [vtpm.Nonce]byte
+		response *agent.AttestationResultResponse
+		svcRes   []byte
+		err      error
+	}{
+		{
+			name:  "fetch attestation report successfully",
+			nonce: [vtpm.Nonce]byte(nonce),
+			response: &agent.AttestationResultResponse{
+				File: report,
+			},
+			svcRes: report,
+			err:    nil,
+		},
+		{
+			name:  "failed to fetch attestation report",
+			nonce: [vtpm.Nonce]byte(nonce),
+			response: &agent.AttestationResultResponse{
+				File: []byte{},
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svcCall := svc.On("AttestationResult", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
+
+			file, err := os.CreateTemp("", "attestation")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(file.Name())
+			})
+
+			err = sdk.AttestationResult(context.Background(), tc.nonce, 0, file)
+
+			require.NoError(t, file.Close())
+
+			st, ok := status.FromError(err)
+			if !ok {
+				t.Fatalf("Expected gRPC status error, but got: %v", err)
+			}
+
+			if tc.err != nil {
+				if st.Message() != tc.err.Error() {
+					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
+				}
+			}
+
+			res, err := os.ReadFile(file.Name())
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.response.File, res, tc.name)
+
+			svcCall.Unset()
+		})
+	}
+}
+
 func generateKeys(t *testing.T, keyType string) (priv any, pub []byte) {
 	switch keyType {
 	case "ecdsa":

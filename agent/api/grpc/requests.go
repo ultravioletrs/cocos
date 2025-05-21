@@ -47,12 +47,25 @@ type attestationReq struct {
 	AttType   attestation.PlatformType
 }
 
+type FetchAttestationResultReq struct {
+	tokenNonce [vtpm.Nonce]byte
+	AttType    attestation.PlatformType
+}
+
 func (req attestationReq) validate() error {
-	switch req.AttType {
-	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM:
+	return validateAttestationType(req.AttType)
+}
+
+func (req FetchAttestationResultReq) validate() error {
+	return validateAttestationType(req.AttType)
+}
+
+func validateAttestationType(attType attestation.PlatformType) error {
+	switch attType {
+	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM, attestation.AzureToken:
 		return nil
 	default:
-		return errors.New("invalid attestation type in attestation request")
+		return errors.New("invalid attestation type")
 	}
 }
 
