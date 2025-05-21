@@ -95,7 +95,6 @@ func main() {
 		cfg.AgentMaaURL,
 	)
 	azure.InitializeDefaultMAAVars(azureConfig)
-	vtpm.AzureURL = azureConfig.MaaURL
 
 	switch ccPlatform {
 	case attestation.SNP:
