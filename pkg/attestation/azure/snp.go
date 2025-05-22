@@ -5,7 +5,6 @@ package azure
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -269,27 +268,4 @@ func validateToken(token string) (map[string]interface{}, error) {
 	}
 
 	return claims, nil
-}
-
-func validateClaims(claims map[string]interface{}, nonce []byte) error {
-	runtime, ok := claims["x-ms-runtime"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("failed to get runtime from claims")
-	}
-
-	payload, ok := runtime["client-payload"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("failed to get client payload from claims")
-	}
-
-	tokenNonce, ok := payload["nonce"].(string)
-	if !ok {
-		return fmt.Errorf("failed to get nonce from claims")
-	}
-
-	if tokenNonce != base64.StdEncoding.EncodeToString(nonce) {
-		return fmt.Errorf("nonce mismatch: expected %s, got %s", base64.StdEncoding.EncodeToString(nonce), tokenNonce)
-	}
-
-	return nil
 }
