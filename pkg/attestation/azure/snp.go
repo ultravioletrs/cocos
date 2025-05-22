@@ -238,6 +238,7 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 				Policy:             policy,
 			},
 		},
+		PcrConfig: &attestation.PcrConfig{},
 	}, nil
 }
 
