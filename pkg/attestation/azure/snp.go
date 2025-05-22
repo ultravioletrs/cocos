@@ -117,7 +117,7 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 }
 
 func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := vtpm.FetchAzureAttestation(tokenNonce)
+	quote, err := vtpm.FetchAzureAttestation(tokenNonce, MaaURL)
 	if err != nil {
 		return nil, errors.Wrap(vtpm.ErrFetchAzureToken, err)
 	}
@@ -125,14 +125,10 @@ func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
 	return quote, nil
 }
 
-func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestation.Config, error) {
+func GenerateAttestationPolicy(token, product string, policy uint64) (*attestation.Config, error) {
 	claims, err := validateToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate token: %w", err)
-	}
-
-	if err := validateClaims(claims, nonce); err != nil {
-		return nil, fmt.Errorf("failed to validate claims: %w", err)
 	}
 
 	tee, ok := claims["x-ms-isolation-tee"].(map[string]interface{})

@@ -134,7 +134,7 @@ func (lm *loggingMiddleware) IMAMeasurements(ctx context.Context) (file []byte, 
 
 func (lm *loggingMiddleware) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) (response []byte, err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Attestation took %s to complete", time.Since(begin))
+		message := fmt.Sprintf("Method AttestationResult took %s to complete", time.Since(begin))
 		if err != nil {
 			lm.logger.Warn(fmt.Sprintf("%s with error: %s", message, err))
 			return

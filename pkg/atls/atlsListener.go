@@ -59,7 +59,7 @@ func formTeeData(pubKey []byte, teeNonce []byte) []byte {
 func getPlatformProvider(platformType attestation.PlatformType, pubKey []byte) (attestation.Provider, error) {
 	switch platformType {
 	case attestation.SNPvTPM:
-		return vtpm.New(pubKey, true, vmpl2, nil), nil
+		return vtpm.New(pubKey, true, vmpl2, nil, azure.MaaURL), nil
 	case attestation.Azure:
 		return azure.New(nil), nil
 	default:

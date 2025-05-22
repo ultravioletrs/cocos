@@ -457,13 +457,13 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			var provider attestation.Provider
 			switch cloud {
 			case CCNone:
-				provider = vtpm.New(nil, false, 0, output)
+				provider = vtpm.New(nil, false, 0, output, "")
 			case CCAzure:
 				provider = azure.New(output)
 			case CCGCP:
-				provider = vtpm.New(nil, false, 0, output)
+				provider = vtpm.New(nil, false, 0, output, "")
 			default:
-				provider = vtpm.New(nil, false, 0, output)
+				provider = vtpm.New(nil, false, 0, output, "")
 			}
 
 			switch mode {
