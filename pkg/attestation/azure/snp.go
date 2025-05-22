@@ -190,7 +190,8 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 		UcodeSpl: uint8(microcodeVersion),
 	}
 
-	minimalTCB, err := kds.ComposeTCBParts(minimalTCBParts)
+	// Minimum TCB at the moment is not valid and will be fixed in the future.
+	_, err = kds.ComposeTCBParts(minimalTCBParts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compose TCB parts: %w", err)
 	}
@@ -230,7 +231,6 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 				FamilyId:           familyId,
 				Measurement:        measurement,
 				MinimumGuestSvn:    uint32(guestSVN),
-				MinimumTcb:         uint64(minimalTCB),
 				TrustedIdKeyHashes: [][]byte{idKeyDigest},
 				ReportId:           reportID,
 				Product:            &sevsnp.SevProduct{Name: sevProduct},
