@@ -5,7 +5,6 @@ package azure
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -117,7 +116,7 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 }
 
 func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := vtpm.FetchAzureAttestation(tokenNonce)
+	quote, err := FetchAzureAttestationToken(tokenNonce, MaaURL)
 	if err != nil {
 		return nil, errors.Wrap(vtpm.ErrFetchAzureToken, err)
 	}
@@ -125,14 +124,10 @@ func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
 	return quote, nil
 }
 
-func GenerateAttestationPolicy(token string, product string, policy uint64, nonce []byte) (*attestation.Config, error) {
+func GenerateAttestationPolicy(token, product string, policy uint64) (*attestation.Config, error) {
 	claims, err := validateToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate token: %w", err)
-	}
-
-	if err := validateClaims(claims, nonce); err != nil {
-		return nil, fmt.Errorf("failed to validate claims: %w", err)
 	}
 
 	tee, ok := claims["x-ms-isolation-tee"].(map[string]interface{})
@@ -195,7 +190,8 @@ func GenerateAttestationPolicy(token string, product string, policy uint64, nonc
 		UcodeSpl: uint8(microcodeVersion),
 	}
 
-	minimalTCB, err := kds.ComposeTCBParts(minimalTCBParts)
+	// Minimum TCB at the moment is not valid and will be fixed in the future.
+	_, err = kds.ComposeTCBParts(minimalTCBParts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compose TCB parts: %w", err)
 	}
@@ -235,14 +231,22 @@ func GenerateAttestationPolicy(token string, product string, policy uint64, nonc
 				FamilyId:           familyId,
 				Measurement:        measurement,
 				MinimumGuestSvn:    uint32(guestSVN),
-				MinimumTcb:         uint64(minimalTCB),
 				TrustedIdKeyHashes: [][]byte{idKeyDigest},
 				ReportId:           reportID,
 				Product:            &sevsnp.SevProduct{Name: sevProduct},
 				Policy:             policy,
 			},
 		},
+		PcrConfig: &attestation.PcrConfig{},
 	}, nil
+}
+
+func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error) {
+	token, err := maa.Attest(context.Background(), tokenNonce, maaURL, http.DefaultClient)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching azure token: %w", err)
+	}
+	return []byte(token), nil
 }
 
 func validateToken(token string) (map[string]interface{}, error) {
@@ -272,27 +276,4 @@ func validateToken(token string) (map[string]interface{}, error) {
 	}
 
 	return claims, nil
-}
-
-func validateClaims(claims map[string]interface{}, nonce []byte) error {
-	runtime, ok := claims["x-ms-runtime"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("failed to get runtime from claims")
-	}
-
-	payload, ok := runtime["client-payload"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("failed to get client payload from claims")
-	}
-
-	tokenNonce, ok := payload["nonce"].(string)
-	if !ok {
-		return fmt.Errorf("failed to get nonce from claims")
-	}
-
-	if tokenNonce != base64.StdEncoding.EncodeToString(nonce) {
-		return fmt.Errorf("nonce mismatch: expected %s, got %s", base64.StdEncoding.EncodeToString(nonce), tokenNonce)
-	}
-
-	return nil
 }

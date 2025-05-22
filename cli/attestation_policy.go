@@ -232,8 +232,8 @@ func (cli *CLI) NewAzureAttestationPolicy() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "azure",
 		Short:   "Get attestation policy for Azure CVM",
-		Example: `azure <azure_maa_token_file> <token_nonce> <product_name>`,
-		Args:    cobra.ExactArgs(3),
+		Example: `azure <azure_maa_token_file> <product_name>`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			token, err := os.ReadFile(args[0])
 			if err != nil {
@@ -241,10 +241,9 @@ func (cli *CLI) NewAzureAttestationPolicy() *cobra.Command {
 				return
 			}
 
-			nonce := []byte(args[1])
-			product := args[2]
+			product := args[1]
 
-			config, err := azure.GenerateAttestationPolicy(string(token), product, policy, nonce)
+			config, err := azure.GenerateAttestationPolicy(string(token), product, policy)
 			if err != nil {
 				printError(cmd, "Error generating attestation policy: %v ❌ ", err)
 				return

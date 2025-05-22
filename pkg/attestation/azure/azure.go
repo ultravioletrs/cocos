@@ -27,6 +27,7 @@ func InitializeDefaultMAAVars(config *EnvConfig) {
 	maa.OSBuild = config.OSBuild
 	maa.OSType = config.OSType
 	maa.OSDistro = config.OSDistro
+	MaaURL = config.MaaURL
 }
 
 func (c *EnvConfig) InitializeOSVars(build, osType, osDistro string) {
