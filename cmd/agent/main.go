@@ -98,9 +98,9 @@ func main() {
 
 	switch ccPlatform {
 	case attestation.SNP:
-		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil, cfg.AgentMaaURL)
+		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
 	case attestation.SNPvTPM:
-		provider = vtpm.New(nil, true, uint(cfg.Vmpl), nil, cfg.AgentMaaURL)
+		provider = vtpm.New(nil, true, uint(cfg.Vmpl), nil)
 	case attestation.Azure:
 		provider = azure.New(nil)
 	case attestation.NoCC:

@@ -116,7 +116,7 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 }
 
 func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := vtpm.FetchAzureAttestation(tokenNonce, MaaURL)
+	quote, err := FetchAzureAttestationToken(tokenNonce, MaaURL)
 	if err != nil {
 		return nil, errors.Wrap(vtpm.ErrFetchAzureToken, err)
 	}
@@ -239,6 +239,14 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 		},
 		PcrConfig: &attestation.PcrConfig{},
 	}, nil
+}
+
+func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error) {
+	token, err := maa.Attest(context.Background(), tokenNonce, maaURL, http.DefaultClient)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching azure token: %w", err)
+	}
+	return []byte(token), nil
 }
 
 func validateToken(token string) (map[string]interface{}, error) {

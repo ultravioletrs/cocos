@@ -5,19 +5,16 @@ package vtpm
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/client"
@@ -100,16 +97,14 @@ type provider struct {
 	teeAttestaion bool
 	vmpl          uint
 	writer        io.Writer
-	MaaURL        string
 }
 
-func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer, maaURL string) attestation.Provider {
+func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer) attestation.Provider {
 	return &provider{
 		pubKey:        pubKey,
 		teeAttestaion: teeAttestation,
 		vmpl:          vmpl,
 		writer:        writer,
-		MaaURL:        maaURL,
 	}
 }
 
@@ -149,12 +144,7 @@ func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 }
 
 func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := FetchAzureAttestation(tokenNonce, v.MaaURL)
-	if err != nil {
-		return nil, errors.Wrap(ErrFetchQuote, err)
-	}
-
-	return quote, nil
+	return nil, errors.New("Azure attestation token is not supported")
 }
 
 func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([]byte, error) {
@@ -171,14 +161,6 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([
 	}
 
 	return marshalQuote(attestation)
-}
-
-func FetchAzureAttestation(tokenNonce []byte, maaURL string) ([]byte, error) {
-	token, err := maa.Attest(context.Background(), tokenNonce, maaURL, http.DefaultClient)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching azure token: %w", err)
-	}
-	return []byte(token), nil
 }
 
 func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte, writer io.Writer) error {
