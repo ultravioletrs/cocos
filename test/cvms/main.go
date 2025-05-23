@@ -42,6 +42,7 @@ var (
 	pubKeyFile        string
 	caUrl             string
 	cvmId             string
+	clientCAFile      string
 )
 
 type svc struct {
@@ -89,8 +90,9 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				Algorithm:       &cvms.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
 				ResultConsumers: []*cvms.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &cvms.AgentConfig{
-					Port:        "7002",
-					AttestedTls: attestedTLS,
+					Port:         "7002",
+					AttestedTls:  attestedTLS,
+					ClientCaFile: clientCAFile,
 				},
 			},
 		},
@@ -106,8 +108,9 @@ func main() {
 	flagSet.StringVar(&pubKeyFile, "public-key-path", "", "Path to the public key file")
 	flagSet.StringVar(&attestedTLSString, "attested-tls-bool", "", "Should aTLS be used, must be 'true' or 'false'")
 	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas")
-	flagSet.StringVar(&caUrl, "ca-url", "", "URL for certificate authority, optional flag that can only be used if aTLS is enabled")
-	flagSet.StringVar(&cvmId, "cvm-id", "", "UUID for a CVM, optional flag that can only be used if aTLS is enabled")
+	flagSet.StringVar(&caUrl, "ca-url", "", "URL for certificate authority, must be specified if aTLS is used")
+	flagSet.StringVar(&cvmId, "cvm-id", "", "UUID for a CVM, must be specified if aTLS is used")
+	flagSet.StringVar(&clientCAFile, "client-ca-file", "", "Client CA root certificate file path")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
 	if flagSetParseError != nil {

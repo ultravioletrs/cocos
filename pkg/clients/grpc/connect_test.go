@@ -186,9 +186,9 @@ func TestClientSecure(t *testing.T) {
 			expected: "with mTLS",
 		},
 		{
-			name:     "With aTLS",
-			secure:   withaTLS,
-			expected: WithATLS,
+			name:     "With maTLS",
+			secure:   withmaTLS,
+			expected: WithMATLS,
 		},
 	}
 

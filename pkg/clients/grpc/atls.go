@@ -63,6 +63,15 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) 
 			return verifyPeerCertificateATLS(rawCerts, verifiedChains, cfg)
 		},
 	}
+
+	if cfg.ClientCert != "" || cfg.ClientKey != "" {
+		certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+		if err != nil {
+			return nil, errors.Wrap(errFailedToLoadClientCertKey, err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+	}
+
 	return credentials.NewTLS(tlsConfig), nil
 }
 
