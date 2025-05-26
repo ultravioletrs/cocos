@@ -131,14 +131,14 @@ func (s *Server) Start() error {
 		// Loading Server CA file
 		rootCA, err := loadCertFile(c.ServerCAFile)
 		if err != nil {
-			return fmt.Errorf("failed to load root ca file: %w", err)
+			return fmt.Errorf("failed to load server ca file: %w", err)
 		}
 		if len(rootCA) > 0 {
 			if tlsConfig.RootCAs == nil {
 				tlsConfig.RootCAs = x509.NewCertPool()
 			}
 			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
-				return fmt.Errorf("failed to append root ca to tls.Config")
+				return fmt.Errorf("failed to append server ca to tls.Config")
 			}
 			mtls = true
 		}
@@ -292,6 +292,8 @@ func readFileOrData(input string) ([]byte, error) {
 		data, err := os.ReadFile(input)
 		if err == nil {
 			return data, nil
+		} else {
+			return nil, err
 		}
 	}
 	return []byte(input), nil
