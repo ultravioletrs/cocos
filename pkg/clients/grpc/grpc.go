@@ -30,6 +30,7 @@ const (
 const (
 	AttestationReportSize = 0x4A0
 	WithMATLS             = "with maTLS"
+	WithATLS              = "with aTLS"
 	WithTLS               = "with TLS"
 )
 
