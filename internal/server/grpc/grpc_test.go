@@ -327,60 +327,53 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			expectedLog: "failed to load auth certificates",
 		},
 		{
-			name: "mTLS Server Startup",
-			config: server.AgentConfig{
-				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
-						Host: "localhost",
-						Port: "0",
-					},
-				},
-			},
-			setupCallback: setupMTLSConfig,
-			expectedLog:   "TestServer service gRPC server listening at localhost:0 with TLS",
-		},
-		{
-			name: "mTLS Server Startup with Invalid Root CA",
+			name: "maTLS Server Startup",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
 					BaseConfig: server.BaseConfig{
 						Host:         "localhost",
 						Port:         "0",
-						ServerCAFile: "invalid",
-					},
-				},
-			},
-			setupCallback: setupInvalidRootCAConfig,
-			expectError:   true,
-			expectedLog:   "failed to append root ca to tls.Config",
-		},
-		{
-			name: "mTLS Server Startup with Invalid Client CA",
-			config: server.AgentConfig{
-				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
-						Host:         "localhost",
-						Port:         "0",
-						ServerCAFile: "invalid",
-					},
-				},
-			},
-			setupCallback: setupInvalidClientCAConfig,
-			expectError:   true,
-			expectedLog:   "failed to append client ca to tls.Config",
-		},
-		{
-			name: "Attested TLS Server Startup",
-			config: server.AgentConfig{
-				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
-						Host: "localhost",
-						Port: "0",
+						ServerCAFile: "",
+						ClientCAFile: "",
 					},
 				},
 				AttestedTLS: true,
 			},
-			expectedLog: "TestServer service gRPC server listening at localhost:0 with Attested TLS",
+			setupCallback: setupMTLSConfig,
+			expectError:   false,
+			expectedLog:   "with Attested mTLS",
+		},
+		{
+			name: "maTLS Server Startup with Invalid Server CA file",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host:         "localhost",
+						Port:         "0",
+						ServerCAFile: "invalid",
+					},
+				},
+				AttestedTLS: true,
+			},
+			setupCallback: setupInvalidRootCAConfig,
+			expectError:   true,
+			expectedLog:   "failed to load server ca file",
+		},
+		{
+			name: "maTLS Server Startup with Invalid Clinet CA file",
+			config: server.AgentConfig{
+				ServerConfig: server.ServerConfig{
+					BaseConfig: server.BaseConfig{
+						Host:         "localhost",
+						Port:         "0",
+						ServerCAFile: "invalid",
+					},
+				},
+				AttestedTLS: true,
+			},
+			setupCallback: setupInvalidClientCAConfig,
+			expectError:   true,
+			expectedLog:   "failed to load client ca file",
 		},
 	}
 

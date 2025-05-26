@@ -22,10 +22,11 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) {
+func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, security, error) {
+	security := withaTLS
 	err := attestation.ReadAttestationPolicy(cfg.AttestationPolicy, &attestation.AttestationPolicy)
 	if err != nil {
-		return nil, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
+		return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
 	}
 
 	var insecureSkipVerify bool = true
@@ -37,23 +38,25 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) 
 		// Read the certificate file
 		certPEM, err := os.ReadFile(cfg.ServerCAFile)
 		if err != nil {
-			return nil, errors.Wrap(fmt.Errorf("failed to read certificate file"), err)
+			return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to read certificate file"), err)
 		}
 
 		// Decode the PEM block
 		block, _ := pem.Decode(certPEM)
 		if block == nil {
-			return nil, fmt.Errorf("failed to decode PEM block")
+			return nil, withoutTLS, fmt.Errorf("failed to decode PEM block")
 		}
 
 		// Parse the certificate
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, errors.Wrap(fmt.Errorf("failed to parse certificate"), err)
+			return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to parse certificate"), err)
 		}
 
 		rootCAs = x509.NewCertPool()
 		rootCAs.AddCert(cert)
+
+		security = withmaTLS
 	}
 
 	tlsConfig := &tls.Config{
@@ -63,7 +66,16 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, error) 
 			return verifyPeerCertificateATLS(rawCerts, verifiedChains, cfg)
 		},
 	}
-	return credentials.NewTLS(tlsConfig), nil
+
+	if cfg.ClientCert != "" || cfg.ClientKey != "" {
+		certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+		if err != nil {
+			return nil, withoutTLS, errors.Wrap(errFailedToLoadClientCertKey, err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+	}
+
+	return credentials.NewTLS(tlsConfig), security, nil
 }
 
 func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {
