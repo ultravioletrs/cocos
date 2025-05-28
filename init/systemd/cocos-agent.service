@@ -7,11 +7,11 @@ Before=docker.service
 WorkingDirectory=/cocos
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
-
 EnvironmentFile=/etc/cocos/environment
-
 ExecStartPre=/cocos_init/agent_setup.sh
 ExecStart=/cocos_init/agent_start_script.sh
+Restart=always
+RestartSec=5s
 
 [Install]
 WantedBy=default.target
