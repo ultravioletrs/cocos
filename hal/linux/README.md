@@ -10,7 +10,7 @@ HAL uses [Buildroot](https://buildroot.org/)'s [_External Tree_ mechanism](https
 git clone git@github.com:ultravioletrs/cocos.git
 git clone git@github.com:buildroot/buildroot.git
 cd buildroot
-git checkout 2024.11-rc2
+git checkout 2025.05-rc1
 make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
 # Execute 'make menuconfig' only if you want to make additional configuration changes to Buildroot.
 make menuconfig

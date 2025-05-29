@@ -63,6 +63,10 @@ func (w *wasm) Stop() error {
 		return nil
 	}
 
+	if w.cmd.Process == nil {
+		return nil
+	}
+
 	if err := w.cmd.Process.Kill(); err != nil {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
