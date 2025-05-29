@@ -40,7 +40,7 @@ func (c *CLI) InitializeAgentSDK(cmd *cobra.Command) error {
 		c.connectErr = err
 		return err
 	}
-	cmd.Println("🔗 Connected to agent using ", agentGRPCClient.Secure())
+	cmd.Println("🔗 Connected to agent ", agentGRPCClient.Secure())
 	c.client = agentGRPCClient
 
 	c.agentSDK = sdk.NewAgentSDK(agentClient)
