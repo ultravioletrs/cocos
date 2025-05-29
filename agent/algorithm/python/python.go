@@ -114,6 +114,10 @@ func (p *python) Stop() error {
 		return nil
 	}
 
+	if p.cmd.Process == nil {
+		return nil
+	}
+
 	if err := p.cmd.Process.Kill(); err != nil {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
