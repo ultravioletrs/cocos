@@ -192,11 +192,21 @@ func main() {
 		return
 	}
 
-	azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
-		exitCode = 1
-		return
+	if ccPlatform == attestation.Azure {
+		azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
+			exitCode = 1
+			return
+		}
+		eventsLogsQueue <- &cvms.ClientStreamMessage{
+			Message: &cvms.ClientStreamMessage_AzureAttestationResult{
+				AzureAttestationResult: &cvms.AzureAttestationResponse{
+					File:             azureAttestationResult,
+					CertSerialNumber: azureCertSerialNumber,
+				},
+			},
+		}
 	}
 
 	eventsLogsQueue <- &cvms.ClientStreamMessage{
@@ -204,15 +214,6 @@ func main() {
 			VTPMattestationReport: &cvms.AttestationResponse{
 				File:             attest,
 				CertSerialNumber: certSerialNumber,
-			},
-		},
-	}
-
-	eventsLogsQueue <- &cvms.ClientStreamMessage{
-		Message: &cvms.ClientStreamMessage_AzureAttestationResult{
-			AzureAttestationResult: &cvms.AzureAttestationResponse{
-				File:             azureAttestationResult,
-				CertSerialNumber: azureCertSerialNumber,
 			},
 		},
 	}
