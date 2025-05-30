@@ -127,7 +127,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
-				SevConfig: SevConfig{
+				SEVConfig: SEVConfig{
 					ID:              "sev0",
 					CBitPos:         51,
 					ReducedPhysBits: 1,
@@ -174,7 +174,7 @@ func TestConstructQemuArgs(t *testing.T) {
 func TestConstructQemuArgs_HostData(t *testing.T) {
 	config := Config{
 		EnableSEVSNP: true,
-		SevConfig: SevConfig{
+		SEVConfig: SEVConfig{
 			ID:              "sev0",
 			CBitPos:         51,
 			ReducedPhysBits: 1,
