@@ -60,7 +60,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.vmi.Config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.NetDevConfig.ID, id)
-	v.vmi.Config.SevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SevConfig.ID, id)
+	v.vmi.Config.SEVConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SEVConfig.ID, id)
+	v.vmi.Config.TDXConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.TDXConfig.ID, id)
 
 	if !v.vmi.Config.EnableSEVSNP {
 		// Copy firmware vars file.
