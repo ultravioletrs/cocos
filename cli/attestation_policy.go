@@ -308,7 +308,7 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errAttestationPolicyField
 	}
 
-	fileJson, err := json.MarshalIndent(&ac, "", " ")
+	fileJson, err := attestation.ConvertAttestationPolicyToJSON(&ac)
 	if err != nil {
 		return errors.Wrap(errMarshalJSON, err)
 	}

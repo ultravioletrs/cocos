@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -120,7 +119,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 
 	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
-	f, err := json.MarshalIndent(attestationPolicy, "", " ")
+	f, err := attestation.ConvertAttestationPolicyToJSON(&attestationPolicy)
 	if err != nil {
 		return nil, err
 	}

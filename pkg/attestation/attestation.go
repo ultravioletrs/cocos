@@ -39,6 +39,9 @@ var (
 	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
 	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
 	ErrAttestationPolicyEncode  = errors.New("failed to encode the Attestation Policy")
+	ErrProtoMarshalFailed       = errors.New("failed to marshal protojson")
+	ErrJsonMarshalFailed        = errors.New("failed to marshal json")
+	ErrJsonUnarshalFailed       = errors.New("failed to unmarshal json")
 )
 
 type PcrValues struct {
@@ -96,6 +99,34 @@ func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *
 	}
 
 	return nil
+}
+
+func ConvertAttestationPolicyToJSON(attestationConfiguration *Config) ([]byte, error) {
+	pbJson, err := protojson.Marshal(attestationConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(ErrProtoMarshalFailed, err)
+	}
+
+	var pbMap map[string]interface{}
+	if err := json.Unmarshal(pbJson, &pbMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	pcrJson, err := json.Marshal(attestationConfiguration.PcrConfig)
+	if err != nil {
+		return nil, errors.Wrap(ErrJsonMarshalFailed, err)
+	}
+
+	var pcrMap map[string]interface{}
+	if err := json.Unmarshal(pcrJson, &pcrMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	for k, v := range pcrMap {
+		pbMap[k] = v
+	}
+
+	return json.MarshalIndent(pbMap, "", "  ")
 }
 
 // CCPlatform returns the type of the confidential computing platform.
