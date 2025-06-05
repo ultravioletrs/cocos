@@ -99,12 +99,13 @@ type managerService struct {
 	portRangeMax                int
 	persistence                 qemu.Persistence
 	eosVersion                  string
+	ctx                         context.Context
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(ctx context.Context, cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -127,6 +128,7 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinary
 		portRangeMax:                end,
 		persistence:                 persistence,
 		eosVersion:                  eosVersion,
+		ctx:                         ctx,
 	}
 
 	if err := ms.restoreVMs(); err != nil {
@@ -239,7 +241,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 				if err := ms.RemoveVM(ctx, id); err != nil {
 					ms.logger.Error("Failed to remove VM after TTL", "error", err)
 				}
-			case <-ctx.Done():
+			case <-ms.ctx.Done():
 				return
 			}
 		}()
