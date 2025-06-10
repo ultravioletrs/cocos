@@ -191,15 +191,15 @@ func TestSEVSNPEnabled(t *testing.T) {
 }
 
 func TestTDXEnabled(t *testing.T) {
-	t.Run("dmesg contains module initialized", func(t *testing.T) {
-		assert.True(t, TDXEnabled("Intel TDX: Module initialized successfully"))
+	t.Run("cpuinfo and kvm param correct", func(t *testing.T) {
+		assert.True(t, TDXEnabled("flags: tdx_host_platform abc", "1"))
 	})
 
-	t.Run("dmesg does not contain it", func(t *testing.T) {
-		assert.False(t, TDXEnabled("some unrelated log"))
+	t.Run("missing tdx_host_platform in cpuinfo", func(t *testing.T) {
+		assert.False(t, TDXEnabled("flags: abc", "1"))
 	})
 
-	t.Run("case insensitive check", func(t *testing.T) {
-		assert.True(t, TDXEnabled("module Initialized"))
+	t.Run("kernel param not enabled", func(t *testing.T) {
+		assert.False(t, TDXEnabled("flags: tdx_host_platform", "0"))
 	})
 }

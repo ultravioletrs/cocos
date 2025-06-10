@@ -3,7 +3,6 @@
 package qemu
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
@@ -209,8 +208,8 @@ func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
 	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "1"
 }
 
-func TDXEnabled(dmesg string) bool {
-	return strings.Contains(strings.ToLower(dmesg), "module initialized")
+func TDXEnabled(cpuinfo, kernelParam string) bool {
+	return strings.Contains(cpuinfo, "tdx_host_platform") && strings.TrimSpace(kernelParam) == "1"
 }
 
 // Checks if SEV is supported and usable by verifying both CPU flags and the /dev/sev device.
@@ -239,13 +238,15 @@ func SEVSNPEnabledOnHost() bool {
 }
 
 func TDXEnabledOnHost() bool {
-	cmd := exec.Command("bash", "-c", "dmesg | grep -i tdx")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
 		return false
 	}
 
-	return TDXEnabled(out.String())
+	kernelParam, err := os.ReadFile("/sys/module/kvm_intel/parameters/tdx")
+	if err != nil {
+		return false
+	}
+
+	return TDXEnabled(string(cpuinfo), string(kernelParam))
 }
