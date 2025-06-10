@@ -84,7 +84,14 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	qemuCfg := qemu.Config{}
+	qemuCfgPtr, err := qemu.NewConfig()
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create config: %v", err))
+		exitCode = 1
+		return
+	}
+	qemuCfg := *qemuCfgPtr
+
 	if err := env.ParseWithOptions(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
 		exitCode = 1

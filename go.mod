@@ -28,6 +28,7 @@ require (
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/storage v1.51.0
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/containerd/containerd v1.7.27
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/golang-jwt/jwt/v5 v5.2.2

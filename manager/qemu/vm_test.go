@@ -161,3 +161,45 @@ func TestGetConfig(t *testing.T) {
 	config := vm.GetConfig()
 	assert.Equal(t, expectedConfig, config)
 }
+
+func TestSEVEnabled(t *testing.T) {
+	t.Run("cpuinfo contains sev and device exists", func(t *testing.T) {
+		assert.True(t, SEVEnabled("flags: xyz sev abc", true))
+	})
+
+	t.Run("cpuinfo missing sev", func(t *testing.T) {
+		assert.False(t, SEVEnabled("flags: xyz abc", true))
+	})
+
+	t.Run("device does not exist", func(t *testing.T) {
+		assert.False(t, SEVEnabled("flags: sev abc", false))
+	})
+}
+
+func TestSEVSNPEnabled(t *testing.T) {
+	t.Run("cpuinfo and kvm param correct", func(t *testing.T) {
+		assert.True(t, SEVSNPEnabled("flags: sev_snp abc", "1"))
+	})
+
+	t.Run("missing sev_snp in cpuinfo", func(t *testing.T) {
+		assert.False(t, SEVSNPEnabled("flags: abc", "1"))
+	})
+
+	t.Run("kernel param not enabled", func(t *testing.T) {
+		assert.False(t, SEVSNPEnabled("flags: sev_snp", "0"))
+	})
+}
+
+func TestTDXEnabled(t *testing.T) {
+	t.Run("dmesg contains module initialized", func(t *testing.T) {
+		assert.True(t, TDXEnabled("Intel TDX: Module initialized successfully"))
+	})
+
+	t.Run("dmesg does not contain it", func(t *testing.T) {
+		assert.False(t, TDXEnabled("some unrelated log"))
+	})
+
+	t.Run("case insensitive check", func(t *testing.T) {
+		assert.True(t, TDXEnabled("module Initialized"))
+	})
+}

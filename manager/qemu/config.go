@@ -5,6 +5,8 @@ package qemu
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/caarlos0/env/v10"
 )
 
 const (
@@ -78,11 +80,11 @@ type VSockConfig struct {
 }
 
 type Config struct {
+	EnableSEV    bool
+	EnableSEVSNP bool
+	EnableTDX    bool
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
-	EnableSEV    bool   `env:"ENABLE_SEV"     envDefault:"false"`
-	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
-	EnableTDX    bool   `env:"ENABLE_TDX"     envDefault:"false"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
@@ -267,4 +269,18 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	return args
+}
+
+func NewConfig() (*Config, error) {
+	cfg := Config{}
+
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
+
+	cfg.EnableSEV = SEVEnabledOnHost()
+	cfg.EnableSEVSNP = SEVSNPEnabledOnHost()
+	cfg.EnableTDX = TDXEnabledOnHost()
+
+	return &cfg, nil
 }

@@ -3,10 +3,12 @@
 package qemu
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 
@@ -197,4 +199,53 @@ func (v *qemuVM) GetCID() int {
 
 func (v *qemuVM) GetConfig() interface{} {
 	return v.vmi
+}
+
+func SEVEnabled(cpuinfo string, sevPresent bool) bool {
+	return strings.Contains(cpuinfo, "sev") && sevPresent
+}
+
+func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
+	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "1"
+}
+
+func TDXEnabled(dmesg string) bool {
+	return strings.Contains(strings.ToLower(dmesg), "module initialized")
+}
+
+// Checks if SEV is supported and usable by verifying both CPU flags and the /dev/sev device.
+func SEVEnabledOnHost() bool {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return false
+	}
+
+	_, err = os.Stat("/dev/sev")
+	return SEVEnabled(string(cpuinfo), err == nil)
+}
+
+func SEVSNPEnabledOnHost() bool {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return false
+	}
+
+	kernelParam, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev_snp")
+	if err != nil {
+		return false
+	}
+
+	return SEVSNPEnabled(string(cpuinfo), string(kernelParam))
+}
+
+func TDXEnabledOnHost() bool {
+	cmd := exec.Command("bash", "-c", "dmesg | grep -i tdx")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+
+	return TDXEnabled(out.String())
 }
