@@ -41,6 +41,7 @@ func TestAlgo(t *testing.T) {
 	require.NoError(t, err)
 
 	algoHash := sha3.Sum256(algo)
+	vtpm.ExternalTPM = &vtpm.DummyRWC{}
 
 	reqFile, err := os.ReadFile(reqPath)
 	require.NoError(t, err)
@@ -142,6 +143,7 @@ func TestData(t *testing.T) {
 	require.NoError(t, err)
 
 	algoHash := sha3.Sum256(algo)
+	vtpm.ExternalTPM = &vtpm.DummyRWC{}
 
 	alg := Algorithm{
 		Hash:      algoHash,
