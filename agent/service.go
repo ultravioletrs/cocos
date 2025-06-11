@@ -209,7 +209,9 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 		if err != nil {
 			return fmt.Errorf("error marshalling computation manifest: %v", err)
 		}
-		vtpm.ExtendPCR(vtpm.PCR16, cmpJson)
+		if err = vtpm.ExtendPCR(vtpm.PCR16, cmpJson); err != nil {
+			return fmt.Errorf("error extending PCR #16 with computation manifest: %v", err)
+		}
 	}
 
 	transitions := []statemachine.Transition{}
