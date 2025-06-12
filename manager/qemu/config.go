@@ -12,7 +12,7 @@ import (
 const (
 	BaseGuestCID      = 3
 	KernelCommandLine = "quiet console=null"
-	TdxObject         = "'{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}'"
+	TDXObject         = "'{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}'"
 )
 
 type MemoryConfig struct {
@@ -229,7 +229,7 @@ func (config Config) ConstructQemuArgs() []string {
 
 	if config.EnableTDX {
 		args = append(args, "-object",
-			fmt.Sprintf(TdxObject,
+			fmt.Sprintf(TDXObject,
 				config.TDXConfig.ID,
 				config.TDXConfig.QuoteGenerationPort))
 
