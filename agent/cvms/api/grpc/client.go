@@ -279,17 +279,19 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		runRes.RunRes.Error = err.Error()
 	}
 
-	if ccPlatform == attestation.Azure || ccPlatform == attestation.SNPvTPM {
-		cmpJson, err := json.Marshal(ac)
-		if err != nil {
-			client.logger.Error(err.Error())
-			return
+	defer func() {
+		if ccPlatform == attestation.Azure || ccPlatform == attestation.SNPvTPM {
+			cmpJson, err := json.Marshal(ac)
+			if err != nil {
+				client.logger.Error(err.Error())
+				return
+			}
+			if err = vtpm.ExtendPCR(vtpm.PCR16, cmpJson); err != nil {
+				client.logger.Error(err.Error())
+				return
+			}
 		}
-		if err = vtpm.ExtendPCR(vtpm.PCR16, cmpJson); err != nil {
-			client.logger.Error(err.Error())
-			return
-		}
-	}
+	}()
 
 	client.sendMessage(&cvms.ClientStreamMessage{Message: runRes})
 }
