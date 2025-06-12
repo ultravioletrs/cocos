@@ -84,13 +84,22 @@ func main() {
 	}()
 	tracer := tp.Tracer(svcName)
 
-	qemuCfgPtr, err := qemu.NewConfig()
+	qemuCfg, err := qemu.NewConfig()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create config: %v", err))
 		exitCode = 1
 		return
 	}
-	qemuCfg := *qemuCfgPtr
+
+	if qemuCfg.EnableTDX {
+	logger.Info("Manager started with TDX enabled")
+	} else if qemuCfg.EnableSEVSNP {
+		logger.Info("Manager started with SEV-SNP enabled")
+	} else if qemuCfg.EnableSEV {
+		logger.Info("Manager started with SEV enabled")
+	} else {
+		logger.Info("Manager started without confidential computing support")
+	}
 
 	if err := env.ParseWithOptions(&qemuCfg, env.Options{Prefix: envPrefixQemu}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load QEMU configuration: %s", err))
@@ -107,7 +116,7 @@ func main() {
 		return
 	}
 
-	svc, err := newService(ctx, logger, tracer, qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
+	svc, err := newService(ctx, logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
