@@ -36,6 +36,7 @@ const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
 	Nonce    = 32
 	PCR15    = 15
+	PCR16    = 16
 	Hash1    = 20
 	Hash256  = 32
 	Hash384  = 48

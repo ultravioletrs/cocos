@@ -520,12 +520,12 @@ func (as *agentService) publishEvent(status string) statemachine.Action {
 func (as *agentService) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
 	data, err := os.ReadFile(ImaMeasurementsFilePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading Linux IMA measurements file: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading Linux IMA measurements file: %s", err.Error())
 	}
 
 	pcr10, err := vtpm.GetPCRSHA1Value(ImaPcrIndex)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading TPM PCR #10: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading TPM PCR #10: %s", err.Error())
 	}
 
 	return data, pcr10, nil

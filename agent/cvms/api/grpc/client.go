@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
@@ -249,6 +252,8 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		return
 	}
 
+	ccPlatform := attestation.CCPlatform()
+
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -273,6 +278,20 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		client.logger.Warn(err.Error())
 		runRes.RunRes.Error = err.Error()
 	}
+
+	defer func() {
+		if ccPlatform == attestation.Azure || ccPlatform == attestation.SNPvTPM {
+			cmpJson, err := json.Marshal(ac)
+			if err != nil {
+				client.logger.Error(err.Error())
+				return
+			}
+			if err = vtpm.ExtendPCR(vtpm.PCR16, cmpJson); err != nil {
+				client.logger.Error(err.Error())
+				return
+			}
+		}
+	}()
 
 	client.sendMessage(&cvms.ClientStreamMessage{Message: runRes})
 }
