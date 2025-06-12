@@ -203,17 +203,6 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 
 	as.computation = cmp
 
-	ccPlatform := attestation.CCPlatform()
-	if ccPlatform == attestation.Azure || ccPlatform == attestation.SNPvTPM {
-		cmpJson, err := json.Marshal(cmp)
-		if err != nil {
-			return fmt.Errorf("error marshalling computation manifest: %v", err)
-		}
-		if err = vtpm.ExtendPCR(vtpm.PCR16, cmpJson); err != nil {
-			return fmt.Errorf("error extending PCR #16 with computation manifest: %v", err)
-		}
-	}
-
 	transitions := []statemachine.Transition{}
 
 	if len(cmp.Datasets) == 0 {
@@ -531,12 +520,12 @@ func (as *agentService) publishEvent(status string) statemachine.Action {
 func (as *agentService) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
 	data, err := os.ReadFile(ImaMeasurementsFilePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading Linux IMA measurements file: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading Linux IMA measurements file: %s", err.Error())
 	}
 
 	pcr10, err := vtpm.GetPCRSHA1Value(ImaPcrIndex)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading TPM PCR #10: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading TPM PCR #10: %s", err.Error())
 	}
 
 	return data, pcr10, nil

@@ -125,16 +125,24 @@ func SevGuesDeviceExists() bool {
 }
 
 func SevGuestvTPMExists() bool {
+	return vTPMExists() && SevGuesDeviceExists()
+}
+
+func vTPMExists() bool {
 	d, err := tpm2.OpenTPM()
 	if err != nil {
 		return false
 	}
 	d.Close()
 
-	return SevGuesDeviceExists()
+	return true
 }
 
 func isAzureVM() bool {
+	if !vTPMExists() {
+		return false
+	}
+
 	client := &http.Client{}
 	url := fmt.Sprintf("%s?api-version=%s", azureMetadataUrl, azureApiVersion)
 
