@@ -98,14 +98,16 @@ type provider struct {
 	teeAttestaion bool
 	vmpl          uint
 	writer        io.Writer
+	policy        *attestation.Config
 }
 
-func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer) attestation.Provider {
+func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer, policy *attestation.Config) attestation.Provider {
 	return &provider{
 		pubKey:        pubKey,
 		teeAttestaion: teeAttestation,
 		vmpl:          vmpl,
 		writer:        writer,
+		policy:        policy,
 	}
 }
 
@@ -137,11 +139,11 @@ func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 }
 
 func (v provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return VerifyQuote(report, v.pubKey, vTpmNonce, v.writer)
+	return VerifyQuote(report, v.pubKey, vTpmNonce, v.writer, v.policy)
 }
 
 func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	return VTPMVerify(report, v.pubKey, teeNonce, vTpmNonce, v.writer)
+	return VTPMVerify(report, v.pubKey, teeNonce, vTpmNonce, v.writer, v.policy)
 }
 
 func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
@@ -164,8 +166,8 @@ func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([
 	return marshalQuote(attestation)
 }
 
-func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte, writer io.Writer) error {
-	if err := VerifyQuote(quote, pubKeyTLS, vtpmNonce, writer); err != nil {
+func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byte, writer io.Writer, policy *attestation.Config) error {
+	if err := VerifyQuote(quote, pubKeyTLS, vtpmNonce, writer, policy); err != nil {
 		return fmt.Errorf("failed to verify vTPM quote: %v", err)
 	}
 
@@ -183,7 +185,7 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 	return nil
 }
 
-func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte, writer io.Writer) error {
+func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte, writer io.Writer, policy *attestation.Config) error {
 	attestation := &attest.Attestation{}
 
 	err := proto.Unmarshal(quote, attestation)
@@ -209,7 +211,7 @@ func VerifyQuote(quote []byte, pubKeyTLS []byte, vtpmNonce []byte, writer io.Wri
 
 	s256, s384 := calculatePCRTLSKey(pubKeyTLS)
 
-	if err := checkExpectedPCRValues(attestation, s256, s384); err != nil {
+	if err := checkExpectedPCRValues(attestation, s256, s384, policy); err != nil {
 		return fmt.Errorf("PCR values do not match expected PCR values: %w", err)
 	}
 
@@ -286,7 +288,7 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte, vmpl uint)
 	return nil
 }
 
-func checkExpectedPCRValues(attQuote *attest.Attestation, ePcr256, ePcr384 []byte) error {
+func checkExpectedPCRValues(attQuote *attest.Attestation, ePcr256, ePcr384 []byte, policy *attestation.Config) error {
 	quotes := attQuote.GetQuotes()
 	for i := range quotes {
 		quote := quotes[i]
@@ -294,21 +296,21 @@ func checkExpectedPCRValues(attQuote *attest.Attestation, ePcr256, ePcr384 []byt
 		var pcr15 []byte
 		switch quote.Pcrs.Hash {
 		case ptpm.HashAlgo_SHA256:
-			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha256
+			pcrMap = policy.PcrConfig.PCRValues.Sha256
 			if ePcr256 == nil {
 				pcr15 = make([]byte, 32)
 			} else {
 				pcr15 = ePcr256
 			}
 		case ptpm.HashAlgo_SHA384:
-			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha384
+			pcrMap = policy.PcrConfig.PCRValues.Sha384
 			if ePcr384 == nil {
 				pcr15 = make([]byte, 48)
 			} else {
 				pcr15 = ePcr384
 			}
 		case ptpm.HashAlgo_SHA1:
-			pcrMap = attestation.AttestationPolicy.PcrConfig.PCRValues.Sha1
+			pcrMap = policy.PcrConfig.PCRValues.Sha1
 			pcr15 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		default:
 			return errors.Wrap(ErrNoHashAlgo, fmt.Errorf("algo: %s", ptpm.HashAlgo_name[int32(quote.Pcrs.Hash)]))

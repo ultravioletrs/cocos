@@ -9,6 +9,7 @@ package quoteprovider
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -17,7 +18,7 @@ import (
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	config "github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -72,7 +73,13 @@ func TestFillInAttestationLocal(t *testing.T) {
 }
 
 func TestVerifyAttestationReportSuccess(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	attestationPB, reportData := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name              string
@@ -99,7 +106,13 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	attestationPB, reportData := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
 
 	// Change random data so in the signature so the signature failes
 	attestationPB.Report.Signature[0] = attestationPB.Report.Signature[0] ^ 0x01
@@ -127,7 +140,16 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 }
 
 func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	attestationPB, reportData := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
+
+	err = changeProductAttestationPolicy()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name              string
@@ -145,8 +167,6 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config.AttestationPolicy.Config.RootOfTrust.ProductLine = ""
-			config.AttestationPolicy.Config.Policy.Product = nil
 			err := VerifyAttestationReportTLS(tt.attestationReport, tt.reportData)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
@@ -154,7 +174,13 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 }
 
 func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	attestationPB, reportData := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
 
 	// Change random data in the measurement so the measurement does not match
 	attestationPB.Report.Measurement[0] = attestationPB.Report.Measurement[0] ^ 0x01
@@ -192,23 +218,65 @@ func prepVerifyAttReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 	rr, err := abi.ReportCertsToProto(file)
 	require.NoError(t, err)
 
-	config.AttestationPolicy = config.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &config.PcrConfig{}}
+	return rr, rr.Report.ReportData
+}
+
+func setAttestationPolicy(rr *sevsnp.Attestation, policyDirectory string) error {
+	policy := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
 
 	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/attestation_policy.json")
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	unmarshalOptions := protojson.UnmarshalOptions{DiscardUnknown: true}
 
-	err = unmarshalOptions.Unmarshal(attestationPolicyFile, config.AttestationPolicy.Config)
-	require.NoError(t, err)
+	err = unmarshalOptions.Unmarshal(attestationPolicyFile, policy)
+	if err != nil {
+		return err
+	}
 
-	config.AttestationPolicy.Config.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
-	config.AttestationPolicy.Config.Policy.FamilyId = rr.Report.FamilyId
-	config.AttestationPolicy.Config.Policy.ImageId = rr.Report.ImageId
-	config.AttestationPolicy.Config.Policy.Measurement = rr.Report.Measurement
-	config.AttestationPolicy.Config.Policy.HostData = rr.Report.HostData
-	config.AttestationPolicy.Config.Policy.ReportIdMa = rr.Report.ReportIdMa
-	config.AttestationPolicy.Config.RootOfTrust.ProductLine = sevProductNameMilan
+	policy.Config.Policy.Product = &sevsnp.SevProduct{Name: sevsnp.SevProduct_SEV_PRODUCT_MILAN}
+	policy.Config.Policy.FamilyId = rr.Report.FamilyId
+	policy.Config.Policy.ImageId = rr.Report.ImageId
+	policy.Config.Policy.Measurement = rr.Report.Measurement
+	policy.Config.Policy.HostData = rr.Report.HostData
+	policy.Config.Policy.ReportIdMa = rr.Report.ReportIdMa
+	policy.Config.RootOfTrust.ProductLine = sevProductNameMilan
 
-	return rr, rr.Report.ReportData
+	policyByte, err := ConvertSEVSNPAttestationPolicyToJSON(&policy)
+	if err != nil {
+		return err
+	}
+
+	policyPath := filepath.Join(policyDirectory, "attestation_policy.json")
+	if err := os.WriteFile(policyPath, policyByte, 0644); err != nil {
+		return nil
+	}
+
+	attestation.AttestationPolicyPath = policyPath
+
+	return nil
+}
+
+func changeProductAttestationPolicy() error {
+	policy := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+	err := ReadSEVSNPAttestationPolicy(attestation.AttestationPolicyPath, &policy)
+	if err != nil {
+		return err
+	}
+
+	policy.Config.RootOfTrust.ProductLine = ""
+	policy.Config.Policy.Product = nil
+
+	policyByte, err := ConvertSEVSNPAttestationPolicyToJSON(&policy)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(attestation.AttestationPolicyPath, policyByte, 0644); err != nil {
+		return nil
+	}
+
+	return nil
 }

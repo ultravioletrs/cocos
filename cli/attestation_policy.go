@@ -19,6 +19,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -291,7 +292,7 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 		return errors.Wrap(errReadingAttestationPolicyFile, err)
 	}
 
-	if err = attestation.ReadAttestationPolicyFromByte(f, &ac); err != nil {
+	if err = quoteprovider.ReadSEVSNPAttestationPolicyFromByte(f, &ac); err != nil {
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 
