@@ -7,6 +7,7 @@
 package quoteprovider
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +23,7 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -34,8 +35,15 @@ const (
 )
 
 var (
-	timeout     = time.Minute * 2
-	maxTryDelay = time.Second * 30
+	timeout                     = time.Minute * 2
+	maxTryDelay                 = time.Second * 30
+	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
+	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
+	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
+	ErrAttestationPolicyEncode  = errors.New("failed to encode the Attestation Policy")
+	ErrProtoMarshalFailed       = errors.New("failed to marshal protojson")
+	ErrJsonMarshalFailed        = errors.New("failed to marshal json")
+	ErrJsonUnarshalFailed       = errors.New("failed to unmarshal json")
 )
 
 var (
@@ -71,11 +79,6 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) 
 	}
 
 	return nil
-}
-
-func copyConfig(attConf *check.Config) (*check.Config, error) {
-	copy := proto.Clone(attConf).(*check.Config)
-	return copy, nil
 }
 
 func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
@@ -132,10 +135,12 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 }
 
 func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(attestation.AttestationPolicy.Config)
+	attestationConfiguration := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+	err := ReadSEVSNPAttestationPolicy(attestation.AttestationPolicyPath, &attestationConfiguration)
 	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
+		return errors.Wrap(fmt.Errorf("failed to read a attestation policy"), err)
 	}
+	config := attestationConfiguration.Config
 
 	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
 	// This data is not part of the attestation report and it will be ignored.
@@ -192,4 +197,59 @@ func GetProductName(product string) sevsnp.SevProduct_SevProductName {
 	default:
 		return sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
 	}
+}
+
+func ReadSEVSNPAttestationPolicy(policyPath string, attestationConfiguration *attestation.Config) error {
+	if policyPath != "" {
+		policyData, err := os.ReadFile(policyPath)
+		if err != nil {
+			return errors.Wrap(ErrAttestationPolicyOpen, err)
+		}
+
+		return ReadSEVSNPAttestationPolicyFromByte(policyData, attestationConfiguration)
+	}
+
+	return ErrAttestationPolicyMissing
+}
+
+func ReadSEVSNPAttestationPolicyFromByte(policyData []byte, attestationConfiguration *attestation.Config) error {
+	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+
+	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.Config); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	return nil
+}
+
+func ConvertSEVSNPAttestationPolicyToJSON(attestationConfiguration *attestation.Config) ([]byte, error) {
+	pbJson, err := protojson.Marshal(attestationConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(ErrProtoMarshalFailed, err)
+	}
+
+	var pbMap map[string]interface{}
+	if err := json.Unmarshal(pbJson, &pbMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	pcrJson, err := json.Marshal(attestationConfiguration.PcrConfig)
+	if err != nil {
+		return nil, errors.Wrap(ErrJsonMarshalFailed, err)
+	}
+
+	var pcrMap map[string]interface{}
+	if err := json.Unmarshal(pcrJson, &pcrMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	for k, v := range pcrMap {
+		pbMap[k] = v
+	}
+
+	return json.MarshalIndent(pbMap, "", "  ")
 }

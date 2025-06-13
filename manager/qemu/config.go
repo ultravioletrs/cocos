@@ -74,7 +74,8 @@ type Config struct {
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
 	EnableSEV    bool   `env:"ENABLE_SEV"     envDefault:"false"`
-	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
+	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"false"`
+	EnableTDX    bool   `env:"ENABLE_TDX"     envDefault:"false"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
