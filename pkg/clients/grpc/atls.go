@@ -24,10 +24,7 @@ import (
 
 func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, security, error) {
 	security := withaTLS
-	err := attestation.ReadAttestationPolicy(cfg.AttestationPolicy, &attestation.AttestationPolicy)
-	if err != nil {
-		return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to read Attestation Policy"), err)
-	}
+	attestation.AttestationPolicyPath = cfg.AttestationPolicy
 
 	var insecureSkipVerify bool = true
 	var rootCAs *x509.CertPool = nil

@@ -31,10 +31,14 @@ var _ attestation.Provider = (*provider)(nil)
 
 type provider struct {
 	writer io.Writer
+	policy *attestation.Config
 }
 
-func New(writer io.Writer) attestation.Provider {
-	return provider{writer: writer}
+func New(writer io.Writer, policy *attestation.Config) attestation.Provider {
+	return provider{
+		writer: writer,
+		policy: policy,
+	}
 }
 
 func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
@@ -94,7 +98,7 @@ func (a provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 }
 
 func (a provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer)
+	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer, a.policy)
 }
 
 func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {

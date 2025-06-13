@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 )
 
 func TestChangeAttestationConfiguration(t *testing.T) {
@@ -88,7 +89,7 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 				require.NoError(t, err)
 
 				ap := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
-				err = attestation.ReadAttestationPolicyFromByte(content, &ap)
+				err = quoteprovider.ReadSEVSNPAttestationPolicyFromByte(content, &ap)
 				require.NoError(t, err)
 
 				decodedData, _ := base64.StdEncoding.DecodeString(tt.base64Data)

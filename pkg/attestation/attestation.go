@@ -4,17 +4,15 @@
 package attestation
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
+	tdxcliet "github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tpm/legacy/tpm2"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type PlatformType int
@@ -25,6 +23,7 @@ const (
 	SNPvTPM
 	AzureToken
 	Azure
+	TDX
 	NoCC
 )
 
@@ -34,7 +33,8 @@ const (
 )
 
 var (
-	AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
+	AttestationPolicyPath string
+	// AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
 	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
 	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
 	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
@@ -71,39 +71,13 @@ type Provider interface {
 	AzureAttestationToken(tokenNonce []byte) ([]byte, error)
 }
 
-func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {
-	if policyPath != "" {
-		policyData, err := os.ReadFile(policyPath)
-		if err != nil {
-			return errors.Wrap(ErrAttestationPolicyOpen, err)
-		}
-
-		return ReadAttestationPolicyFromByte(policyData, attestationConfiguration)
-	}
-
-	return ErrAttestationPolicyMissing
-}
-
-func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *Config) error {
-	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-
-	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.Config); err != nil {
-		return errors.Wrap(ErrAttestationPolicyDecode, err)
-	}
-
-	if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
-		return errors.Wrap(ErrAttestationPolicyDecode, err)
-	}
-
-	return nil
-}
-
 // CCPlatform returns the type of the confidential computing platform.
 func CCPlatform() PlatformType {
 	checks := []ccCheck{
 		{SevGuestvTPMExists, SNPvTPM},
 		{SevGuesDeviceExists, SNP},
 		{isAzureVM, Azure},
+		{TDXGuestDeviceExists, TDX},
 	}
 
 	for _, c := range checks {
@@ -157,4 +131,14 @@ func isAzureVM() bool {
 	}
 
 	return false
+}
+
+func TDXGuestDeviceExists() bool {
+	d, err := tdxcliet.OpenDevice()
+	if err != nil {
+		return false
+	}
+	d.Close()
+
+	return true
 }
