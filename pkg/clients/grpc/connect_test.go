@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 )
 
 func TestNewClient(t *testing.T) {
@@ -257,7 +258,7 @@ func TestReadAttestationPolicy(t *testing.T) {
 			}
 
 			config := attestation.Config{Config: &check.Config{}, PcrConfig: &attestation.PcrConfig{}}
-			err := attestation.ReadAttestationPolicy(tt.manifestPath, &config)
+			err := quoteprovider.ReadSEVSNPAttestationPolicy(tt.manifestPath, &config)
 
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 			if tt.err == nil {

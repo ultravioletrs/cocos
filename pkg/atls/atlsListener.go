@@ -25,6 +25,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/google/go-sev-guest/proto/check"
 )
 
 const (
@@ -59,9 +60,25 @@ func formTeeData(pubKey []byte, teeNonce []byte) []byte {
 func getPlatformProvider(platformType attestation.PlatformType, pubKey []byte) (attestation.Provider, error) {
 	switch platformType {
 	case attestation.SNPvTPM:
-		return vtpm.New(pubKey, true, vmpl2, nil), nil
+		policy := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+		err := quoteprovider.ReadSEVSNPAttestationPolicy(attestation.AttestationPolicyPath, &policy)
+		if err != nil {
+			return nil, err
+		}
+		return vtpm.New(pubKey, true, vmpl2, nil, &policy), nil
 	case attestation.Azure:
-		return azure.New(nil), nil
+		policy := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+		err := quoteprovider.ReadSEVSNPAttestationPolicy(attestation.AttestationPolicyPath, &policy)
+		if err != nil {
+			return nil, err
+		}
+		return azure.New(nil, &policy), nil
+	case attestation.TDX:
+		policy, err := quoteprovider.ReadTDXAttestationPolicy(attestation.AttestationPolicyPath)
+		if err != nil {
+			return nil, err
+		}
+		return quoteprovider.New(policy), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
+	tdxcliet "github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -25,6 +26,7 @@ const (
 	SNPvTPM
 	AzureToken
 	Azure
+	TDX
 	NoCC
 )
 
@@ -34,7 +36,8 @@ const (
 )
 
 var (
-	AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
+	AttestationPolicyPath string
+	// AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
 	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
 	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
 	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
@@ -135,6 +138,7 @@ func CCPlatform() PlatformType {
 		{SevGuestvTPMExists, SNPvTPM},
 		{SevGuesDeviceExists, SNP},
 		{isAzureVM, Azure},
+		{TDXGuestDeviceExists, TDX},
 	}
 
 	for _, c := range checks {
@@ -196,4 +200,14 @@ func isAzureVM() bool {
 	}
 
 	return false
+}
+
+func TDXGuestDeviceExists() bool {
+	d, err := tdxcliet.OpenDevice()
+	if err != nil {
+		return false
+	}
+	d.Close()
+
+	return true
 }
