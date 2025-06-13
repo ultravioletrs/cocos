@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 
@@ -60,7 +61,8 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.vmi.Config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.NetDevConfig.ID, id)
-	v.vmi.Config.SevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SevConfig.ID, id)
+	v.vmi.Config.SEVConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SEVConfig.ID, id)
+	v.vmi.Config.TDXConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.TDXConfig.ID, id)
 
 	if !v.vmi.Config.EnableSEVSNP {
 		// Copy firmware vars file.
@@ -196,4 +198,55 @@ func (v *qemuVM) GetCID() int {
 
 func (v *qemuVM) GetConfig() interface{} {
 	return v.vmi
+}
+
+func SEVEnabled(cpuinfo string, sevPresent bool) bool {
+	return strings.Contains(cpuinfo, "sev") && sevPresent
+}
+
+func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
+	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "1"
+}
+
+func TDXEnabled(cpuinfo, kernelParam string) bool {
+	return strings.Contains(cpuinfo, "tdx_host_platform") && strings.TrimSpace(kernelParam) == "1"
+}
+
+// Checks if SEV is supported and usable by verifying both CPU flags and the /dev/sev device.
+func SEVEnabledOnHost() bool {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return false
+	}
+
+	_, err = os.Stat("/dev/sev")
+	return SEVEnabled(string(cpuinfo), err == nil)
+}
+
+func SEVSNPEnabledOnHost() bool {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return false
+	}
+
+	kernelParam, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev_snp")
+	if err != nil {
+		return false
+	}
+
+	return SEVSNPEnabled(string(cpuinfo), string(kernelParam))
+}
+
+func TDXEnabledOnHost() bool {
+	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return false
+	}
+
+	kernelParam, err := os.ReadFile("/sys/module/kvm_intel/parameters/tdx")
+	if err != nil {
+		return false
+	}
+
+	return TDXEnabled(string(cpuinfo), string(kernelParam))
 }
