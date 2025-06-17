@@ -110,8 +110,8 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		attestationPolicy.Config.Policy.Measurement = measurement
 	}
 
-	if vmi.Config.SevConfig.EnableHostData {
-		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SevConfig.HostData)
+	if vmi.Config.SEVConfig.EnableHostData {
+		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SEVConfig.HostData)
 		if err != nil {
 			return nil, err
 		}

@@ -48,6 +48,9 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_SEV_REDUCED_PHYS_BITS         | The number of reduced physical address bits for SEV.                                                             | 1                              |
 | MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV host.                                                                         | false                          |
 | MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV host.                                                                                |                                |
+| MANAGER_QEMU_TDX_ID                        | The ID for the Trust Domain Extensions (TDX) device.                                                             | tdx0                           |
+| MANAGER_QEMU_QUOTE_GENERATION_PORT         | The port number for virtual socket used to communicate with the Quote Generation Service (QGS).                  | 4050                           |
+| MANAGER_QEMU_OVMF_FILE                     | The file path for the OVMF file (combined OVMF_CODE and OVMF_VARS file).                                         | /usr/share/ovmf/OVMF.fd        |
 | MANAGER_QEMU_IGVM_ID                       | The ID of the IGVM file.                                                                                         | igvm0                          |
 | MANAGER_QEMU_IGVM_FILE                     | The file path to the IGVM file.                                                                                  | /root/coconut-qemu.igvm        |
 | MANAGER_QEMU_VSOCK_ID                      | The ID for the virtual socket device.                                                                            | vhost-vsock-pci0               |
@@ -57,6 +60,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                 | false                          |
 | MANAGER_QEMU_ENABLE_SEV                    | Whether to enable Secure Encrypted Virtualization (SEV).                                                         | false                          |
 | MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                                | true                           |
+| MANAGER_QEMU_ENABLE_TDX                    | Whether to enable Trust Domain Extensions (TDX).                                                                 | false                          |
 | MANAGER_QEMU_ENABLE_KVM                    | Whether to enable the Kernel-based Virtual Machine (KVM) acceleration.                                           | true                           |
 | MANAGER_QEMU_MACHINE                       | The machine type for QEMU.                                                                                       | q35                            |
 | MANAGER_QEMU_CPU                           | The CPU model for QEMU.                                                                                          | EPYC                           |
@@ -265,6 +269,20 @@ MANAGER_QEMU_ENABLE_SEV_SNP=true \
 MANAGER_QEMU_SEV_CBITPOS=51 \
 MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
 MANAGER_QEMU_IGVM_FILE=<path to IGVM file> \
+./build/cocos-manager
+```
+
+To enable [TDX](https://www.intel.com/content/www/us/en/developer/tools/trust-domain-extensions/overview.html) support, start manager like this
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_SEV=false \
+MANAGER_QEMU_ENABLE_SEV_SNP=false \
+MANAGER_QEMU_ENABLE_TDX=true \
+MANAGER_QEMU_CPU=host \
+MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
+MANAGER_QEMU_OVMF_FILE=<path to OVMF file> \
 ./build/cocos-manager
 ```
 

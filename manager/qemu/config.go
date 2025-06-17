@@ -5,11 +5,14 @@ package qemu
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/caarlos0/env/v10"
 )
 
 const (
 	BaseGuestCID      = 3
 	KernelCommandLine = "quiet console=null"
+	TDXObject         = "'{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}'"
 )
 
 type MemoryConfig struct {
@@ -52,12 +55,18 @@ type DiskImgConfig struct {
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
 
-type SevConfig struct {
+type SEVConfig struct {
 	ID              string `env:"SEV_ID"                envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS"           envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
 	EnableHostData  bool   `env:"ENABLE_HOST_DATA"      envDefault:"false"`
 	HostData        string `env:"HOST_DATA"             envDefault:""`
+}
+
+type TDXConfig struct {
+	ID                  string `env:"TDX_ID"                  envDefault:"tdx0"`
+	QuoteGenerationPort int    `env:"QUOTE_GENERATION_PORT"   envDefault:"4050"`
+	OVMF                string `env:"OVMF_FILE"               envDefault:"/usr/share/ovmf/OVMF.fd"`
 }
 
 type IGVMConfig struct {
@@ -71,10 +80,11 @@ type VSockConfig struct {
 }
 
 type Config struct {
+	EnableSEV    bool
+	EnableSEVSNP bool
+	EnableTDX    bool
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
-	EnableSEV    bool   `env:"ENABLE_SEV"     envDefault:"false"`
-	EnableSEVSNP bool   `env:"ENABLE_SEV_SNP" envDefault:"true"`
 
 	EnableKVM bool `env:"ENABLE_KVM" envDefault:"true"`
 
@@ -101,7 +111,10 @@ type Config struct {
 	DiskImgConfig
 
 	// SEV
-	SevConfig
+	SEVConfig
+
+	// TDX
+	TDXConfig
 
 	// vTPM
 	IGVMConfig
@@ -142,7 +155,7 @@ func (config Config) ConstructQemuArgs() []string {
 		config.MemoryConfig.Slots,
 		config.MemoryConfig.Max))
 
-	if !config.EnableSEVSNP {
+	if !config.EnableSEVSNP && !config.EnableTDX {
 		// OVMF
 		args = append(args, "-drive",
 			fmt.Sprintf("if=%s,format=%s,unit=%d,file=%s,readonly=%s",
@@ -183,15 +196,15 @@ func (config Config) ConstructQemuArgs() []string {
 
 		args = append(args, "-machine",
 			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s,igvm-cfg=%s",
-				config.SevConfig.ID,
+				config.SEVConfig.ID,
 				config.MemID,
 				config.IGVMConfig.ID))
 
 		if config.EnableSEVSNP {
 			sevType = "sev-snp-guest"
 
-			if config.SevConfig.EnableHostData {
-				hostData = fmt.Sprintf(",host-data=%s", config.SevConfig.HostData)
+			if config.SEVConfig.EnableHostData {
+				hostData = fmt.Sprintf(",host-data=%s", config.SEVConfig.HostData)
 			}
 		}
 
@@ -203,15 +216,35 @@ func (config Config) ConstructQemuArgs() []string {
 		args = append(args, "-object",
 			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s",
 				sevType,
-				config.SevConfig.ID,
-				config.SevConfig.CBitPos,
-				config.SevConfig.ReducedPhysBits,
+				config.SEVConfig.ID,
+				config.SEVConfig.CBitPos,
+				config.SEVConfig.ReducedPhysBits,
 				hostData))
 
 		args = append(args, "-object",
 			fmt.Sprintf("igvm-cfg,id=%s,file=%s",
 				config.IGVMConfig.ID,
 				config.IGVMConfig.File))
+	}
+
+	if config.EnableTDX {
+		args = append(args, "-object",
+			fmt.Sprintf(TDXObject,
+				config.TDXConfig.ID,
+				config.TDXConfig.QuoteGenerationPort))
+
+		args = append(args, "-machine",
+			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s,hpet=off",
+				config.TDXConfig.ID,
+				config.MemID))
+
+		args = append(args, "-object",
+			fmt.Sprintf("memory-backend-memfd,id=%s,size=%s,share=true,prealloc=false",
+				config.MemID,
+				config.MemoryConfig.Size))
+
+		args = append(args, "-bios", config.TDXConfig.OVMF)
+		args = append(args, "-nodefaults")
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
@@ -236,4 +269,18 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	return args
+}
+
+func NewConfig() (*Config, error) {
+	cfg := Config{}
+
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
+
+	cfg.EnableSEV = SEVEnabledOnHost()
+	cfg.EnableSEVSNP = SEVSNPEnabledOnHost()
+	cfg.EnableTDX = TDXEnabledOnHost()
+
+	return &cfg, nil
 }

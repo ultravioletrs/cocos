@@ -27,6 +27,7 @@ require (
 
 require (
 	cloud.google.com/go/storage v1.51.0
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/gce-tcb-verifier v0.3.1
 )

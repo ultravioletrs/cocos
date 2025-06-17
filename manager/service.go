@@ -218,7 +218,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	if cfg.Config.EnableSEVSNP {
 		todo := sha3.Sum256([]byte("TODO"))
 		// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-		cfg.Config.SevConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
+		cfg.Config.SEVConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
 	}
 
 	cvm := ms.vmFactory(cfg, id, ms.logger)
