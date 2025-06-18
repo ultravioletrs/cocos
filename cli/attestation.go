@@ -36,6 +36,7 @@ const (
 	attestationFilePath       = "attestation.bin"
 	azureAttestResultFilePath = "azure_attest_result.json"
 	azureAttestTokenFilePath  = "azure_attest_token.jwt"
+	TEE                       = "tee"
 	SNP                       = "snp"
 	VTPM                      = "vtpm"
 	SNPvTPM                   = "snp-vtpm"
@@ -283,7 +284,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&getAzureTokenJWT, "azurejwt", "t", false, "Get azure attestation token as jwt format")
 	cmd.Flags().BoolVarP(&getTextProtoAttestationReport, "reporttextproto", "r", false, "Get attestation report in textproto format")
-	cmd.Flags().BytesHexVar(&teeNonce, "tee", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
+	cmd.Flags().BytesHexVar(&teeNonce, "tee", []byte{}, "Define the nonce for the SNP and TDX attestation report (must be used with attestation type snp, snp-vtpm, and tdx)")
 	cmd.Flags().BytesHexVar(&nonce, "vtpm", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
 	cmd.Flags().BytesHexVar(&tokenNonce, "token", []byte{}, "Define the nonce for the Azure attestation token (must be used with attestation type azure-token)")
 
@@ -318,12 +319,13 @@ func isFileJSON(filename string) bool {
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
-		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 3 modes: %s, %s and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, SNP),
+		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 4 modes: %s, %s, %s, and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, TDX, SNP),
 		Example: `Based on mode:
 		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> --platform <cc platform> //default
 		validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
 		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
+		validate --mode tdx <attestationreportfilepath> --report_data <reportdata>
 		validate --cloud none --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --cloud azure --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
 		validate --cloud gcp --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
@@ -400,8 +402,6 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			case CCGCP:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
 				provider = vtpm.New(nil, false, 0, output, &policy)
-			case TDX:
-				provider = quoteprovider.New(cfgTDX)
 			default:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
 				provider = vtpm.New(nil, false, 0, output, &policy)
@@ -415,6 +415,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 			case VTPM:
 				return vtpmverify(args, provider)
 			case TDX:
+				if err := validateTDXFlags(); err != nil {
+					return fmt.Errorf("failed to verify TDX validation flags: %v ❌ ", err)
+				}
+				provider = quoteprovider.New(cfgTDX)
 				return tdxVerify(args[0], provider)
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
@@ -463,7 +467,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		&cfgString,
 		"config",
 		"",
-		"Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
+		"Path to the serialized json check.Config protobuf file. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
 	)
 	cmd.Flags().BytesHexVar(
 		&reportData,

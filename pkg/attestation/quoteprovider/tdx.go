@@ -7,11 +7,16 @@
 package quoteprovider
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/google/go-tdx-guest/abi"
 	"github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tdx-guest/proto/checkconfig"
+	valdatetdx "github.com/google/go-tdx-guest/validate"
+	verifytdx "github.com/google/go-tdx-guest/verify"
+	trusttdx "github.com/google/go-tdx-guest/verify/trust"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
@@ -25,11 +30,6 @@ var _ attestation.Provider = (*provider)(nil)
 type provider struct {
 	policy *checkconfig.Config
 }
-
-// {
-// 		RootOfTrust: &ccpb.RootOfTrust{},
-// 		Policy:      &ccpb.Policy{HeaderPolicy: &ccpb.HeaderPolicy{}, TdQuoteBodyPolicy: &ccpb.TDQuoteBodyPolicy{}},
-// 	}
 
 func New(policy *checkconfig.Config) attestation.Provider {
 	return provider{policy: policy}
@@ -49,10 +49,43 @@ func (v provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
 }
 
 func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
-	return nil, errors.New("VTPM attestation fetch is not supported")
+	return nil, errors.New("vTPM attestation fetch is not supported")
 }
 
 func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+	if v.policy == nil {
+		return fmt.Errorf("tdx policy is not provided")
+	}
+
+	quote, err := abi.QuoteToProto(report)
+	if err != nil {
+		return err
+	}
+
+	sopts, err := verifytdx.RootOfTrustToOptions(v.policy.RootOfTrust)
+	if err != nil {
+		return err
+	}
+
+	sopts.Getter = &trusttdx.RetryHTTPSGetter{
+		Timeout:       timeout,
+		MaxRetryDelay: maxTryDelay,
+		Getter:        &trusttdx.SimpleHTTPSGetter{},
+	}
+
+	if err := verifytdx.TdxQuote(quote, sopts); err != nil {
+		return err
+	}
+
+	opts, err := valdatetdx.PolicyToOptions(v.policy.Policy)
+	if err != nil {
+		return err
+	}
+
+	if err := valdatetdx.TdxQuote(quote, opts); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -61,7 +94,7 @@ func (v provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
 }
 
 func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	return nil
+	return v.VerifTeeAttestation(report, teeNonce)
 }
 
 func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {

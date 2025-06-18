@@ -431,7 +431,13 @@ func parseConfig() error {
 	if cfgString == "" {
 		return nil
 	}
-	if err := protojson.Unmarshal([]byte(cfgString), &cfg); err != nil {
+
+	policyByte, err := os.ReadFile(cfgString)
+	if err != nil {
+		return err
+	}
+
+	if err := protojson.Unmarshal(policyByte, &cfg); err != nil {
 		return err
 	}
 	// Populate fields that should not be nil

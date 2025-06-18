@@ -169,14 +169,19 @@ func parseTDXConfig() error {
 		return nil // No config provided, return nil
 	}
 
-	if err := protojson.Unmarshal([]byte(cfgString), cfgTDX); err != nil {
+	policyByte, err := os.ReadFile(cfgString)
+	if err != nil {
+		return err
+	}
+
+	if err := protojson.Unmarshal(policyByte, cfgTDX); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func tdxVerify(reportFilePath string, provider attestation.Provider) error {
+func validateTDXFlags() error {
 	if err := parseTDXConfig(); err != nil {
 		return err
 	}
@@ -200,6 +205,10 @@ func tdxVerify(reportFilePath string, provider attestation.Provider) error {
 		return err
 	}
 
+	return nil
+}
+
+func tdxVerify(reportFilePath string, provider attestation.Provider) error {
 	attestationFile = reportFilePath
 	input, err := openInputFile()
 	if err != nil {
@@ -246,9 +255,4 @@ func validateTDXinput() error {
 	}
 
 	return nil
-}
-
-func GenerateTDXAttestationPolicy() ([]byte, error) {
-
-	return nil, nil
 }
