@@ -427,7 +427,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 
 func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	switch attType {
-	case attestation.SNP:
+	case attestation.SNP, attestation.TDX:
 		rawQuote, err := as.provider.TeeAttestation(reportData[:])
 		if err != nil {
 			return []byte{}, errors.Wrap(ErrAttestationFailed, err)
@@ -520,12 +520,12 @@ func (as *agentService) publishEvent(status string) statemachine.Action {
 func (as *agentService) IMAMeasurements(ctx context.Context) ([]byte, []byte, error) {
 	data, err := os.ReadFile(ImaMeasurementsFilePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading Linux IMA measurements file: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading Linux IMA measurements file: %s", err.Error())
 	}
 
 	pcr10, err := vtpm.GetPCRSHA1Value(ImaPcrIndex)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading TPM PCR #10: %s", err.Error())
+		return nil, nil, fmt.Errorf("error reading TPM PCR #10: %s", err.Error())
 	}
 
 	return data, pcr10, nil
