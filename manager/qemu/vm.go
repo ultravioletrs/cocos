@@ -205,7 +205,7 @@ func SEVEnabled(cpuinfo string, sevPresent bool) bool {
 }
 
 func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
-	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "1"
+	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "Y"
 }
 
 func TDXEnabled(cpuinfo, kernelParam string) bool {
