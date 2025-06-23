@@ -178,7 +178,7 @@ func TestSEVEnabled(t *testing.T) {
 
 func TestSEVSNPEnabled(t *testing.T) {
 	t.Run("cpuinfo and kvm param correct", func(t *testing.T) {
-		assert.True(t, SEVSNPEnabled("flags: sev_snp abc", "1"))
+		assert.True(t, SEVSNPEnabled("flags: sev_snp abc", "Y"))
 	})
 
 	t.Run("missing sev_snp in cpuinfo", func(t *testing.T) {
