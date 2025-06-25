@@ -209,7 +209,7 @@ func TestNewValidateAttestationValidationCmdDefaults(t *testing.T) {
 	cmd := cli.NewValidateAttestationValidationCmd()
 
 	assert.Equal(t, "validate", cmd.Use)
-	expectedMessage := fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 3 modes: %s, %s and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, SNP)
+	expectedMessage := fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 4 modes: %s, %s, %s, and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, TDX, SNP)
 	assert.Equal(t, expectedMessage, cmd.Short)
 
 	assert.Equal(t, fmt.Sprint(defaultMinimumTcb), cmd.Flag("minimum_tcb").Value.String())
@@ -367,19 +367,28 @@ func TestNewMeasureCmd_RunError(t *testing.T) {
 }
 
 func TestParseConfig(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "attestation_policy.json")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+
 	cfgString = ""
-	err := parseConfig()
+
+	err = parseConfig()
 	assert.NoError(t, err)
 	assert.NotNil(t, cfg.RootOfTrust)
 	assert.NotNil(t, cfg.Policy)
 
-	cfgString = `{"rootOfTrust":{"product":"test_product"},"policy":{"minimumGuestSvn":1}}`
+	cfgString = tmpfile.Name()
+
+	_, err = tmpfile.WriteString(`{"rootOfTrust":{"product":"test_product"},"policy":{"minimumGuestSvn":1}}`)
+	require.NoError(t, err)
 	err = parseConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, "test_product", cfg.RootOfTrust.Product)
 	assert.Equal(t, uint32(1), cfg.Policy.MinimumGuestSvn)
 
-	cfgString = `{"invalid_json"`
+	_, err = tmpfile.WriteString(`{"invalid_json"`)
+	require.NoError(t, err)
 	err = parseConfig()
 	assert.Error(t, err)
 }

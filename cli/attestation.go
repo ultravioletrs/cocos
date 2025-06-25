@@ -391,35 +391,38 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				defer closer.Close()
 			}
 
-			var provider attestation.Provider
+			var verifier attestation.Verifier
 			switch cloud {
 			case CCNone:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				provider = vtpm.New(nil, false, 0, output, &policy)
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			case CCAzure:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				provider = azure.New(output, &policy)
+				verifier = azure.NewVerifierWithPolicy(output, &policy)
 			case CCGCP:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				provider = vtpm.New(nil, false, 0, output, &policy)
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			default:
 				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				provider = vtpm.New(nil, false, 0, output, &policy)
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			}
 
 			switch mode {
 			case SNP:
-				return sevsnpverify(cmd, provider, args)
+				cfg.Policy.ReportData = reportData
+				return sevsnpverify(cmd, verifier, args)
 			case SNPvTPM:
-				return vtpmSevSnpverify(args, provider)
+				cfg.Policy.ReportData = reportData
+				return vtpmSevSnpverify(args, verifier)
 			case VTPM:
-				return vtpmverify(args, provider)
+				cfg.Policy.ReportData = reportData
+				return vtpmverify(args, verifier)
 			case TDX:
 				if err := validateTDXFlags(); err != nil {
 					return fmt.Errorf("failed to verify TDX validation flags: %v ❌ ", err)
 				}
-				provider = quoteprovider.New(cfgTDX)
-				return tdxVerify(args[0], provider)
+				verifier = quoteprovider.NewVerifierWithPolicy(cfgTDX)
+				return tdxVerify(args[0], verifier)
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
 			}

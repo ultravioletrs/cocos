@@ -21,18 +21,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var errOpenTDXDevice = errors.New("failed to open TDX device")
+
 var (
-	errOpenTDXDevice = errors.New("failed to open TDX device")
+	_ attestation.Provider = (*provider)(nil)
+	_ attestation.Verifier = (*verifier)(nil)
 )
 
-var _ attestation.Provider = (*provider)(nil)
+type provider struct{}
 
-type provider struct {
-	policy *checkconfig.Config
-}
-
-func New(policy *checkconfig.Config) attestation.Provider {
-	return provider{policy: policy}
+func NewProvider() attestation.Provider {
+	return provider{}
 }
 
 func (v provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
@@ -52,8 +51,36 @@ func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	return nil, errors.New("vTPM attestation fetch is not supported")
 }
 
-func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
-	if v.policy == nil {
+func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	return nil, errors.New("Azure attestation token is not supported")
+}
+
+type verifier struct {
+	Policy *checkconfig.Config
+}
+
+func NewVerifier() attestation.Verifier {
+	Policy := &checkconfig.Config{
+		RootOfTrust: &checkconfig.RootOfTrust{},
+		Policy:      &checkconfig.Policy{HeaderPolicy: &checkconfig.HeaderPolicy{}, TdQuoteBodyPolicy: &checkconfig.TDQuoteBodyPolicy{}},
+	}
+
+	return verifier{
+		Policy: Policy,
+	}
+}
+
+func NewVerifierWithPolicy(policy *checkconfig.Config) attestation.Verifier {
+	if policy == nil {
+		return NewVerifier()
+	}
+	return verifier{
+		Policy: policy,
+	}
+}
+
+func (v verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+	if v.Policy == nil {
 		return fmt.Errorf("tdx policy is not provided")
 	}
 
@@ -62,7 +89,7 @@ func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 		return err
 	}
 
-	sopts, err := verifytdx.RootOfTrustToOptions(v.policy.RootOfTrust)
+	sopts, err := verifytdx.RootOfTrustToOptions(v.Policy.RootOfTrust)
 	if err != nil {
 		return err
 	}
@@ -77,7 +104,7 @@ func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 		return err
 	}
 
-	opts, err := valdatetdx.PolicyToOptions(v.policy.Policy)
+	opts, err := valdatetdx.PolicyToOptions(v.Policy.Policy)
 	if err != nil {
 		return err
 	}
@@ -89,32 +116,27 @@ func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 	return nil
 }
 
-func (v provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
+func (v verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
 	return errors.New("VTPM attestation verification is not supported")
 }
 
-func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+func (v verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
 	return v.VerifTeeAttestation(report, teeNonce)
 }
 
-func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	return nil, errors.New("Azure attestation token is not supported")
+func (v verifier) JSONToPolicy(path string) error {
+	return ReadTDXAttestationPolicy(path, v.Policy)
 }
 
-func ReadTDXAttestationPolicy(policyPath string) (*checkconfig.Config, error) {
+func ReadTDXAttestationPolicy(policyPath string, policy *checkconfig.Config) error {
 	policyByte, err := os.ReadFile(policyPath)
 	if err != nil {
-		return nil, err
-	}
-
-	policy := &checkconfig.Config{
-		RootOfTrust: &checkconfig.RootOfTrust{},
-		Policy:      &checkconfig.Policy{HeaderPolicy: &checkconfig.HeaderPolicy{}, TdQuoteBodyPolicy: &checkconfig.TDQuoteBodyPolicy{}},
+		return err
 	}
 
 	if err := proto.Unmarshal(policyByte, policy); err != nil {
-		return nil, err
+		return err
 	}
 
-	return policy, nil
+	return nil
 }

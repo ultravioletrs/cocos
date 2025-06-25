@@ -95,9 +95,7 @@ const (
 	`
 )
 
-var (
-	cfg = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
-)
+var cfg = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 
 func addSEVSNPVerificationOptions(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().BytesHexVar(
@@ -271,7 +269,6 @@ func validateInput() error {
 		return fmt.Errorf("product name must be set if CA bundles are provided")
 	}
 
-	cfg.Policy.ReportData = reportData
 	if err := validateFieldLength("report_data", cfg.Policy.ReportData, size64); err != nil {
 		return err
 	}
@@ -484,10 +481,11 @@ func parseAttestationFile() error {
 	return nil
 }
 
-func sevsnpverify(cmd *cobra.Command, provider attestation.Provider, args []string) error {
+func sevsnpverify(cmd *cobra.Command, verifier attestation.Verifier, args []string) error {
 	cmd.Println("Checking attestation")
 
 	attestationFile = string(args[0])
+
 	if err := parseAttestationFile(); err != nil {
 		return fmt.Errorf("error parsing config: %v ❌ ", err)
 	}
@@ -502,7 +500,7 @@ func sevsnpverify(cmd *cobra.Command, provider attestation.Provider, args []stri
 		return err
 	}
 
-	if err := provider.VerifTeeAttestation(attestationRaw, cfg.Policy.ReportData); err != nil {
+	if err := verifier.VerifTeeAttestation(attestationRaw, cfg.Policy.ReportData); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
@@ -532,7 +530,7 @@ func parseAttestationConfig() error {
 	return nil
 }
 
-func vtpmSevSnpverify(args []string, provider attestation.Provider) error {
+func vtpmSevSnpverify(args []string, verifier attestation.Verifier) error {
 	attest, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
@@ -542,20 +540,20 @@ func vtpmSevSnpverify(args []string, provider attestation.Provider) error {
 		return err
 	}
 
-	if err := provider.VerifyAttestation(attest, cfg.Policy.ReportData, nonce); err != nil {
+	if err := verifier.VerifyAttestation(attest, cfg.Policy.ReportData, nonce); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
 	return nil
 }
 
-func vtpmverify(args []string, provider attestation.Provider) error {
+func vtpmverify(args []string, verifier attestation.Verifier) error {
 	attestation, err := returnvTPMAttestation(args)
 	if err != nil {
 		return err
 	}
 
-	if err := provider.VerifVTpmAttestation(attestation, nonce); err != nil {
+	if err := verifier.VerifVTpmAttestation(attestation, nonce); err != nil {
 		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
 	}
 
