@@ -54,7 +54,7 @@ func TestCLI_NewCreateVMCmd(t *testing.T) {
 					"client-crt.pem": "client-cert-content",
 				}
 				for filename, content := range files {
-					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0644); err != nil {
+					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o644); err != nil {
 						return err
 					}
 				}
@@ -174,7 +174,10 @@ func TestCLI_NewCreateVMCmd(t *testing.T) {
 			require.NoError(t, err)
 			err = os.Chdir(tmpDir)
 			require.NoError(t, err)
-			defer os.Chdir(oldDir)
+			t.Cleanup(func() {
+				err := os.Chdir(oldDir)
+				require.NoError(t, err)
+			})
 
 			err = tt.setupFiles(tmpDir)
 			require.NoError(t, err)
@@ -335,7 +338,7 @@ func TestFileReader(t *testing.T) {
 			name: "successful file read",
 			setupFile: func(tmpDir string) (string, error) {
 				filePath := filepath.Join(tmpDir, "test.txt")
-				err := os.WriteFile(filePath, []byte("test content"), 0644)
+				err := os.WriteFile(filePath, []byte("test content"), 0o644)
 				return filePath, err
 			},
 			expectedResult: []byte("test content"),
@@ -402,7 +405,7 @@ func TestLoadCerts(t *testing.T) {
 					"server.ca":  "server-ca-content",
 				}
 				for filename, content := range files {
-					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0644); err != nil {
+					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o644); err != nil {
 						return err
 					}
 				}
@@ -453,7 +456,7 @@ func TestLoadCerts(t *testing.T) {
 			name: "client cert file read error",
 			setupFiles: func(tmpDir string) error {
 				// Create client key but not cert
-				return os.WriteFile(filepath.Join(tmpDir, "client.key"), []byte("key-content"), 0644)
+				return os.WriteFile(filepath.Join(tmpDir, "client.key"), []byte("key-content"), 0o644)
 			},
 			setupGlobal: func(tmpDir string) {
 				agentCVMClientKey = filepath.Join(tmpDir, "client.key")
@@ -470,7 +473,7 @@ func TestLoadCerts(t *testing.T) {
 					"client.crt": "client-cert-content",
 				}
 				for filename, content := range files {
-					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0644); err != nil {
+					if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o644); err != nil {
 						return err
 					}
 				}
@@ -525,7 +528,6 @@ func TestLoadCerts(t *testing.T) {
 	}
 }
 
-// Test helper functions and edge cases
 func TestCommandCreation(t *testing.T) {
 	cli := &CLI{}
 
