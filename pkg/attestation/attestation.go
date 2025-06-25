@@ -4,18 +4,14 @@
 package attestation
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
-	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/proto/check"
 	tdxcliet "github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tpm/legacy/tpm2"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type PlatformType int
@@ -35,17 +31,7 @@ const (
 	azureApiVersion  = "2021-02-01"
 )
 
-var (
-	AttestationPolicyPath string
-	// AttestationPolicy           = Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &PcrConfig{}}
-	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
-	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
-	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
-	ErrAttestationPolicyEncode  = errors.New("failed to encode the Attestation Policy")
-	ErrProtoMarshalFailed       = errors.New("failed to marshal protojson")
-	ErrJsonMarshalFailed        = errors.New("failed to marshal json")
-	ErrJsonUnarshalFailed       = errors.New("failed to unmarshal json")
-)
+var AttestationPolicyPath string
 
 type PcrValues struct {
 	Sha256 map[string]string `json:"sha256"`
@@ -71,65 +57,14 @@ type Provider interface {
 	Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 	TeeAttestation(teeNonce []byte) ([]byte, error)
 	VTpmAttestation(vTpmNonce []byte) ([]byte, error)
-	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
-	VerifTeeAttestation(report []byte, teeNonce []byte) error
-	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
 	AzureAttestationToken(tokenNonce []byte) ([]byte, error)
 }
 
-func ReadAttestationPolicy(policyPath string, attestationConfiguration *Config) error {
-	if policyPath != "" {
-		policyData, err := os.ReadFile(policyPath)
-		if err != nil {
-			return errors.Wrap(ErrAttestationPolicyOpen, err)
-		}
-
-		return ReadAttestationPolicyFromByte(policyData, attestationConfiguration)
-	}
-
-	return ErrAttestationPolicyMissing
-}
-
-func ReadAttestationPolicyFromByte(policyData []byte, attestationConfiguration *Config) error {
-	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-
-	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.Config); err != nil {
-		return errors.Wrap(ErrAttestationPolicyDecode, err)
-	}
-
-	if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
-		return errors.Wrap(ErrAttestationPolicyDecode, err)
-	}
-
-	return nil
-}
-
-func ConvertAttestationPolicyToJSON(attestationConfiguration *Config) ([]byte, error) {
-	pbJson, err := protojson.Marshal(attestationConfiguration.Config)
-	if err != nil {
-		return nil, errors.Wrap(ErrProtoMarshalFailed, err)
-	}
-
-	var pbMap map[string]interface{}
-	if err := json.Unmarshal(pbJson, &pbMap); err != nil {
-		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
-	}
-
-	pcrJson, err := json.Marshal(attestationConfiguration.PcrConfig)
-	if err != nil {
-		return nil, errors.Wrap(ErrJsonMarshalFailed, err)
-	}
-
-	var pcrMap map[string]interface{}
-	if err := json.Unmarshal(pcrJson, &pcrMap); err != nil {
-		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
-	}
-
-	for k, v := range pcrMap {
-		pbMap[k] = v
-	}
-
-	return json.MarshalIndent(pbMap, "", "  ")
+type Verifier interface {
+	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
+	VerifTeeAttestation(report []byte, teeNonce []byte) error
+	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
+	JSONToPolicy(path string) error
 }
 
 // CCPlatform returns the type of the confidential computing platform.

@@ -24,6 +24,16 @@ import (
 
 func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, security, error) {
 	security := withaTLS
+
+	info, err := os.Stat(cfg.AttestationPolicy)
+	if err != nil {
+		return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to stat attestation policy file"), err)
+	}
+
+	if !info.Mode().IsRegular() {
+		return nil, withoutTLS, fmt.Errorf("attestation policy file is not a regular file: %s", cfg.AttestationPolicy)
+	}
+
 	attestation.AttestationPolicyPath = cfg.AttestationPolicy
 
 	var insecureSkipVerify bool = true

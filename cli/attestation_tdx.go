@@ -208,7 +208,7 @@ func validateTDXFlags() error {
 	return nil
 }
 
-func tdxVerify(reportFilePath string, provider attestation.Provider) error {
+func tdxVerify(reportFilePath string, verifier attestation.Verifier) error {
 	attestationFile = reportFilePath
 	input, err := openInputFile()
 	if err != nil {
@@ -222,7 +222,7 @@ func tdxVerify(reportFilePath string, provider attestation.Provider) error {
 		return err
 	}
 
-	return provider.VerifyAttestation(attestationBytes, reportData, nil)
+	return verifier.VerifyAttestation(attestationBytes, reportData, nil)
 }
 
 func validateTDXinput() error {

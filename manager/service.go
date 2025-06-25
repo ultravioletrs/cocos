@@ -21,7 +21,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -174,7 +174,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 
 		attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-		if err = quoteprovider.ReadSEVSNPAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+		if err = vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 

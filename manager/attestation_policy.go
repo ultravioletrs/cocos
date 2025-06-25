@@ -20,7 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
@@ -117,7 +117,7 @@ func fetchTDXAttestationPolicy(ms *managerService) (*cmdconfig.CmdConfig, error)
 func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([]byte, error) {
 	attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-	if err := quoteprovider.ReadSEVSNPAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+	if err := vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 		return nil, err
 	}
 
@@ -174,10 +174,10 @@ func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([
 
 	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
-	f, err := attestation.ConvertAttestationPolicyToJSON(&attestationPolicy)
+	f, err := vtpm.ConvertPolicyToJSON(&attestationPolicy)
 	if err != nil {
 		return nil, err
 	}
 
-	return policy, nil
+	return f, nil
 }

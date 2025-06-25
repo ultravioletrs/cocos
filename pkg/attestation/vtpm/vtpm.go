@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
+	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
@@ -26,11 +28,15 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
-var _ attestation.Provider = (*provider)(nil)
+var (
+	_ attestation.Provider = (*provider)(nil)
+	_ attestation.Verifier = (*verifier)(nil)
+)
 
 const (
 	eventLog = "/sys/kernel/security/tpm0/binary_bios_measurements"
@@ -43,10 +49,15 @@ const (
 )
 
 var (
-	ExternalTPM        io.ReadWriteCloser
-	ErrNoHashAlgo      = errors.New("hash algo is not supported")
-	ErrFetchQuote      = errors.New("failed to fetch vTPM quote")
-	ErrFetchAzureToken = errors.New("failed to fetch Azure token")
+	ExternalTPM                 io.ReadWriteCloser
+	ErrNoHashAlgo               = errors.New("hash algo is not supported")
+	ErrFetchQuote               = errors.New("failed to fetch vTPM quote")
+	ErrAttestationPolicyOpen    = errors.New("failed to open Attestation Policy file")
+	ErrAttestationPolicyDecode  = errors.New("failed to decode Attestation Policy file")
+	ErrAttestationPolicyMissing = errors.New("failed due to missing Attestation Policy file")
+	ErrProtoMarshalFailed       = errors.New("failed to marshal protojson")
+	ErrJsonMarshalFailed        = errors.New("failed to marshal json")
+	ErrJsonUnarshalFailed       = errors.New("failed to unmarshal json")
 )
 
 type tpm struct {
@@ -97,17 +108,13 @@ type provider struct {
 	pubKey        []byte
 	teeAttestaion bool
 	vmpl          uint
-	writer        io.Writer
-	policy        *attestation.Config
 }
 
-func New(pubKey []byte, teeAttestation bool, vmpl uint, writer io.Writer, policy *attestation.Config) attestation.Provider {
+func NewProvider(pubKey []byte, teeAttestation bool, vmpl uint) attestation.Provider {
 	return &provider{
 		pubKey:        pubKey,
 		teeAttestaion: teeAttestation,
 		vmpl:          vmpl,
-		writer:        writer,
-		policy:        policy,
 	}
 }
 
@@ -128,26 +135,61 @@ func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	return proto.Marshal(quote)
 }
 
-func (v provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	return nil, errors.New("Azure attestation token is not supported")
+}
+
+type verifier struct {
+	pubKey []byte
+	writer io.Writer
+	Policy *attestation.Config
+}
+
+func NewVerifier(pubKey []byte, writer io.Writer) attestation.Verifier {
+	policy := &attestation.Config{
+		Config:    &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}},
+		PcrConfig: &attestation.PcrConfig{},
+	}
+
+	return &verifier{
+		pubKey: pubKey,
+		writer: writer,
+		Policy: policy,
+	}
+}
+
+func NewVerifierWithPolicy(pubKey []byte, writer io.Writer, policy *attestation.Config) attestation.Verifier {
+	if policy == nil {
+		return NewVerifier(pubKey, writer)
+	}
+
+	return &verifier{
+		pubKey: pubKey,
+		writer: writer,
+		Policy: policy,
+	}
+}
+
+func (v verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 	attestReport, err := abi.ReportToProto(report)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
 	}
 
 	attestationReport := sevsnp.Attestation{Report: attestReport, CertificateChain: nil}
-	return quoteprovider.VerifyAttestationReportTLS(&attestationReport, teeNonce)
+	return quoteprovider.VerifyAttestationReportTLS(&attestationReport, teeNonce, v.Policy)
 }
 
-func (v provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return VerifyQuote(report, v.pubKey, vTpmNonce, v.writer, v.policy)
+func (v verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
+	return VerifyQuote(report, v.pubKey, vTpmNonce, v.writer, v.Policy)
 }
 
-func (v provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	return VTPMVerify(report, v.pubKey, teeNonce, vTpmNonce, v.writer, v.policy)
+func (v verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+	return VTPMVerify(report, v.pubKey, teeNonce, vTpmNonce, v.writer, v.Policy)
 }
 
-func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	return nil, errors.New("Azure attestation token is not supported")
+func (v verifier) JSONToPolicy(path string) error {
+	return ReadPolicy(path, v.Policy)
 }
 
 func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([]byte, error) {
@@ -178,7 +220,7 @@ func VTPMVerify(quote []byte, pubKeyTLS []byte, teeNonce []byte, vtpmNonce []byt
 		return errors.Wrap(fmt.Errorf("failed to unmarshal quote"), err)
 	}
 
-	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), teeNonce); err != nil {
+	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), teeNonce, policy); err != nil {
 		return fmt.Errorf("failed to verify TEE attestation report: %v", err)
 	}
 
@@ -384,4 +426,59 @@ func GetPCRSHA256Value(index int) ([]byte, error) {
 
 func GetPCRSHA384Value(index int) ([]byte, error) {
 	return getPCRValue(index, tpm2.AlgSHA384)
+}
+
+func ReadPolicy(policyPath string, attestationConfiguration *attestation.Config) error {
+	if policyPath != "" {
+		policyData, err := os.ReadFile(policyPath)
+		if err != nil {
+			return errors.Wrap(ErrAttestationPolicyOpen, err)
+		}
+
+		return ReadPolicyFromByte(policyData, attestationConfiguration)
+	}
+
+	return ErrAttestationPolicyMissing
+}
+
+func ReadPolicyFromByte(policyData []byte, attestationConfiguration *attestation.Config) error {
+	unmarshalOptions := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+
+	if err := unmarshalOptions.Unmarshal(policyData, attestationConfiguration.Config); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	if err := json.Unmarshal(policyData, attestationConfiguration.PcrConfig); err != nil {
+		return errors.Wrap(ErrAttestationPolicyDecode, err)
+	}
+
+	return nil
+}
+
+func ConvertPolicyToJSON(attestationConfiguration *attestation.Config) ([]byte, error) {
+	pbJson, err := protojson.Marshal(attestationConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(ErrProtoMarshalFailed, err)
+	}
+
+	var pbMap map[string]interface{}
+	if err := json.Unmarshal(pbJson, &pbMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	pcrJson, err := json.Marshal(attestationConfiguration.PcrConfig)
+	if err != nil {
+		return nil, errors.Wrap(ErrJsonMarshalFailed, err)
+	}
+
+	var pcrMap map[string]interface{}
+	if err := json.Unmarshal(pcrJson, &pcrMap); err != nil {
+		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
+	}
+
+	for k, v := range pcrMap {
+		pbMap[k] = v
+	}
+
+	return json.MarshalIndent(pbMap, "", "  ")
 }

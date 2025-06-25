@@ -33,6 +33,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/auth"
 	"github.com/ultravioletrs/cocos/internal/server"
 	"github.com/ultravioletrs/cocos/pkg/atls"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -433,8 +434,11 @@ func generateCertificatesForATLS(caUrl string, cvmId string) ([]byte, []byte, er
 		return nil, nil, fmt.Errorf("failed to marshal public key to DER format: %w", err)
 	}
 
-	if err := vtpm.ExtendPCR(vtpm.PCR15, pubKeyDER); err != nil {
-		return nil, nil, fmt.Errorf("failed to extend vTPM PCR with public key: %w", err)
+	ccPlatform := attestation.CCPlatform()
+	if ccPlatform != attestation.TDX {
+		if err := vtpm.ExtendPCR(vtpm.PCR15, pubKeyDER); err != nil {
+			return nil, nil, fmt.Errorf("failed to extend vTPM PCR with public key: %w", err)
+		}
 	}
 
 	return certBytes, keyBytes, nil
