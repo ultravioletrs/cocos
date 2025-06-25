@@ -588,12 +588,12 @@ func TestStopComputationIntegration(t *testing.T) {
 	algoHash := sha3.Sum256(algo)
 
 	testDir := "test_integration"
-	err := os.MkdirAll(testDir, 0755)
+	err := os.MkdirAll(testDir, 0o755)
 	require.NoError(t, err)
 	defer os.RemoveAll(testDir)
 
 	algoFile := filepath.Join(testDir, "test_algo")
-	err = os.WriteFile(algoFile, algo, 0755)
+	err = os.WriteFile(algoFile, algo, 0o755)
 	require.NoError(t, err)
 
 	events := new(mocks.Service)
