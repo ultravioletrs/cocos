@@ -558,6 +558,82 @@ func TestAttestationResult(t *testing.T) {
 	}
 }
 
+func TestIMAMeasurements(t *testing.T) {
+	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(bufDialer))
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer conn.Close()
+
+	client := agent.NewAgentServiceClient(conn)
+
+	sdk := sdk.NewAgentSDK(client)
+
+	response := &agent.IMAMeasurementsResponse{
+		File: []byte{
+			0x01, 0x02, 0x03, 0x04,
+			0x05, 0x06, 0x07, 0x08,
+			0x01, 0x02, 0x03, 0x04,
+			0x05, 0x06, 0x07, 0x08,
+			0x01, 0x02, 0x03, 0x04,
+			0x05, 0x06, 0x07, 0x08,
+		},
+	}
+
+	cases := []struct {
+		name     string
+		response *agent.IMAMeasurementsResponse
+		svcRes   []byte
+		err      error
+	}{
+		{
+			name:     "fetch IMA measurements successfully",
+			response: response,
+			svcRes:   response.File,
+			err:      nil,
+		},
+		{
+			name:     "failed to fetch IMA measurements",
+			response: &agent.IMAMeasurementsResponse{File: []byte{}},
+			svcRes:   nil,
+			err:      errors.New("failed to fetch IMA measurements"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svcCall := svc.On("IMAMeasurements", mock.Anything).Return(tc.svcRes, tc.svcRes, tc.err)
+
+			file, err := os.CreateTemp("", "ima_measurements")
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(file.Name())
+			})
+
+			_, err = sdk.IMAMeasurements(context.Background(), file)
+
+			require.NoError(t, file.Close())
+
+			st, ok := status.FromError(err)
+			if !ok {
+				t.Fatalf("Expected gRPC status error, but got: %v", err)
+			}
+
+			if tc.err != nil {
+				if st.Message() != tc.err.Error() {
+					t.Errorf("%s: Expected error message %q, but got %q", tc.name, tc.err.Error(), st.Message())
+				}
+			}
+
+			res, err := os.ReadFile(file.Name())
+			require.NoError(t, err)
+			assert.Equal(t, tc.response.File, res, tc.name)
+			svcCall.Unset()
+		})
+	}
+}
+
 func generateKeys(t *testing.T, keyType string) (priv any, pub []byte) {
 	switch keyType {
 	case "ecdsa":
