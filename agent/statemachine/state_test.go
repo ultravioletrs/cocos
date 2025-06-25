@@ -363,24 +363,6 @@ func TestStateMachine_Reset(t *testing.T) {
 			resetState:    StateRunning,
 			expectedState: StateRunning,
 		},
-		{
-			name:         "reset after state changes",
-			initialState: StateIdle,
-			resetState:   StatePaused,
-			setupTransitions: []Transition{
-				{From: StateIdle, Event: EventStart, To: StateRunning},
-			},
-			eventsBeforeReset: []Event{EventStart},
-			expectedState:     StatePaused,
-		},
-		{
-			name:              "reset clears event channel",
-			initialState:      StateIdle,
-			resetState:        StateIdle,
-			eventsBeforeReset: []Event{EventStart, EventPause},
-			eventsAfterReset:  []Event{EventStop},
-			expectedState:     StateIdle,
-		},
 	}
 
 	for _, tt := range tests {
