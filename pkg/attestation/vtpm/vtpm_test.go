@@ -201,7 +201,7 @@ func setAttestationPolicy(rr *sevsnp.Attestation, policyDirectory string) error 
 
 	policyPath := filepath.Join(policyDirectory, "attestation_policy.json")
 
-	err = os.WriteFile(policyPath, policyByte, 0644)
+	err = os.WriteFile(policyPath, policyByte, 0o644)
 	if err != nil {
 		return nil
 	}
@@ -225,7 +225,7 @@ func changeProductAttestationPolicy() error {
 		return err
 	}
 
-	if err := os.WriteFile(attestation.AttestationPolicyPath, policyByte, 0644); err != nil {
+	if err := os.WriteFile(attestation.AttestationPolicyPath, policyByte, 0o644); err != nil {
 		return nil
 	}
 
