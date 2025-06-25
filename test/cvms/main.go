@@ -141,10 +141,7 @@ func main() {
 		attestedTLS = attestedTLSBoolValue
 	}
 
-	if dataPathString == "" {
-		parsingErrorString.WriteString("Date source paths are required\n")
-		parsingError = true
-	} else {
+	if dataPathString != "" {
 		dataPaths = strings.Split(dataPathString, ",")
 	}
 
