@@ -454,10 +454,14 @@ func TestStateMachine_HandleEvent(t *testing.T) {
 				sm.AddTransition(transition)
 			}
 
-			actionCalled := false
+			var actionCalled bool
+			var mu sync.Mutex
+
 			if tt.expectActionCall {
 				sm.SetAction(tt.expectedState, func(s State) {
+					mu.Lock()
 					actionCalled = true
+					mu.Unlock()
 				})
 			}
 
@@ -476,7 +480,10 @@ func TestStateMachine_HandleEvent(t *testing.T) {
 
 			if tt.expectActionCall {
 				time.Sleep(10 * time.Millisecond)
-				if !actionCalled {
+				mu.Lock()
+				called := actionCalled
+				mu.Unlock()
+				if !called {
 					t.Error("Expected action to be called but it wasn't")
 				}
 			}
