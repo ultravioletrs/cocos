@@ -62,5 +62,7 @@ func (c *CLI) InitializeManagerClient(cmd *cobra.Command) error {
 }
 
 func (c *CLI) Close() {
-	c.client.Close()
+	if c.client != nil {
+		c.client.Close()
+	}
 }
