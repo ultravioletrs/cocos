@@ -18,7 +18,7 @@ import (
 	verifytdx "github.com/google/go-tdx-guest/verify"
 	trusttdx "github.com/google/go-tdx-guest/verify/trust"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var errOpenTDXDevice = errors.New("failed to open TDX device")
@@ -134,7 +134,7 @@ func ReadTDXAttestationPolicy(policyPath string, policy *checkconfig.Config) err
 		return err
 	}
 
-	if err := proto.Unmarshal(policyByte, policy); err != nil {
+	if err := protojson.Unmarshal(policyByte, policy); err != nil {
 		return err
 	}
 
