@@ -209,7 +209,7 @@ func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
 }
 
 func TDXEnabled(cpuinfo, kernelParam string) bool {
-	return strings.Contains(cpuinfo, "tdx_host_platform") && strings.TrimSpace(kernelParam) == "1"
+	return strings.Contains(cpuinfo, "tdx_host_platform") && strings.TrimSpace(kernelParam) == "Y"
 }
 
 // Checks if SEV is supported and usable by verifying both CPU flags and the /dev/sev device.

@@ -192,7 +192,7 @@ func TestSEVSNPEnabled(t *testing.T) {
 
 func TestTDXEnabled(t *testing.T) {
 	t.Run("cpuinfo and kvm param correct", func(t *testing.T) {
-		assert.True(t, TDXEnabled("flags: tdx_host_platform abc", "1"))
+		assert.True(t, TDXEnabled("flags: tdx_host_platform abc", "Y"))
 	})
 
 	t.Run("missing tdx_host_platform in cpuinfo", func(t *testing.T) {
