@@ -64,7 +64,7 @@ func (v *qemuVM) Start() (err error) {
 	v.vmi.Config.SEVConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SEVConfig.ID, id)
 	v.vmi.Config.TDXConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.TDXConfig.ID, id)
 
-	if !v.vmi.Config.EnableSEVSNP {
+	if !v.vmi.Config.EnableSEVSNP && !v.vmi.Config.EnableTDX {
 		// Copy firmware vars file.
 		srcFile := v.vmi.Config.OVMFVarsConfig.File
 		dstFile := fmt.Sprintf("%s/%s-%s.fd", tmpDir, firmwareVars, id)
