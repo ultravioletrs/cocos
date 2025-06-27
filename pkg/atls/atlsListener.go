@@ -24,6 +24,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
@@ -63,7 +64,7 @@ func getPlatformProvider(platformType attestation.PlatformType, pubKey []byte) (
 	case attestation.Azure:
 		return azure.NewProvider(), nil
 	case attestation.TDX:
-		return quoteprovider.NewProvider(), nil
+		return tdx.NewProvider(), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
@@ -78,7 +79,7 @@ func getPlatformVerifier(platformType attestation.PlatformType, pubKey []byte) (
 	case attestation.Azure:
 		verifier = azure.NewVerifier(nil)
 	case attestation.TDX:
-		verifier = quoteprovider.NewVerifier()
+		verifier = tdx.NewVerifier()
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}

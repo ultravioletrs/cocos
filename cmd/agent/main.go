@@ -28,7 +28,7 @@ import (
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
@@ -105,7 +105,7 @@ func main() {
 	case attestation.Azure:
 		provider = azure.NewProvider()
 	case attestation.TDX:
-		provider = quoteprovider.NewProvider()
+		provider = tdx.NewProvider()
 	case attestation.NoCC:
 		logger.Info("TEE device not found")
 		provider = &attestation.EmptyProvider{}
