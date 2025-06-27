@@ -20,6 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/virtee/sev-snp-measure-go/cpuid"
 	"github.com/virtee/sev-snp-measure-go/guest"
 	"github.com/virtee/sev-snp-measure-go/vmmtypes"
@@ -28,6 +29,60 @@ import (
 const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
+	ms.mu.Lock()
+	vm, exists := ms.vms[computationId]
+	ms.mu.Unlock()
+	if !exists {
+		return nil, fmt.Errorf("computationId %s not found", computationId)
+	}
+
+	vmi, ok := vm.GetConfig().(qemu.VMInfo)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast config to qemu.VMInfo")
+	}
+
+	var attestPolicyCmd *cmdconfig.CmdConfig
+	var err error
+	switch {
+	case vmi.Config.EnableSEVSNP:
+		attestPolicyCmd, err = fetchSNPAttestationPolicy(ms)
+	case vmi.Config.EnableTDX:
+		attestPolicyCmd, err = fetchTDXAttestationPolicy(ms)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var stdOutByte []byte
+	ms.ap.Lock()
+	switch {
+	case vmi.Config.EnableSEVSNP:
+		stdOutByte, err = attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
+	case vmi.Config.EnableTDX:
+		stdOutByte, err = attestPolicyCmd.Run("")
+	}
+	ms.ap.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	var policy []byte
+	switch {
+	case vmi.Config.EnableSEVSNP:
+		policy, err = readSEVSNPPolicy(stdOutByte, ms, vmi)
+	case vmi.Config.EnableTDX:
+		policy = stdOutByte
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return policy, nil
+}
+
+func fetchSNPAttestationPolicy(ms *managerService) (*cmdconfig.CmdConfig, error) {
 	var stderrBuffer bytes.Buffer
 	options := []string{"--policy", "196608"}
 
@@ -43,32 +98,32 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, err
 	}
 
-	ms.mu.Lock()
-	vm, exists := ms.vms[computationId]
-	ms.mu.Unlock()
-	if !exists {
-		return nil, fmt.Errorf("computationId %s not found", computationId)
-	}
+	return attestPolicyCmd, nil
+}
 
-	vmi, ok := vm.GetConfig().(qemu.VMInfo)
-	if !ok {
-		return nil, fmt.Errorf("failed to cast config to qemu.VMInfo")
-	}
+func fetchTDXAttestationPolicy(ms *managerService) (*cmdconfig.CmdConfig, error) {
+	var stderrBuffer bytes.Buffer
 
-	ms.ap.Lock()
-	stdOutByte, err := attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
-	ms.ap.Unlock()
+	stderr := bufio.NewWriter(&stderrBuffer)
+
+	attestPolicyCmd, err := cmdconfig.NewCmdConfig(ms.attestationPolicyBinaryPath, nil, stderr)
 	if err != nil {
 		return nil, err
 	}
 
+	return attestPolicyCmd, nil
+}
+
+func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([]byte, error) {
 	attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-	if err = attestation.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+	if err := vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 		return nil, err
 	}
 
+	var stderrBuffer bytes.Buffer
 	var measurement []byte
+	var err error
 	switch {
 	case vmi.Config.EnableSEV:
 		measurement, err = guest.CalcLaunchDigest(guest.SEV, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
@@ -119,7 +174,7 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 
 	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
 
-	f, err := attestation.ConvertAttestationPolicyToJSON(&attestationPolicy)
+	f, err := vtpm.ConvertPolicyToJSON(&attestationPolicy)
 	if err != nil {
 		return nil, err
 	}

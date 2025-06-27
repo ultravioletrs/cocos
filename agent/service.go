@@ -427,7 +427,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 
 func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	switch attType {
-	case attestation.SNP:
+	case attestation.SNP, attestation.TDX:
 		rawQuote, err := as.provider.TeeAttestation(reportData[:])
 		if err != nil {
 			return []byte{}, errors.Wrap(ErrAttestationFailed, err)

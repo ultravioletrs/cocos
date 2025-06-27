@@ -22,7 +22,6 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -39,8 +38,8 @@ var (
 )
 
 var (
-	errProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
-	errAttVerification = errors.New("attestation verification failed")
+	ErrProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
+	ErrAttVerification = errors.New("attestation verification failed")
 	errAttValidation   = errors.New("attestation validation failed")
 )
 
@@ -73,21 +72,16 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) 
 	return nil
 }
 
-func copyConfig(attConf *check.Config) (*check.Config, error) {
-	copy := proto.Clone(attConf).(*check.Config)
-	return copy, nil
-}
-
 func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
 	if err != nil {
-		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(errAttVerification, err))
+		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(ErrAttVerification, err))
 	}
 
 	if cfg.Policy.Product == nil {
 		productName := GetProductName(cfg.RootOfTrust.ProductLine)
 		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
-			return errProductLine
+			return ErrProductLine
 		}
 
 		sopts.Product = &sevsnp.SevProduct{
@@ -108,7 +102,7 @@ func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	}
 
 	if err := verify.SnpAttestation(attestationPB, sopts); err != nil {
-		return errors.Wrap(errAttVerification, err)
+		return errors.Wrap(ErrAttVerification, err)
 	}
 
 	return nil
@@ -117,7 +111,7 @@ func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	opts, err := validate.PolicyToOptions(cfg.Policy)
 	if err != nil {
-		return fmt.Errorf("failed to get policy for validation: %v", errors.Wrap(errAttVerification, err))
+		return fmt.Errorf("failed to get policy for validation: %v", errors.Wrap(ErrAttVerification, err))
 	}
 
 	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
@@ -131,11 +125,8 @@ func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return client.GetLeveledQuoteProvider()
 }
 
-func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte) error {
-	config, err := copyConfig(attestation.AttestationPolicy.Config)
-	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to create a copy of attestation policy"), err)
-	}
+func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte, policy *attestation.Config) error {
+	config := policy.Config
 
 	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
 	// This data is not part of the attestation report and it will be ignored.

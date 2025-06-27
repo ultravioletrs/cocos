@@ -28,6 +28,7 @@ import (
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
@@ -98,11 +99,13 @@ func main() {
 
 	switch ccPlatform {
 	case attestation.SNP:
-		provider = vtpm.New(nil, false, uint(cfg.Vmpl), nil)
+		provider = vtpm.NewProvider(nil, false, uint(cfg.Vmpl))
 	case attestation.SNPvTPM:
-		provider = vtpm.New(nil, true, uint(cfg.Vmpl), nil)
+		provider = vtpm.NewProvider(nil, true, uint(cfg.Vmpl))
 	case attestation.Azure:
-		provider = azure.New(nil)
+		provider = azure.NewProvider()
+	case attestation.TDX:
+		provider = tdx.NewProvider()
 	case attestation.NoCC:
 		logger.Info("TEE device not found")
 		provider = &attestation.EmptyProvider{}

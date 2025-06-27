@@ -24,6 +24,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
@@ -59,12 +60,35 @@ func formTeeData(pubKey []byte, teeNonce []byte) []byte {
 func getPlatformProvider(platformType attestation.PlatformType, pubKey []byte) (attestation.Provider, error) {
 	switch platformType {
 	case attestation.SNPvTPM:
-		return vtpm.New(pubKey, true, vmpl2, nil), nil
+		return vtpm.NewProvider(pubKey, true, vmpl2), nil
 	case attestation.Azure:
-		return azure.New(nil), nil
+		return azure.NewProvider(), nil
+	case attestation.TDX:
+		return tdx.NewProvider(), nil
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
+}
+
+func getPlatformVerifier(platformType attestation.PlatformType, pubKey []byte) (attestation.Verifier, error) {
+	var verifier attestation.Verifier
+
+	switch platformType {
+	case attestation.SNPvTPM:
+		verifier = vtpm.NewVerifier(pubKey, nil)
+	case attestation.Azure:
+		verifier = azure.NewVerifier(nil)
+	case attestation.TDX:
+		verifier = tdx.NewVerifier()
+	default:
+		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
+	}
+
+	err := verifier.JSONToPolicy(attestation.AttestationPolicyPath)
+	if err != nil {
+		return nil, err
+	}
+	return verifier, nil
 }
 
 //export callVerificationValidationCallback
@@ -74,16 +98,16 @@ func callVerificationValidationCallback(platformType C.int, pubKey *C.uchar, pub
 	vTPMNonce := C.GoBytes(unsafe.Pointer(vTPMNonceByte), vtpm.Nonce)
 	pType := attestation.PlatformType(int(platformType))
 	attestationReport := C.GoBytes(unsafe.Pointer(attestReport), attestReportSize)
-	
+
 	teeData := formTeeData(pubKeyCert, teeNonceData)
 
-	provider, err := getPlatformProvider(pType, pubKeyCert)
+	verifier, err := getPlatformVerifier(pType, pubKeyCert)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "no attestation provider found for platform type %s", err.Error())
 		return C.int(-1)
 	}
 
-	err = provider.VerifyAttestation(attestationReport, teeData, vTPMNonce)
+	err = verifier.VerifyAttestation(attestationReport, teeData, vTPMNonce)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "verification callback failed %s", err.Error())
 		return C.int(-1)
