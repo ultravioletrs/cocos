@@ -22,6 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -421,7 +422,7 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				if err := validateTDXFlags(); err != nil {
 					return fmt.Errorf("failed to verify TDX validation flags: %v ❌ ", err)
 				}
-				verifier = quoteprovider.NewVerifierWithPolicy(cfgTDX)
+				verifier = tdx.NewVerifierWithPolicy(cfgTDX)
 				return tdxVerify(args[0], verifier)
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)

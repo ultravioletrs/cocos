@@ -4,11 +4,12 @@
 //go:build !embed
 // +build !embed
 
-package quoteprovider
+package tdx
 
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-tdx-guest/abi"
@@ -26,6 +27,11 @@ var errOpenTDXDevice = errors.New("failed to open TDX device")
 var (
 	_ attestation.Provider = (*provider)(nil)
 	_ attestation.Verifier = (*verifier)(nil)
+)
+
+var (
+	timeout     = time.Minute * 2
+	maxTryDelay = time.Second * 30
 )
 
 type provider struct{}
