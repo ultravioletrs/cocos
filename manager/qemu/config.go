@@ -12,7 +12,7 @@ import (
 const (
 	BaseGuestCID      = 3
 	KernelCommandLine = "quiet console=null"
-	TDXObject         = "'{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}'"
+	TDXObject         = "{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}"
 )
 
 type MemoryConfig struct {
