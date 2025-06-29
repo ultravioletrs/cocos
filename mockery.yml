@@ -119,3 +119,10 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "attestation.go"
           mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/algorithm:
+    interfaces:
+      Algorithm:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "algorithm.go"
+          mockname: "{{.InterfaceName}}"

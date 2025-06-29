@@ -38,9 +38,11 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 		Example: `create-vm`,
 		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := c.InitializeManagerClient(cmd); err != nil {
-				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
-				return
+			if c.managerClient == nil || c.connectErr != nil {
+				if err := c.InitializeManagerClient(cmd); err != nil {
+					printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+					return
+				}
 			}
 			defer c.Close()
 
@@ -74,7 +76,7 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().StringVar(&agentCVMServerCA, serverCA, "", "CVM server CA")
 	cmd.Flags().StringVar(&agentCVMClientKey, clientKey, "", "CVM client key")
 	cmd.Flags().StringVar(&agentCVMClientCrt, clientCrt, "", "CVM client crt")
-	cmd.Flags().StringVar(&agentCVMCaUrl, agentCVMCaUrl, "", "CVM CA service URL")
+	cmd.Flags().StringVar(&agentCVMCaUrl, caUrl, "", "CVM CA service URL")
 	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
 	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
 	if err := cmd.MarkFlagRequired(serverURL); err != nil {
@@ -92,8 +94,10 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 		Example: `remove-vm <cvm_id>`,
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := c.InitializeManagerClient(cmd); err == nil {
-				defer c.Close()
+			if c.managerClient == nil || c.connectErr != nil {
+				if err := c.InitializeManagerClient(cmd); err == nil {
+					defer c.Close()
+				}
 			}
 
 			if c.connectErr != nil {
