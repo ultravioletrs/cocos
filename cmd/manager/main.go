@@ -95,8 +95,6 @@ func main() {
 		logger.Info("Manager started with TDX enabled")
 	} else if qemuCfg.EnableSEVSNP {
 		logger.Info("Manager started with SEV-SNP enabled")
-	} else if qemuCfg.EnableSEV {
-		logger.Info("Manager started with SEV enabled")
 	} else {
 		logger.Info("Manager started without confidential computing support")
 	}

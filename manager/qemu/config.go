@@ -55,7 +55,7 @@ type DiskImgConfig struct {
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
 
-type SEVConfig struct {
+type SEVSNPConfig struct {
 	ID              string `env:"SEV_ID"                envDefault:"sev0"`
 	CBitPos         int    `env:"SEV_CBITPOS"           envDefault:"51"`
 	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
@@ -80,7 +80,6 @@ type VSockConfig struct {
 }
 
 type Config struct {
-	EnableSEV    bool
 	EnableSEVSNP bool
 	EnableTDX    bool
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
@@ -110,8 +109,8 @@ type Config struct {
 	// disk
 	DiskImgConfig
 
-	// SEV
-	SEVConfig
+	// SEV-SNP
+	SEVSNPConfig
 
 	// TDX
 	TDXConfig
@@ -189,23 +188,19 @@ func (config Config) ConstructQemuArgs() []string {
 
 	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
 
-	// SEV
-	if config.EnableSEV || config.EnableSEVSNP {
-		sevType := "sev-guest"
+	// SEV-SNP
+	if config.EnableSEVSNP {
+		sevSnpType := "sev-snp-guest"
 		hostData := ""
 
 		args = append(args, "-machine",
 			fmt.Sprintf("confidential-guest-support=%s,memory-backend=%s,igvm-cfg=%s",
-				config.SEVConfig.ID,
+				config.SEVSNPConfig.ID,
 				config.MemID,
 				config.IGVMConfig.ID))
 
-		if config.EnableSEVSNP {
-			sevType = "sev-snp-guest"
-
-			if config.SEVConfig.EnableHostData {
-				hostData = fmt.Sprintf(",host-data=%s", config.SEVConfig.HostData)
-			}
+		if config.SEVSNPConfig.EnableHostData {
+			hostData = fmt.Sprintf(",host-data=%s", config.SEVSNPConfig.HostData)
 		}
 
 		args = append(args, "-object",
@@ -215,10 +210,10 @@ func (config Config) ConstructQemuArgs() []string {
 
 		args = append(args, "-object",
 			fmt.Sprintf("%s,id=%s,cbitpos=%d,reduced-phys-bits=%d%s",
-				sevType,
-				config.SEVConfig.ID,
-				config.SEVConfig.CBitPos,
-				config.SEVConfig.ReducedPhysBits,
+				sevSnpType,
+				config.SEVSNPConfig.ID,
+				config.SEVSNPConfig.CBitPos,
+				config.SEVSNPConfig.ReducedPhysBits,
 				hostData))
 
 		args = append(args, "-object",
@@ -278,7 +273,6 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
-	cfg.EnableSEV = SEVEnabledOnHost()
 	cfg.EnableSEVSNP = SEVSNPEnabledOnHost()
 	cfg.EnableTDX = TDXEnabledOnHost()
 
