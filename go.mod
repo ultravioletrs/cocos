@@ -11,7 +11,7 @@ require (
 	github.com/go-kit/kit v0.13.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-sev-guest v0.13.0
-	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843 // indirect
+	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843
 	github.com/mdlayher/vsock v1.2.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6

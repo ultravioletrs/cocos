@@ -58,7 +58,6 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			binaryBehavior: "success",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEV:    false,
 					EnableSEVSNP: true,
 					SMPCount:     2,
 					CPU:          "EPYC",

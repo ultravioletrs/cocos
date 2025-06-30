@@ -61,7 +61,7 @@ func (v *qemuVM) Start() (err error) {
 	}
 
 	v.vmi.Config.NetDevConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.NetDevConfig.ID, id)
-	v.vmi.Config.SEVConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SEVConfig.ID, id)
+	v.vmi.Config.SEVSNPConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.SEVSNPConfig.ID, id)
 	v.vmi.Config.TDXConfig.ID = fmt.Sprintf("%s-%s", v.vmi.Config.TDXConfig.ID, id)
 
 	if !v.vmi.Config.EnableSEVSNP && !v.vmi.Config.EnableTDX {
@@ -200,27 +200,12 @@ func (v *qemuVM) GetConfig() interface{} {
 	return v.vmi
 }
 
-func SEVEnabled(cpuinfo string, sevPresent bool) bool {
-	return strings.Contains(cpuinfo, "sev") && sevPresent
-}
-
 func SEVSNPEnabled(cpuinfo, kernelParam string) bool {
 	return strings.Contains(cpuinfo, "sev_snp") && strings.TrimSpace(kernelParam) == "Y"
 }
 
 func TDXEnabled(cpuinfo, kernelParam string) bool {
 	return strings.Contains(cpuinfo, "tdx_host_platform") && strings.TrimSpace(kernelParam) == "Y"
-}
-
-// Checks if SEV is supported and usable by verifying both CPU flags and the /dev/sev device.
-func SEVEnabledOnHost() bool {
-	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
-	if err != nil {
-		return false
-	}
-
-	_, err = os.Stat("/dev/sev")
-	return SEVEnabled(string(cpuinfo), err == nil)
 }
 
 func SEVSNPEnabledOnHost() bool {

@@ -162,20 +162,6 @@ func TestGetConfig(t *testing.T) {
 	assert.Equal(t, expectedConfig, config)
 }
 
-func TestSEVEnabled(t *testing.T) {
-	t.Run("cpuinfo contains sev and device exists", func(t *testing.T) {
-		assert.True(t, SEVEnabled("flags: xyz sev abc", true))
-	})
-
-	t.Run("cpuinfo missing sev", func(t *testing.T) {
-		assert.False(t, SEVEnabled("flags: xyz abc", true))
-	})
-
-	t.Run("device does not exist", func(t *testing.T) {
-		assert.False(t, SEVEnabled("flags: sev abc", false))
-	})
-}
-
 func TestSEVSNPEnabled(t *testing.T) {
 	t.Run("cpuinfo and kvm param correct", func(t *testing.T) {
 		assert.True(t, SEVSNPEnabled("flags: sev_snp abc", "Y"))
