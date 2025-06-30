@@ -25,16 +25,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var MaaURL = "https://sharedeus2.eus2.attest.azure.net"
+var (
+	MaaURL             = "https://sharedeus2.eus2.attest.azure.net"
+	ErrFetchAzureToken = errors.New("failed to fetch Azure token")
+)
 
-var _ attestation.Provider = (*provider)(nil)
+var (
+	_ attestation.Provider = (*provider)(nil)
+	_ attestation.Verifier = (*verifier)(nil)
+)
 
-type provider struct {
-	writer io.Writer
-}
+type provider struct{}
 
-func New(writer io.Writer) attestation.Provider {
-	return provider{writer: writer}
+func NewProvider() attestation.Provider {
+	return provider{}
 }
 
 func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
@@ -84,20 +88,56 @@ func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	return proto.Marshal(quote)
 }
 
-func (a provider) VerifTeeAttestation(report []byte, teeNonce []byte) error {
+func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	quote, err := FetchAzureAttestationToken(tokenNonce, MaaURL)
+	if err != nil {
+		return nil, errors.Wrap(ErrFetchAzureToken, err)
+	}
+
+	return quote, nil
+}
+
+type verifier struct {
+	writer io.Writer
+	Policy *attestation.Config
+}
+
+func NewVerifier(writer io.Writer) attestation.Verifier {
+	policy := &attestation.Config{
+		Config:    &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}},
+		PcrConfig: &attestation.PcrConfig{},
+	}
+
+	return verifier{
+		writer: writer,
+		Policy: policy,
+	}
+}
+
+func NewVerifierWithPolicy(writer io.Writer, policy *attestation.Config) attestation.Verifier {
+	if policy == nil {
+		return NewVerifier(writer)
+	}
+	return verifier{
+		writer: writer,
+		Policy: policy,
+	}
+}
+
+func (a verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 	attestationReport, err := abi.ReportCertsToProto(report)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
 	}
 
-	return quoteprovider.VerifyAttestationReportTLS(attestationReport, teeNonce)
+	return quoteprovider.VerifyAttestationReportTLS(attestationReport, teeNonce, a.Policy)
 }
 
-func (a provider) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer)
+func (a verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
+	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer, a.Policy)
 }
 
-func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+func (a verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
 
@@ -108,20 +148,15 @@ func (a provider) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	}
 
 	snpReport := quote.GetSevSnpAttestation()
-	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, nil); err != nil {
+	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, nil, a.Policy); err != nil {
 		return fmt.Errorf("failed to verify vTPM attestation report: %w", err)
 	}
 
 	return nil
 }
 
-func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := FetchAzureAttestationToken(tokenNonce, MaaURL)
-	if err != nil {
-		return nil, errors.Wrap(vtpm.ErrFetchAzureToken, err)
-	}
-
-	return quote, nil
+func (a verifier) JSONToPolicy(path string) error {
+	return vtpm.ReadPolicy(path, a.Policy)
 }
 
 func GenerateAttestationPolicy(token, product string, policy uint64) (*attestation.Config, error) {

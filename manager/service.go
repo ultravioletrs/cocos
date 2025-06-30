@@ -3,8 +3,6 @@
 package manager
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -23,7 +21,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -161,23 +159,14 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
-		var stderrBuffer bytes.Buffer
-		options := []string{"--policy", "196608"}
-
-		if ms.pcrValuesFilePath != "" {
-			pcrValues := []string{"--pcr", ms.pcrValuesFilePath}
-			options = append(options, pcrValues...)
-		}
-
-		stderr := bufio.NewWriter(&stderrBuffer)
-
-		attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr)
+		attestPolicyCmd, err := fetchSNPAttestationPolicy(ms)
 		if err != nil {
 			return "", id, err
 		}
 
+		var stdOutByte []byte
 		ms.ap.Lock()
-		stdOutByte, err := attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
+		stdOutByte, err = attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
 		ms.ap.Unlock()
 		if err != nil {
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
@@ -185,7 +174,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 
 		attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-		if err = attestation.ReadAttestationPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
+		if err = vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
 			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 

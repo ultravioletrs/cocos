@@ -4,19 +4,16 @@ package cli
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"
@@ -25,25 +22,14 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
-	defaultMinimumTcb         = 0
-	defaultMinimumLaunchTcb   = 0
-	defaultMinimumGuestSvn    = 0
-	defaultGuestPolicy        = 0x0000000000030000
-	defaultMinimumBuild       = 0
-	defaultCheckCrl           = false
-	defaultTimeout            = 2 * time.Minute
-	defaultMaxRetryDelay      = 30 * time.Second
-	defaultRequireAuthor      = false
-	defaultRequireIdBlock     = false
-	defaultMinVersion         = "0.0"
+	size8                     = 8
 	size16                    = 16
 	size32                    = 32
 	size48                    = 48
@@ -51,77 +37,19 @@ const (
 	attestationFilePath       = "attestation.bin"
 	azureAttestResultFilePath = "azure_attest_result.json"
 	azureAttestTokenFilePath  = "azure_attest_token.jwt"
-	vtpmFilePath              = "../quote.dat"
-	attestationReportJson     = "attestation.json"
-	sevProductNameMilan       = "Milan"
-	sevProductNameGenoa       = "Genoa"
-	FormatBinaryPB            = "binarypb"
-	FormatTextProto           = "textproto"
-	exampleJSONConfig         = `
-	{
-		"rootOfTrust":{
-		   "product":"test_product",
-		   "cabundlePaths":[
-			  "test_cabundlePaths"
-		   ],
-		   "cabundles":[
-			  "test_Cabundles"
-		   ],
-		   "checkCrl":true,
-		   "disallowNetwork":true
-		},
-		"policy":{
-		   "minimumGuestSvn":1,
-		   "policy":"1",
-		   "familyId":"AQIDBAUGBwgJCgsMDQ4PEA==",
-		   "imageId":"AQIDBAUGBwgJCgsMDQ4PEA==",
-		   "vmpl":0,
-		   "minimumTcb":"1",
-		   "minimumLaunchTcb":"1",
-		   "platformInfo":"1",
-		   "requireAuthorKey":true,
-		   "reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
-		   "measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4",
-		   "hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		   "reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		   "reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		   "chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
-		   "minimumBuild":1,
-		   "minimumVersion":"0.90",
-		   "permitProvisionalFirmware":true,
-		   "requireIdBlock":true,
-		   "trustedAuthorKeys":[
-			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		   ],
-		   "trustedAuthorKeyHashes":[
-			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		   ],
-		   "trustedIdKeys":[
-			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		   ],
-		   "trustedIdKeyHashes":[
-			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		   ],
-		   "product":{
-			  "name":"SEV_PRODUCT_MILAN",
-			  "stepping":1,
-			  "machineStepping":1
-		   }
-		}
-	}
-	`
-	SNP        = "snp"
-	VTPM       = "vtpm"
-	SNPvTPM    = "snp-vtpm"
-	AzureToken = "azure-token"
-	CCNone     = "none"
-	CCAzure    = "azure"
-	CCGCP      = "gcp"
+	TEE                       = "tee"
+	SNP                       = "snp"
+	VTPM                      = "vtpm"
+	SNPvTPM                   = "snp-vtpm"
+	AzureToken                = "azure-token"
+	CCNone                    = "none"
+	CCAzure                   = "azure"
+	CCGCP                     = "gcp"
+	TDX                       = "tdx"
 )
 
 var (
 	mode                          string
-	cfg                           = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 	cfgString                     string
 	timeout                       time.Duration
 	maxRetryDelay                 time.Duration
@@ -132,7 +60,6 @@ var (
 	trustedIdKeys                 []string
 	trustedIdKeyHashes            []string
 	attestationFile               string
-	tpmAttestationFile            string
 	attestationRaw                []byte
 	empty16                       = [size16]byte{}
 	empty32                       = [size32]byte{}
@@ -148,6 +75,8 @@ var (
 	getTextProtoAttestationReport bool
 	getAzureTokenJWT              bool
 	cloud                         string
+	reportData                    []byte
+	checkCrl                      bool
 )
 
 var errEmptyFile = errors.New("input file is empty")
@@ -185,13 +114,14 @@ func (cli *CLI) NewAttestationCmd() *cobra.Command {
 func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:       "get",
-		Short:     "Retrieve attestation information from agent. The argument of the command must be the type of the report (snp or vtpm or snp-vtpm).",
-		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM, AzureToken},
+		Short:     "Retrieve attestation information from agent. The argument of the command must be the type of the report (snp or vtpm or snp-vtpm or tdx).",
+		ValidArgs: []cobra.Completion{SNP, VTPM, SNPvTPM, AzureToken, TDX},
 		Example: fmt.Sprintf(`Based on attestation report type:
 		get %s --tee <512 bit hex value>
 		get %s --vtpm <256 bit hex value>
 		get %s --tee <512 bit hex value> --vtpm <256 bit hex value>
-		get %s --token <256 bit hex value>`, SNP, VTPM, SNPvTPM, AzureToken),
+		get %s --token <256 bit hex value>
+		get %s --tee <512 bit hex value>`, SNP, VTPM, SNPvTPM, AzureToken, TDX),
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
@@ -219,6 +149,9 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			case AzureToken:
 				cmd.Println("Fetching Azure token")
 				attType = attestation.AzureToken
+			case TDX:
+				cmd.Println("Fetching TDX attestation report")
+				attType = attestation.TDX
 			}
 
 			if (attType == attestation.VTPM || attType == attestation.SNPvTPM) && len(nonce) == 0 {
@@ -352,7 +285,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&getAzureTokenJWT, "azurejwt", "t", false, "Get azure attestation token as jwt format")
 	cmd.Flags().BoolVarP(&getTextProtoAttestationReport, "reporttextproto", "r", false, "Get attestation report in textproto format")
-	cmd.Flags().BytesHexVar(&teeNonce, "tee", []byte{}, "Define the nonce for the SNP attestation report (must be used with attestation type snp and snp-vtpm)")
+	cmd.Flags().BytesHexVar(&teeNonce, "tee", []byte{}, "Define the nonce for the SNP and TDX attestation report (must be used with attestation type snp, snp-vtpm, and tdx)")
 	cmd.Flags().BytesHexVar(&nonce, "vtpm", []byte{}, "Define the nonce for the vTPM attestation report (must be used with attestation type vtpm and snp-vtpm)")
 	cmd.Flags().BytesHexVar(&tokenNonce, "token", []byte{}, "Define the nonce for the Azure attestation token (must be used with attestation type azure-token)")
 
@@ -387,12 +320,13 @@ func isFileJSON(filename string) bool {
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
-		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 3 modes: %s, %s and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, SNP),
+		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 4 modes: %s, %s, %s, and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, TDX, SNP),
 		Example: `Based on mode:
 		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> --platform <cc platform> //default
 		validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
 		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
+		validate --mode tdx <attestationreportfilepath> --report_data <reportdata>
 		validate --cloud none --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
 		validate --cloud azure --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
 		validate --cloud gcp --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
@@ -437,6 +371,10 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				if err := cmd.MarkFlagRequired("output"); err != nil {
 					return fmt.Errorf("failed to mark 'output' as required for %s mode: %v", VTPM, err)
 				}
+			case TDX:
+				if err := cmd.MarkFlagRequired("report_data"); err != nil {
+					return fmt.Errorf("failed to mark 'report_data' as required for %s mode: %v", TDX, err)
+				}
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
 			}
@@ -454,25 +392,38 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 				defer closer.Close()
 			}
 
-			var provider attestation.Provider
+			var verifier attestation.Verifier
 			switch cloud {
 			case CCNone:
-				provider = vtpm.New(nil, false, 0, output)
+				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			case CCAzure:
-				provider = azure.New(output)
+				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
+				verifier = azure.NewVerifierWithPolicy(output, &policy)
 			case CCGCP:
-				provider = vtpm.New(nil, false, 0, output)
+				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			default:
-				provider = vtpm.New(nil, false, 0, output)
+				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
+				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
 			}
 
 			switch mode {
 			case SNP:
-				return sevsnpverify(cmd, provider, args)
+				cfg.Policy.ReportData = reportData
+				return sevsnpverify(cmd, verifier, args)
 			case SNPvTPM:
-				return vtpmSevSnpverify(args, provider)
+				cfg.Policy.ReportData = reportData
+				return vtpmSevSnpverify(args, verifier)
 			case VTPM:
-				return vtpmverify(args, provider)
+				cfg.Policy.ReportData = reportData
+				return vtpmverify(args, verifier)
+			case TDX:
+				if err := validateTDXFlags(); err != nil {
+					return fmt.Errorf("failed to verify TDX validation flags: %v ❌ ", err)
+				}
+				verifier = tdx.NewVerifierWithPolicy(cfgTDX)
+				return tdxVerify(args[0], verifier)
 			default:
 				return fmt.Errorf("unknown mode: %s", mode)
 			}
@@ -516,181 +467,21 @@ func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
 		"output file",
 	)
 
-	// SEV-SNP FLAGS
 	cmd.Flags().StringVar(
 		&cfgString,
 		"config",
 		"",
-		"Serialized json check.Config protobuf. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
+		"Path to the serialized json check.Config protobuf file. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
 	)
 	cmd.Flags().BytesHexVar(
-		&cfg.Policy.HostData,
-		"host_data",
-		empty32[:],
-		"The expected HOST_DATA field as a hex string. Must encode 32 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.ReportData,
+		&reportData,
 		"report_data",
 		empty64[:],
 		"The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.",
 	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.FamilyId,
-		"family_id",
-		empty16[:],
-		"The expected FAMILY_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.ImageId,
-		"image_id",
-		empty16[:],
-		"The expected IMAGE_ID field as a hex string. Must encode 16 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.ReportId,
-		"report_id",
-		nil,
-		"The expected REPORT_ID field as a hex string. Must encode 32 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.ReportIdMa,
-		"report_id_ma",
-		defaultReportIdMa,
-		"The expected REPORT_ID_MA field as a hex string. Must encode 32 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.Measurement,
-		"measurement",
-		nil,
-		"The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().BytesHexVar(
-		&cfg.Policy.ChipId,
-		"chip_id",
-		nil,
-		"The expected MEASUREMENT field as a hex string. Must encode 48 bytes. Unchecked if unset.",
-	)
-	cmd.Flags().Uint64Var(
-		&cfg.Policy.MinimumTcb,
-		"minimum_tcb",
-		defaultMinimumTcb,
-		"The minimum acceptable value for CURRENT_TCB, COMMITTED_TCB, and REPORTED_TCB.",
-	)
-	cmd.Flags().Uint64Var(
-		&cfg.Policy.MinimumLaunchTcb,
-		"minimum_lauch_tcb",
-		defaultMinimumLaunchTcb,
-		"The minimum acceptable value for LAUNCH_TCB.",
-	)
-	cmd.Flags().Uint64Var(
-		&cfg.Policy.Policy,
-		"guest_policy",
-		defaultGuestPolicy,
-		"The most acceptable guest SnpPolicy.",
-	)
-	cmd.Flags().Uint32Var(
-		&cfg.Policy.MinimumGuestSvn,
-		"minimum_guest_svn",
-		defaultMinimumGuestSvn,
-		"The most acceptable GUEST_SVN.",
-	)
-	cmd.Flags().Uint32Var(
-		&cfg.Policy.MinimumBuild,
-		"minimum_build",
-		defaultMinimumBuild,
-		"The 8-bit minimum build number for AMD-SP firmware",
-	)
-	cmd.Flags().BoolVar(
-		&cfg.RootOfTrust.CheckCrl,
-		"check_crl",
-		defaultCheckCrl,
-		"Download and check the CRL for revoked certificates.",
-	)
-	cmd.Flags().DurationVar(
-		&timeout,
-		"timeout",
-		defaultTimeout,
-		"Duration to continue to retry failed HTTP requests.",
-	)
-	cmd.Flags().DurationVar(
-		&maxRetryDelay,
-		"max_retry_delay",
-		defaultMaxRetryDelay,
-		"Maximum Duration to wait between HTTP request retries.",
-	)
-	cmd.Flags().BoolVar(
-		&cfg.Policy.RequireAuthorKey,
-		"require_author_key",
-		defaultRequireAuthor,
-		"Require that AUTHOR_KEY_EN is 1.",
-	)
-	cmd.Flags().BoolVar(
-		&cfg.Policy.RequireIdBlock,
-		"require_id_block",
-		defaultRequireIdBlock,
-		"Require that the VM was launch with an ID_BLOCK signed by a trusted id key or author key",
-	)
-	cmd.Flags().StringVar(
-		&platformInfo,
-		"platform_info",
-		"",
-		"The maximum acceptable PLATFORM_INFO field bit-wise. May be empty or a 64-bit unsigned integer",
-	)
-	cmd.Flags().StringVar(
-		&cfg.Policy.MinimumVersion,
-		"minimum_version",
-		defaultMinVersion,
-		"Minimum AMD-SP firmware API version (major.minor). Each number must be 8-bit non-negative.",
-	)
-	cmd.Flags().StringArrayVar(
-		&trustedAuthorKeys,
-		"trusted_author_keys",
-		[]string{},
-		"Paths to x.509 certificates of trusted author keys",
-	)
-	cmd.Flags().StringArrayVar(
-		&trustedAuthorHashes,
-		"trusted_author_key_hashes",
-		[]string{},
-		"Hex-encoded SHA-384 hash values of trusted author keys in AMD public key format",
-	)
-	cmd.Flags().StringArrayVar(
-		&trustedIdKeys,
-		"trusted_id_keys",
-		[]string{},
-		"Paths to x.509 certificates of trusted author keys",
-	)
-	cmd.Flags().StringArrayVar(
-		&trustedIdKeyHashes,
-		"trusted_id_key_hashes",
-		[]string{},
-		"Hex-encoded SHA-384 hash values of trusted identity keys in AMD public key format",
-	)
-	cmd.Flags().StringVar(
-		&cfg.RootOfTrust.ProductLine,
-		"product",
-		"",
-		"The AMD product name for the chip that generated the attestation report.",
-	)
-	cmd.Flags().StringVar(
-		&stepping,
-		"stepping",
-		"",
-		"The machine stepping for the chip that generated the attestation report. Default unchecked.",
-	)
-	cmd.Flags().StringArrayVar(
-		&cfg.RootOfTrust.CabundlePaths,
-		"CA_bundles_paths",
-		[]string{},
-		"Paths to CA bundles for the AMD product. Must be in PEM format, ASK, then ARK certificates. If unset, uses embedded root certificates.",
-	)
-	cmd.Flags().StringArrayVar(
-		&cfg.RootOfTrust.Cabundles,
-		"CA_bundles",
-		[]string{},
-		"PEM format CA bundles for the AMD product. Combined with contents of cabundle_paths.",
-	)
+
+	cmd = addSEVSNPVerificationOptions(cmd)
+	cmd = addTDXVerificationOptions(cmd)
 
 	return cmd
 }
@@ -733,130 +524,11 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 	return igvmmeasureCmd
 }
 
-func sevsnpverify(cmd *cobra.Command, provider attestation.Provider, args []string) error {
-	cmd.Println("Checking attestation")
-
-	attestationFile = string(args[0])
-	if err := parseAttestationFile(); err != nil {
-		return fmt.Errorf("error parsing config: %v ❌ ", err)
-	}
-
-	// This format is the attestation report in AMD's specified ABI format, immediately
-	// followed by the certificate table bytes.
-	if len(attestationRaw) < abi.ReportSize {
-		return fmt.Errorf("attestation too small: got 0x%x bytes, need at least 0x%x bytes", len(attestationRaw), abi.ReportSize)
-	}
-
-	if err := parseAttestationConfig(); err != nil {
-		return err
-	}
-
-	// Used for verification of SNP attestation report
-	attestation.AttestationPolicy.Config = &cfg
-
-	if err := provider.VerifTeeAttestation(attestationRaw, cfg.Policy.ReportData); err != nil {
-		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
-	}
-
-	cmd.Println("Attestation validation and verification is successful!")
-	return nil
-}
-
-func parseAttestationConfig() error {
-	if err := parseConfig(); err != nil {
-		return fmt.Errorf("error parsing config: %v ❌ ", err)
-	}
-	if err := parseHashes(); err != nil {
-		return fmt.Errorf("error parsing hashes: %v ❌ ", err)
-	}
-	if err := parseTrustedKeys(); err != nil {
-		return fmt.Errorf("error parsing files: %v ❌ ", err)
-	}
-
-	if err := parseUints(); err != nil {
-		return fmt.Errorf("error parsing uints: %v ❌ ", err)
-	}
-
-	if err := validateInput(); err != nil {
-		return fmt.Errorf("error validating input: %v ❌ ", err)
-	}
-
-	return nil
-}
-
-func vtpmSevSnpverify(args []string, provider attestation.Provider) error {
-	attest, err := returnvTPMAttestation(args)
-	if err != nil {
-		return err
-	}
-
-	if err := parseAttestationConfig(); err != nil {
-		return err
-	}
-
-	// Used for verification of SNP attestation report
-	attestation.AttestationPolicy.Config = &cfg
-
-	if err := provider.VerifyAttestation(attest, cfg.Policy.ReportData, nonce); err != nil {
-		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
-	}
-
-	return nil
-}
-
-func vtpmverify(args []string, provider attestation.Provider) error {
-	attestation, err := returnvTPMAttestation(args)
-	if err != nil {
-		return err
-	}
-
-	if err := provider.VerifVTpmAttestation(attestation, nonce); err != nil {
-		return fmt.Errorf("attestation validation and verification failed with error: %v ❌ ", err)
-	}
-
-	return nil
-}
-
-func returnvTPMAttestation(args []string) ([]byte, error) {
-	tpmAttestationFile = string(args[0])
-	input, err := openInputFile()
-	if err != nil {
-		return nil, err
-	}
-	if closer, ok := input.(*os.File); ok {
-		defer closer.Close()
-	}
-	attestationBytes, err := io.ReadAll(input)
-	if err != nil {
-		return nil, err
-	}
-	attestation := &tpmAttest.Attestation{}
-
-	if format == FormatBinaryPB {
-		return attestationBytes, nil
-	} else if format == FormatTextProto {
-		unmarshalOptions := prototext.UnmarshalOptions{}
-		err = unmarshalOptions.Unmarshal(attestationBytes, attestation)
-	} else {
-		return nil, fmt.Errorf("format should be either binarypb or textproto")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("fail to unmarshal attestation report: %v", err)
-	}
-
-	attestationBytes, err = proto.Marshal(attestation)
-	if err != nil {
-		return nil, fmt.Errorf("fail to marshal vTPM attestation report: %v", err)
-	}
-
-	return attestationBytes, nil
-}
-
 func openInputFile() (io.Reader, error) {
-	if tpmAttestationFile == "" {
+	if attestationFile == "" {
 		return nil, errEmptyFile
 	}
-	return os.Open(tpmAttestationFile)
+	return os.Open(attestationFile)
 }
 
 func createOutputFile() (io.Writer, error) {
@@ -864,217 +536,6 @@ func createOutputFile() (io.Writer, error) {
 		return os.Stdout, nil
 	}
 	return os.Create(output)
-}
-
-// parseConfig decodes config passed as json for check.Config struct.
-// example
-/* {
-	"rootOfTrust":{
-		"product":"test_product",
-		"cabundlePaths":[
-		   "test_cabundlePaths"
-		],
-		"cabundles":[
-		   "test_Cabundles"
-		],
-		"checkCrl":true,
-		"disallowNetwork":true
-	 },
-	 "policy":{
-		"minimumGuestSvn":1,
-		"policy":"1",
-		"familyId":"AQIDBAUGBwgJCgsMDQ4PEA==",
-		"imageId":"AQIDBAUGBwgJCgsMDQ4PEA==",
-		"vmpl":0,
-		"minimumTcb":"1",
-		"minimumLaunchTcb":"1",
-		"platformInfo":"1",
-		"requireAuthorKey":true,
-		"reportData":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
-		"measurement":"8s78ewoX7Xkfy1qsgVnkZwLDotD768Nqt6qTL5wtQOxHsLczipKM6bhDmWiHLdP4",
-		"hostData":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		"reportId":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		"reportIdMa":"GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw=",
-		"chipId":"J+60aXs8btm8VcGgaJYURGeNCu0FIyWMFXQ7ZUlJDC0FJGJizJsOzDIXgQ75UtPC+Zqe0A3dvnnf5VEeQ61RTg==",
-		"minimumBuild":1,
-		"minimumVersion":"0.90",
-		"permitProvisionalFirmware":true,
-		"requireIdBlock":true,
-		"trustedAuthorKeys":[
-		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		],
-		"trustedAuthorKeyHashes":[
-		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		],
-		"trustedIdKeys":[
-		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		],
-		"trustedIdKeyHashes":[
-		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
-		],
-		"product":{
-		   "name":"SEV_PRODUCT_MILAN",
-		   "stepping":1,
-		   "machineStepping":1
-		}
-	 }
-  }*/
-func parseConfig() error {
-	if cfgString == "" {
-		return nil
-	}
-	if err := protojson.Unmarshal([]byte(cfgString), &cfg); err != nil {
-		return err
-	}
-	// Populate fields that should not be nil
-	if cfg.RootOfTrust == nil {
-		cfg.RootOfTrust = &check.RootOfTrust{}
-	}
-	if cfg.Policy == nil {
-		cfg.Policy = &check.Policy{}
-	}
-	return nil
-}
-
-func parseHashes() error {
-	for _, hash := range trustedAuthorHashes {
-		hashBytes, err := hex.DecodeString(hash)
-		if err != nil {
-			return err
-		}
-		cfg.Policy.TrustedAuthorKeyHashes = append(cfg.Policy.TrustedAuthorKeyHashes, hashBytes)
-	}
-	for _, hash := range trustedIdKeyHashes {
-		hashBytes, err := hex.DecodeString(hash)
-		if err != nil {
-			return err
-		}
-		cfg.Policy.TrustedIdKeyHashes = append(cfg.Policy.TrustedIdKeyHashes, hashBytes)
-	}
-	return nil
-}
-
-func parseAttestationFile() error {
-	file, err := os.ReadFile(attestationFile)
-	if err != nil {
-		return err
-	}
-	attestationRaw = file
-	if isFileJSON(attestationFile) {
-		attestationRaw, err = attesationFromJSON(attestationRaw)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func parseTrustedKeys() error {
-	for _, path := range trustedAuthorKeys {
-		file, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		cfg.Policy.TrustedAuthorKeys = append(cfg.Policy.TrustedAuthorKeys, file)
-	}
-	for _, path := range trustedIdKeys {
-		file, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		cfg.Policy.TrustedIdKeys = append(cfg.Policy.TrustedIdKeys, file)
-	}
-	return nil
-}
-
-func parseUints() error {
-	if stepping != "" {
-		if base := getBase(stepping); base == 10 {
-			num, err := strconv.ParseUint(stepping, getBase(stepping), 8)
-			if err != nil {
-				return err
-			}
-			cfg.Policy.Product.MachineStepping = wrapperspb.UInt32(uint32(num))
-		} else {
-			num, err := strconv.ParseUint(stepping[2:], base, 8)
-			if err != nil {
-				return err
-			}
-			cfg.Policy.Product.MachineStepping = wrapperspb.UInt32(uint32(num))
-		}
-	}
-	if platformInfo != "" {
-		if base := getBase(platformInfo); base == 10 {
-			num, err := strconv.ParseUint(platformInfo, getBase(platformInfo), 8)
-			if err != nil {
-				return err
-			}
-			cfg.Policy.PlatformInfo = wrapperspb.UInt64(num)
-		} else {
-			num, err := strconv.ParseUint(platformInfo[2:], base, 8)
-			if err != nil {
-				return err
-			}
-			cfg.Policy.PlatformInfo = wrapperspb.UInt64(num)
-		}
-	}
-	return nil
-}
-
-func getBase(val string) int {
-	switch {
-	case strings.HasPrefix(val, "0x"):
-		return 16
-	case strings.HasPrefix(val, "0o"):
-		return 8
-	case strings.HasPrefix(val, "0b"):
-		return 2
-	default:
-		return 10
-	}
-}
-
-func validateInput() error {
-	if len(cfg.RootOfTrust.CabundlePaths) != 0 || len(cfg.RootOfTrust.Cabundles) != 0 && cfg.RootOfTrust.ProductLine == "" {
-		return fmt.Errorf("product name must be set if CA bundles are provided")
-	}
-
-	if err := validateFieldLength("report_data", cfg.Policy.ReportData, size64); err != nil {
-		return err
-	}
-	if err := validateFieldLength("host_data", cfg.Policy.HostData, size32); err != nil {
-		return err
-	}
-	if err := validateFieldLength("family_id", cfg.Policy.FamilyId, size16); err != nil {
-		return err
-	}
-	if err := validateFieldLength("image_id", cfg.Policy.ImageId, size16); err != nil {
-		return err
-	}
-	if err := validateFieldLength("report_id", cfg.Policy.ReportId, size32); err != nil {
-		return err
-	}
-	if err := validateFieldLength("report_id_ma", cfg.Policy.ReportIdMa, size32); err != nil {
-		return err
-	}
-	if err := validateFieldLength("measurement", cfg.Policy.Measurement, size48); err != nil {
-		return err
-	}
-	if err := validateFieldLength("chip_id", cfg.Policy.ChipId, size64); err != nil {
-		return err
-	}
-	for _, hash := range cfg.Policy.TrustedAuthorKeyHashes {
-		if err := validateFieldLength("trusted_author_key_hash", hash, size48); err != nil {
-			return err
-		}
-	}
-	for _, hash := range cfg.Policy.TrustedIdKeyHashes {
-		if err := validateFieldLength("trusted_id_key_hash", hash, size48); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func validateFieldLength(fieldName string, field []byte, expectedLength int) error {

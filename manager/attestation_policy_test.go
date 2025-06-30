@@ -53,22 +53,19 @@ func TestFetchAttestationPolicy(t *testing.T) {
 		expectedResult map[string]interface{}
 	}{
 		{
-			name:           "Valid SEV configuration",
-			computationId:  "sev-computation",
+			name:           "Valid SEV-SNP configuration",
+			computationId:  "sev-snp-computation",
 			binaryBehavior: "success",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEV:    true,
-					EnableSEVSNP: false,
+					EnableSEV:    false,
+					EnableSEVSNP: true,
 					SMPCount:     2,
 					CPU:          "EPYC",
-					OVMFCodeConfig: qemu.OVMFCodeConfig{
-						File: "/path/to/OVMF_CODE.fd",
-					},
 				},
 				LaunchTCB: 0,
 			},
-			expectedError: "open /path/to/OVMF_CODE.fd: no such file or directory",
+			expectedError: "pathToBinary cannot be empty",
 		},
 		{
 			name:           "Invalid computation ID",
@@ -90,7 +87,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			binaryBehavior: "fail",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEV: true,
+					EnableSEVSNP: true,
 				},
 				LaunchTCB: 0,
 			},
@@ -102,7 +99,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 			binaryBehavior: "no_json",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEV: true,
+					EnableSEVSNP: true,
 				},
 				LaunchTCB: 0,
 			},
