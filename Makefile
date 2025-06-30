@@ -16,7 +16,7 @@ IGVM_BUILD_SCRIPT := ./scripts/igvmmeasure/igvm.sh
 
 define compile_service
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
-	go build -ldflags "-linkmode external -extldflags '-static' -s -w \
+	go build -ldflags "-s -w \
 	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
 	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
 	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
