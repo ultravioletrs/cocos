@@ -67,3 +67,12 @@ func (ms *metricsMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, st
 
 	return ms.svc.ReturnCVMInfo(ctx)
 }
+
+func (ms *metricsMiddleware) Shutdown() error {
+	defer func(begin time.Time) {
+		ms.counter.With("method", "Shutdown").Add(1)
+		ms.latency.With("method", "Shutdown").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return ms.svc.Shutdown()
+}

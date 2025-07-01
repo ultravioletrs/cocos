@@ -116,12 +116,20 @@ func main() {
 		return
 	}
 
-	svc, err := newService(ctx, logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
+	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
 		return
 	}
+
+	defer func() {
+		if err := svc.Shutdown(); err != nil {
+			logger.Error(err.Error())
+			exitCode = 1
+			return
+		}
+	}()
 
 	registerManagerServiceServer := func(srv *grpc.Server) {
 		reflection.Register(srv)
@@ -143,8 +151,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(ctx, qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion)
 	if err != nil {
 		return nil, err
 	}
