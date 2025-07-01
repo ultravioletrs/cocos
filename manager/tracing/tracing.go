@@ -48,3 +48,10 @@ func (tm *tracingMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, st
 
 	return tm.svc.ReturnCVMInfo(ctx)
 }
+
+func (tm *tracingMiddleware) Shutdown() error {
+	_, span := tm.tracer.Start(context.Background(), "shutdown")
+	defer span.End()
+
+	return tm.svc.Shutdown()
+}

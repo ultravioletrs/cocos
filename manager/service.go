@@ -81,6 +81,8 @@ type Service interface {
 	FetchAttestationPolicy(ctx context.Context, computationID string) ([]byte, error)
 	// ReturnCVMInfo returns CVM information needed for attestation verification and validation.
 	ReturnCVMInfo(ctx context.Context) (string, int, string, string)
+	// Shutdown gracefully shuts down the service
+	Shutdown() error
 }
 
 type managerService struct {
@@ -97,13 +99,13 @@ type managerService struct {
 	portRangeMax                int
 	persistence                 qemu.Persistence
 	eosVersion                  string
-	ctx                         context.Context
+	ttlManager                  *TTLManager
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(ctx context.Context, cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -126,7 +128,7 @@ func New(ctx context.Context, cfg qemu.Config, attestationPolicyBinPath string, 
 		portRangeMax:                end,
 		persistence:                 persistence,
 		eosVersion:                  eosVersion,
-		ctx:                         ctx,
+		ttlManager:                  NewTTLManager(),
 	}
 
 	if err := ms.restoreVMs(); err != nil {
@@ -224,16 +226,13 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 			return "", id, err
 		}
 
-		go func() {
-			select {
-			case <-time.After(ttl):
-				if err := ms.RemoveVM(ctx, id); err != nil {
-					ms.logger.Error("Failed to remove VM after TTL", "error", err)
-				}
-			case <-ms.ctx.Done():
-				return
+		ms.ttlManager.SetTTL(id, ttl, func() { //nolint:contextcheck
+			if err := ms.RemoveVM(context.Background(), id); err != nil {
+				ms.logger.Error("Failed to remove VM after TTL expiry", "vmID", id, "error", err)
+			} else {
+				ms.logger.Info("Successfully removed VM after TTL expiry", "vmID", id)
 			}
-		}()
+		})
 	}
 
 	pid := cvm.GetProcess()
@@ -259,6 +258,9 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 func (ms *managerService) RemoveVM(ctx context.Context, computationID string) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
+
+	ms.ttlManager.CancelTTL(computationID)
+
 	cvm, ok := ms.vms[computationID]
 	if !ok {
 		return ErrNotFound
@@ -277,6 +279,20 @@ func (ms *managerService) RemoveVM(ctx context.Context, computationID string) er
 
 func (ms *managerService) ReturnCVMInfo(ctx context.Context) (string, int, string, string) {
 	return ms.qemuCfg.OVMFCodeConfig.Version, ms.qemuCfg.SMPCount, ms.qemuCfg.CPU, ms.eosVersion
+}
+
+// Shutdown gracefully shuts down the service.
+func (ms *managerService) Shutdown() error {
+	ms.logger.Info("Shutting down manager service")
+
+	ms.ttlManager.CancelAll()
+
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	ms.vms = make(map[string]vm.VM)
+
+	return nil
 }
 
 func getFreePort(minPort, maxPort int) (int, error) {
