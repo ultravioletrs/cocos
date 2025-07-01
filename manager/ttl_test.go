@@ -28,11 +28,14 @@ func TestNewTTLManager(t *testing.T) {
 func TestSetTTL_Basic(t *testing.T) {
 	tm := NewTTLManager()
 
+	mu := sync.Mutex{}
 	expired := false
 	vmID := "test-vm-1"
 	ttl := 50 * time.Millisecond
 
 	cancelFunc := tm.SetTTL(vmID, ttl, func() {
+		mu.Lock()
+		defer mu.Unlock()
 		expired = true
 	})
 
@@ -44,9 +47,11 @@ func TestSetTTL_Basic(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	mu.Lock()
 	if !expired {
 		t.Error("TTL did not expire as expected")
 	}
+	mu.Unlock()
 
 	cancelFunc()
 
@@ -87,6 +92,7 @@ func TestSetTTL_CancelBeforeExpiry(t *testing.T) {
 func TestSetTTL_OverwriteExistingTimer(t *testing.T) {
 	tm := NewTTLManager()
 
+	mu := sync.Mutex{}
 	firstExpired := false
 	secondExpired := false
 	vmID := "test-vm-3"
@@ -98,6 +104,8 @@ func TestSetTTL_OverwriteExistingTimer(t *testing.T) {
 
 	// Immediately overwrite with second TTL
 	tm.SetTTL(vmID, 50*time.Millisecond, func() {
+		mu.Lock()
+		defer mu.Unlock()
 		secondExpired = true
 	})
 
@@ -108,9 +116,11 @@ func TestSetTTL_OverwriteExistingTimer(t *testing.T) {
 		t.Error("First TTL should not have expired (it was overwritten)")
 	}
 
+	mu.Lock()
 	if !secondExpired {
 		t.Error("Second TTL should have expired")
 	}
+	mu.Unlock()
 
 	// Verify only one timer entry exists (or none after cleanup)
 	tm.mu.RLock()
@@ -290,32 +300,42 @@ func TestConcurrentAccess(t *testing.T) {
 func TestSetTTL_ZeroDuration(t *testing.T) {
 	tm := NewTTLManager()
 
+	mu := sync.Mutex{}
 	expired := false
 	vmID := "zero-duration-vm"
 
 	tm.SetTTL(vmID, 0, func() {
+		mu.Lock()
+		defer mu.Unlock()
 		expired = true
 	})
 
 	time.Sleep(10 * time.Millisecond)
 
+	mu.Lock()
 	if !expired {
 		t.Error("TTL with zero duration should expire immediately")
 	}
+	mu.Unlock()
 }
 
 func TestSetTTL_NegativeDuration(t *testing.T) {
 	tm := NewTTLManager()
 
+	mu := sync.Mutex{}
 	expired := false
 	vmID := "negative-duration-vm"
 
 	tm.SetTTL(vmID, -100*time.Millisecond, func() {
+		mu.Lock()
+		defer mu.Unlock()
 		expired = true
 	})
 
 	time.Sleep(10 * time.Millisecond)
 
+	mu.Lock()
+	defer mu.Unlock()
 	if !expired {
 		t.Error("TTL with negative duration should expire immediately")
 	}
