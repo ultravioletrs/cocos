@@ -165,6 +165,7 @@ func TestStop(t *testing.T) {
 				logger:      logger,
 				vms:         make(map[string]vm.VM),
 				persistence: persistence,
+				ttlManager:  NewTTLManager(),
 			}
 			vmMock := new(mocks.VM)
 
