@@ -300,3 +300,20 @@ func TestProcessExists(t *testing.T) {
 		assert.False(t, ms.processExists(1)) // PID 1 is usually the init process.
 	}
 }
+
+func TestShutdown(t *testing.T) {
+	ms := &managerService{
+		vms:        make(map[string]vm.VM),
+		ttlManager: NewTTLManager(),
+		logger:     mglog.NewMock(),
+	}
+
+	vmMock := new(mocks.VM)
+	vmMock.On("Stop").Return(nil).Once()
+	ms.vms["test-vm"] = vmMock
+
+	err := ms.Shutdown()
+	assert.NoError(t, err)
+
+	assert.Len(t, ms.vms, 0)
+}
