@@ -78,12 +78,16 @@ func (lm *loggingMiddleware) ReturnCVMInfo(ctx context.Context) (string, int, st
 
 func (lm *loggingMiddleware) Shutdown() (err error) {
 	defer func(begin time.Time) {
-		message := fmt.Sprintf("Method Shutdown took %s to complete", time.Since(begin))
 		if err != nil {
-			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			lm.logger.Warn("Method Shutdown completed with error", 
+				"time_taken", time.Since(begin), 
+				"error", err,
+			)
 			return
 		}
-		lm.logger.Info(message)
+		lm.logger.Info("Method Shutdown completed successfully", 
+			"time_taken", time.Since(begin),
+		)
 	}(time.Now())
 
 	return lm.svc.Shutdown()
