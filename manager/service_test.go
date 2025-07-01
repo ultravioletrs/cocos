@@ -47,24 +47,35 @@ func TestRun(t *testing.T) {
 		binaryBehavior string
 		vmStartError   error
 		expectedError  error
+		ttl            string
 	}{
 		{
 			name:           "Successful run",
 			binaryBehavior: "success",
 			vmStartError:   nil,
 			expectedError:  nil,
+			ttl:            "",
 		},
 		{
 			name:           "VM start failure",
 			binaryBehavior: "success",
 			vmStartError:   assert.AnError,
 			expectedError:  assert.AnError,
+			ttl:            "",
 		},
 		{
 			name:           "Invalid attestation policy",
 			binaryBehavior: "fail",
 			vmStartError:   nil,
 			expectedError:  ErrFailedToCreateAttestationPolicy,
+			ttl:            "",
+		},
+		{
+			name:           "With TTL",
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  nil,
+			ttl:            "10s",
 		},
 	}
 
@@ -101,11 +112,12 @@ func TestRun(t *testing.T) {
 				vms:                         make(map[string]vm.VM),
 				vmFactory:                   vmf.Execute,
 				persistence:                 persistence,
+				ttlManager:                  NewTTLManager(),
 			}
 
 			ctx := context.Background()
 
-			port, _, err := ms.CreateVM(ctx, &CreateReq{})
+			port, _, err := ms.CreateVM(ctx, &CreateReq{Ttl: tt.ttl})
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
