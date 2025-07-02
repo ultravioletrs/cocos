@@ -176,6 +176,35 @@ func (sdk *agentSDK) AttestationResult(ctx context.Context, nonce [size32]byte, 
 	return nil
 }
 
+func (sdk *agentSDK) IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error) {
+	request := &agent.IMAMeasurementsRequest{}
+
+	stream, err := sdk.client.IMAMeasurements(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	incomingmd, err := stream.Header()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
+
+	if len(fileSizeStr) == 0 {
+		fileSizeStr = append(fileSizeStr, "0")
+	}
+
+	fileSize, err := strconv.Atoi(fileSizeStr[0])
+	if err != nil {
+		return nil, err
+	}
+
+	pb := progressbar.New(true)
+
+	return pb.ReceiveIMAMeasurements(imaMeasurementsProgressDescription, fileSize, stream, resultFile)
+}
+
 func signData(userID string, privKey crypto.Signer) ([]byte, error) {
 	var signature []byte
 	var err error
@@ -207,33 +236,4 @@ func generateMetadata(userID string, privateKey crypto.PrivateKey) (metadata.MD,
 	kv[auth.UserMetadataKey] = userID
 	kv[auth.SignatureMetadataKey] = base64.StdEncoding.EncodeToString(signature)
 	return metadata.New(kv), nil
-}
-
-func (sdk *agentSDK) IMAMeasurements(ctx context.Context, resultFile *os.File) ([]byte, error) {
-	request := &agent.IMAMeasurementsRequest{}
-
-	stream, err := sdk.client.IMAMeasurements(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	incomingmd, err := stream.Header()
-	if err != nil {
-		return nil, err
-	}
-
-	fileSizeStr := incomingmd.Get(grpc.FileSizeKey)
-
-	if len(fileSizeStr) == 0 {
-		fileSizeStr = append(fileSizeStr, "0")
-	}
-
-	fileSize, err := strconv.Atoi(fileSizeStr[0])
-	if err != nil {
-		return nil, err
-	}
-
-	pb := progressbar.New(true)
-
-	return pb.ReceiveIMAMeasurements(imaMeasurementsProgressDescription, fileSize, stream, resultFile)
 }
