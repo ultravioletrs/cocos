@@ -158,7 +158,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.CertsMount = tmpCertsDir
 	cfg.Config.EnvMount = tmpEnvDir
 
-	if ms.qemuCfg.EnableSEVSNP || ms.qemuCfg.EnableSEV {
+	if ms.qemuCfg.EnableSEVSNP {
 		attestPolicyCmd, err := fetchSNPAttestationPolicy(ms)
 		if err != nil {
 			return "", id, err
@@ -207,7 +207,7 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	if cfg.Config.EnableSEVSNP {
 		todo := sha3.Sum256([]byte("TODO"))
 		// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
-		cfg.Config.SEVConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
+		cfg.Config.SEVSNPConfig.HostData = base64.StdEncoding.EncodeToString(todo[:])
 	}
 
 	cvm := ms.vmFactory(cfg, id, ms.logger)

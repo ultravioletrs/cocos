@@ -74,21 +74,18 @@ construct_qemu_args() {
     args+=("-device" "virtio-net-pci,disable-legacy=$VIRTIO_NET_PCI_DISABLE_LEGACY,iommu_platform=$VIRTIO_NET_PCI_IOMMU_PLATFORM,netdev=$NET_DEV_ID,addr=$VIRTIO_NET_PCI_ADDR,romfile=$VIRTIO_NET_PCI_ROMFILE")
     args+=("-device" "vhost-vsock-pci,id=$VSOCK_ID,guest-cid=$VSOCK_GUEST_CID")
 
-    # SEV (if enabled)
-    if [ "$ENABLE_SEV" == "true" ] || [ "$ENABLE_SEV_SNP" == "true" ]; then
-        sev_type="sev-guest"
+    # SEV_SNP (if enabled)
+    if [ "$ENABLE_SEV_SNP" == "true" ]; then
         kernel_hash=""
         host_data=""
 
-        args+=("-machine" "confidential-guest-support=$SEV_ID,memory-backend=$MEM_ID")
+        args+=("-machine" "confidential-guest-support=$SEV_SNP_ID,memory-backend=$MEM_ID")
 
-        if [ "$ENABLE_SEV_SNP" == "true" ]; then
-            args+=("-bios" "$OVMF_CODE_FILE")
-            sev_type="sev-snp-guest"
+        args+=("-bios" "$OVMF_CODE_FILE")
+        sev_snp_type="sev-snp-guest"
 
-            if [ -n "$SEV_HOST_DATA" ]; then
-                host_data=",host-data=$SEV_HOST_DATA"
-            fi
+        if [ -n "$SEV_SNP_HOST_DATA" ]; then
+            host_data=",host-data=$SEV_SNP_HOST_DATA"
         fi
 
         if [ "$ENABLE_KERNEL_HASH" == "true" ]; then
@@ -96,7 +93,7 @@ construct_qemu_args() {
         fi
 
         args+=("-object" "memory-backend-memfd,id=$MEM_ID,size=$MEMORY_SIZE,share=true,prealloc=false")
-        args+=("-object" "$sev_type,id=$SEV_ID,cbitpos=$SEV_CBIT_POS,reduced-phys-bits=$SEV_REDUCED_PHYS_BITS$kernel_hash$host_data")
+        args+=("-object" "$sev_snp_type,id=$SEV_SNP_ID,cbitpos=$SEV_SNP_CBIT_POS,reduced-phys-bits=$SEV_SNP_REDUCED_PHYS_BITS$kernel_hash$host_data")
     fi
 
     # Disk image configuration

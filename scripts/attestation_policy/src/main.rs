@@ -14,9 +14,9 @@ const SEV_FAMILY: u32 = 0xF;
 const MILAN_EXTENDED_MODEL: u32 = 0x0;
 const GENOA_EXTENDED_MODEL: u32 = 0x1;
 
-const SEV_PRODUCT_UNKNOWN: i32 = 0;
-const SEV_PRODUCT_MILAN: i32 = 1;
-const SEV_PRODUCT_GENOA: i32 = 2;
+const SEV_SNP_PRODUCT_UNKNOWN: i32 = 0;
+const SEV_SNP_PRODUCT_MILAN: i32 = 1;
+const SEV_SNP_PRODUCT_GENOA: i32 = 2;
 
 #[derive(Clone, Copy, Serialize)]
 struct SevProduct {
@@ -64,8 +64,8 @@ fn get_sev_snp_processor() -> u32 {
 
 fn get_product_name(product: i32) -> String {
     match product {
-        SEV_PRODUCT_MILAN => "Milan".to_string(),
-        SEV_PRODUCT_GENOA => "Genoa".to_string(),
+        SEV_SNP_PRODUCT_MILAN => "Milan".to_string(),
+        SEV_SNP_PRODUCT_GENOA => "Genoa".to_string(),
         _ => "Unknown".to_string(),
     }
 }
@@ -84,15 +84,15 @@ fn sev_product(eax: u32) -> SevProduct {
     let extended_model = (eax >> EXTENDED_MODEL_SHIFT) & 0xf;
     let family = (eax >> FAMILY_SHIFT) & 0xf;
 
-    let mut product_name = SEV_PRODUCT_UNKNOWN;
+    let mut product_name = SEV_SNP_PRODUCT_UNKNOWN;
 
     if extended_family == SEV_EXTENDED_FAMILY && family == SEV_FAMILY {
         product_name = match extended_model {
-            MILAN_EXTENDED_MODEL => SEV_PRODUCT_MILAN,
-            GENOA_EXTENDED_MODEL => SEV_PRODUCT_GENOA,
+            MILAN_EXTENDED_MODEL => SEV_SNP_PRODUCT_MILAN,
+            GENOA_EXTENDED_MODEL => SEV_SNP_PRODUCT_GENOA,
             _ => {
                 return SevProduct {
-                    name: SEV_PRODUCT_UNKNOWN,
+                    name: SEV_SNP_PRODUCT_UNKNOWN,
                 };
             }
         };
