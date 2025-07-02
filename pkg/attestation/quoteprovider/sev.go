@@ -25,11 +25,11 @@ import (
 )
 
 const (
-	cocosDirectory      = ".cocos"
-	caBundleName        = "ask_ark.pem"
-	Nonce               = 64
-	sevProductNameMilan = "Milan"
-	sevProductNameGenoa = "Genoa"
+	cocosDirectory     = ".cocos"
+	caBundleName       = "ask_ark.pem"
+	Nonce              = 64
+	sevSnpProductMilan = "Milan"
+	sevSnpProductGenoa = "Genoa"
 )
 
 var (
@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	ErrProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevProductNameMilan, sevProductNameGenoa))
+	ErrProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevSnpProductMilan, sevSnpProductGenoa))
 	ErrAttVerification = errors.New("attestation verification failed")
 	errAttValidation   = errors.New("attestation validation failed")
 )
@@ -176,9 +176,9 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 
 func GetProductName(product string) sevsnp.SevProduct_SevProductName {
 	switch product {
-	case sevProductNameMilan:
+	case sevSnpProductMilan:
 		return sevsnp.SevProduct_SEV_PRODUCT_MILAN
-	case sevProductNameGenoa:
+	case sevSnpProductGenoa:
 		return sevsnp.SevProduct_SEV_PRODUCT_GENOA
 	default:
 		return sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN

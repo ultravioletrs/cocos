@@ -56,9 +56,9 @@ type DiskImgConfig struct {
 }
 
 type SEVSNPConfig struct {
-	ID              string `env:"SEV_ID"                envDefault:"sev0"`
-	CBitPos         int    `env:"SEV_CBITPOS"           envDefault:"51"`
-	ReducedPhysBits int    `env:"SEV_REDUCED_PHYS_BITS" envDefault:"1"`
+	ID              string `env:"SEV_SNP_ID"                envDefault:"sev0"`
+	CBitPos         int    `env:"SEV_SNP_CBIT_POS"           envDefault:"51"`
+	ReducedPhysBits int    `env:"SEV_SNP_REDUCED_PHYS_BITS" envDefault:"1"`
 	EnableHostData  bool   `env:"ENABLE_HOST_DATA"      envDefault:"false"`
 	HostData        string `env:"HOST_DATA"             envDefault:""`
 }

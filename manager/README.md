@@ -43,11 +43,11 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_VIRTIO_NET_PCI_ROMFILE        | The file path for the ROM image for the virtio-net PCI device.                                                   |                                |
 | MANAGER_QEMU_DISK_IMG_KERNEL_FILE          | The file path for the kernel image.                                                                              | img/bzImage                    |
 | MANAGER_QEMU_DISK_IMG_ROOTFS_FILE          | The file path for the root filesystem image.                                                                     | img/rootfs.cpio.gz             |
-| MANAGER_QEMU_SEV_ID                        | The ID for the Secure Encrypted Virtualization (SEV) device.                                                     | sev0                           |
-| MANAGER_QEMU_SEV_CBITPOS                   | The position of the C-bit in the physical address.                                                               | 51                             |
-| MANAGER_QEMU_SEV_REDUCED_PHYS_BITS         | The number of reduced physical address bits for SEV.                                                             | 1                              |
-| MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV host.                                                                         | false                          |
-| MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV host.                                                                                |                                |
+| MANAGER_QEMU_SEV_SNP_ID                    | The ID for the Secure Encrypted Virtualization (SEV-SNP) device.                                                 | sev0                           |
+| MANAGER_QEMU_SEV_SNP_CBITPOS               | The position of the C-bit in the physical address.                                                               | 51                             |
+| MANAGER_QEMU_SEV_SNP_REDUCED_PHYS_BITS     | The number of reduced physical address bits for SEV-SNP.                                                         | 1                              |
+| MANAGER_QEMU_ENABLE_HOST_DATA              | Enable additional data for the SEV-SNP host.                                                                     | false                          |
+| MANAGER_QEMU_HOST_DATA                     | Additional data for the SEV-SNP host.                                                                            |                                |
 | MANAGER_QEMU_TDX_ID                        | The ID for the Trust Domain Extensions (TDX) device.                                                             | tdx0                           |
 | MANAGER_QEMU_QUOTE_GENERATION_PORT         | The port number for virtual socket used to communicate with the Quote Generation Service (QGS).                  | 4050                           |
 | MANAGER_QEMU_OVMF_FILE                     | The file path for the OVMF file (combined OVMF_CODE and OVMF_VARS file).                                         | /usr/share/ovmf/OVMF.fd        |
@@ -58,7 +58,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                             | 0                              |
 | MANAGER_QEMU_BIN_PATH                      | The file path for the QEMU binary.                                                                               | qemu-system-x86_64             |
 | MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                 | false                          |
-| MANAGER_QEMU_ENABLE_SEV                    | Whether to enable Secure Encrypted Virtualization (SEV).                                                         | false                          |
 | MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                                | true                           |
 | MANAGER_QEMU_ENABLE_TDX                    | Whether to enable Trust Domain Extensions (TDX).                                                                 | false                          |
 | MANAGER_QEMU_ENABLE_KVM                    | Whether to enable the Kernel-based Virtual Machine (KVM) acceleration.                                           | true                           |
@@ -241,19 +240,6 @@ make manager
 MANAGER_GRPC_URL=localhost:7001 \
 MANAGER_LOG_LEVEL=debug \
 MANAGER_QEMU_USE_SUDO=false \
-MANAGER_QEMU_ENABLE_SEV=false \
-./build/cocos-manager
-```
-
-
-To enable [AMD SEV](https://www.amd.com/en/developer/sev.html) support, start manager like this 
-
-```sh
-MANAGER_GRPC_URL=localhost:7001
-MANAGER_LOG_LEVEL=debug \
-MANAGER_QEMU_USE_SUDO=true \
-MANAGER_QEMU_ENABLE_SEV=true \
-MANAGER_QEMU_SEV_CBITPOS=51 \
 ./build/cocos-manager
 ```
 
@@ -264,9 +250,8 @@ To enable [AMD SEV-SNP](https://www.amd.com/en/developer/sev.html) support, star
 ```sh
 MANAGER_GRPC_URL=localhost:7001 \
 MANAGER_LOG_LEVEL=debug \
-MANAGER_QEMU_ENABLE_SEV=false \
 MANAGER_QEMU_ENABLE_SEV_SNP=true \
-MANAGER_QEMU_SEV_CBITPOS=51 \
+MANAGER_QEMU_SEV_SNP_CBITPOS=51 \
 MANAGER_QEMU_BIN_PATH=<path to QEMU binary> \
 MANAGER_QEMU_IGVM_FILE=<path to IGVM file> \
 ./build/cocos-manager
@@ -277,7 +262,6 @@ To enable [TDX](https://www.intel.com/content/www/us/en/developer/tools/trust-do
 ```sh
 MANAGER_GRPC_URL=localhost:7001 \
 MANAGER_LOG_LEVEL=debug \
-MANAGER_QEMU_ENABLE_SEV=false \
 MANAGER_QEMU_ENABLE_SEV_SNP=false \
 MANAGER_QEMU_ENABLE_TDX=true \
 MANAGER_QEMU_CPU=host \

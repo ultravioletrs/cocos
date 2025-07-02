@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const sevProductNameMilan = "Milan"
+const sevSnpProductMilan = "Milan"
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
 
@@ -192,7 +192,7 @@ func setAttestationPolicy(rr *sevsnp.Attestation, policyDirectory string) error 
 	policy.Config.Policy.Measurement = rr.Report.Measurement
 	policy.Config.Policy.HostData = rr.Report.HostData
 	policy.Config.Policy.ReportIdMa = rr.Report.ReportIdMa
-	policy.Config.RootOfTrust.ProductLine = sevProductNameMilan
+	policy.Config.RootOfTrust.ProductLine = sevSnpProductMilan
 
 	policyByte, err := ConvertPolicyToJSON(&policy)
 	if err != nil {
