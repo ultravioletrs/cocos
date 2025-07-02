@@ -254,7 +254,7 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 		return nil, fmt.Errorf("failed to decode reportID: %w", err)
 	}
 
-	sevProduct := quoteprovider.GetProductName(product)
+	sevSnpProduct := quoteprovider.GetProductName(product)
 
 	return &attestation.Config{
 		Config: &check.Config{
@@ -268,7 +268,7 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 				MinimumGuestSvn:    uint32(guestSVN),
 				TrustedIdKeyHashes: [][]byte{idKeyDigest},
 				ReportId:           reportID,
-				Product:            &sevsnp.SevProduct{Name: sevProduct},
+				Product:            &sevsnp.SevProduct{Name: sevSnpProduct},
 				Policy:             policy,
 			},
 		},
