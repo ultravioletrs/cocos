@@ -1,7 +1,7 @@
 BUILD_DIR = build
 SERVICES = manager agent cli
 ATTESTATION_POLICY = attestation_policy
-CGO_ENABLED ?= 1
+CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
 COMMIT ?= $(shell git rev-parse HEAD)

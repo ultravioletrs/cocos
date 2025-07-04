@@ -99,9 +99,9 @@ func main() {
 
 	switch ccPlatform {
 	case attestation.SNP:
-		provider = vtpm.NewProvider(nil, false, uint(cfg.Vmpl))
+		provider = vtpm.NewProvider(false, uint(cfg.Vmpl))
 	case attestation.SNPvTPM:
-		provider = vtpm.NewProvider(nil, true, uint(cfg.Vmpl))
+		provider = vtpm.NewProvider(true, uint(cfg.Vmpl))
 	case attestation.Azure:
 		provider = azure.NewProvider()
 	case attestation.TDX:

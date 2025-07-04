@@ -134,7 +134,7 @@ func (a verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 }
 
 func (a verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return vtpm.VerifyQuote(report, nil, vTpmNonce, a.writer, a.Policy)
+	return vtpm.VerifyQuote(report, vTpmNonce, a.writer, a.Policy)
 }
 
 func (a verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
