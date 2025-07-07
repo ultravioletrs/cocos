@@ -91,7 +91,7 @@ func (s *Server) Start() error {
 	if agCfg, ok := s.Config.(server.AgentConfig); ok && agCfg.AttestedTLS {
 		tlsConfig := &tls.Config{
 			ClientAuth:     tls.NoClientCert,
-			GetCertificate: atls.GetATLSCertificate,
+			GetCertificate: atls.GetCertificate(s.caUrl, s.cvmId),
 		}
 
 		var mtls bool

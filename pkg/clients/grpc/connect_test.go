@@ -377,7 +377,7 @@ func TestCheckIfCertificateSelfSigned(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkIfCertificateSelfSigned(tt.cert)
+			err := checkIfCertificateSigned(tt.cert, nil)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}

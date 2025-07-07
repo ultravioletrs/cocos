@@ -33,12 +33,9 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 
 	attestation.AttestationPolicyPath = cfg.AttestationPolicy
 
-	var insecureSkipVerify bool = true
 	var rootCAs *x509.CertPool = nil
 
 	if len(cfg.ServerCAFile) > 0 {
-		insecureSkipVerify = false
-
 		// Read the certificate file
 		certPEM, err := os.ReadFile(cfg.ServerCAFile)
 		if err != nil {
@@ -72,11 +69,11 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 	sni := fmt.Sprintf("%s.nonce", encoded)
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: insecureSkipVerify,
+		InsecureSkipVerify: true,
 		RootCAs:            rootCAs,
 		ServerName:         sni,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return verifyPeerCertificateATLS(rawCerts, verifiedChains, cfg, nonce)
+			return verifyPeerCertificateATLS(rawCerts, verifiedChains, nonce, rootCAs)
 		},
 	}
 
@@ -91,17 +88,13 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 	return credentials.NewTLS(tlsConfig), security, nil
 }
 
-func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate, cfg AgentClientConfig, nonce []byte) error {
-	if len(cfg.ServerCAFile) > 0 {
-		return nil
-	}
-
+func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate, nonce []byte, rootCAs *x509.CertPool) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
 		return errors.Wrap(errCertificateParse, err)
 	}
 
-	err = checkIfCertificateSelfSigned(cert)
+	err = checkIfCertificateSigned(cert, rootCAs)
 	if err != nil {
 		return errors.Wrap(errAttVerification, err)
 	}
@@ -121,12 +114,14 @@ func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certi
 	return fmt.Errorf("attestation extension not found in certificate")
 }
 
-func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
-	certPool := x509.NewCertPool()
-	certPool.AddCert(cert)
+func checkIfCertificateSigned(cert *x509.Certificate, rootCAs *x509.CertPool) error {
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+		rootCAs.AddCert(cert)
+	}
 
 	opts := x509.VerifyOptions{
-		Roots:       certPool,
+		Roots:       rootCAs,
 		CurrentTime: time.Now(),
 	}
 
