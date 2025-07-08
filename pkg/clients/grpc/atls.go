@@ -1,19 +1,16 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build cgo
-
 package grpc
 
 import (
-	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"net"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -36,12 +33,9 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 
 	attestation.AttestationPolicyPath = cfg.AttestationPolicy
 
-	var insecureSkipVerify bool = true
 	var rootCAs *x509.CertPool = nil
 
 	if len(cfg.ServerCAFile) > 0 {
-		insecureSkipVerify = false
-
 		// Read the certificate file
 		certPEM, err := os.ReadFile(cfg.ServerCAFile)
 		if err != nil {
@@ -66,11 +60,20 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 		security = withmaTLS
 	}
 
+	nonce := make([]byte, 64)
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, withoutTLS, errors.Wrap(fmt.Errorf("failed to generate nonce"), err)
+	}
+
+	encoded := hex.EncodeToString(nonce)
+	sni := fmt.Sprintf("%s.nonce", encoded)
+
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: insecureSkipVerify,
+		InsecureSkipVerify: true,
 		RootCAs:            rootCAs,
+		ServerName:         sni,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return verifyPeerCertificateATLS(rawCerts, verifiedChains, cfg)
+			return verifyPeerCertificateATLS(rawCerts, verifiedChains, nonce, rootCAs)
 		},
 	}
 
@@ -85,49 +88,40 @@ func setupATLS(cfg AgentClientConfig) (credentials.TransportCredentials, securit
 	return credentials.NewTLS(tlsConfig), security, nil
 }
 
-func CustomDialer(ctx context.Context, addr string) (net.Conn, error) {
-	ip, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, fmt.Errorf("could not create a custom dialer")
-	}
-
-	p, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, fmt.Errorf("bad format of IP address: %v", err)
-	}
-
-	conn, err := atls.DialTLSClient(ip, p)
-	if err != nil {
-		return nil, fmt.Errorf("could not create TLS connection")
-	}
-
-	return conn, nil
-}
-
-func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate, cfg AgentClientConfig) error {
-	if len(cfg.ServerCAFile) > 0 {
-		return nil
-	}
-
+func verifyPeerCertificateATLS(rawCerts [][]byte, verifiedChains [][]*x509.Certificate, nonce []byte, rootCAs *x509.CertPool) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
 		return errors.Wrap(errCertificateParse, err)
 	}
 
-	err = checkIfCertificateSelfSigned(cert)
+	err = checkIfCertificateSigned(cert, rootCAs)
 	if err != nil {
 		return errors.Wrap(errAttVerification, err)
 	}
 
-	return nil
+	for _, ext := range cert.Extensions {
+		pType, err := atls.GetPlatformTypeFromOID(ext.Id)
+		if err == nil {
+			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+			if err != nil {
+				return fmt.Errorf("failed to marshal public key to DER format: %w", err)
+			}
+
+			return atls.VerifyCertificateExtension(ext.Value, pubKeyDER, nonce, pType)
+		}
+	}
+
+	return fmt.Errorf("attestation extension not found in certificate")
 }
 
-func checkIfCertificateSelfSigned(cert *x509.Certificate) error {
-	certPool := x509.NewCertPool()
-	certPool.AddCert(cert)
+func checkIfCertificateSigned(cert *x509.Certificate, rootCAs *x509.CertPool) error {
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+		rootCAs.AddCert(cert)
+	}
 
 	opts := x509.VerifyOptions{
-		Roots:       certPool,
+		Roots:       rootCAs,
 		CurrentTime: time.Now(),
 	}
 

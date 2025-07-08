@@ -148,7 +148,6 @@ func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
 		}
 
 		opts = append(opts, grpc.WithTransportCredentials(tc))
-		opts = append(opts, grpc.WithContextDialer(CustomDialer))
 
 		secure = sec
 	} else {

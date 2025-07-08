@@ -23,7 +23,7 @@ type ServerConfiguration interface {
 type BaseConfig struct {
 	Host         string `env:"HOST"               envDefault:"localhost"`
 	Port         string `env:"PORT"               envDefault:"7001"`
-	ServerCAFile string `env:"SERVER_CA_CERTS" envDefault:""`
+	ServerCAFile string `env:"SERVER_CA_CERTS"    envDefault:""`
 	CertFile     string `env:"SERVER_CERT"        envDefault:""`
 	KeyFile      string `env:"SERVER_KEY"         envDefault:""`
 	ClientCAFile string `env:"CLIENT_CA_CERTS"    envDefault:""`
