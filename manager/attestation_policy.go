@@ -13,7 +13,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/google/go-sev-guest/proto/check"
@@ -21,12 +20,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
-	"github.com/virtee/sev-snp-measure-go/cpuid"
-	"github.com/virtee/sev-snp-measure-go/guest"
-	"github.com/virtee/sev-snp-measure-go/vmmtypes"
 )
-
-const defGuestFeatures = 0x1
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
 	ms.mu.Lock()
@@ -125,11 +119,6 @@ func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([
 	var measurement []byte
 	var err error
 	switch {
-	case vmi.Config.EnableSEV:
-		measurement, err = guest.CalcLaunchDigest(guest.SEV, vmi.Config.SMPCount, uint64(cpuid.CpuSigs[ms.qemuCfg.CPU]), vmi.Config.OVMFCodeConfig.File, vmi.Config.KernelFile, vmi.Config.RootFsFile, strconv.Quote(qemu.KernelCommandLine), defGuestFeatures, "", vmmtypes.QEMU, false, "", 0)
-		if err != nil {
-			return nil, err
-		}
 	case vmi.Config.EnableSEVSNP:
 		stderr := bufio.NewWriter(&stderrBuffer)
 		options := cmdconfig.IgvmMeasureOptions
@@ -164,8 +153,8 @@ func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([
 		attestationPolicy.Config.Policy.Measurement = measurement
 	}
 
-	if vmi.Config.SEVConfig.EnableHostData {
-		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SEVConfig.HostData)
+	if vmi.Config.SEVSNPConfig.EnableHostData {
+		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SEVSNPConfig.HostData)
 		if err != nil {
 			return nil, err
 		}

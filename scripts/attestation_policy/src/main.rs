@@ -14,9 +14,9 @@ const SEV_FAMILY: u32 = 0xF;
 const MILAN_EXTENDED_MODEL: u32 = 0x0;
 const GENOA_EXTENDED_MODEL: u32 = 0x1;
 
-const SEV_PRODUCT_UNKNOWN: i32 = 0;
-const SEV_PRODUCT_MILAN: i32 = 1;
-const SEV_PRODUCT_GENOA: i32 = 2;
+const SEV_SNP_PRODUCT_UNKNOWN: i32 = 0;
+const SEV_SNP_PRODUCT_MILAN: i32 = 1;
+const SEV_SNP_PRODUCT_GENOA: i32 = 2;
 
 #[derive(Clone, Copy, Serialize)]
 struct SevProduct {
@@ -64,8 +64,8 @@ fn get_sev_snp_processor() -> u32 {
 
 fn get_product_name(product: i32) -> String {
     match product {
-        SEV_PRODUCT_MILAN => "Milan".to_string(),
-        SEV_PRODUCT_GENOA => "Genoa".to_string(),
+        SEV_SNP_PRODUCT_MILAN => "Milan".to_string(),
+        SEV_SNP_PRODUCT_GENOA => "Genoa".to_string(),
         _ => "Unknown".to_string(),
     }
 }
@@ -84,15 +84,15 @@ fn sev_product(eax: u32) -> SevProduct {
     let extended_model = (eax >> EXTENDED_MODEL_SHIFT) & 0xf;
     let family = (eax >> FAMILY_SHIFT) & 0xf;
 
-    let mut product_name = SEV_PRODUCT_UNKNOWN;
+    let mut product_name = SEV_SNP_PRODUCT_UNKNOWN;
 
     if extended_family == SEV_EXTENDED_FAMILY && family == SEV_FAMILY {
         product_name = match extended_model {
-            MILAN_EXTENDED_MODEL => SEV_PRODUCT_MILAN,
-            GENOA_EXTENDED_MODEL => SEV_PRODUCT_GENOA,
+            MILAN_EXTENDED_MODEL => SEV_SNP_PRODUCT_MILAN,
+            GENOA_EXTENDED_MODEL => SEV_SNP_PRODUCT_GENOA,
             _ => {
                 return SevProduct {
-                    name: SEV_PRODUCT_UNKNOWN,
+                    name: SEV_SNP_PRODUCT_UNKNOWN,
                 };
             }
         };
@@ -184,15 +184,15 @@ fn main() {
     // If the PCR file path was provided, read and merge its JSON content.
     if let Some(pcr_path) = pcr_path {
         let pcr_content = read_to_string(pcr_path)
-            .unwrap_or_else(|_| panic!("Failed to read PCR file at {}", pcr_path));
+            .unwrap_or_else(|_| panic!("Failed to read PCR file at {pcr_path}"));
         let pcr_value: Value = serde_json::from_str(&pcr_content)
-            .unwrap_or_else(|_| panic!("Failed to parse PCR JSON file at {}", pcr_path));
+            .unwrap_or_else(|_| panic!("Failed to parse PCR JSON file at {pcr_path}"));
 
         if let Value::Object(ref mut main_map) = computation_value {
             if let Value::Object(pcr_map) = pcr_value {
                 main_map.extend(pcr_map);
             } else {
-                eprintln!("PCR file {} is not a JSON object.", pcr_path);
+                eprintln!("PCR file {pcr_path} is not a JSON object.");
             }
         } else {
             eprintln!("The computed JSON is not an object.");
@@ -203,5 +203,5 @@ fn main() {
     let merged_json =
         serde_json::to_string_pretty(&computation_value).expect("Failed to serialize merged JSON");
 
-    println!("{}", merged_json);
+    println!("{merged_json}");
 }

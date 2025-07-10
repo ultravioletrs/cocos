@@ -70,8 +70,8 @@ type Verifier interface {
 // CCPlatform returns the type of the confidential computing platform.
 func CCPlatform() PlatformType {
 	checks := []ccCheck{
-		{SevGuestvTPMExists, SNPvTPM},
-		{SevGuesDeviceExists, SNP},
+		{SevSnpGuestvTPMExists, SNPvTPM},
+		{SevSnpGuestDeviceExists, SNP},
 		{isAzureVM, Azure},
 		{TDXGuestDeviceExists, TDX},
 	}
@@ -84,7 +84,7 @@ func CCPlatform() PlatformType {
 	return NoCC
 }
 
-func SevGuesDeviceExists() bool {
+func SevSnpGuestDeviceExists() bool {
 	d, err := client.OpenDevice()
 	if err != nil {
 		return false
@@ -94,8 +94,8 @@ func SevGuesDeviceExists() bool {
 	return true
 }
 
-func SevGuestvTPMExists() bool {
-	return vTPMExists() && SevGuesDeviceExists()
+func SevSnpGuestvTPMExists() bool {
+	return vTPMExists() && SevSnpGuestDeviceExists()
 }
 
 func vTPMExists() bool {

@@ -36,8 +36,8 @@ const (
 	defaultMinVersion       = "0.0"
 	vtpmFilePath            = "../quote.dat"
 	attestationReportJson   = "attestation.json"
-	sevProductNameMilan     = "Milan"
-	sevProductNameGenoa     = "Genoa"
+	sevSnpProductMilan      = "Milan"
+	sevSnpProductGenoa      = "Genoa"
 	FormatBinaryPB          = "binarypb"
 	FormatTextProto         = "textproto"
 	exampleJSONConfig       = `
@@ -86,7 +86,7 @@ const (
 			  "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
 		   ],
 		   "product":{
-			  "name":"SEV_PRODUCT_MILAN",
+			  "name":1,
 			  "stepping":1,
 			  "machineStepping":1
 		   }
@@ -418,7 +418,7 @@ func getBase(val string) int {
 		   "GSvLKpfu59Y9QOF6vhq0vQsOIvb4+5O/UOHLGLBTkdw="
 		],
 		"product":{
-		   "name":"SEV_PRODUCT_MILAN",
+		   "name":"1",
 		   "stepping":1,
 		   "machineStepping":1
 		}
