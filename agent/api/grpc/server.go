@@ -10,6 +10,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
@@ -34,54 +35,69 @@ var (
 var _ agent.AgentServiceServer = (*grpcServer)(nil)
 
 type grpcServer struct {
-	algo              grpc.Handler
-	data              grpc.Handler
-	result            grpc.Handler
-	attestation       grpc.Handler
-	imaMeasurements   grpc.Handler
-	attestationResult grpc.Handler
+	handlers map[string]grpc.Handler
 	agent.UnimplementedAgentServiceServer
+}
+
+type endpointConfig struct {
+	endpoint       func(agent.Service) endpoint.Endpoint
+	decodeRequest  grpc.DecodeRequestFunc
+	encodeResponse grpc.EncodeResponseFunc
 }
 
 // NewServer returns new AgentServiceServer instance.
 func NewServer(svc agent.Service) agent.AgentServiceServer {
+	// Define endpoint configurations
+	endpoints := map[string]endpointConfig{
+		"algo": {
+			endpoint:       algoEndpoint,
+			decodeRequest:  decodeAlgoRequest,
+			encodeResponse: encodeAlgoResponse,
+		},
+		"data": {
+			endpoint:       dataEndpoint,
+			decodeRequest:  decodeDataRequest,
+			encodeResponse: encodeDataResponse,
+		},
+		"result": {
+			endpoint:       resultEndpoint,
+			decodeRequest:  decodeResultRequest,
+			encodeResponse: encodeResultResponse,
+		},
+		"attestation": {
+			endpoint:       attestationEndpoint,
+			decodeRequest:  decodeAttestationRequest,
+			encodeResponse: encodeAttestationResponse,
+		},
+		"imaMeasurements": {
+			endpoint:       imaMeasurementsEndpoint,
+			decodeRequest:  decodeIMAMeasurementsRequest,
+			encodeResponse: encodeIMAMeasurementsResponse,
+		},
+		"attestationResult": {
+			endpoint:       attestationResultEndpoint,
+			decodeRequest:  decodeAttestationResultRequest,
+			encodeResponse: encodeAttestationResultResponse,
+		},
+	}
+
+	// Create handlers using the configurations
+	handlers := make(map[string]grpc.Handler)
+	for name, config := range endpoints {
+		handlers[name] = grpc.NewServer(
+			config.endpoint(svc),
+			config.decodeRequest,
+			config.encodeResponse,
+		)
+	}
+
 	return &grpcServer{
-		algo: grpc.NewServer(
-			algoEndpoint(svc),
-			decodeAlgoRequest,
-			encodeAlgoResponse,
-		),
-		data: grpc.NewServer(
-			dataEndpoint(svc),
-			decodeDataRequest,
-			encodeDataResponse,
-		),
-		result: grpc.NewServer(
-			resultEndpoint(svc),
-			decodeResultRequest,
-			encodeResultResponse,
-		),
-		attestation: grpc.NewServer(
-			attestationEndpoint(svc),
-			decodeAttestationRequest,
-			encodeAttestationResponse,
-		),
-		imaMeasurements: grpc.NewServer(
-			imaMeasurementsEndpoint(svc),
-			decodeIMAMeasurementsRequest,
-			encodeIMAMeasurementsResponse,
-		),
-		attestationResult: grpc.NewServer(
-			attestationResultEndpoint(svc),
-			decodeAttestationResultRequest,
-			encodeAttestationResultResponse,
-		),
+		handlers: handlers,
 	}
 }
 
 func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AlgoRequest)
-
 	return algoReq{
 		Algorithm:    req.Algorithm,
 		Requirements: req.Requirements,
@@ -94,7 +110,6 @@ func encodeAlgoResponse(_ context.Context, response interface{}) (interface{}, e
 
 func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.DataRequest)
-
 	return dataReq{
 		Dataset:  req.Dataset,
 		Filename: req.Filename,
@@ -116,22 +131,45 @@ func encodeResultResponse(_ context.Context, response interface{}) (interface{},
 	}, nil
 }
 
+func validateNonce(nonce []byte, maxLen int, target interface{}) error {
+	if len(nonce) > maxLen {
+		switch maxLen {
+		case quoteprovider.Nonce:
+			return ErrTEENonceLength
+		case vtpm.Nonce:
+			return ErrVTPMNonceLength
+		default:
+			return ErrTokenNonceLength
+		}
+	}
+
+	switch t := target.(type) {
+	case *[quoteprovider.Nonce]byte:
+		copy(t[:], nonce)
+	case *[vtpm.Nonce]byte:
+		copy(t[:], nonce)
+	}
+	return nil
+}
+
 func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
 	req := grpcReq.(*agent.AttestationRequest)
 	var reportData [quoteprovider.Nonce]byte
 	var nonce [vtpm.Nonce]byte
 
-	if len(req.TeeNonce) > quoteprovider.Nonce {
-		return nil, ErrTEENonceLength
+	if err := validateNonce(req.TeeNonce, quoteprovider.Nonce, &reportData); err != nil {
+		return nil, err
 	}
 
-	if len(req.VtpmNonce) > vtpm.Nonce {
-		return nil, ErrVTPMNonceLength
+	if err := validateNonce(req.VtpmNonce, vtpm.Nonce, &nonce); err != nil {
+		return nil, err
 	}
 
-	copy(reportData[:], req.TeeNonce)
-	copy(nonce[:], req.VtpmNonce)
-	return attestationReq{TeeNonce: reportData, VtpmNonce: nonce, AttType: attestation.PlatformType(req.Type)}, nil
+	return attestationReq{
+		TeeNonce:  reportData,
+		VtpmNonce: nonce,
+		AttType:   attestation.PlatformType(req.Type),
+	}, nil
 }
 
 func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
@@ -141,132 +179,25 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 	}, nil
 }
 
+func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	req := grpcReq.(*agent.AttestationResultRequest)
+	var nonce [vtpm.Nonce]byte
+
+	if err := validateNonce(req.TokenNonce, vtpm.Nonce, &nonce); err != nil {
+		return nil, err
+	}
+
+	return FetchAttestationResultReq{
+		tokenNonce: nonce,
+		AttType:    attestation.PlatformType(req.Type),
+	}, nil
+}
+
 func encodeAttestationResultResponse(_ context.Context, response interface{}) (interface{}, error) {
 	res := response.(fetchAttestationResultRes)
 	return &agent.AttestationResultResponse{
 		File: res.File,
 	}, nil
-}
-
-func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	req := grpcReq.(*agent.AttestationResultRequest)
-	var nonce [vtpm.Nonce]byte
-
-	if len(req.TokenNonce) > vtpm.Nonce {
-		return nil, ErrVTPMNonceLength
-	}
-
-	copy(nonce[:], req.TokenNonce)
-	return FetchAttestationResultReq{tokenNonce: nonce, AttType: attestation.PlatformType(req.Type)}, nil
-}
-
-// Algo implements agent.AgentServiceServer.
-func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
-	var algoFile, reqFile []byte
-	for {
-		algoChunk, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-		algoFile = append(algoFile, algoChunk.Algorithm...)
-		reqFile = append(reqFile, algoChunk.Requirements...)
-	}
-	_, res, err := s.algo.ServeGRPC(stream.Context(), &agent.AlgoRequest{Algorithm: algoFile, Requirements: reqFile})
-	if err != nil {
-		return err
-	}
-	ar := res.(*agent.AlgoResponse)
-	return stream.SendAndClose(ar)
-}
-
-// Data implements agent.AgentServiceServer.
-func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
-	var dataFile []byte
-	var filename string
-	for {
-		dataChunk, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-		dataFile = append(dataFile, dataChunk.Dataset...)
-		filename = dataChunk.Filename
-	}
-	_, res, err := s.data.ServeGRPC(stream.Context(), &agent.DataRequest{Dataset: dataFile, Filename: filename})
-	if err != nil {
-		return err
-	}
-	ar := res.(*agent.DataResponse)
-	return stream.SendAndClose(ar)
-}
-
-func (s *grpcServer) Result(req *agent.ResultRequest, stream agent.AgentService_ResultServer) error {
-	_, res, err := s.result.ServeGRPC(stream.Context(), req)
-	if err != nil {
-		return err
-	}
-	rr := res.(*agent.ResultResponse)
-
-	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: fmt.Sprint(len(rr.File))})); err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	resultBuffer := bytes.NewBuffer(rr.File)
-
-	buf := make([]byte, bufferSize)
-
-	for {
-		n, err := resultBuffer.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-
-		if err := stream.Send(&agent.ResultResponse{File: buf[:n]}); err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	return nil
-}
-
-func (s *grpcServer) Attestation(req *agent.AttestationRequest, stream agent.AgentService_AttestationServer) error {
-	_, res, err := s.attestation.ServeGRPC(stream.Context(), req)
-	if err != nil {
-		return err
-	}
-	rr := res.(*agent.AttestationResponse)
-
-	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: fmt.Sprint(len(rr.File))})); err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	attestationBuffer := bytes.NewBuffer(rr.File)
-
-	buf := make([]byte, bufferSize)
-
-	for {
-		n, err := attestationBuffer.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-
-		if err := stream.Send(&agent.AttestationResponse{File: buf[:n]}); err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	return nil
 }
 
 func decodeIMAMeasurementsRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
@@ -281,56 +212,223 @@ func encodeIMAMeasurementsResponse(_ context.Context, response interface{}) (int
 	}, nil
 }
 
+func (s *grpcServer) streamingHandler(
+	ctx context.Context,
+	handlerName string,
+	req interface{},
+	stream interface{},
+	sendFn func([]byte) error,
+	getFileData func(interface{}) []byte,
+) error {
+	_, res, err := s.handlers[handlerName].ServeGRPC(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	fileData := getFileData(res)
+
+	// Set file size header
+	if setter, ok := stream.(interface{ SetHeader(metadata.MD) error }); ok {
+		if err := setter.SetHeader(metadata.New(map[string]string{
+			FileSizeKey: fmt.Sprint(len(fileData)),
+		})); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	// Stream the file data
+	return s.streamFileData(bytes.NewBuffer(fileData), sendFn)
+}
+
+func (s *grpcServer) streamFileData(buffer *bytes.Buffer, sendFn func([]byte) error) error {
+	buf := make([]byte, bufferSize)
+	for {
+		n, err := buffer.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		if err := sendFn(buf[:n]); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+func receiveStreamingData(stream interface{}, getData func() ([]byte, string, error)) ([]byte, string, error) {
+	var data []byte
+	var filename string
+
+	for {
+		chunk, fname, err := getData()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, "", status.Error(codes.Internal, err.Error())
+		}
+		data = append(data, chunk...)
+		if fname != "" {
+			filename = fname
+		}
+	}
+	return data, filename, nil
+}
+
+// Algo implements agent.AgentServiceServer.
+func (s *grpcServer) Algo(stream agent.AgentService_AlgoServer) error {
+	algoFile, reqFile, err := s.receiveAlgoData(stream)
+	if err != nil {
+		return err
+	}
+
+	_, res, err := s.handlers["algo"].ServeGRPC(stream.Context(), &agent.AlgoRequest{
+		Algorithm:    algoFile,
+		Requirements: reqFile,
+	})
+	if err != nil {
+		return err
+	}
+
+	return stream.SendAndClose(res.(*agent.AlgoResponse))
+}
+
+func (s *grpcServer) receiveAlgoData(stream agent.AgentService_AlgoServer) ([]byte, []byte, error) {
+	var algoFile, reqFile []byte
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, nil, status.Error(codes.Internal, err.Error())
+		}
+		algoFile = append(algoFile, chunk.Algorithm...)
+		reqFile = append(reqFile, chunk.Requirements...)
+	}
+	return algoFile, reqFile, nil
+}
+
+// Data implements agent.AgentServiceServer.
+func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
+	dataFile, filename, err := receiveStreamingData(stream, func() ([]byte, string, error) {
+		chunk, err := stream.Recv()
+		if err != nil {
+			return nil, "", err
+		}
+		return chunk.Dataset, chunk.Filename, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	_, res, err := s.handlers["data"].ServeGRPC(stream.Context(), &agent.DataRequest{
+		Dataset:  dataFile,
+		Filename: filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	return stream.SendAndClose(res.(*agent.DataResponse))
+}
+
+func (s *grpcServer) Result(req *agent.ResultRequest, stream agent.AgentService_ResultServer) error {
+	return s.streamingHandler(
+		stream.Context(),
+		"result",
+		req,
+		stream,
+		func(data []byte) error {
+			return stream.Send(&agent.ResultResponse{File: data})
+		},
+		func(res interface{}) []byte {
+			return res.(*agent.ResultResponse).File
+		},
+	)
+}
+
+func (s *grpcServer) Attestation(req *agent.AttestationRequest, stream agent.AgentService_AttestationServer) error {
+	return s.streamingHandler(
+		stream.Context(),
+		"attestation",
+		req,
+		stream,
+		func(data []byte) error {
+			return stream.Send(&agent.AttestationResponse{File: data})
+		},
+		func(res interface{}) []byte {
+			return res.(*agent.AttestationResponse).File
+		},
+	)
+}
+
 func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream agent.AgentService_IMAMeasurementsServer) error {
-	_, res, err := s.imaMeasurements.ServeGRPC(stream.Context(), req)
+	_, res, err := s.handlers["imaMeasurements"].ServeGRPC(stream.Context(), req)
 	if err != nil {
 		return err
 	}
 	rr := res.(*agent.IMAMeasurementsResponse)
 
-	if err := stream.SetHeader(metadata.New(map[string]string{FileSizeKey: strconv.Itoa(len(rr.File))})); err != nil {
+	if err := stream.SetHeader(metadata.New(map[string]string{
+		FileSizeKey: strconv.Itoa(len(rr.File)),
+	})); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
-	imaBuff := bytes.NewBuffer(rr.File)
-	pcr10Buff := bytes.NewBuffer(rr.Pcr10)
+	return s.streamDualBuffers(
+		bytes.NewBuffer(rr.File),
+		bytes.NewBuffer(rr.Pcr10),
+		func(fileData, pcr10Data []byte) error {
+			return stream.Send(&agent.IMAMeasurementsResponse{
+				File:  fileData,
+				Pcr10: pcr10Data,
+			})
+		},
+	)
+}
 
-	imaResBuff := make([]byte, bufferSize)
-	pcr10ResBuff := make([]byte, bufferSize)
+func (s *grpcServer) streamDualBuffers(
+	buf1, buf2 *bytes.Buffer,
+	sendFn func([]byte, []byte) error,
+) error {
+	buff1 := make([]byte, bufferSize)
+	buff2 := make([]byte, bufferSize)
 
 	for {
-		nIma, errIma := imaBuff.Read(imaResBuff)
-		if errIma != nil && errIma != io.EOF {
-			return status.Error(codes.Internal, errIma.Error())
+		n1, err1 := buf1.Read(buff1)
+		if err1 != nil && err1 != io.EOF {
+			return status.Error(codes.Internal, err1.Error())
 		}
 
-		nPcr, errPcr := pcr10Buff.Read(pcr10ResBuff)
-		if errPcr != nil && errPcr != io.EOF {
-			return status.Error(codes.Internal, errPcr.Error())
+		n2, err2 := buf2.Read(buff2)
+		if err2 != nil && err2 != io.EOF {
+			return status.Error(codes.Internal, err2.Error())
 		}
 
-		if nIma == 0 && errIma == io.EOF &&
-			nPcr == 0 && errPcr == io.EOF {
+		if n1 == 0 && err1 == io.EOF && n2 == 0 && err2 == io.EOF {
 			break
 		}
 
-		if err := stream.Send(&agent.IMAMeasurementsResponse{File: imaResBuff[:nIma], Pcr10: pcr10ResBuff[:nPcr]}); err != nil {
+		if err := sendFn(buff1[:n1], buff2[:n2]); err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
-
 	return nil
 }
 
 func (s *grpcServer) AttestationResult(ctx context.Context, req *agent.AttestationResultRequest) (*agent.AttestationResultResponse, error) {
-	_, res, err := s.attestationResult.ServeGRPC(ctx, req)
+	_, res, err := s.handlers["attestationResult"].ServeGRPC(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	rr, ok := res.(*agent.AttestationResultResponse)
 
+	rr, ok := res.(*agent.AttestationResultResponse)
 	if !ok {
-		return nil, status.Error(codes.Internal, "failed to cast response to FetchAttestationResultResponse")
+		return nil, status.Error(codes.Internal, "failed to cast response to AttestationResultResponse")
 	}
 
 	return rr, nil
