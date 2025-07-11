@@ -30,5 +30,5 @@ Usage of tests/cvms/main.go:
         Path to the public key file
 
 # Example
-go run ./tests/cvms/main.go -algo-path <alog_path> -attested-tls-bool false -data-paths <data_paths> -public-key-path <public_key_path>
+go run ./test/cvms/main.go -algo-path <alog_path> -attested-tls-bool false -data-paths <data_paths> -public-key-path <public_key_path>
 ```
