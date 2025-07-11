@@ -148,6 +148,8 @@ func validateNonce(nonce []byte, maxLen int, target interface{}) error {
 		copy(t[:], nonce)
 	case *[vtpm.Nonce]byte:
 		copy(t[:], nonce)
+	default:
+		return fmt.Errorf("unsupported target type for nonce validation: %T", target)
 	}
 	return nil
 }
@@ -220,7 +222,12 @@ func (s *grpcServer) streamingHandler(
 	sendFn func([]byte) error,
 	getFileData func(interface{}) []byte,
 ) error {
-	_, res, err := s.handlers[handlerName].ServeGRPC(ctx, req)
+	handler, ok := s.handlers[handlerName]
+	if !ok {
+		return status.Errorf(codes.NotFound, "handler %q not found", handlerName)
+	}
+
+	_, res, err := handler.ServeGRPC(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -258,7 +265,7 @@ func (s *grpcServer) streamFileData(buffer *bytes.Buffer, sendFn func([]byte) er
 	return nil
 }
 
-func receiveStreamingData(stream interface{}, getData func() ([]byte, string, error)) ([]byte, string, error) {
+func receiveStreamingData(getData func() ([]byte, string, error)) ([]byte, string, error) {
 	var data []byte
 	var filename string
 
@@ -314,7 +321,7 @@ func (s *grpcServer) receiveAlgoData(stream agent.AgentService_AlgoServer) ([]by
 
 // Data implements agent.AgentServiceServer.
 func (s *grpcServer) Data(stream agent.AgentService_DataServer) error {
-	dataFile, filename, err := receiveStreamingData(stream, func() ([]byte, string, error) {
+	dataFile, filename, err := receiveStreamingData(func() ([]byte, string, error) {
 		chunk, err := stream.Recv()
 		if err != nil {
 			return nil, "", err
