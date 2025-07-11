@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	vmf := new(mocks.Provider)
 
-	service, err := New(context.Background(), cfg, "", "", "", logger, vmf.Execute, "")
+	service, err := New(cfg, "", "", "", logger, vmf.Execute, "")
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
@@ -47,24 +47,35 @@ func TestRun(t *testing.T) {
 		binaryBehavior string
 		vmStartError   error
 		expectedError  error
+		ttl            string
 	}{
 		{
 			name:           "Successful run",
 			binaryBehavior: "success",
 			vmStartError:   nil,
 			expectedError:  nil,
+			ttl:            "",
 		},
 		{
 			name:           "VM start failure",
 			binaryBehavior: "success",
 			vmStartError:   assert.AnError,
 			expectedError:  assert.AnError,
+			ttl:            "",
 		},
 		{
 			name:           "Invalid attestation policy",
 			binaryBehavior: "fail",
 			vmStartError:   nil,
 			expectedError:  ErrFailedToCreateAttestationPolicy,
+			ttl:            "",
+		},
+		{
+			name:           "With TTL",
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  nil,
+			ttl:            "10s",
 		},
 	}
 
@@ -101,11 +112,12 @@ func TestRun(t *testing.T) {
 				vms:                         make(map[string]vm.VM),
 				vmFactory:                   vmf.Execute,
 				persistence:                 persistence,
+				ttlManager:                  NewTTLManager(),
 			}
 
 			ctx := context.Background()
 
-			port, _, err := ms.CreateVM(ctx, &CreateReq{})
+			port, _, err := ms.CreateVM(ctx, &CreateReq{Ttl: tt.ttl})
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -165,6 +177,7 @@ func TestStop(t *testing.T) {
 				logger:      logger,
 				vms:         make(map[string]vm.VM),
 				persistence: persistence,
+				ttlManager:  NewTTLManager(),
 			}
 			vmMock := new(mocks.VM)
 
@@ -286,4 +299,21 @@ func TestProcessExists(t *testing.T) {
 	if os.Getuid() != 0 { // Skip this test if running as root.
 		assert.False(t, ms.processExists(1)) // PID 1 is usually the init process.
 	}
+}
+
+func TestShutdown(t *testing.T) {
+	ms := &managerService{
+		vms:        make(map[string]vm.VM),
+		ttlManager: NewTTLManager(),
+		logger:     mglog.NewMock(),
+	}
+
+	vmMock := new(mocks.VM)
+	vmMock.On("Stop").Return(nil).Once()
+	ms.vms["test-vm"] = vmMock
+
+	err := ms.Shutdown()
+	assert.NoError(t, err)
+
+	assert.Len(t, ms.vms, 0)
 }
