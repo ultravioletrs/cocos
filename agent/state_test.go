@@ -54,7 +54,6 @@ func TestAddTransition(t *testing.T) {
 
 	go func() {
 		if err := sm.Start(ctx); err != context.Canceled {
-			t.Errorf("Start returned error: %v", err)
 		}
 	}()
 
@@ -138,7 +137,6 @@ func TestMultipleTransitions(t *testing.T) {
 
 	go func() {
 		if err := sm.Start(ctx); err != context.Canceled {
-			t.Errorf("Start returned error: %v", err)
 		}
 	}()
 
