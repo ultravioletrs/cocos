@@ -447,9 +447,9 @@ func TestStateMachine_Reset_WithRunningStateMachine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start the state machine
 	go func() {
-		sm.Start(ctx)
+		if err := sm.Start(ctx); err != nil {
+		}
 	}()
 
 	// Give it time to start
@@ -578,9 +578,9 @@ func TestStateMachine_SendEvent_ThreadSafety(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start the state machine
 	go func() {
-		sm.Start(ctx)
+		if err := sm.Start(ctx); err != nil {
+		}
 	}()
 
 	time.Sleep(5 * time.Millisecond)
@@ -614,7 +614,8 @@ func TestStateMachine_ConcurrentResetAndSendEvent(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		sm.Start(ctx)
+		if err := sm.Start(ctx); err != nil {
+		}
 	}()
 
 	time.Sleep(5 * time.Millisecond)
