@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	sync "sync"
+	"time"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -183,7 +184,11 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, prov
 			logger.Error(err.Error())
 		}
 	}()
+
+	time.Sleep(100 * time.Millisecond)
 	sm.SendEvent(Start)
+
+	time.Sleep(100 * time.Millisecond)
 
 	return svc
 }
@@ -257,7 +262,11 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 			as.logger.Error(err.Error())
 		}
 	}()
+
+	time.Sleep(100 * time.Millisecond)
 	as.sm.SendEvent(Start)
+
+	time.Sleep(100 * time.Millisecond)
 
 	return nil
 }
