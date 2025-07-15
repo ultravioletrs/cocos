@@ -20,6 +20,11 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "agent_grpc_algo.go"
           mockname: "{{.InterfaceName}}"
+      AgentService_IMAMeasurementsClient:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "agent_grpc_ima.go"
+          mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/agent/auth:
     interfaces:
       Authenticator:
