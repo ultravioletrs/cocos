@@ -392,14 +392,20 @@ func TestAttestation(t *testing.T) {
 			defer cancel()
 
 			getQuote := provider.On("TeeAttestation", mock.Anything).Return(tc.rawQuote, tc.err)
+			vtpmQuote := provider.On("VTpmAttestation", mock.Anything).Return(tc.rawQuote, tc.err)
+			snpVtpm := provider.On("Attestation", mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
 			if tc.err != ErrAttestationFailed && tc.err != ErrAttestationVTpmFailed {
 				getQuote = provider.On("TeeAttestation", mock.Anything).Return(tc.nonce, nil)
+				vtpmQuote = provider.On("VTpmAttestation", mock.Anything).Return(tc.nonce[:], nil)
+				snpVtpm = provider.On("Attestation", mock.Anything, mock.Anything).Return(tc.nonce[:], nil)
 			}
 			defer getQuote.Unset()
+			defer vtpmQuote.Unset()
+			defer snpVtpm.Unset()
 
 			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 			time.Sleep(300 * time.Millisecond)
-			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, 0)
+			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, tc.platform)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
 		})
 	}
