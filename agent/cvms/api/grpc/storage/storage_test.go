@@ -13,7 +13,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
 )
 
-// createTempDir creates a temporary directory for testing
 func createTempDir(t *testing.T) string {
 	tmpDir, err := os.MkdirTemp("", "storage_test_*")
 	require.NoError(t, err)
@@ -23,7 +22,6 @@ func createTempDir(t *testing.T) string {
 	return tmpDir
 }
 
-// createTestMessage creates a test message for testing
 func createTestMessage(content string) *cvms.ClientStreamMessage {
 	return &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_RunRes{
@@ -432,7 +430,9 @@ func TestFileStorage_ErrorHandling(t *testing.T) {
 
 	// Restore permissions for cleanup
 	t.Cleanup(func() {
-		os.Chmod(tmpDir, 0o755)
+		if err := os.Chmod(tmpDir, 0o755); err != nil {
+			t.Errorf("Failed to restore permissions: %v", err)
+		}
 	})
 
 	// Try to add a message - should fail due to write permissions

@@ -15,6 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	clientmocks "github.com/ultravioletrs/cocos/pkg/clients/grpc/mocks"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -127,6 +128,19 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 
 	runReq := &cvms.ComputationRunReq{
 		Id: "test-id",
+		Datasets: []*cvms.Dataset{
+			{
+				Hash: sha3.New256().Sum([]byte("test-dataset")),
+			},
+		},
+		Algorithm: &cvms.Algorithm{
+			Hash: sha3.New256().Sum([]byte("test-algorithm")),
+		},
+		ResultConsumers: []*cvms.ResultConsumer{
+			{
+				UserKey: []byte("test-consumer"),
+			},
+		},
 	}
 	runReqBytes, _ := proto.Marshal(runReq)
 
