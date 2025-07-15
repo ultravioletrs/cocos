@@ -223,8 +223,12 @@ func (s *Server) Stop() error {
 	c := make(chan bool)
 	go func() {
 		defer close(c)
-		s.health.Shutdown()
-		s.server.GracefulStop()
+		if s.health != nil {
+			s.health.Shutdown()
+		}
+		if s.server != nil {
+			s.server.GracefulStop()
+		}
 	}()
 	select {
 	case <-c:
