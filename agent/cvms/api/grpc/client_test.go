@@ -38,13 +38,13 @@ func (m *mockStream) Send(msg *cvms.ClientStreamMessage) error {
 func TestManagerClient_Process(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer)
+		setupMocks  func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client)
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "Stop computation",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client) {
 				mockStream.On("Recv").Return(&cvms.ServerStreamMessage{
 					Message: &cvms.ServerStreamMessage_StopComputation{
 						StopComputation: &cvms.StopComputation{},
@@ -59,7 +59,7 @@ func TestManagerClient_Process(t *testing.T) {
 		},
 		{
 			name: "Run request chunks",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client) {
 				mockStream.On("Recv").Return(&cvms.ServerStreamMessage{
 					Message: &cvms.ServerStreamMessage_RunReqChunks{
 						RunReqChunks: &cvms.RunReqChunks{},
@@ -71,8 +71,36 @@ func TestManagerClient_Process(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "Agent state request",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client) {
+				mockStream.On("Recv").Return(&cvms.ServerStreamMessage{
+					Message: &cvms.ServerStreamMessage_AgentStateReq{
+						AgentStateReq: &cvms.AgentStateReq{
+							Id: "test-agent",
+						},
+					},
+				}, nil)
+				mockStream.On("Send", mock.Anything).Return(nil)
+				mockSvc.On("State").Return("test-state")
+			},
+			expectError: true,
+			errorMsg:    "context deadline exceeded",
+		},
+		{
+			name: "Disconnect request",
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client) {
+				mockStream.On("Recv").Return(&cvms.ServerStreamMessage{
+					Message: &cvms.ServerStreamMessage_DisconnectReq{},
+				}, nil)
+				mockStream.On("Send", mock.Anything).Return(nil)
+				grpcClient.On("Close").Return(nil)
+			},
+			expectError: true,
+			errorMsg:    "context deadline exceeded",
+		},
+		{
 			name: "Receive error",
-			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer) {
+			setupMocks: func(mockStream *mockStream, mockSvc *mocks.Service, mockServerSvc *servermocks.AgentServer, grpcClient *clientmocks.Client) {
 				mockStream.On("Recv").Return(&cvms.ServerStreamMessage{}, assert.AnError)
 			},
 			expectError: true,
@@ -99,7 +127,7 @@ func TestManagerClient_Process(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
-			tc.setupMocks(mockStream, mockSvc, mockServerSvc)
+			tc.setupMocks(mockStream, mockSvc, mockServerSvc, grpcClient)
 
 			err = client.Process(ctx, cancel)
 
