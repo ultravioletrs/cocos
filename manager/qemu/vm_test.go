@@ -189,6 +189,7 @@ func TestTDXEnabled(t *testing.T) {
 		assert.False(t, TDXEnabled("flags: tdx_host_platform", "0"))
 	})
 }
+
 func TestSEVSNPEnabledOnHost(t *testing.T) {
 	assert.False(t, SEVSNPEnabledOnHost())
 }
