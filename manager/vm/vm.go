@@ -5,7 +5,6 @@ package vm
 import (
 	"log/slog"
 
-	"github.com/ultravioletrs/cocos/agent"
 	pkgmanager "github.com/ultravioletrs/cocos/pkg/manager"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -14,7 +13,6 @@ import (
 type VM interface {
 	Start() error
 	Stop() error
-	SendAgentConfig(ac agent.Computation) error
 	SetProcess(pid int) error
 	GetProcess() int
 	GetCID() int
