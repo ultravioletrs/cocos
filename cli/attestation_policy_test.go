@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"os"
@@ -130,4 +131,249 @@ func TestNewAddHostDataCmd(t *testing.T) {
 	assert.Equal(t, "Add host data to the attestation policy file. The value should be in base64. The second parameter is attestation_policy.json file", cmd.Short)
 	assert.Equal(t, "hostdata <host-data> <attestation_policy.json>", cmd.Example)
 	assert.NotNil(t, cmd.Run)
+}
+
+func TestChangeAttestationConfigurationFileErrors(t *testing.T) {
+	t.Run("File Not Found", func(t *testing.T) {
+		err := changeAttestationConfiguration("nonexistent.json", base64.StdEncoding.EncodeToString(make([]byte, measurementLength)), measurementLength, measurementField)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error while reading the attestation policy file")
+	})
+
+	t.Run("Invalid JSON Content", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "invalid.json")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("invalid json"), 0o644)
+		require.NoError(t, err)
+
+		err = changeAttestationConfiguration(tmpfile.Name(), base64.StdEncoding.EncodeToString(make([]byte, measurementLength)), measurementLength, measurementField)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unmarshal json")
+	})
+}
+
+func TestNewGCPAttestationPolicy(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewGCPAttestationPolicy()
+
+	assert.Equal(t, "gcp", cmd.Use)
+	assert.Equal(t, "Get attestation policy for GCP CVM", cmd.Short)
+	assert.Equal(t, "gcp <bin_vtmp_attestation_report_file> <vcpu_count>", cmd.Example)
+	assert.NotNil(t, cmd.Run)
+
+	t.Run("File Not Found", func(t *testing.T) {
+		cmd.SetArgs([]string{"nonexistent.bin", "4"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error reading attestation report file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Invalid vCPU Count", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "attestation.bin")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("dummy content"), 0o644)
+		require.NoError(t, err)
+
+		cmd.SetArgs([]string{tmpfile.Name(), "invalid"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error converting vCPU count to integer")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Invalid Attestation Data", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "attestation.bin")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("invalid protobuf data"), 0o644)
+		require.NoError(t, err)
+
+		cmd.SetArgs([]string{tmpfile.Name(), "4"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error unmarshaling attestation report")
+		assert.Contains(t, output, "❌")
+	})
+}
+
+func TestNewDownloadGCPOvmfFile(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewDownloadGCPOvmfFile()
+
+	assert.Equal(t, "download", cmd.Use)
+	assert.Equal(t, "Download GCP OVMF file", cmd.Short)
+	assert.Equal(t, "download <bin_vtmp_attestation_report_file>", cmd.Example)
+	assert.NotNil(t, cmd.Run)
+
+	t.Run("File Not Found", func(t *testing.T) {
+		cmd.SetArgs([]string{"nonexistent.bin"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error reading attestation report file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Invalid Attestation Data", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "attestation.bin")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("invalid protobuf data"), 0o644)
+		require.NoError(t, err)
+
+		cmd.SetArgs([]string{tmpfile.Name()})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error unmarshaling attestation report")
+		assert.Contains(t, output, "❌")
+	})
+}
+
+func TestNewAzureAttestationPolicy(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewAzureAttestationPolicy()
+
+	assert.Equal(t, "azure", cmd.Use)
+	assert.Equal(t, "Get attestation policy for Azure CVM", cmd.Short)
+	assert.Equal(t, "azure <azure_maa_token_file> <product_name>", cmd.Example)
+	assert.NotNil(t, cmd.Run)
+
+	flag := cmd.Flags().Lookup("policy")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "Policy of the guest CVM", flag.Usage)
+
+	t.Run("File Not Found", func(t *testing.T) {
+		cmd.SetArgs([]string{"nonexistent.token", "test-product"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error reading attestation report file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Valid Token File", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "token.maa")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("dummy.token.content"), 0o644)
+		require.NoError(t, err)
+
+		defer os.Remove("attestation_policy.json")
+
+		cmd.SetArgs([]string{tmpfile.Name(), "test-product"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+
+	})
+
+	t.Run("Custom Policy Flag", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "token.maa")
+		require.NoError(t, err)
+		defer os.Remove(tmpfile.Name())
+
+		err = os.WriteFile(tmpfile.Name(), []byte("dummy.token.content"), 0o644)
+		require.NoError(t, err)
+
+		cmd.SetArgs([]string{"--policy", "123456", tmpfile.Name(), "test-product"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+
+		flag := cmd.Flags().Lookup("policy")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "123456", flag.Value.String())
+	})
+}
+
+func TestCommandErrorHandling(t *testing.T) {
+	cli := &CLI{}
+
+	t.Run("Measurement Command Error", func(t *testing.T) {
+		cmd := cli.NewAddMeasurementCmd()
+		cmd.SetArgs([]string{"invalid-base64", "nonexistent.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error could not change measurement data")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Host Data Command Error", func(t *testing.T) {
+		cmd := cli.NewAddHostDataCmd()
+		cmd.SetArgs([]string{"invalid-base64", "nonexistent.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "Error could not change host data")
+		assert.Contains(t, output, "❌")
+	})
 }
