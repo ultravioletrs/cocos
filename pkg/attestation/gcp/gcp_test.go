@@ -121,7 +121,7 @@ func TestGetLaunchEndorsement(t *testing.T) {
 			ctx := context.Background()
 
 			// skip if credentials are not set
-			if _, err := storage.NewClient(ctx); err != nil {
+			if _, err := storage.NewClient(ctx); err != nil && tt.expectError {
 				t.Skip("Skipping test due to missing GCP credentials")
 			}
 
@@ -244,6 +244,11 @@ func TestDownloadOvmfFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
+
+			// skip if credentials are not set
+			if _, err := storage.NewClient(ctx); err != nil && tt.expectError {
+				t.Skip("Skipping test due to missing GCP credentials")
+			}
 
 			_, err := DownloadOvmfFile(ctx, tt.digest)
 
