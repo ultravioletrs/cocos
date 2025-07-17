@@ -174,7 +174,9 @@ func TestIsAzureVM(t *testing.T) {
 
 				w.WriteHeader(tt.statusCode)
 				if tt.responseBody != "" {
-					w.Write([]byte(tt.responseBody))
+					if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+						t.Fatalf("Failed to write response body: %v", err)
+					}
 				}
 			}))
 			defer server.Close()

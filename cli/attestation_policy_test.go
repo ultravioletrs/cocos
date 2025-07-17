@@ -316,7 +316,6 @@ func TestNewAzureAttestationPolicy(t *testing.T) {
 
 		err = cmd.Execute()
 		assert.NoError(t, err)
-
 	})
 
 	t.Run("Custom Policy Flag", func(t *testing.T) {
