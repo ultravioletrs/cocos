@@ -120,6 +120,11 @@ func TestGetLaunchEndorsement(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 
+			// skip if credentials are not set
+			if _, err := storage.NewClient(ctx); err != nil {
+				t.Skip("Skipping test due to missing GCP credentials")
+			}
+
 			_, err := GetLaunchEndorsement(ctx, tt.measurement384)
 
 			if tt.expectError {
