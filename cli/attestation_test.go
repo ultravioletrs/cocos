@@ -355,7 +355,7 @@ func TestNewMeasureCmd_RunError(t *testing.T) {
 	mockMeasurement.AssertExpectations(t)
 }
 
-func TestParseConfig(t *testing.T) {
+func TestParseConfig1(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "attestation_policy.json")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
@@ -382,7 +382,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestParseHashes(t *testing.T) {
+func TestParseHashes1(t *testing.T) {
 	trustedAuthorHashes = []string{"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
 	trustedIdKeyHashes = []string{"fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"}
 
@@ -433,7 +433,7 @@ func TestParseFiles(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestParseUints(t *testing.T) {
+func TestParseUints1(t *testing.T) {
 	stepping = "10"
 	platformInfo = "0xFF"
 
@@ -458,7 +458,7 @@ func TestParseUints(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestValidateInput(t *testing.T) {
+func TestValidateInput1(t *testing.T) {
 	cfg = check.Config{}
 	if cfg.Policy == nil {
 		cfg.Policy = &check.Policy{}
@@ -483,7 +483,7 @@ func TestValidateInput(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetBase(t *testing.T) {
+func TestGetBase1(t *testing.T) {
 	assert.Equal(t, 16, getBase("0xFF"))
 	assert.Equal(t, 8, getBase("0o77"))
 	assert.Equal(t, 2, getBase("0b1010"))
