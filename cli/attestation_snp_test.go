@@ -581,7 +581,12 @@ func TestParseAttestationFile(t *testing.T) {
 }
 
 func TestSevsnpverify(t *testing.T) {
+	trustedAuthorHashes = []string{}
+	trustedIdKeyHashes = []string{}
+	stepping = ""
+	platformInfo = ""
 	tempDir := t.TempDir()
+	cfg = check.Config{Policy: &check.Policy{Product: &sevsnp.SevProduct{}}, RootOfTrust: &check.RootOfTrust{}}
 
 	attestationFile := filepath.Join(tempDir, "attestation.bin")
 	attestationData := make([]byte, abi.ReportSize+100)
@@ -625,7 +630,6 @@ func TestSevsnpverify(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 			cfgString = ""
 
 			mockVerifier := new(mocks.Verifier)
@@ -636,6 +640,7 @@ func TestSevsnpverify(t *testing.T) {
 			cmd.SetOut(&output)
 
 			err := sevsnpverify(cmd, mockVerifier, tt.args)
+			fmt.Println("error1", err)
 
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -726,6 +731,11 @@ func TestReturnvTPMAttestation(t *testing.T) {
 }
 
 func TestVtpmSevSnpverify(t *testing.T) {
+	stepping = ""
+	platformInfo = ""
+	trustedAuthorHashes = []string{}
+	trustedIdKeyHashes = []string{}
+	cfg = check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}
 	tempDir := t.TempDir()
 
 	attestation := &tpmAttest.Attestation{
