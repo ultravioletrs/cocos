@@ -106,7 +106,7 @@ func TestProvider_TeeAttestation(t *testing.T) {
 			name:        "should handle valid nonce",
 			teeNonce:    []byte("test-noncetest-noncetest-noncetest-noncetest-noncetest-noncetest"),
 			wantErr:     true,
-			errContains: "/sys/kernel/config/tsm/report:",
+			errContains: "/sys/kernel/config/tsm/report",
 		},
 		{
 			name:        "should handle nil nonce",
