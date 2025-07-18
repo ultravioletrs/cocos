@@ -39,6 +39,7 @@ type stateMachine struct {
 	transitions  map[State]map[Event]State
 	actions      map[State]Action
 	eventChan    chan Event
+	resetChan    chan struct{}
 }
 
 func NewStateMachine(initialState State) StateMachine {
@@ -47,6 +48,7 @@ func NewStateMachine(initialState State) StateMachine {
 		transitions:  make(map[State]map[Event]State),
 		actions:      make(map[State]Action),
 		eventChan:    make(chan Event),
+		resetChan:    make(chan struct{}),
 	}
 }
 
@@ -74,16 +76,31 @@ func (sm *stateMachine) GetState() State {
 }
 
 func (sm *stateMachine) SendEvent(event Event) {
-	sm.eventChan <- event
+	sm.mu.Lock()
+	eventChan := sm.eventChan
+	sm.mu.Unlock()
+
+	select {
+	case eventChan <- event:
+	default:
+		// Channel might be closed or full, ignore the event
+	}
 }
 
 func (sm *stateMachine) Start(ctx context.Context) error {
 	for {
+		sm.mu.Lock()
+		eventChan := sm.eventChan
+		resetChan := sm.resetChan
+		sm.mu.Unlock()
+
 		select {
-		case event := <-sm.eventChan:
+		case event := <-eventChan:
 			if err := sm.handleEvent(event); err != nil {
 				return err
 			}
+		case <-resetChan:
+			continue
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -100,8 +117,11 @@ func (sm *stateMachine) Reset(initialState State) {
 	// Close the existing event channel to stop processing events
 	close(sm.eventChan)
 
-	// Create a new event channel
+	// Close the reset channel to signal Start() to restart
+	close(sm.resetChan)
+
 	sm.eventChan = make(chan Event)
+	sm.resetChan = make(chan struct{})
 }
 
 func (sm *stateMachine) handleEvent(event Event) error {

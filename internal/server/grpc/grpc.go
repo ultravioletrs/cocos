@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
@@ -42,12 +43,15 @@ const (
 
 type Server struct {
 	server.BaseServer
+	mu              sync.RWMutex
 	server          *grpc.Server
+	health          *health.Server
 	registerService serviceRegister
 	authSvc         auth.Authenticator
-	health          *health.Server
 	caUrl           string
 	cvmId           string
+	started         bool
+	stopped         bool
 }
 
 type serviceRegister func(srv *grpc.Server)
@@ -74,6 +78,18 @@ func New(ctx context.Context, cancel context.CancelFunc, name string, config ser
 }
 
 func (s *Server) Start() error {
+	s.mu.Lock()
+	if s.started {
+		s.mu.Unlock()
+		return fmt.Errorf("server already started")
+	}
+	if s.stopped {
+		s.mu.Unlock()
+		return fmt.Errorf("server already stopped")
+	}
+	s.started = true
+	s.mu.Unlock()
+
 	errCh := make(chan error)
 	grpcServerOptions := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
@@ -199,14 +215,22 @@ func (s *Server) Start() error {
 
 	grpcServerOptions = append(grpcServerOptions, creds)
 
+	s.mu.Lock()
 	s.server = grpc.NewServer(grpcServerOptions...)
 	s.health = health.NewServer()
 	grpchealth.RegisterHealthServer(s.server, s.health)
 	s.registerService(s.server)
 	s.health.SetServingStatus(s.Name, grpchealth.HealthCheckResponse_SERVING)
+	s.mu.Unlock()
 
 	go func() {
-		errCh <- s.server.Serve(listener)
+		s.mu.RLock()
+		server := s.server
+		s.mu.RUnlock()
+
+		if server != nil {
+			errCh <- server.Serve(listener)
+		}
 	}()
 
 	select {
@@ -219,19 +243,33 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return nil
+	}
+	s.stopped = true
+
 	defer s.Cancel()
+
 	c := make(chan bool)
 	go func() {
 		defer close(c)
-		s.health.Shutdown()
-		s.server.GracefulStop()
+		if s.health != nil {
+			s.health.Shutdown()
+		}
+		if s.server != nil {
+			s.server.GracefulStop()
+		}
 	}()
+
 	select {
 	case <-c:
 	case <-time.After(stopWaitTime):
 	}
-	s.Logger.Info(fmt.Sprintf("%s gRPC service shutdown at %s", s.Name, s.Address))
 
+	s.Logger.Info(fmt.Sprintf("%s gRPC service shutdown at %s", s.Name, s.Address))
 	return nil
 }
 

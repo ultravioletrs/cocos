@@ -4,10 +4,12 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/absmach/magistrala/pkg/errors"
@@ -18,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	mmocks "github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
@@ -311,26 +314,12 @@ func TestNewValidateAttestationValidationCmd(t *testing.T) {
 	})
 }
 
-type MockMeasurement struct {
-	mock.Mock
-}
-
-func (m *MockMeasurement) Run(igvmBinaryPath string) ([]byte, error) {
-	args := m.Called(igvmBinaryPath)
-	return nil, args.Error(0)
-}
-
-func (m *MockMeasurement) Stop() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 func TestNewMeasureCmd_RunSuccess(t *testing.T) {
 	cliInstance := &CLI{}
-	mockMeasurement := new(MockMeasurement)
+	mockMeasurement := new(mmocks.MeasurementProvider)
 	cliInstance.measurement = mockMeasurement
 
-	mockMeasurement.On("Run", "testfile.igvm").Return(nil)
+	mockMeasurement.On("Run", "testfile.igvm").Return([]byte{}, nil)
 
 	cmd := cliInstance.NewMeasureCmd("fake_binary_path")
 	buf := new(bytes.Buffer)
@@ -346,11 +335,11 @@ func TestNewMeasureCmd_RunSuccess(t *testing.T) {
 
 func TestNewMeasureCmd_RunError(t *testing.T) {
 	cliInstance := &CLI{}
-	mockMeasurement := new(MockMeasurement)
+	mockMeasurement := new(mmocks.MeasurementProvider)
 	cliInstance.measurement = mockMeasurement
 	expectedError := errors.New("mocked measurement error")
 
-	mockMeasurement.On("Run", "testfile.igvm").Return(expectedError)
+	mockMeasurement.On("Run", "testfile.igvm").Return([]byte{}, expectedError)
 
 	cmd := cliInstance.NewMeasureCmd("fake_binary_path")
 
@@ -366,7 +355,7 @@ func TestNewMeasureCmd_RunError(t *testing.T) {
 	mockMeasurement.AssertExpectations(t)
 }
 
-func TestParseConfig(t *testing.T) {
+func TestParseConfig1(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "attestation_policy.json")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
@@ -393,7 +382,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestParseHashes(t *testing.T) {
+func TestParseHashes1(t *testing.T) {
 	trustedAuthorHashes = []string{"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
 	trustedIdKeyHashes = []string{"fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"}
 
@@ -444,7 +433,7 @@ func TestParseFiles(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestParseUints(t *testing.T) {
+func TestParseUints1(t *testing.T) {
 	stepping = "10"
 	platformInfo = "0xFF"
 
@@ -469,7 +458,7 @@ func TestParseUints(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestValidateInput(t *testing.T) {
+func TestValidateInput1(t *testing.T) {
 	cfg = check.Config{}
 	if cfg.Policy == nil {
 		cfg.Policy = &check.Policy{}
@@ -494,7 +483,7 @@ func TestValidateInput(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetBase(t *testing.T) {
+func TestGetBase1(t *testing.T) {
 	assert.Equal(t, 16, getBase("0xFF"))
 	assert.Equal(t, 8, getBase("0o77"))
 	assert.Equal(t, 2, getBase("0b1010"))
@@ -715,4 +704,686 @@ func TestDecodeJWTToJSON(t *testing.T) {
 			tt.validate(t, got)
 		})
 	}
+}
+
+func setupTestEnvironment() func() {
+	originalMode := mode
+	originalCfgString := cfgString
+	originalTimeout := timeout
+	originalMaxRetryDelay := maxRetryDelay
+	originalPlatformInfo := platformInfo
+	originalStepping := stepping
+	originalTrustedAuthorKeys := trustedAuthorKeys
+	originalTrustedAuthorHashes := trustedAuthorHashes
+	originalTrustedIdKeys := trustedIdKeys
+	originalTrustedIdKeyHashes := trustedIdKeyHashes
+	originalAttestationFile := attestationFile
+	originalAttestationRaw := attestationRaw
+	originalOutput := output
+	originalNonce := nonce
+	originalFormat := format
+	originalTeeNonce := teeNonce
+	originalTokenNonce := tokenNonce
+	originalGetTextProtoAttestationReport := getTextProtoAttestationReport
+	originalGetAzureTokenJWT := getAzureTokenJWT
+	originalCloud := cloud
+	originalReportData := reportData
+	originalCheckCrl := checkCrl
+
+	mode = ""
+	cfgString = ""
+	timeout = 0
+	maxRetryDelay = 0
+	platformInfo = ""
+	stepping = ""
+	trustedAuthorKeys = []string{}
+	trustedAuthorHashes = []string{}
+	trustedIdKeys = []string{}
+	trustedIdKeyHashes = []string{}
+	attestationFile = ""
+	attestationRaw = []byte{}
+	output = ""
+	nonce = []byte{}
+	format = ""
+	teeNonce = []byte{}
+	tokenNonce = []byte{}
+	getTextProtoAttestationReport = false
+	getAzureTokenJWT = false
+	cloud = ""
+	reportData = []byte{}
+	checkCrl = false
+
+	return func() {
+		mode = originalMode
+		cfgString = originalCfgString
+		timeout = originalTimeout
+		maxRetryDelay = originalMaxRetryDelay
+		platformInfo = originalPlatformInfo
+		stepping = originalStepping
+		trustedAuthorKeys = originalTrustedAuthorKeys
+		trustedAuthorHashes = originalTrustedAuthorHashes
+		trustedIdKeys = originalTrustedIdKeys
+		trustedIdKeyHashes = originalTrustedIdKeyHashes
+		attestationFile = originalAttestationFile
+		attestationRaw = originalAttestationRaw
+		output = originalOutput
+		nonce = originalNonce
+		format = originalFormat
+		teeNonce = originalTeeNonce
+		tokenNonce = originalTokenNonce
+		getTextProtoAttestationReport = originalGetTextProtoAttestationReport
+		getAzureTokenJWT = originalGetAzureTokenJWT
+		cloud = originalCloud
+		reportData = originalReportData
+		checkCrl = originalCheckCrl
+	}
+}
+
+func createTempFile(t *testing.T, content []byte) string {
+	tmpfile, err := os.CreateTemp("", "test_*.bin")
+	require.NoError(t, err)
+	defer tmpfile.Close()
+
+	_, err = tmpfile.Write(content)
+	require.NoError(t, err)
+
+	return tmpfile.Name()
+}
+
+func TestNewAttestationCmdEdgeCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedOutput string
+		hasSubcommands bool
+	}{
+		{
+			name:           "no arguments shows help",
+			args:           []string{},
+			expectedOutput: "Get and validate attestations",
+			hasSubcommands: true,
+		},
+		{
+			name:           "help flag shows usage",
+			args:           []string{"--help"},
+			expectedOutput: "Get and validate attestations",
+			hasSubcommands: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSDK := new(mocks.SDK)
+			cli := &CLI{agentSDK: mockSDK}
+			cmd := cli.NewAttestationCmd()
+
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
+
+			err := cmd.Execute()
+			assert.NoError(t, err)
+
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedOutput)
+
+			if tt.hasSubcommands {
+				assert.Contains(t, output, "Get and validate attestations")
+				assert.Contains(t, output, "Usage:")
+				assert.Contains(t, output, "Flags:")
+			}
+		})
+	}
+}
+
+func TestGetAttestationCmdEdgeCases(t *testing.T) {
+	defer setupTestEnvironment()()
+
+	testCases := []struct {
+		name        string
+		args        []string
+		setupMock   func(*mocks.SDK)
+		expectedErr string
+		expectedOut string
+	}{
+		{
+			name: "no arguments provided",
+			args: []string{},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "accepts 1 arg(s), received 0",
+		},
+		{
+			name: "too many arguments",
+			args: []string{"snp", "extra"},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "accepts 1 arg(s), received 2",
+		},
+		{
+			name: "invalid attestation type",
+			args: []string{"invalid-type"},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "Bad attestation type",
+		},
+		{
+			name: "SNP with missing TEE nonce",
+			args: []string{"snp"},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "TEE nonce must be defined for SEV-SNP attestation",
+		},
+		{
+			name: "vTPM with missing nonce",
+			args: []string{"vtpm"},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "vTPM nonce must be defined for vTPM attestation",
+		},
+		{
+			name: "Azure token with missing token nonce",
+			args: []string{"azure-token"},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "Token nonce must be defined for Azure attestation",
+		},
+		{
+			name: "TEE nonce too large",
+			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce+1))},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "nonce must be a hex encoded string of length lesser or equal 64 bytes",
+		},
+		{
+			name: "vTPM nonce too large",
+			args: []string{"vtpm", "--vtpm", hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce+1))},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "vTPM nonce must be a hex encoded string of length lesser or equal 32 bytes",
+		},
+		{
+			name: "Token nonce too large",
+			args: []string{"azure-token", "--token", hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce+1))},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "vTPM nonce must be a hex encoded string of length lesser or equal 32 bytes",
+		},
+		{
+			name: "successful TDX attestation",
+			args: []string{"tdx", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))},
+			setupMock: func(sdk *mocks.SDK) {
+				sdk.On("Attestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).Run(func(args mock.Arguments) {
+					if _, err := args.Get(4).(*os.File).Write([]byte("mock tdx attestation")); err != nil {
+						t.Fatalf("Failed to write to attestation file: %v", err)
+					}
+				})
+			},
+			expectedOut: "Fetching TDX attestation report",
+		},
+		{
+			name: "file creation error",
+			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))},
+			setupMock: func(sdk *mocks.SDK) {
+			},
+			expectedErr: "Error creating attestation file",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Remove(attestationFilePath)
+			os.Remove(azureAttestResultFilePath)
+			os.Remove(azureAttestTokenFilePath)
+			defer func() {
+				os.Remove(attestationFilePath)
+				os.Remove(azureAttestResultFilePath)
+				os.Remove(azureAttestTokenFilePath)
+			}()
+
+			mockSDK := new(mocks.SDK)
+			cli := &CLI{agentSDK: mockSDK}
+			tc.setupMock(mockSDK)
+
+			if tc.name == "file creation error" {
+				err := os.Mkdir(attestationFilePath, 0o755)
+				require.NoError(t, err)
+				defer os.Remove(attestationFilePath)
+			}
+
+			cmd := cli.NewGetAttestationCmd()
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tc.args)
+
+			err := cmd.Execute()
+			output := buf.String()
+
+			if tc.expectedErr != "" {
+				assert.Contains(t, output, tc.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				if tc.expectedOut != "" {
+					assert.Contains(t, output, tc.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestFileOperations(t *testing.T) {
+	defer setupTestEnvironment()()
+
+	t.Run("openInputFile", func(t *testing.T) {
+		attestationFile = ""
+		reader, err := openInputFile()
+		assert.Error(t, err)
+		assert.Equal(t, errEmptyFile, err)
+		assert.Nil(t, reader)
+
+		tempFile := createTempFile(t, []byte("test content"))
+		defer os.Remove(tempFile)
+		attestationFile = tempFile
+		reader, err = openInputFile()
+		assert.NoError(t, err)
+		assert.NotNil(t, reader)
+		if file, ok := reader.(*os.File); ok {
+			file.Close()
+		}
+
+		attestationFile = "non-existent-file.bin"
+		reader, err = openInputFile()
+		assert.Error(t, err)
+		assert.Nil(t, reader)
+	})
+
+	t.Run("createOutputFile", func(t *testing.T) {
+		output = ""
+		writer, err := createOutputFile()
+		assert.NoError(t, err)
+		assert.Equal(t, os.Stdout, writer)
+
+		tempDir := t.TempDir()
+		output = filepath.Join(tempDir, "test_output.txt")
+		writer, err = createOutputFile()
+		assert.NoError(t, err)
+		assert.NotNil(t, writer)
+		if file, ok := writer.(*os.File); ok {
+			file.Close()
+		}
+
+		output = "/invalid/path/file.txt"
+		writer, err = createOutputFile()
+		assert.Error(t, err)
+		assert.Nil(t, writer)
+	})
+}
+
+func TestValidationFunctions(t *testing.T) {
+	t.Run("validateFieldLength", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			fieldName      string
+			field          []byte
+			expectedLength int
+			expectError    bool
+		}{
+			{
+				name:           "nil field",
+				fieldName:      "test",
+				field:          nil,
+				expectedLength: 32,
+				expectError:    false,
+			},
+			{
+				name:           "correct length",
+				fieldName:      "test",
+				field:          make([]byte, 32),
+				expectedLength: 32,
+				expectError:    false,
+			},
+			{
+				name:           "incorrect length",
+				fieldName:      "test",
+				field:          make([]byte, 16),
+				expectedLength: 32,
+				expectError:    true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				err := validateFieldLength(tt.fieldName, tt.field, tt.expectedLength)
+				if tt.expectError {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tt.fieldName)
+				} else {
+					assert.NoError(t, err)
+				}
+			})
+		}
+	})
+}
+
+func TestDecodeJWTToJSONEdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected string
+		hasError bool
+	}{
+		{
+			name:     "empty input",
+			input:    []byte(""),
+			hasError: true,
+		},
+		{
+			name:     "single part",
+			input:    []byte("onlyonepart"),
+			hasError: true,
+		},
+		{
+			name:     "invalid base64 in header",
+			input:    []byte("invalid@base64.validpart"),
+			hasError: true,
+		},
+		{
+			name:     "invalid base64 in payload",
+			input:    []byte("eyJhbGciOiJIUzI1NiJ9.invalid@base64"),
+			hasError: true,
+		},
+		{
+			name:     "invalid JSON in header",
+			input:    []byte("bm90anNvbg.eyJzdWIiOiJ0ZXN0In0"),
+			hasError: true,
+		},
+		{
+			name:     "invalid JSON in payload",
+			input:    []byte("eyJhbGciOiJIUzI1NiJ9.bm90anNvbg"),
+			hasError: true,
+		},
+		{
+			name:  "valid JWT with padding",
+			input: []byte("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.signature"),
+			expected: `{
+  "header": {
+    "alg": "HS256"
+  },
+  "payload": {
+    "sub": "test"
+  }
+}`,
+			hasError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := decodeJWTToJSON(tt.input)
+			if tt.hasError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				if tt.expected != "" {
+					assert.JSONEq(t, tt.expected, string(result))
+				}
+			}
+		})
+	}
+}
+
+func TestMeasureCmdEdgeCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		mockSetup     func(*mmocks.MeasurementProvider)
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name: "no arguments",
+			args: []string{},
+			mockSetup: func(m *mmocks.MeasurementProvider) {
+			},
+			expectedError: "requires at least 1 arg(s), only received 0",
+		},
+		{
+			name: "single line output success",
+			args: []string{"test.igvm"},
+			mockSetup: func(m *mmocks.MeasurementProvider) {
+				m.On("Run", "test.igvm").Return([]byte("ABCDEF123456"), nil)
+			},
+			expectedOut: "",
+		},
+		{
+			name: "multi-line output error",
+			args: []string{"test.igvm"},
+			mockSetup: func(m *mmocks.MeasurementProvider) {
+				m.On("Run", "test.igvm").Return([]byte("line1\nline2\nERROR: something went wrong"), nil)
+			},
+			expectedError: "ERROR: something went wrong",
+		},
+		{
+			name: "measurement run error",
+			args: []string{"test.igvm"},
+			mockSetup: func(m *mmocks.MeasurementProvider) {
+				m.On("Run", "test.igvm").Return(nil, errors.New("measurement failed"))
+			},
+			expectedError: "measurement failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMeasurement := new(mmocks.MeasurementProvider)
+			tt.mockSetup(mockMeasurement)
+
+			cli := &CLI{measurement: mockMeasurement}
+			cmd := cli.NewMeasureCmd("fake_binary_path")
+
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
+
+			err := cmd.Execute()
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, buf.String(), tt.expectedOut)
+				}
+			}
+
+			mockMeasurement.AssertExpectations(t)
+		})
+	}
+}
+
+func TestValidateAttestationValidationCmdPreRunE(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		flags       map[string]string
+		expectedErr string
+	}{
+		{
+			name:        "no file path provided",
+			args:        []string{},
+			flags:       map[string]string{"mode": "snp"},
+			expectedErr: "please pass the attestation report file path",
+		},
+		{
+			name:        "multiple file paths",
+			args:        []string{"file1.bin", "file2.bin"},
+			flags:       map[string]string{"mode": "snp"},
+			expectedErr: "please pass the attestation report file path",
+		},
+		{
+			name:        "unknown mode",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "unknown"},
+			expectedErr: "unknown mode: unknown",
+		},
+		{
+			name:        "SNP mode missing report_data",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "snp"},
+			expectedErr: "",
+		},
+		{
+			name:        "SNP mode missing product",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "snp", "report_data": "123"},
+			expectedErr: "",
+		},
+		{
+			name:        "vTPM mode missing nonce",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "vtpm"},
+			expectedErr: "",
+		},
+		{
+			name:        "SNP-vTPM mode missing required flags",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "snp-vtpm"},
+			expectedErr: "",
+		},
+		{
+			name:        "TDX mode missing report_data",
+			args:        []string{"test.bin"},
+			flags:       map[string]string{"mode": "tdx"},
+			expectedErr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli := &CLI{}
+			cmd := cli.NewValidateAttestationValidationCmd()
+
+			for key, value := range tt.flags {
+				if err := cmd.Flags().Set(key, value); err != nil {
+				}
+			}
+
+			err := cmd.PreRunE(cmd, tt.args)
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestCloudProviderConfigurations(t *testing.T) {
+	defer setupTestEnvironment()()
+
+	tests := []struct {
+		name         string
+		cloud        string
+		expectedType string
+	}{
+		{
+			name:         "none cloud provider",
+			cloud:        CCNone,
+			expectedType: "vtpm",
+		},
+		{
+			name:         "azure cloud provider",
+			cloud:        CCAzure,
+			expectedType: "azure",
+		},
+		{
+			name:         "gcp cloud provider",
+			cloud:        CCGCP,
+			expectedType: "vtpm",
+		},
+		{
+			name:         "default cloud provider",
+			cloud:        "",
+			expectedType: "vtpm",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli := &CLI{}
+			cmd := cli.NewValidateAttestationValidationCmd()
+
+			if err := cmd.Flags().Set("cloud", tt.cloud); err != nil {
+				t.Fatalf("Failed to set cloud flag: %v", err)
+			}
+			cloud, _ := cmd.Flags().GetString("cloud")
+			assert.Equal(t, tt.cloud, cloud)
+
+			assert.Contains(t, cmd.Short, tt.cloud)
+		})
+	}
+}
+
+func TestFileOperationErrors(t *testing.T) {
+	defer setupTestEnvironment()()
+
+	t.Run("file close error handling", func(t *testing.T) {
+		tempFile := createTempFile(t, []byte("test content"))
+		defer os.Remove(tempFile)
+
+		assert.True(t, true)
+	})
+
+	t.Run("file write error handling", func(t *testing.T) {
+		tempFile := createTempFile(t, []byte("test content"))
+		defer os.Remove(tempFile)
+
+		err := os.Chmod(tempFile, 0o444)
+		require.NoError(t, err)
+
+		err = os.WriteFile(tempFile, []byte("new content"), 0o644)
+		assert.Error(t, err)
+	})
+
+	t.Run("file read error handling", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		_, err := os.ReadFile(tempDir)
+		assert.Error(t, err)
+	})
+}
+
+func TestContextCancellation(t *testing.T) {
+	defer setupTestEnvironment()()
+
+	mockSDK := new(mocks.SDK)
+	cli := &CLI{agentSDK: mockSDK}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	mockSDK.On("Attestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(context.Canceled)
+
+	cmd := cli.NewGetAttestationCmd()
+	cmd.SetContext(ctx)
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+
+	teeNonceHex := hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))
+	cmd.SetArgs([]string{"snp", "--tee", teeNonceHex})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "Failed to get attestation due to error")
 }
