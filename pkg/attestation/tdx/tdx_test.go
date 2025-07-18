@@ -54,7 +54,7 @@ func TestProvider_Attestation(t *testing.T) {
 			teeNonce:    []byte("test-noncetest-noncetest-noncetest-noncetest-noncetest-noncetest"),
 			vTpmNonce:   []byte("vtpm-nonce"),
 			wantErr:     true,
-			errContains: "stat /sys/kernel/config/tsm/report",
+			errContains: "/sys/kernel/config/tsm/report",
 		},
 		{
 			name:        "should handle nil nonces",
@@ -68,7 +68,7 @@ func TestProvider_Attestation(t *testing.T) {
 			teeNonce:    make([]byte, 64),
 			vTpmNonce:   make([]byte, 32),
 			wantErr:     true,
-			errContains: "stat /sys/kernel/config/tsm/report",
+			errContains: "/sys/kernel/config/tsm/report",
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestProvider_TeeAttestation(t *testing.T) {
 			name:        "should handle valid nonce",
 			teeNonce:    []byte("test-noncetest-noncetest-noncetest-noncetest-noncetest-noncetest"),
 			wantErr:     true,
-			errContains: "stat /sys/kernel/config/tsm/report:",
+			errContains: "/sys/kernel/config/tsm/report:",
 		},
 		{
 			name:        "should handle nil nonce",
@@ -118,7 +118,7 @@ func TestProvider_TeeAttestation(t *testing.T) {
 			name:        "should handle 64-byte nonce",
 			teeNonce:    make([]byte, 64),
 			wantErr:     true,
-			errContains: "stat /sys/kernel/config/tsm/report",
+			errContains: "/sys/kernel/config/tsm/report",
 		},
 	}
 

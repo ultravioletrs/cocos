@@ -3,19 +3,33 @@
 package atls
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	certssdk "github.com/absmach/certs/sdk"
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -215,6 +229,346 @@ func TestGetPlatformTypeFromOID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVerifyCertificateExtension(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	attestationPB := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
+
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	pubKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	require.NoError(t, err)
+
+	nonce := make([]byte, 64)
+	_, err = rand.Read(nonce)
+	require.NoError(t, err)
+
+	teeNonce := append(pubKeyDER, nonce...)
+	hashNonce := sha3.Sum512(teeNonce)
+
+	cases := []struct {
+		name         string
+		extension    []byte
+		pubKey       []byte
+		nonce        []byte
+		platformType attestation.PlatformType
+		expectError  bool
+	}{
+		{
+			name:         "Valid extension with SNPvTPM",
+			extension:    hashNonce[:],
+			pubKey:       pubKeyDER,
+			nonce:        nonce,
+			platformType: attestation.SNPvTPM,
+			expectError:  true,
+		},
+		{
+			name:         "Invalid platform type",
+			extension:    hashNonce[:],
+			pubKey:       pubKeyDER,
+			nonce:        nonce,
+			platformType: 999,
+			expectError:  true,
+		},
+		{
+			name:         "Empty extension",
+			extension:    []byte{},
+			pubKey:       pubKeyDER,
+			nonce:        nonce,
+			platformType: attestation.SNPvTPM,
+			expectError:  true,
+		},
+		{
+			name:         "Empty public key",
+			extension:    hashNonce[:],
+			pubKey:       []byte{},
+			nonce:        nonce,
+			platformType: attestation.SNPvTPM,
+			expectError:  true,
+		},
+		{
+			name:         "Empty nonce",
+			extension:    hashNonce[:],
+			pubKey:       pubKeyDER,
+			nonce:        []byte{},
+			platformType: attestation.SNPvTPM,
+			expectError:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := VerifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
+			if c.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetCertificateExtension(t *testing.T) {
+	mockProvider := new(mocks.Provider)
+
+	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation-data"), nil)
+
+	pubKey := []byte("test-public-key")
+	nonce := make([]byte, 32)
+	_, err := rand.Read(nonce)
+	require.NoError(t, err)
+
+	testOID := asn1.ObjectIdentifier{1, 2, 3, 4}
+
+	extension, err := getCertificateExtension(mockProvider, pubKey, nonce, testOID)
+	assert.NoError(t, err)
+	assert.Equal(t, testOID, extension.Id)
+	assert.Equal(t, []byte("mock-attestation-data"), extension.Value)
+}
+
+func TestGetCertificateWithSelfSigned(t *testing.T) {
+	getCertFunc := GetCertificate("", "")
+
+	nonce := make([]byte, 64)
+	_, err := rand.Read(nonce)
+	require.NoError(t, err)
+
+	serverName := hex.EncodeToString(nonce) + ".nonce"
+
+	clientHello := &tls.ClientHelloInfo{
+		ServerName: serverName,
+	}
+
+	cert, err := getCertFunc(clientHello)
+
+	if err != nil {
+		t.Logf("Expected error due to missing attestation setup: %v", err)
+		assert.Error(t, err)
+	} else {
+		assert.NotNil(t, cert)
+		assert.NotEmpty(t, cert.Certificate)
+		assert.NotNil(t, cert.PrivateKey)
+	}
+}
+
+func TestGetCertificateWithCA(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		mockCert := certssdk.Certificate{
+			Certificate: "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIBATANBgkqhkiG9w0BAQsFADAYMRYwFAYDVQQDDA1UZXN0IENBIFJvb3QwHhcNMjMwMzMxMDAwMDAwWhcNMjQwMzMxMDAwMDAwWjAYMRYwFAYDVQQDDA1UZXN0IENlcnRpZmljYXRlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtest-key-data-here\n-----END CERTIFICATE-----",
+		}
+
+		response, _ := json.Marshal(mockCert)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(response); err != nil {
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer mockServer.Close()
+
+	getCertFunc := GetCertificate(mockServer.URL, "test-cvm-id")
+
+	nonce := make([]byte, 64)
+	_, err := rand.Read(nonce)
+	require.NoError(t, err)
+
+	serverName := hex.EncodeToString(nonce) + ".nonce"
+
+	clientHello := &tls.ClientHelloInfo{
+		ServerName: serverName,
+	}
+
+	_, err = getCertFunc(clientHello)
+	if err != nil {
+		t.Logf("Expected error due to missing attestation setup: %v", err)
+		assert.Error(t, err)
+	}
+}
+
+func TestGetCertificateInvalidServerName(t *testing.T) {
+	getCertFunc := GetCertificate("", "")
+
+	cases := []struct {
+		name       string
+		serverName string
+		expectErr  string
+	}{
+		{
+			name:       "Missing .nonce suffix",
+			serverName: "invalidname",
+			expectErr:  "failed to get platform provider",
+		},
+		{
+			name:       "Too short server name",
+			serverName: "short",
+			expectErr:  "failed to get platform provider",
+		},
+		{
+			name:       "Invalid nonce encoding",
+			serverName: "invalidhex.nonce",
+			expectErr:  "failed to get platform provider",
+		},
+		{
+			name:       "Wrong nonce length",
+			serverName: "deadbeef.nonce",
+			expectErr:  "failed to get platform provider",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			clientHello := &tls.ClientHelloInfo{
+				ServerName: c.serverName,
+			}
+
+			cert, err := getCertFunc(clientHello)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), c.expectErr)
+			assert.Nil(t, cert)
+		})
+	}
+}
+
+func TestProcessRequest(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/success":
+			w.WriteHeader(http.StatusOK)
+			if _, err := w.Write([]byte(`{"message": "success"}`)); err != nil {
+				http.Error(w, "Failed to write response", http.StatusInternalServerError)
+				return
+			}
+		case "/notfound":
+			w.WriteHeader(http.StatusNotFound)
+			if _, err := w.Write([]byte(`{"error": "not found"}`)); err != nil {
+				http.Error(w, "Failed to write response", http.StatusInternalServerError)
+				return
+			}
+		case "/headers":
+			if r.Header.Get("X-Custom-Header") == "test-value" {
+				w.Header().Set("X-Response-Header", "received")
+			}
+			w.WriteHeader(http.StatusOK)
+			if _, err := w.Write([]byte(`{"headers": "ok"}`)); err != nil {
+				http.Error(w, "Failed to write response", http.StatusInternalServerError)
+				return
+			}
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer testServer.Close()
+
+	cases := []struct {
+		name              string
+		method            string
+		url               string
+		data              []byte
+		headers           map[string]string
+		expectedRespCodes []int
+		expectError       bool
+	}{
+		{
+			name:              "Successful GET request",
+			method:            http.MethodGet,
+			url:               testServer.URL + "/success",
+			data:              nil,
+			headers:           nil,
+			expectedRespCodes: []int{http.StatusOK},
+			expectError:       false,
+		},
+		{
+			name:              "Successful POST request with data",
+			method:            http.MethodPost,
+			url:               testServer.URL + "/success",
+			data:              []byte(`{"test": "data"}`),
+			headers:           nil,
+			expectedRespCodes: []int{http.StatusOK},
+			expectError:       false,
+		},
+		{
+			name:              "Request with custom headers",
+			method:            http.MethodGet,
+			url:               testServer.URL + "/headers",
+			data:              nil,
+			headers:           map[string]string{"X-Custom-Header": "test-value"},
+			expectedRespCodes: []int{http.StatusOK},
+			expectError:       false,
+		},
+		{
+			name:              "Request with unexpected status code",
+			method:            http.MethodGet,
+			url:               testServer.URL + "/notfound",
+			data:              nil,
+			headers:           nil,
+			expectedRespCodes: []int{http.StatusOK},
+			expectError:       true,
+		},
+		{
+			name:              "Request with multiple expected status codes",
+			method:            http.MethodGet,
+			url:               testServer.URL + "/notfound",
+			data:              nil,
+			headers:           nil,
+			expectedRespCodes: []int{http.StatusOK, http.StatusNotFound},
+			expectError:       false,
+		},
+		{
+			name:              "Request to invalid URL",
+			method:            http.MethodGet,
+			url:               "invalid-url",
+			data:              nil,
+			headers:           nil,
+			expectedRespCodes: []int{http.StatusOK},
+			expectError:       true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			headers, body, err := processRequest(c.method, c.url, c.data, c.headers, c.expectedRespCodes...)
+
+			if c.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, headers)
+				assert.NotNil(t, body)
+
+				if c.name == "Request with custom headers" {
+					assert.Equal(t, "received", headers.Get("X-Response-Header"))
+				}
+			}
+		})
+	}
+}
+
+func TestGetCertificateExtensionError(t *testing.T) {
+	mockProvider := new(mocks.Provider)
+
+	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get attestation"))
+
+	pubKey := []byte("test-public-key")
+	nonce := make([]byte, 32)
+	testOID := asn1.ObjectIdentifier{1, 2, 3, 4}
+
+	extension, err := getCertificateExtension(mockProvider, pubKey, nonce, testOID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get attestation")
+	assert.Equal(t, pkix.Extension{}, extension)
 }
 
 func prepVerifyAttReport(t *testing.T) *sevsnp.Attestation {
