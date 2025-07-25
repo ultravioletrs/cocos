@@ -331,6 +331,7 @@ func parseUints() error {
 			if err != nil {
 				return err
 			}
+
 			cfg.Policy.Product.MachineStepping = wrapperspb.UInt32(uint32(num))
 		} else {
 			num, err := strconv.ParseUint(stepping[2:], base, 8)

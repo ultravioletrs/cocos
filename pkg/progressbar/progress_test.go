@@ -529,6 +529,76 @@ func TestReceiveAttestation(t *testing.T) {
 	}
 }
 
+func TestReceiverIMAMeasurements(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+		totalSize   int
+		chunks      [][]byte
+		wantResult  []byte
+		wantErr     error
+	}{
+		{
+			name:        "successful single chunk receive",
+			description: "Receiving IMA measurements",
+			totalSize:   20,
+			chunks:      [][]byte{[]byte("12345678912345678999")},
+			wantResult:  []byte("12345678912345678999"),
+			wantErr:     nil,
+		},
+		{
+			name:        "stream error",
+			description: "Receiving IMA measurements",
+			totalSize:   20,
+			chunks:      [][]byte{[]byte("12345678912345678999")},
+			wantResult:  nil,
+			wantErr:     errors.New("stream error"),
+		},
+		{
+			name:        "size mismatch",
+			description: "Receiving IMA measurements",
+			totalSize:   10,
+			chunks:      [][]byte{[]byte("12345678912345678999")},
+			wantResult:  nil,
+			wantErr:     errors.New("progress update exceeds total bytes: attempted to add 20 bytes, but only 10 bytes remain"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStream := new(mocks.AgentService_IMAMeasurementsClient[agent.IMAMeasurementsResponse])
+
+			p := New(true)
+			p.TerminalWidthFunc = func() (int, error) { return 100, nil }
+
+			resultFile, err := os.CreateTemp("", "test_ima_measurements")
+			assert.NoError(t, err)
+
+			t.Cleanup(func() {
+				os.Remove(resultFile.Name())
+			})
+
+			if tt.wantErr != nil {
+				mockStream.On("Recv").Return(nil, tt.wantErr).Once()
+			}
+			mockStream.On("Recv").Return(&agent.IMAMeasurementsResponse{Pcr10: []byte(tt.chunks[0]), File: []byte(tt.chunks[0])}, nil).Once()
+			mockStream.On("Recv").Return(nil, io.EOF).Once()
+
+			pcr10, err := p.ReceiveIMAMeasurements(tt.description, tt.totalSize, mockStream, resultFile)
+
+			assert.NoError(t, resultFile.Close())
+
+			if tt.wantErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult, pcr10)
+			}
+		})
+	}
+}
+
 type mockAlgoStream struct {
 	stream             agent.AgentService_AlgoClient
 	sendCount          int

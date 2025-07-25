@@ -20,6 +20,11 @@ packages:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "agent_grpc_algo.go"
           mockname: "{{.InterfaceName}}"
+      AgentService_IMAMeasurementsClient:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "agent_grpc_ima.go"
+          mockname: "{{.InterfaceName}}"
   github.com/ultravioletrs/cocos/agent/auth:
     interfaces:
       Authenticator:
@@ -118,4 +123,23 @@ packages:
         config:
           dir: "{{.InterfaceDir}}/mocks"
           filename: "attestation.go"
+          mockname: "{{.InterfaceName}}"
+      Verifier:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "verifier.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/agent/algorithm:
+    interfaces:
+      Algorithm:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "algorithm.go"
+          mockname: "{{.InterfaceName}}"
+  github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig:
+    interfaces:
+      MeasurementProvider:
+        config:
+          dir: "{{.InterfaceDir}}/mocks"
+          filename: "measurement_provider.go"
           mockname: "{{.InterfaceName}}"

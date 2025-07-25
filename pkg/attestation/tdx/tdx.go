@@ -45,6 +45,14 @@ func (v provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 }
 
 func (v provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
+	if teeNonce == nil {
+		return nil, errors.New("tee nonce is required for TDX attestation")
+	}
+
+	if len(teeNonce) != 64 {
+		return nil, fmt.Errorf("invalid tee nonce length: expected 64 bytes, got %d bytes", len(teeNonce))
+	}
+
 	quoteprovider, err := client.GetQuoteProvider()
 	if err != nil {
 		return nil, errors.Wrap(err, errOpenTDXDevice)

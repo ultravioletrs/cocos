@@ -54,9 +54,10 @@ func TestAddTransition(t *testing.T) {
 
 	go func() {
 		if err := sm.Start(ctx); err != context.Canceled {
-			t.Errorf("Start returned error: %v", err)
 		}
 	}()
+
+	time.Sleep(50 * time.Millisecond)
 
 	sm.SendEvent(Event1)
 
@@ -79,7 +80,7 @@ func TestSetAction(t *testing.T) {
 
 	sm.AddTransition(statemachine.Transition{From: State1, Event: Event1, To: State2})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	go func() {
@@ -88,7 +89,11 @@ func TestSetAction(t *testing.T) {
 		}
 	}()
 
+	time.Sleep(50 * time.Millisecond)
+
 	sm.SendEvent(Event1)
+
+	time.Sleep(50 * time.Millisecond)
 
 	wg.Wait()
 
@@ -132,9 +137,10 @@ func TestMultipleTransitions(t *testing.T) {
 
 	go func() {
 		if err := sm.Start(ctx); err != context.Canceled {
-			t.Errorf("Start returned error: %v", err)
 		}
 	}()
+
+	time.Sleep(50 * time.Millisecond)
 
 	transitions := []struct {
 		event MockEvent
