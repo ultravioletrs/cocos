@@ -96,7 +96,7 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			if c.managerClient == nil || c.connectErr != nil {
 				if err := c.InitializeManagerClient(cmd); err != nil {
-					printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+					printError(cmd, "Failed to connect to manager: %v ❌ ", err)
 					return
 				}
 			}
