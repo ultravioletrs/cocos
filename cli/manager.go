@@ -95,15 +95,12 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if c.managerClient == nil || c.connectErr != nil {
-				if err := c.InitializeManagerClient(cmd); err == nil {
-					defer c.Close()
+				if err := c.InitializeManagerClient(cmd); err != nil {
+					printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+					return
 				}
 			}
-
-			if c.connectErr != nil {
-				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
-				return
-			}
+			defer c.Close()
 
 			cmd.Println("🔗 Removing virtual machine")
 
