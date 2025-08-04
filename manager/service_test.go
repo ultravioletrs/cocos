@@ -77,6 +77,13 @@ func TestRun(t *testing.T) {
 			expectedError:  nil,
 			ttl:            "10s",
 		},
+		{
+			name:           "with exceeded max vms",
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  errors.New("maximum number of VMs exceeded"),
+			ttl:            "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -110,6 +117,11 @@ func TestRun(t *testing.T) {
 				vmFactory:                   vmf.Execute,
 				persistence:                 persistence,
 				ttlManager:                  NewTTLManager(),
+			}
+
+			if tt.name == "with exceeded max vms" {
+				ms.maxVMs = 1
+				ms.vms["existing-vm"] = vmMock // Simulate an existing VM
 			}
 
 			ctx := context.Background()
