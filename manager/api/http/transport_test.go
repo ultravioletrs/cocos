@@ -351,7 +351,9 @@ func TestHandlerWithCustomRouter(t *testing.T) {
 	r := chi.NewRouter()
 	r.Get("/existing", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("existing"))
+		if _, err := w.Write([]byte("existing")); err != nil {
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		}
 	})
 
 	handler := MakeHandler(r, testServiceName, testInstanceID)
