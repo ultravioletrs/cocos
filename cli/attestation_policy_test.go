@@ -412,7 +412,7 @@ func TestExtendWithManifestHandling(t *testing.T) {
 		assert.Contains(t, output, "❌")
 	})
 
-	t.Run("Invalid manifest file", func(t *testing.T) {
+	t.Run("Valid file paths", func(t *testing.T) {
 		fileContent := `{
 		  "id": "1",
 		  "name": "sample computation",
@@ -442,7 +442,12 @@ func TestExtendWithManifestHandling(t *testing.T) {
 		  }
 		}`
 
-		manifestFile, err := os.CreateTemp("", "manifest.json")
+		dir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Error getting current working directory: %v", err)
+		}
+
+		manifestFile, err := os.CreateTemp(dir, "manifest.json")
 		if err != nil {
 			t.Fatalf("Error creating temp file: %v", err)
 		}
@@ -454,7 +459,7 @@ func TestExtendWithManifestHandling(t *testing.T) {
 		}
 
 		cmd := cli.NewExtendWithManifestCmd()
-		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "manifest.json"})
+		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", manifestFile.Name()})
 
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)
