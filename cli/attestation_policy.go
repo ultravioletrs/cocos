@@ -339,7 +339,7 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 	return nil
 }
 
-func extendWithManifest(attestationPolicyPath string, manifestPath []string) error {
+func extendWithManifest(attestationPolicyPath string, manifestPaths []string) error {
 	attestationConfig := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
 	attestationPolicyFileData, err := os.ReadFile(attestationPolicyPath)
@@ -351,7 +351,7 @@ func extendWithManifest(attestationPolicyPath string, manifestPath []string) err
 		return errors.Wrap(errUnmarshalJSON, err)
 	}
 
-	for _, manifestPath := range manifestPath {
+	for _, manifestPath := range manifestPaths {
 		manifest, err := os.ReadFile(manifestPath)
 		if err != nil {
 			return errors.Wrap(errReadingManifestFile, err)
