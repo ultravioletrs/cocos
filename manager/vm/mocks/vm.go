@@ -23,51 +23,6 @@ func (_m *VM) EXPECT() *VM_Expecter {
 	return &VM_Expecter{mock: &_m.Mock}
 }
 
-// GetCID provides a mock function with no fields
-func (_m *VM) GetCID() int {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCID")
-	}
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	return r0
-}
-
-// VM_GetCID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCID'
-type VM_GetCID_Call struct {
-	*mock.Call
-}
-
-// GetCID is a helper method to define mock.On call
-func (_e *VM_Expecter) GetCID() *VM_GetCID_Call {
-	return &VM_GetCID_Call{Call: _e.mock.On("GetCID")}
-}
-
-func (_c *VM_GetCID_Call) Run(run func()) *VM_GetCID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *VM_GetCID_Call) Return(_a0 int) *VM_GetCID_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *VM_GetCID_Call) RunAndReturn(run func() int) *VM_GetCID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetConfig provides a mock function with no fields
 func (_m *VM) GetConfig() interface{} {
 	ret := _m.Called()

@@ -1,0 +1,57 @@
+groups:
+  - name: cocos-manager-alerts
+    rules:
+      # Service Down Alert - Primary method using up metric
+      - alert: CocosManagerDown
+        expr: up{job="cocos-manager"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: cocos-manager
+        annotations:
+          summary: "Cocos Manager service is down"
+          description: "Cocos Manager service has been down for more than 1 minute. Instance: {{ $labels.instance }}"
+
+      # Alternative: No metrics received (for cases where up metric might not be reliable)
+      - alert: CocosManagerNoMetrics
+        expr: absent(up{job="cocos-manager"})
+        for: 2m
+        labels:
+          severity: critical
+          service: cocos-manager
+        annotations:
+          summary: "No metrics received from Cocos Manager"
+          description: "No metrics have been received from Cocos Manager for more than 2 minutes"
+
+      # Health endpoint specific alert (if you expose health as a metric)
+      - alert: CocosManagerUnhealthy
+        expr: health_check{job="cocos-manager"} == 0
+        for: 30s
+        labels:
+          severity: warning
+          service: cocos-manager
+        annotations:
+          summary: "Cocos Manager health check failing"
+          description: "Cocos Manager health check has been failing for more than 30 seconds. Instance: {{ $labels.instance }}"
+
+      # High latency alert
+      - alert: CocosManagerHighLatency
+        expr: histogram_quantile(0.95, rate(cocos_manager_latency_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: cocos-manager
+        annotations:
+          summary: "Cocos Manager high latency"
+          description: "Cocos Manager 95th percentile latency is above 2 seconds for more than 5 minutes. Current value: {{ $value }}s"
+
+      # High error rate alert
+      - alert: CocosManagerHighErrorRate
+        expr: rate(cocos_manager_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: cocos-manager
+        annotations:
+          summary: "Cocos Manager high error rate"
+          description: "Cocos Manager error rate is above 10% for more than 2 minutes. Current rate: {{ $value }}"

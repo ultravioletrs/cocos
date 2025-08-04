@@ -11,7 +11,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"

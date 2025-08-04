@@ -13,7 +13,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/grpc/credentials"

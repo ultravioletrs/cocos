@@ -14,7 +14,7 @@ import (
 	sync "sync"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
 	"github.com/ultravioletrs/cocos/agent/algorithm/docker"

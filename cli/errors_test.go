@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	mgerrors "github.com/absmach/magistrala/pkg/errors"
+	mgerrors "github.com/absmach/supermq/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent/auth"

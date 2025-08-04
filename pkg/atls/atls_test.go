@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	certssdk "github.com/absmach/certs/sdk"
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"

@@ -10,7 +10,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-sev-guest/abi"

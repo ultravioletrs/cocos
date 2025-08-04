@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 )

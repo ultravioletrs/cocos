@@ -55,12 +55,6 @@ linters:
       template: |-
         Copyright (c) Ultraviolet
         SPDX-License-Identifier: Apache-2.0
-    importas:
-      alias:
-        - pkg: github.com/absmach/magistrala/logger
-          alias: mglog
-      no-unaliased: true
-      no-extra-aliases: false
     staticcheck:
       checks:
         - -ST1000

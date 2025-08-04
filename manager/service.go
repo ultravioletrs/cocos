@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -189,22 +189,6 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 		return "", id, errors.Wrap(ErrFailedToAllocatePort, err)
 	}
 	cfg.Config.HostFwdAgent = agentPort
-
-	var cid int = qemu.BaseGuestCID
-	for {
-		available := true
-		for _, vm := range ms.vms {
-			if vm.GetCID() == cid {
-				available = false
-				break
-			}
-		}
-		if available {
-			break
-		}
-		cid++
-	}
-	cfg.Config.VSockConfig.GuestCID = cid
 
 	if cfg.Config.EnableSEVSNP {
 		todo := sha3.Sum256([]byte("TODO"))

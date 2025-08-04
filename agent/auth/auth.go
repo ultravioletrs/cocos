@@ -13,7 +13,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"

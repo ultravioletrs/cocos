@@ -12,8 +12,8 @@ import (
 	"path"
 	"testing"
 
-	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/errors"
+	mglog "github.com/absmach/supermq/logger"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -95,9 +95,6 @@ func TestRun(t *testing.T) {
 
 			qemuCfg := qemu.Config{
 				EnableSEVSNP: true,
-				VSockConfig: qemu.VSockConfig{
-					GuestCID: 3,
-				},
 			}
 			logger := slog.Default()
 

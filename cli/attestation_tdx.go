@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	ccpb "github.com/google/go-tdx-guest/proto/checkconfig"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/pkg/attestation"

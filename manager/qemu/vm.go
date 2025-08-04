@@ -192,10 +192,6 @@ func processExists(pid int) bool {
 	return false
 }
 
-func (v *qemuVM) GetCID() int {
-	return v.vmi.Config.GuestCID
-}
-
 func (v *qemuVM) GetConfig() interface{} {
 	return v.vmi
 }

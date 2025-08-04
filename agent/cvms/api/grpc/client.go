@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"

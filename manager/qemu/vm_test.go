@@ -132,22 +132,6 @@ func TestGetProcess(t *testing.T) {
 	assert.Equal(t, expectedPid, pid)
 }
 
-func TestGetCID(t *testing.T) {
-	expectedCID := 42
-	vm := &qemuVM{
-		vmi: VMInfo{
-			Config: Config{
-				VSockConfig: VSockConfig{
-					GuestCID: expectedCID,
-				},
-			},
-		},
-	}
-
-	cid := vm.GetCID()
-	assert.Equal(t, expectedCID, cid)
-}
-
 func TestGetConfig(t *testing.T) {
 	expectedConfig := VMInfo{
 		Config: Config{
