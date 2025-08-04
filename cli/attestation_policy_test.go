@@ -376,3 +376,39 @@ func TestCommandErrorHandling(t *testing.T) {
 		assert.Contains(t, output, "❌")
 	})
 }
+
+func TestExtendWithManifestHandling(t *testing.T) {
+	cli := &CLI{}
+
+	t.Run("Invalid policy file", func(t *testing.T) {
+		cmd := cli.NewExtendWithManifestCmd()
+		cmd.SetArgs([]string{"nonexistent.policy.json", "nonexistent.manifest.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "error while reading the attestation policy file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Invalid manifest file", func(t *testing.T) {
+		cmd := cli.NewExtendWithManifestCmd()
+		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "nonexistent.manifest.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "error while reading manifest file")
+		assert.Contains(t, output, "❌")
+	})
+}
