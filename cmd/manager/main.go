@@ -52,6 +52,7 @@ type config struct {
 	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build/igvmmeasure"`
 	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
 	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
+	MaxVMs                  int     `env:"MANAGER_MAX_VMS"                    envDefault:"10"`
 }
 
 func main() {
@@ -125,7 +126,7 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
 	}
 
-	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
+	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion, cfg.MaxVMs)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -166,8 +167,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string, maxVMs int) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion, maxVMs)
 	if err != nil {
 		return nil, err
 	}
