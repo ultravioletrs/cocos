@@ -288,7 +288,7 @@ func (cli *CLI) NewExtendWithManifestCmd() *cobra.Command {
 			attestationPolicyFilePath := args[0]
 			manifestPaths := args[1:]
 			if err := extendWithManifest(attestationPolicyFilePath, manifestPaths); err != nil {
-				printError(cmd, "Error could not change measurement data: %v ❌ ", err)
+				printError(cmd, "Error could not extend PCR16: %v ❌ ", err)
 				return
 			}
 		},
