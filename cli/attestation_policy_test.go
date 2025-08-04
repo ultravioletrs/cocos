@@ -454,7 +454,7 @@ func TestExtendWithManifestHandling(t *testing.T) {
 		}
 
 		cmd := cli.NewExtendWithManifestCmd()
-		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "nonexistent.manifest.json"})
+		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "manifest.json"})
 
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)
