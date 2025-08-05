@@ -12,8 +12,8 @@ import (
 	"path"
 	"testing"
 
-	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/errors"
+	mglog "github.com/absmach/supermq/logger"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", "", "", logger, vmf.Execute, "")
+	service, err := New(cfg, "", "", "", logger, vmf.Execute, "", 10)
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
@@ -77,6 +77,13 @@ func TestRun(t *testing.T) {
 			expectedError:  nil,
 			ttl:            "10s",
 		},
+		{
+			name:           "with exceeded max vms",
+			binaryBehavior: "success",
+			vmStartError:   nil,
+			expectedError:  errors.New("maximum number of VMs exceeded"),
+			ttl:            "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -95,9 +102,6 @@ func TestRun(t *testing.T) {
 
 			qemuCfg := qemu.Config{
 				EnableSEVSNP: true,
-				VSockConfig: qemu.VSockConfig{
-					GuestCID: 3,
-				},
 			}
 			logger := slog.Default()
 
@@ -113,6 +117,11 @@ func TestRun(t *testing.T) {
 				vmFactory:                   vmf.Execute,
 				persistence:                 persistence,
 				ttlManager:                  NewTTLManager(),
+			}
+
+			if tt.name == "with exceeded max vms" {
+				ms.maxVMs = 1
+				ms.vms["existing-vm"] = vmMock // Simulate an existing VM
 			}
 
 			ctx := context.Background()

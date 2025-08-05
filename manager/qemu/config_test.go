@@ -51,10 +51,6 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				VSockConfig: VSockConfig{
-					ID:       "vhost-vsock-pci0",
-					GuestCID: 3,
-				},
 				DiskImgConfig: DiskImgConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
@@ -72,7 +68,6 @@ func TestConstructQemuArgs(t *testing.T) {
 				"-drive", "if=pflash,format=raw,unit=1,file=/usr/share/OVMF/OVMF_VARS.fd",
 				"-netdev", "user,id=vmnic,hostfwd=tcp::7020-:7002",
 				"-device", "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,addr=0x2,romfile=",
-				"-device", "vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3",
 				"-kernel", "img/bzImage",
 				"-append", "\"quiet console=null\"",
 				"-initrd", "img/rootfs.cpio.gz",
@@ -119,10 +114,6 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				VSockConfig: VSockConfig{
-					ID:       "vhost-vsock-pci0",
-					GuestCID: 3,
-				},
 				DiskImgConfig: DiskImgConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
@@ -147,7 +138,6 @@ func TestConstructQemuArgs(t *testing.T) {
 				"-m", "2048M,slots=5,maxmem=30G",
 				"-netdev", "user,id=vmnic,hostfwd=tcp::7020-:7002",
 				"-device", "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,addr=0x2,romfile=",
-				"-device", "vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3",
 				"-machine", "confidential-guest-support=sev0,memory-backend=ram1,igvm-cfg=igvm0",
 				"-object", "memory-backend-memfd,id=ram1,size=2048M,share=true,prealloc=false",
 				"-object", "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1",

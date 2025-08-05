@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	mglog "github.com/absmach/magistrala/logger"
+	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	cvmsgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"

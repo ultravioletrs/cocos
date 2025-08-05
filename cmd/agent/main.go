@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/prometheus"
+	mglog "github.com/absmach/supermq/logger"
+	"github.com/absmach/supermq/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/api"

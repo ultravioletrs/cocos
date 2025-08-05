@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	BaseGuestCID      = 3
 	KernelCommandLine = "quiet console=null"
 	TDXObject         = "{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}"
 )
@@ -74,11 +73,6 @@ type IGVMConfig struct {
 	File string `env:"IGVM_FILE"      envDefault:"/root/coconut-qemu.igvm"`
 }
 
-type VSockConfig struct {
-	ID       string `env:"VSOCK_ID"        envDefault:"vhost-vsock-pci0"`
-	GuestCID int    `env:"VSOCK_GUEST_CID" envDefault:"3"`
-}
-
 type Config struct {
 	EnableSEVSNP bool
 	EnableTDX    bool
@@ -102,9 +96,6 @@ type Config struct {
 	// network
 	NetDevConfig
 	VirtioNetPciConfig
-
-	// Vsock
-	VSockConfig
 
 	// disk
 	DiskImgConfig
@@ -185,8 +176,6 @@ func (config Config) ConstructQemuArgs() []string {
 			config.NetDevConfig.ID,
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
-
-	args = append(args, "-device", fmt.Sprintf("vhost-vsock-pci,id=%s,guest-cid=%d", config.VSockConfig.ID, config.VSockConfig.GuestCID))
 
 	// SEV-SNP
 	if config.EnableSEVSNP {

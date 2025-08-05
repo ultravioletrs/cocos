@@ -14,11 +14,18 @@ The service is configured using the environment variables from the following tab
 | MANAGER_ATTESTATION_POLICY_BINARY          | The file path for the attestation policy binarie.                                                                | ../../build/attestation_policy |
 | MANAGER_IGVMMEASURE_BINARY                 | The file path for the igvmmeasure binarie.                                                                       | ../../build/igvmmeasure        |
 | MANAGER_PCR_VALUES                         | The file path for the file with the expected PCR values.                                                         |                                |
-| MANAGER_GRPC_CLIENT_CERT                   | The file path for the client certificate.                                                                        |                                |
-| MANAGER_GRPC_CLIENT_KEY                    | The file path for the client private key.                                                                        |                                |
-| MANAGER_GRPC_SERVER_CA_CERTS               | The file path for the server CA certificate(s).                                                                  |                                |
-| MANAGER_GRPC_URL                           | The URL for the gRPC endpoint.                                                                                   | localhost:7001                 |
-| MANAGER_GRPC_TIMEOUT                       | The timeout for gRPC requests.                                                                                   | 60s                            |
+| MANAGER_HTTP_HOST                          | Manager service HTTP host                                                                                        | ""                             |
+| MANAGER_HTTP_PORT                          | Manager service HTTP port                                                                                        | 7003                           |
+| MANAGER_HTTP_SERVER_CERT                   | Manager to HTTP server certificate in pem format                                                                 | ""                             |
+| MANAGER_HTTP_SERVER_KEY                    | Path to HTTP server key in pem format                                                                            | ""                             |
+| MANAGER_HTTP_SERVER_CA_CERTS               | Path to HTTP server CA certificate                                                                               | ""                             |
+| MANAGER_HTTP_CLIENT_CA_CERTS               | Path to HTTP client CA certificate                                                                               | ""                             |
+| MANAGER_GRPC_HOST                          | Manager service gRPC host                                                                                        | ""                             |
+| MANAGER_GRPC_PORT                          | Manager service gRPC port                                                                                        | 7001                           |
+| MANAGER_GRPC_SERVER_CERT                   | Path to gRPC server certificate in pem format                                                                    | ""                             |
+| MANAGER_GRPC_SERVER_KEY                    | Path to gRPC server key in pem format                                                                            | ""                             |
+| MANAGER_GRPC_SERVER_CA_CERTS               | Path to gRPC server CA certificate                                                                               | ""                             |
+| MANAGER_GRPC_CLIENT_CA_CERTS               | Path to gRPC client CA certificate                                                                               | ""                             |
 | MANAGER_EOS_VERSION                        | The EOS version used for booting CVMs.                                                                           |                                |
 | MANAGER_INSTANCE_ID                        | Manager service instance ID                                                                                      |                                |
 | MANAGER_QEMU_MEMORY_SIZE                   | The total memory size for the virtual machine. Can be specified in a human-readable format like "2048M" or "4G". | 2048M                          |
@@ -53,9 +60,6 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_OVMF_FILE                     | The file path for the OVMF file (combined OVMF_CODE and OVMF_VARS file).                                         | /usr/share/ovmf/OVMF.fd        |
 | MANAGER_QEMU_IGVM_ID                       | The ID of the IGVM file.                                                                                         | igvm0                          |
 | MANAGER_QEMU_IGVM_FILE                     | The file path to the IGVM file.                                                                                  | /root/coconut-qemu.igvm        |
-| MANAGER_QEMU_VSOCK_ID                      | The ID for the virtual socket device.                                                                            | vhost-vsock-pci0               |
-| MANAGER_QEMU_VSOCK_GUEST_CID               | The guest-side CID (Context ID) for the virtual socket device.                                                   | 3                              |
-| MANAGER_QEMU_VSOCK_VNC                     | Whether to enable the virtual socket device for VNC.                                                             | 0                              |
 | MANAGER_QEMU_BIN_PATH                      | The file path for the QEMU binary.                                                                               | qemu-system-x86_64             |
 | MANAGER_QEMU_USE_SUDO                      | Whether to use sudo to run QEMU.                                                                                 | false                          |
 | MANAGER_QEMU_ENABLE_SEV_SNP                | Whether to enable Secure Nested Paging (SEV-SNP).                                                                | true                           |
@@ -69,6 +73,7 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_NO_GRAPHIC                    | Whether to disable the graphical display.                                                                        | true                           |
 | MANAGER_QEMU_MONITOR                       | The type of monitor to use.                                                                                      | pty                            |
 | MANAGER_QEMU_HOST_FWD_RANGE                | The range of host ports to forward.                                                                              | 6100-6200                      |
+| MANAGER_MAX_VMS                            | The maximum number of vms running concurrently on manager.                                                       | 10                             |
 
 ## Setup
 

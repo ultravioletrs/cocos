@@ -72,8 +72,7 @@ construct_qemu_args() {
     # Network configuration
     args+=("-netdev" "user,id=$NET_DEV_ID,hostfwd=tcp::$NET_DEV_HOST_FWD_AGENT-:$NET_DEV_GUEST_FWD_AGENT")
     args+=("-device" "virtio-net-pci,disable-legacy=$VIRTIO_NET_PCI_DISABLE_LEGACY,iommu_platform=$VIRTIO_NET_PCI_IOMMU_PLATFORM,netdev=$NET_DEV_ID,addr=$VIRTIO_NET_PCI_ADDR,romfile=$VIRTIO_NET_PCI_ROMFILE")
-    args+=("-device" "vhost-vsock-pci,id=$VSOCK_ID,guest-cid=$VSOCK_GUEST_CID")
-
+    
     # SEV_SNP (if enabled)
     if [ "$ENABLE_SEV_SNP" == "true" ]; then
         kernel_hash=""

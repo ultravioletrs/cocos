@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
@@ -68,6 +68,9 @@ var (
 
 	// ErrUnmarshalFailed indicates that the file for the attestation policy could not be unmarshaled.
 	ErrUnmarshalFailed = errors.New("error while unmarshaling the attestation policy")
+
+	// ErrMaxVMsExceeded indicates that the maximum number of VMs has been reached.
+	ErrMaxVMsExceeded = errors.New("maximum number of VMs exceeded")
 )
 
 // Service specifies an API that must be fulfilled by the domain service
@@ -100,12 +103,13 @@ type managerService struct {
 	persistence                 qemu.Persistence
 	eosVersion                  string
 	ttlManager                  *TTLManager
+	maxVMs                      int
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string, maxVMs int) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -129,6 +133,7 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinary
 		persistence:                 persistence,
 		eosVersion:                  eosVersion,
 		ttlManager:                  NewTTLManager(),
+		maxVMs:                      maxVMs,
 	}
 
 	if err := ms.restoreVMs(); err != nil {
@@ -140,7 +145,13 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinary
 
 func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string, string, error) {
 	id := uuid.New().String()
+
 	ms.mu.Lock()
+	if ms.maxVMs > 0 && len(ms.vms) >= ms.maxVMs {
+		ms.mu.Unlock()
+		return "", id, ErrMaxVMsExceeded
+	}
+
 	cfg := qemu.VMInfo{
 		Config:    ms.qemuCfg,
 		LaunchTCB: 0,
@@ -190,22 +201,6 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	}
 	cfg.Config.HostFwdAgent = agentPort
 
-	var cid int = qemu.BaseGuestCID
-	for {
-		available := true
-		for _, vm := range ms.vms {
-			if vm.GetCID() == cid {
-				available = false
-				break
-			}
-		}
-		if available {
-			break
-		}
-		cid++
-	}
-	cfg.Config.VSockConfig.GuestCID = cid
-
 	if cfg.Config.EnableSEVSNP {
 		todo := sha3.Sum256([]byte("TODO"))
 		// Define host-data value of QEMU for SEV-SNP, with a base64 encoding of the computation hash.
@@ -216,7 +211,15 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	if err = cvm.Start(); err != nil {
 		return "", id, err
 	}
+
 	ms.mu.Lock()
+	if ms.maxVMs > 0 && len(ms.vms) >= ms.maxVMs {
+		ms.mu.Unlock()
+		if stopErr := cvm.Stop(); stopErr != nil {
+			ms.logger.Error("Failed to stop VM after exceeding max limit", "vmID", id, "error", stopErr)
+		}
+		return "", id, ErrMaxVMsExceeded
+	}
 	ms.vms[id] = cvm
 	ms.mu.Unlock()
 

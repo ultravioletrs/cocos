@@ -5,7 +5,7 @@ package agent
 import (
 	"context"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"

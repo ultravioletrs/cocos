@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/agent/auth"

@@ -15,7 +15,6 @@ type VM interface {
 	Stop() error
 	SetProcess(pid int) error
 	GetProcess() int
-	GetCID() int
 	Transition(newState pkgmanager.ManagerState) error
 	State() string
 	GetConfig() interface{}

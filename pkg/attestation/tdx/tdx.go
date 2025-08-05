@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/absmach/magistrala/pkg/errors"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-tdx-guest/abi"
 	"github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tdx-guest/proto/checkconfig"

@@ -12,16 +12,20 @@ import (
 	"os"
 	"strings"
 
-	mglog "github.com/absmach/magistrala/logger"
-	"github.com/absmach/magistrala/pkg/jaeger"
-	"github.com/absmach/magistrala/pkg/prometheus"
-	"github.com/absmach/magistrala/pkg/uuid"
+	mglog "github.com/absmach/supermq/logger"
+	"github.com/absmach/supermq/pkg/jaeger"
+	"github.com/absmach/supermq/pkg/prometheus"
+	smqserver "github.com/absmach/supermq/pkg/server"
+	httpserver "github.com/absmach/supermq/pkg/server/http"
+	"github.com/absmach/supermq/pkg/uuid"
 	"github.com/caarlos0/env/v11"
+	"github.com/go-chi/chi/v5"
 	"github.com/ultravioletrs/cocos/internal/server"
 	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/manager/api"
 	managergrpc "github.com/ultravioletrs/cocos/manager/api/grpc"
+	"github.com/ultravioletrs/cocos/manager/api/http"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -33,8 +37,10 @@ import (
 const (
 	svcName          = "manager"
 	envPrefixGRPC    = "MANAGER_GRPC_"
+	envPrefixHTTP    = "MANAGER_HTTP_"
 	envPrefixQemu    = "MANAGER_QEMU_"
 	clientBufferSize = 100
+	defSvcHTTPPort   = "7003"
 )
 
 type config struct {
@@ -46,6 +52,7 @@ type config struct {
 	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build/igvmmeasure"`
 	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
 	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
+	MaxVMs                  int     `env:"MANAGER_MAX_VMS"                    envDefault:"10"`
 }
 
 func main() {
@@ -114,7 +121,12 @@ func main() {
 		return
 	}
 
-	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion)
+	httpServerConfig := smqserver.Config{Port: defSvcHTTPPort}
+	if err := env.ParseWithOptions(&httpServerConfig, env.Options{Prefix: envPrefixHTTP}); err != nil {
+		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
+	}
+
+	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion, cfg.MaxVMs)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -136,12 +148,18 @@ func main() {
 
 	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, "", "")
 
+	hs := httpserver.NewServer(ctx, cancel, svcName, httpServerConfig, http.MakeHandler(chi.NewMux(), svcName, cfg.InstanceID), logger)
+
 	g.Go(func() error {
 		return gs.Start()
 	})
 
 	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, gs)
+		return hs.Start()
+	})
+
+	g.Go(func() error {
+		return server.StopHandler(ctx, cancel, logger, svcName, gs, hs)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -149,8 +167,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string, maxVMs int) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion, maxVMs)
 	if err != nil {
 		return nil, err
 	}
