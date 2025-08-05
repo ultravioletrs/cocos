@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
@@ -363,7 +364,7 @@ func extendWithManifest(attestationPolicyPath string, manifestPaths []string) er
 		data256, exists256 := attestationConfig.PCRValues.Sha256["16"]
 
 		if !exists256 {
-			data256 = "0000000000000000000000000000000000000000000000000000000000000000"
+			data256 = strings.Repeat("0", 64) // 32 bytes in hex
 		}
 
 		byteData256, err := hex.DecodeString(data256)
@@ -376,7 +377,7 @@ func extendWithManifest(attestationPolicyPath string, manifestPaths []string) er
 		data384, exists384 := attestationConfig.PCRValues.Sha384["16"]
 
 		if !exists384 {
-			data384 = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+			data384 = strings.Repeat("0", 96) // 48 bytes in hex
 		}
 
 		byteData384, err := hex.DecodeString(data384)
