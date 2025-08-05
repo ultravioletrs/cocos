@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/proto/check"
@@ -46,6 +48,8 @@ var (
 	errMarshalJSON                         = errors.New("failed to marshal json")
 	errWriteFile                           = errors.New("failed to write to file")
 	errAttestationPolicyField              = errors.New("the specified field type does not exist in the attestation policy")
+	errReadingManifestFile                 = errors.New("error while reading manifest file")
+	errDecodeHex                           = errors.New("error decoding hex string")
 	policy                          uint64 = 196639
 )
 
@@ -275,6 +279,23 @@ func (cli *CLI) NewAzureAttestationPolicy() *cobra.Command {
 	return cmd
 }
 
+func (cli *CLI) NewExtendWithManifestCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "extend",
+		Short:   "Extends PCR16 with computation manifests. The first parameter is path to attestation policy file. The rest of the parameters are paths to computation manifest files.",
+		Example: "extend <attestation_policy_file_path> <computation_manifest_file_path> [<computation_manifest_file_path> ...]",
+		Args:    cobra.MinimumNArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			attestationPolicyFilePath := args[0]
+			manifestPaths := args[1:]
+			if err := extendWithManifest(attestationPolicyFilePath, manifestPaths); err != nil {
+				printError(cmd, "Error could not extend PCR16: %v ❌ ", err)
+				return
+			}
+		},
+	}
+}
+
 func changeAttestationConfiguration(fileName, base64Data string, expectedLength int, field fieldType) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
@@ -316,5 +337,67 @@ func changeAttestationConfiguration(fileName, base64Data string, expectedLength 
 	if err = os.WriteFile(fileName, fileJson, filePermission); err != nil {
 		return errors.Wrap(errWriteFile, err)
 	}
+	return nil
+}
+
+func extendWithManifest(attestationPolicyPath string, manifestPaths []string) error {
+	attestationConfig := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
+
+	attestationPolicyFileData, err := os.ReadFile(attestationPolicyPath)
+	if err != nil {
+		return errors.Wrap(errReadingAttestationPolicyFile, err)
+	}
+
+	if err = vtpm.ReadPolicyFromByte(attestationPolicyFileData, &attestationConfig); err != nil {
+		return errors.Wrap(errUnmarshalJSON, err)
+	}
+
+	for _, manifestPath := range manifestPaths {
+		manifest, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return errors.Wrap(errReadingManifestFile, err)
+		}
+
+		manifestSha256 := sha512.Sum512_256(manifest)
+		manifestSha384 := sha512.Sum384(manifest)
+
+		data256, exists256 := attestationConfig.PCRValues.Sha256["16"]
+
+		if !exists256 {
+			data256 = strings.Repeat("0", 64) // 32 bytes in hex
+		}
+
+		byteData256, err := hex.DecodeString(data256)
+		if err != nil {
+			return errors.Wrap(errDecodeHex, err)
+		}
+
+		newByteData256 := sha512.Sum512_256(append(byteData256, manifestSha256[:]...))
+
+		data384, exists384 := attestationConfig.PCRValues.Sha384["16"]
+
+		if !exists384 {
+			data384 = strings.Repeat("0", 96) // 48 bytes in hex
+		}
+
+		byteData384, err := hex.DecodeString(data384)
+		if err != nil {
+			return errors.Wrap(errDecodeHex, err)
+		}
+
+		newByteData384 := sha512.Sum384(append(byteData384, manifestSha384[:]...))
+
+		attestationConfig.PCRValues.Sha256["16"] = hex.EncodeToString(newByteData256[:])
+		attestationConfig.PCRValues.Sha384["16"] = hex.EncodeToString(newByteData384[:])
+	}
+
+	attestationPolicyJSON, err := vtpm.ConvertPolicyToJSON(&attestationConfig)
+	if err != nil {
+		return errors.Wrap(errMarshalJSON, err)
+	}
+	if err = os.WriteFile(attestationPolicyPath, attestationPolicyJSON, filePermission); err != nil {
+		return errors.Wrap(errWriteFile, err)
+	}
+
 	return nil
 }

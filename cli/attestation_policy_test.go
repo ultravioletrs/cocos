@@ -376,3 +376,96 @@ func TestCommandErrorHandling(t *testing.T) {
 		assert.Contains(t, output, "❌")
 	})
 }
+
+func TestExtendWithManifestHandling(t *testing.T) {
+	cli := &CLI{}
+
+	t.Run("Invalid policy file", func(t *testing.T) {
+		cmd := cli.NewExtendWithManifestCmd()
+		cmd.SetArgs([]string{"nonexistent.policy.json", "nonexistent.manifest.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "error while reading the attestation policy file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Invalid manifest file", func(t *testing.T) {
+		cmd := cli.NewExtendWithManifestCmd()
+		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "nonexistent.manifest.json"})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "error while reading manifest file")
+		assert.Contains(t, output, "❌")
+	})
+
+	t.Run("Valid file paths", func(t *testing.T) {
+		fileContent := `{
+		  "id": "1",
+		  "name": "sample computation",
+		  "description": "sample description",
+		  "datasets": [
+		    {
+		      "hash": "<sha3_encoded string>",
+		      "userKey": "<pem_encoded public key string>"
+		    }
+		  ],
+		  "algorithm": {
+		    "hash": "<sha3_encoded string>",
+		    "userKey": "<pem_encoded public key string>"
+		  },
+		  "result_consumers": [
+		    {
+		      "userKey": "<pem_encoded public key string>"
+		    }
+		  ],
+		  "agent_config": {
+		    "port": "7002",
+		    "cert_file": "<pem encoded cert string>",
+		    "key_file": "<pem encoded private key string>",
+		    "server_ca_file": "<pem encoded cert string>",
+		    "client_ca_file": "<pem encoded cert string>",
+		    "attested_tls": true
+		  }
+		}`
+
+		dir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Error getting current working directory: %v", err)
+		}
+
+		manifestFile, err := os.CreateTemp(dir, "manifest.json")
+		if err != nil {
+			t.Fatalf("Error creating temp file: %v", err)
+		}
+		defer os.Remove(manifestFile.Name())
+
+		err = os.WriteFile(manifestFile.Name(), []byte(fileContent), 0o644)
+		if err != nil {
+			t.Fatalf("Error writing temp file: %v", err)
+		}
+
+		cmd := cli.NewExtendWithManifestCmd()
+		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", manifestFile.Name()})
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+
+		err = cmd.Execute()
+		assert.NoError(t, err)
+	})
+}
