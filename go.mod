@@ -1,6 +1,6 @@
 module github.com/ultravioletrs/cocos
 
-go 1.23.10
+go 1.23.8
 
 toolchain go1.24.5
 
