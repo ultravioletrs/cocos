@@ -9,9 +9,8 @@ on:
       - main
 
 jobs:
-  ci:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,39 +18,66 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0.2
 
-        
       - name: Build
-        run: |
-          make
+        run: make
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        module: [agent, cli, cmd, internal, pkg, manager]
+        include:
+          - module: manager
+            sudo: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
 
       - name: Create coverage directory
+        run: mkdir -p coverage
+
+      - name: Run tests for ${{ matrix.module }}
         run: |
-          mkdir coverage
+          if [[ "${{ matrix.module }}" == "manager" ]]; then
+            sudo go test -v --race -covermode=atomic -coverprofile coverage/${{ matrix.module }}.out ./${{ matrix.module }}/...
+          else
+            go test -v --race -covermode=atomic -coverprofile coverage/${{ matrix.module }}.out ./${{ matrix.module }}/...
+          fi
 
-      - name: Run Agent tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/agent.out ./agent/...
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.module }}
+          path: coverage/${{ matrix.module }}.out
+          retention-days: 1
 
-      - name: Run cli tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/cli.out ./cli/...
+  upload-coverage:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Run cmd tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/cmd.out ./cmd/...
-
-      - name: Run internal tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/internal.out ./internal/...
-
-      - name: Run pkg tests
-        run: go test -v --race -covermode=atomic -coverprofile coverage/pkg.out ./pkg/...
-
-      - name: Run manager tests
-        run: sudo go test -v --race -covermode=atomic -coverprofile coverage/manager.out ./manager/...
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage/
+          merge-multiple: true
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4

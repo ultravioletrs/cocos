@@ -1,7 +1,7 @@
 WASMEDGE_DOWNLOAD_URL = https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh
 
 define WASMEDGE_INSTALL_TARGET_CMDS
-    curl -sSf $(WASMEDGE_DOWNLOAD_URL) | bash -s -- -p $(TARGET_DIR)/usr
+    curl -sSf $(WASMEDGE_DOWNLOAD_URL) | bash -s -- -p $(TARGET_DIR)/usr -v 0.14.1
     echo "source /usr/env" >> $(TARGET_DIR)/etc/profile
 endef
 

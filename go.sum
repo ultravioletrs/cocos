@@ -36,8 +36,8 @@ github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrd
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
 github.com/absmach/certs v0.0.0-20250707105817-4c41124bba54 h1:5pTDktMVvtJrQMY0d2vwBRFOgH0LVEoArwcaqrbuGQ4=
 github.com/absmach/certs v0.0.0-20250707105817-4c41124bba54/go.mod h1:MGDO7iEXbtJCRKOwL34+HR8MQI2mo7l3wcz93e2Km68=
-github.com/absmach/supermq v0.17.0 h1:l8XkoPJ2GIs3od4FBUu52DJRuzUIcVfScj7UkXr4/3w=
-github.com/absmach/supermq v0.17.0/go.mod h1:BTpQiHHevhP5ahA34vhyeLK8YIJsx+7gYUFpqgMGSAI=
+github.com/absmach/supermq v0.16.0 h1:uwzRk3Ig7L4AYZNIAZ2ZMFrodvsd+Jj10j6non/b9hc=
+github.com/absmach/supermq v0.16.0/go.mod h1:RHuqJvhNvyJ8avvwIvkH53Vh4zGmYZ9OvN7k0z1zEkc=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=
@@ -209,8 +209,8 @@ github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825 h1:Sq
 github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825/go.mod h1:dEkBe8JnxU5itNjZDEQINFd7f7l4DtjfqRuzPQcit4w=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
-github.com/smarty/assertions v1.16.0 h1:EvHNkdRA4QHMrn75NZSoUQ/mAUXAYWfatfB01yTCzfY=
-github.com/smarty/assertions v1.16.0/go.mod h1:duaaFdCS0K9dnoM50iyek/eYINOZ64gbh1Xlf6LG7AI=
+github.com/smarty/assertions v1.15.0 h1:cR//PqUBUiQRakZWqBiFFQ9wb8emQGDb0HeGdqGByCY=
+github.com/smarty/assertions v1.15.0/go.mod h1:yABtdzeQs6l1brC900WlRNwj6ZR55d7B+E8C6HtKdec=
 github.com/smartystreets/goconvey v1.8.1 h1:qGjIddxOk4grTu9JPOU31tVfq3cNdBlNa5sSznIX1xY=
 github.com/smartystreets/goconvey v1.8.1/go.mod h1:+/u4qLyY6x1jReYOp7GOM2FSt8aP9CzCZL03bI28W60=
 github.com/spf13/cobra v1.9.1 h1:CXSaggrXdbHK9CF+8ywj8Amf7PBRmPCOJugH954Nnlo=
