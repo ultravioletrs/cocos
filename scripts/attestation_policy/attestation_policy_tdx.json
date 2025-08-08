@@ -1,0 +1,25 @@
+{
+  "policy":  {
+    "headerPolicy":  {
+      "qeVendorId":  "k5pyM/ecTKmUCg2zlX8GBw=="
+    },
+    "tdQuoteBodyPolicy":  {
+      "minimumTeeTcbSvn":  "BgEDAAAAAAAAAAAAAAAAAA==",
+      "mrSeam":  "WzjjOmSHlYtyw8Eqk46qXj/UUQxRruq1jH1ezuQdfENkidbI5PkvFgt8rTQgewDB",
+      "tdAttributes":  "AAAAEAAAAAA=",
+      "xfam":  "5wIGAAAAAAA=",
+      "mrTd":  "kesrRNFB1Ozgnwx1wsU9JHo8aO3X+v6KNSDJQqYEpAfeA65txfh/J0KLJTiHMRi3",
+      "rtmrs":  [
+        "TP/tWJG9nf1AuPrfS7mKBpBw05ffiZHYnbu01Tjr8cKeG+lNDwuxder+DJxTSSqW",
+        "fxoATOAep76VY2mWwKB4XWWoQqgJZNYdiHXJk14DN2iKJP5tg8AoeRoGhxJg2BO3",
+        "fYilkkTRM83nhg1ZUY4WsULRfwyN3v2rcv5+wbSl9Rro1zqhcPMCeCCcL/CCAUqx",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      ]
+    }
+  },
+  "rootOfTrust":  {
+    "checkCrl":  true,
+    "getCollateral":  true
+  }
+}
+
