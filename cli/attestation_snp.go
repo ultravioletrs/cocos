@@ -473,7 +473,7 @@ func parseAttestationFile() error {
 	}
 	attestationRaw = file
 	if isFileJSON(attestationFile) {
-		attestationRaw, err = attesationFromJSON(attestationRaw)
+		attestationRaw, err = attestationFromJSON(attestationRaw)
 		if err != nil {
 			return err
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -51,6 +52,7 @@ var (
 	errReadingManifestFile                 = errors.New("error while reading manifest file")
 	errDecodeHex                           = errors.New("error decoding hex string")
 	policy                          uint64 = 196639
+	isJsonAttestation               bool
 )
 
 func (cli *CLI) NewAttestationPolicyCmd() *cobra.Command {
@@ -114,7 +116,7 @@ func (cli *CLI) NewAddHostDataCmd() *cobra.Command {
 }
 
 func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "gcp",
 		Short:   "Get attestation policy for GCP CVM",
 		Example: `gcp <bin_vtmp_attestation_report_file> <vcpu_count>`,
@@ -134,9 +136,16 @@ func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
 
 			attestation := &attest.Attestation{}
 
-			if err := proto.Unmarshal(attestationBin, attestation); err != nil {
-				printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
-				return
+			if isJsonAttestation {
+				if err := protojson.Unmarshal(attestationBin, attestation); err != nil {
+					printError(cmd, "Error converting JSON attestation to binary: %v ❌", err)
+					return
+				}
+			} else {
+				if err := proto.Unmarshal(attestationBin, attestation); err != nil {
+					printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
+					return
+				}
 			}
 
 			attestationPB := attestation.GetSevSnpAttestation()
@@ -173,10 +182,13 @@ func (cli *CLI) NewGCPAttestationPolicy() *cobra.Command {
 			cmd.Println("Attestation policy file generated successfully ✅")
 		},
 	}
+
+	cmd.Flags().BoolVarP(&isJsonAttestation, "json", "j", false, "Use JSON attestation report instead of binary")
+	return cmd
 }
 
 func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "download",
 		Short:   "Download GCP OVMF file",
 		Example: `download <bin_vtmp_attestation_report_file>`,
@@ -190,9 +202,16 @@ func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
 
 			attestation := &attest.Attestation{}
 
-			if err := proto.Unmarshal(attestationBin, attestation); err != nil {
-				printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
-				return
+			if isJsonAttestation {
+				if err := protojson.Unmarshal(attestationBin, attestation); err != nil {
+					printError(cmd, "Error converting JSON attestation to binary: %v ❌", err)
+					return
+				}
+			} else {
+				if err := proto.Unmarshal(attestationBin, attestation); err != nil {
+					printError(cmd, "Error unmarshaling attestation report: %v ❌ ", err)
+					return
+				}
 			}
 
 			attestationPB := attestation.GetSevSnpAttestation()
@@ -231,6 +250,9 @@ func (cli *CLI) NewDownloadGCPOvmfFile() *cobra.Command {
 			cmd.Println("OVMF file downloaded successfully ✅")
 		},
 	}
+
+	cmd.Flags().BoolVarP(&isJsonAttestation, "json", "j", false, "Use JSON attestation report instead of binary")
+	return cmd
 }
 
 func (cli *CLI) NewAzureAttestationPolicy() *cobra.Command {
