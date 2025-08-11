@@ -517,7 +517,7 @@ func TestAttestationToJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := attesationToJSON(tt.input)
+			got, err := attestationToJSON(tt.input)
 			assert.True(t, errors.Contains(err, tt.err))
 			if tt.err != nil {
 				assert.Nil(t, got)
@@ -588,7 +588,7 @@ func TestAttestationFromJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := attesationFromJSON(tt.input)
+			got, err := attestationFromJSON(tt.input)
 			assert.True(t, errors.Contains(err, tt.err))
 			tt.validate(t, got)
 		})
@@ -644,11 +644,11 @@ func TestIsFileJSON(t *testing.T) {
 func TestRoundTrip(t *testing.T) {
 	originalReport, err := os.ReadFile("../attestation.bin")
 	require.NoError(t, err)
-	jsonData, err := attesationToJSON(originalReport)
+	jsonData, err := attestationToJSON(originalReport)
 	require.NoError(t, err)
 	require.NotNil(t, jsonData)
 
-	roundTripReport, err := attesationFromJSON(jsonData)
+	roundTripReport, err := attestationFromJSON(jsonData)
 	require.NoError(t, err)
 	require.NotNil(t, roundTripReport)
 }

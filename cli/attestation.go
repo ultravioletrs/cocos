@@ -246,7 +246,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 				switch attestationType {
 				case SNP:
-					result, err = attesationToJSON(result)
+					result, err = attestationToJSON(result)
 					if err != nil {
 						printError(cmd, "Error converting SNP attestation to JSON: %v ❌", err)
 						return
@@ -292,7 +292,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 	return cmd
 }
 
-func attesationToJSON(report []byte) ([]byte, error) {
+func attestationToJSON(report []byte) ([]byte, error) {
 	if len(report) < abi.ReportSize {
 		return nil, errors.Wrap(errReportSize, fmt.Errorf("attestation contents too small (0x%x bytes). Want at least 0x%x bytes", len(report), abi.ReportSize))
 	}
@@ -304,7 +304,7 @@ func attesationToJSON(report []byte) ([]byte, error) {
 	return json.MarshalIndent(attestationPB, "", "	")
 }
 
-func attesationFromJSON(reportFile []byte) ([]byte, error) {
+func attestationFromJSON(reportFile []byte) ([]byte, error) {
 	var attestationPB sevsnp.Attestation
 	if err := json.Unmarshal(reportFile, &attestationPB); err != nil {
 		return nil, err
