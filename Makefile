@@ -26,14 +26,14 @@ endef
 
 .PHONY: all $(SERVICES) $(ATTESTATION_POLICY) install clean
 
-all: $(SERVICES)
+all: $(SERVICES) $(ATTESTATION_POLICY)
 
 $(SERVICES): 
 	$(call compile_service,$@)
 	@if [ "$@" = "cli" ] || [ "$@" = "manager" ]; then $(MAKE) build-igvm; fi
 
 $(ATTESTATION_POLICY):
-	$(MAKE) -C ./scripts/attestation_policy
+	$(MAKE) -C ./scripts/attestation_policy OUTPUT_DIR=../../$(BUILD_DIR)
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
@@ -44,15 +44,17 @@ protoc:
 mocks:
 	mockery --config ./mockery.yml
 
-install: $(SERVICES)
+install: $(SERVICES) $(ATTESTATION_POLICY)
 	install -d $(INSTALL_DIR)
 	install $(BUILD_DIR)/cocos-cli $(INSTALL_DIR)/cocos-cli
 	install $(BUILD_DIR)/cocos-manager $(INSTALL_DIR)/cocos-manager
+	install $(BUILD_DIR)/attestation_policy $(INSTALL_DIR)/attestation_policy
 	install -d $(CONFIG_DIR)
 	install cocos-manager.env $(CONFIG_DIR)/cocos-manager.env
 
 clean:
 	rm -rf $(BUILD_DIR)
+	$(MAKE) -C ./scripts/attestation_policy OUTPUT_DIR=../../$(BUILD_DIR) clean
 
 run: install_service
 	sudo systemctl start $(SERVICE_NAME).service

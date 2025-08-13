@@ -142,7 +142,7 @@ fn main() {
     let cpu_id: Identifier = firmware.get_identifier().unwrap();
     let chip_id: String = BASE64_STANDARD.encode(cpu_id.0);
     let minimum_build = status.build_id;
-    let minimum_version = status.version.to_string();
+    let minimum_version = format!("{}.{}", status.version.0, status.version.1);
     let permit_provisional_firmware = true;
     let require_id_block = false;
     let product = sev_product(get_sev_snp_processor());
