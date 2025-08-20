@@ -275,7 +275,7 @@ func TestAttestationToken(t *testing.T) {
 	vtpmNonce := [vtpm.Nonce]byte{}
 	attestationType := attestation.SNP
 
-	mockService.On("AttestationToken", mock.Anything, vtpmNonce, attestationType).Return(attestationData, nil)
+	mockService.On("AzureAttestationToken", mock.Anything, vtpmNonce, attestationType).Return(attestationData, nil)
 
 	resp, err := server.AzureAttestationToken(context.Background(), &agent.AttestationTokenRequest{
 		TokenNonce: vtpmNonce[:],
