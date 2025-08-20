@@ -20,7 +20,6 @@ const (
 	SNP PlatformType = iota
 	VTPM
 	SNPvTPM
-	AzureToken
 	Azure
 	TDX
 	NoCC

@@ -74,10 +74,10 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 			decodeRequest:  decodeIMAMeasurementsRequest,
 			encodeResponse: encodeIMAMeasurementsResponse,
 		},
-		"attestationResult": {
-			endpoint:       attestationResultEndpoint,
-			decodeRequest:  decodeAttestationResultRequest,
-			encodeResponse: encodeAttestationResultResponse,
+		"azureAttestationToken": {
+			endpoint:       azureAttestationTokenEndpoint,
+			decodeRequest:  decodeAttestationTokenRequest,
+			encodeResponse: encodeAttestationTokenResponse,
 		},
 	}
 
@@ -181,23 +181,21 @@ func encodeAttestationResponse(_ context.Context, response interface{}) (interfa
 	}, nil
 }
 
-func decodeAttestationResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
-	req := grpcReq.(*agent.AttestationResultRequest)
+func decodeAttestationTokenRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+	req := grpcReq.(*agent.AttestationTokenRequest)
 	var nonce [vtpm.Nonce]byte
 
 	if err := validateNonce(req.TokenNonce, vtpm.Nonce, &nonce); err != nil {
 		return nil, err
 	}
-
-	return FetchAttestationResultReq{
+	return azureAttestationTokenReq{
 		tokenNonce: nonce,
-		AttType:    attestation.PlatformType(req.Type),
 	}, nil
 }
 
-func encodeAttestationResultResponse(_ context.Context, response interface{}) (interface{}, error) {
-	res := response.(fetchAttestationResultRes)
-	return &agent.AttestationResultResponse{
+func encodeAttestationTokenResponse(_ context.Context, response interface{}) (interface{}, error) {
+	res := response.(fetchAttestationTokenRes)
+	return &agent.AttestationTokenResponse{
 		File: res.File,
 	}, nil
 }
@@ -398,6 +396,20 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 	)
 }
 
+func (s *grpcServer) AttestationToken(ctx context.Context, req *agent.AttestationTokenRequest) (*agent.AttestationTokenResponse, error) {
+	_, res, err := s.handlers["azureAttestationToken"].ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	rr, ok := res.(*agent.AttestationTokenResponse)
+	if !ok {
+		return nil, status.Error(codes.Internal, "failed to cast response to AttestationTokenResponse")
+	}
+
+	return rr, nil
+}
+
 func (s *grpcServer) streamDualBuffers(
 	buf1, buf2 *bytes.Buffer,
 	sendFn func([]byte, []byte) error,
@@ -425,18 +437,4 @@ func (s *grpcServer) streamDualBuffers(
 		}
 	}
 	return nil
-}
-
-func (s *grpcServer) AttestationResult(ctx context.Context, req *agent.AttestationResultRequest) (*agent.AttestationResultResponse, error) {
-	_, res, err := s.handlers["attestationResult"].ServeGRPC(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	rr, ok := res.(*agent.AttestationResultResponse)
-	if !ok {
-		return nil, status.Error(codes.Internal, "failed to cast response to AttestationResultResponse")
-	}
-
-	return rr, nil
 }

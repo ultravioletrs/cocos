@@ -148,7 +148,6 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				attType = attestation.SNPvTPM
 			case AzureToken:
 				cmd.Println("Fetching Azure token")
-				attType = attestation.AzureToken
 			case TDX:
 				cmd.Println("Fetching TDX attestation report")
 				attType = attestation.TDX
@@ -166,7 +165,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			if (attType == attestation.AzureToken) && len(tokenNonce) == 0 {
+			if (attestationType == AzureToken) && len(tokenNonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("Token nonce must be defined for Azure attestation ❌ ")
 				cmd.Println(msg)
 				return
@@ -190,7 +189,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 					cmd.Println(msg)
 					return
 				}
-				if attType == attestation.AzureToken {
+				if attestationType == AzureToken {
 					copy(fixedVtpmNonceByte[:], tokenNonce)
 				} else {
 					copy(fixedVtpmNonceByte[:], nonce)
@@ -199,7 +198,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			filename := attestationFilePath
 
-			if attType == attestation.AzureToken {
+			if attestationType == AzureToken {
 				filename = azureAttestResultFilePath
 			}
 
@@ -217,8 +216,8 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			var returnJsonAzureToken bool
 
-			if attType == attestation.AzureToken {
-				err := cli.agentSDK.AttestationResult(cmd.Context(), fixedVtpmNonceByte, int(attType), attestationFile)
+			if attestationType == AzureToken {
+				err := cli.agentSDK.AttestationToken(cmd.Context(), fixedVtpmNonceByte, int(attType), attestationFile)
 				if err != nil {
 					printError(cmd, "Failed to get attestation result due to error: %v ❌", err)
 					return

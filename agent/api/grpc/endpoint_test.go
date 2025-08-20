@@ -174,23 +174,23 @@ func TestAttestationEndpoint(t *testing.T) {
 	}
 }
 
-func TestAttestationResultEndpoint(t *testing.T) {
+func TestAttestationTokenEndpoint(t *testing.T) {
 	svc := new(mocks.Service)
 	tests := []struct {
 		name        string
-		req         FetchAttestationResultReq
+		req         azureAttestationTokenReq
 		mockErr     error
 		expectedErr bool
 	}{
 		{
 			name:        "Success",
-			req:         FetchAttestationResultReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: attestation.AzureToken},
+			req:         azureAttestationTokenReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce"))},
 			mockErr:     nil,
 			expectedErr: false,
 		},
 		{
 			name:        "Service Error",
-			req:         FetchAttestationResultReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce")), AttType: attestation.AzureToken},
+			req:         azureAttestationTokenReq{tokenNonce: sha3.Sum256([]byte("vtpm nonce"))},
 			mockErr:     errors.New("mock failure"),
 			expectedErr: true,
 		},
@@ -200,21 +200,21 @@ func TestAttestationResultEndpoint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Only call service mock if validation is expected to pass
 			if err := tt.req.validate(); err == nil {
-				svc.On("AttestationResult", mock.Anything, tt.req.tokenNonce, attestation.PlatformType(tt.req.AttType)).
+				svc.On("AttestationToken", mock.Anything, tt.req.tokenNonce, attestation.Azure).
 					Return([]byte("mock file"), tt.mockErr).Once()
 			}
 
-			endpoint := attestationResultEndpoint(svc)
+			endpoint := azureAttestationTokenEndpoint(svc)
 			res, err := endpoint(context.Background(), tt.req)
 
 			if (err != nil) != tt.expectedErr {
-				t.Errorf("attestationResultEndpoint() error = %v, expectedErr %v", err, tt.expectedErr)
+				t.Errorf("attestationTokenEndpoint() error = %v, expectedErr %v", err, tt.expectedErr)
 			}
 
 			if !tt.expectedErr {
-				r, ok := res.(fetchAttestationResultRes)
+				r, ok := res.(fetchAttestationTokenRes)
 				if !ok {
-					t.Errorf("attestationResultEndpoint() returned unexpected type %T", res)
+					t.Errorf("attestationTokenEndpoint() returned unexpected type %T", res)
 				}
 				if string(r.File) != "mock file" {
 					t.Errorf("expected file content 'mock file', got %s", r.File)

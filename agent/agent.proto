@@ -13,7 +13,7 @@ service AgentService {
   rpc Result(ResultRequest) returns (stream ResultResponse) {}
   rpc Attestation(AttestationRequest) returns (stream AttestationResponse) {}
   rpc IMAMeasurements(IMAMeasurementsRequest) returns (stream IMAMeasurementsResponse) {}
-  rpc AttestationResult(AttestationResultRequest) returns (AttestationResultResponse) {}
+  rpc AzureAttestationToken(AttestationTokenRequest) returns (AttestationTokenResponse) {}
 }
 
 message AlgoRequest {
@@ -55,10 +55,10 @@ message IMAMeasurementsResponse {
   bytes pcr10 = 2;
 }
 
-message AttestationResultRequest{
+message AttestationTokenRequest{
   bytes tokenNonce = 1; // Should be less or equal 32 bytes
   int32 type = 3;
 }
-message AttestationResultResponse{
+message AttestationTokenResponse{
   bytes file = 1;
 }

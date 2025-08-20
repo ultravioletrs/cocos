@@ -22,12 +22,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AgentService_Algo_FullMethodName              = "/agent.AgentService/Algo"
-	AgentService_Data_FullMethodName              = "/agent.AgentService/Data"
-	AgentService_Result_FullMethodName            = "/agent.AgentService/Result"
-	AgentService_Attestation_FullMethodName       = "/agent.AgentService/Attestation"
-	AgentService_IMAMeasurements_FullMethodName   = "/agent.AgentService/IMAMeasurements"
-	AgentService_AttestationResult_FullMethodName = "/agent.AgentService/AttestationResult"
+	AgentService_Algo_FullMethodName                  = "/agent.AgentService/Algo"
+	AgentService_Data_FullMethodName                  = "/agent.AgentService/Data"
+	AgentService_Result_FullMethodName                = "/agent.AgentService/Result"
+	AgentService_Attestation_FullMethodName           = "/agent.AgentService/Attestation"
+	AgentService_IMAMeasurements_FullMethodName       = "/agent.AgentService/IMAMeasurements"
+	AgentService_AzureAttestationToken_FullMethodName = "/agent.AgentService/AzureAttestationToken"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -39,7 +39,7 @@ type AgentServiceClient interface {
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResultResponse], error)
 	Attestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttestationResponse], error)
 	IMAMeasurements(ctx context.Context, in *IMAMeasurementsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[IMAMeasurementsResponse], error)
-	AttestationResult(ctx context.Context, in *AttestationResultRequest, opts ...grpc.CallOption) (*AttestationResultResponse, error)
+	AzureAttestationToken(ctx context.Context, in *AttestationTokenRequest, opts ...grpc.CallOption) (*AttestationTokenResponse, error)
 }
 
 type agentServiceClient struct {
@@ -133,10 +133,10 @@ func (c *agentServiceClient) IMAMeasurements(ctx context.Context, in *IMAMeasure
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_IMAMeasurementsClient = grpc.ServerStreamingClient[IMAMeasurementsResponse]
 
-func (c *agentServiceClient) AttestationResult(ctx context.Context, in *AttestationResultRequest, opts ...grpc.CallOption) (*AttestationResultResponse, error) {
+func (c *agentServiceClient) AzureAttestationToken(ctx context.Context, in *AttestationTokenRequest, opts ...grpc.CallOption) (*AttestationTokenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AttestationResultResponse)
-	err := c.cc.Invoke(ctx, AgentService_AttestationResult_FullMethodName, in, out, cOpts...)
+	out := new(AttestationTokenResponse)
+	err := c.cc.Invoke(ctx, AgentService_AzureAttestationToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ type AgentServiceServer interface {
 	Result(*ResultRequest, grpc.ServerStreamingServer[ResultResponse]) error
 	Attestation(*AttestationRequest, grpc.ServerStreamingServer[AttestationResponse]) error
 	IMAMeasurements(*IMAMeasurementsRequest, grpc.ServerStreamingServer[IMAMeasurementsResponse]) error
-	AttestationResult(context.Context, *AttestationResultRequest) (*AttestationResultResponse, error)
+	AzureAttestationToken(context.Context, *AttestationTokenRequest) (*AttestationTokenResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -178,8 +178,8 @@ func (UnimplementedAgentServiceServer) Attestation(*AttestationRequest, grpc.Ser
 func (UnimplementedAgentServiceServer) IMAMeasurements(*IMAMeasurementsRequest, grpc.ServerStreamingServer[IMAMeasurementsResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method IMAMeasurements not implemented")
 }
-func (UnimplementedAgentServiceServer) AttestationResult(context.Context, *AttestationResultRequest) (*AttestationResultResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AttestationResult not implemented")
+func (UnimplementedAgentServiceServer) AzureAttestationToken(context.Context, *AttestationTokenRequest) (*AttestationTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AzureAttestationToken not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 func (UnimplementedAgentServiceServer) testEmbeddedByValue()                      {}
@@ -249,20 +249,20 @@ func _AgentService_IMAMeasurements_Handler(srv interface{}, stream grpc.ServerSt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_IMAMeasurementsServer = grpc.ServerStreamingServer[IMAMeasurementsResponse]
 
-func _AgentService_AttestationResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AttestationResultRequest)
+func _AgentService_AzureAttestationToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttestationTokenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AgentServiceServer).AttestationResult(ctx, in)
+		return srv.(AgentServiceServer).AzureAttestationToken(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AgentService_AttestationResult_FullMethodName,
+		FullMethod: AgentService_AzureAttestationToken_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentServiceServer).AttestationResult(ctx, req.(*AttestationResultRequest))
+		return srv.(AgentServiceServer).AzureAttestationToken(ctx, req.(*AttestationTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -275,8 +275,8 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AgentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "AttestationResult",
-			Handler:    _AgentService_AttestationResult_Handler,
+			MethodName: "AzureAttestationToken",
+			Handler:    _AgentService_AzureAttestationToken_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

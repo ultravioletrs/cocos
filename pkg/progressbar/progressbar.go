@@ -132,6 +132,9 @@ func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stre
 
 func (p *ProgressBar) SendData(description, filename string, file *os.File, stream agent.AgentService_DataClient) error {
 	return p.sendData(description, file, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
+		if len(data) == 0 {
+			fmt.Println("No data to send, skipping...")
+		}
 		return &agent.DataRequest{Dataset: data, Filename: filename}
 	})
 }
@@ -141,6 +144,8 @@ func (p *ProgressBar) sendData(description string, file *os.File, stream streamS
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("Uploading data:", dataInfo.Name(), "(", dataInfo.Size(), "bytes )")
 
 	p.reset(description, int(dataInfo.Size()))
 

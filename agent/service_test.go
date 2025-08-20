@@ -411,35 +411,31 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
-func TestAttestationResult(t *testing.T) {
+func TestAzureAttestationToken(t *testing.T) {
 	provider := new(mocks2.Provider)
 	cases := []struct {
-		name     string
-		nonce    [vtpm.Nonce]byte
-		platform attestation.PlatformType
-		token    []byte
-		err      error
+		name  string
+		nonce [vtpm.Nonce]byte
+		token []byte
+		err   error
 	}{
 		{
-			name:     "Azure token fetch successful",
-			nonce:    [32]byte{1, 2, 3}, // any test nonce
-			platform: attestation.AzureToken,
-			token:    []byte("mockToken"),
-			err:      nil,
+			name:  "Azure token fetch successful",
+			nonce: [32]byte{1, 2, 3}, // any test nonce
+			token: []byte("mockToken"),
+			err:   nil,
 		},
 		{
-			name:     "Azure token fetch failed",
-			nonce:    [32]byte{4, 5, 6},
-			platform: attestation.AzureToken,
-			token:    []byte{},
-			err:      ErrFetchAzureToken,
+			name:  "Azure token fetch failed",
+			nonce: [32]byte{4, 5, 6},
+			token: []byte{},
+			err:   ErrFetchAzureToken,
 		},
 		{
-			name:     "Invalid attestation type",
-			nonce:    [32]byte{7, 8, 9},
-			platform: attestation.SNP,
-			token:    []byte{},
-			err:      ErrAttestationType,
+			name:  "Invalid attestation type",
+			nonce: [32]byte{7, 8, 9},
+			token: []byte{},
+			err:   ErrAttestationType,
 		},
 	}
 
@@ -448,15 +444,13 @@ func TestAttestationResult(t *testing.T) {
 			events := new(mocks.Service)
 			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
-			if tc.platform == attestation.AzureToken {
-				provider.On("AzureAttestationToken", tc.nonce[:]).Return(tc.token, tc.err)
-			}
+			provider.On("AzureAttestationToken", tc.nonce[:]).Return(tc.token, tc.err)
 
 			ctx := context.Background()
 
 			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 
-			result, err := svc.AttestationResult(ctx, tc.nonce, tc.platform)
+			result, err := svc.AzureAttestationToken(ctx, tc.nonce)
 			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
 			assert.Equal(t, tc.token, result)
 		})
