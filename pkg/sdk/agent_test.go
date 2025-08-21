@@ -524,7 +524,7 @@ func TestAttestationToken(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svcCall := svc.On("AttestationToken", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
+			svcCall := svc.On("AzureAttestationToken", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
 
 			file, err := os.CreateTemp("", "attestation")
 			require.NoError(t, err)
