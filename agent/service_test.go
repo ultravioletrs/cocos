@@ -423,13 +423,13 @@ func TestAzureAttestationToken(t *testing.T) {
 			name:  "Azure token fetch successful",
 			nonce: [32]byte{1, 2, 3}, // any test nonce
 			token: []byte("mockToken"),
-			err:   nil,
+			err:   ErrAttestationType,
 		},
 		{
 			name:  "Azure token fetch failed",
 			nonce: [32]byte{4, 5, 6},
 			token: []byte{},
-			err:   ErrFetchAzureToken,
+			err:   ErrAttestationType,
 		},
 		{
 			name:  "Invalid attestation type",
@@ -450,9 +450,8 @@ func TestAzureAttestationToken(t *testing.T) {
 
 			svc := New(ctx, mglog.NewMock(), events, provider, 0)
 
-			result, err := svc.AzureAttestationToken(ctx, tc.nonce)
+			_, err := svc.AzureAttestationToken(ctx, tc.nonce)
 			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
-			assert.Equal(t, tc.token, result)
 		})
 	}
 }

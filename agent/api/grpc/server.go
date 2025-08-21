@@ -396,7 +396,7 @@ func (s *grpcServer) IMAMeasurements(req *agent.IMAMeasurementsRequest, stream a
 	)
 }
 
-func (s *grpcServer) AttestationToken(ctx context.Context, req *agent.AttestationTokenRequest) (*agent.AttestationTokenResponse, error) {
+func (s *grpcServer) AzureAttestationToken(ctx context.Context, req *agent.AttestationTokenRequest) (*agent.AttestationTokenResponse, error) {
 	_, res, err := s.handlers["azureAttestationToken"].ServeGRPC(ctx, req)
 	if err != nil {
 		return nil, err

@@ -200,7 +200,7 @@ func TestAttestationTokenEndpoint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Only call service mock if validation is expected to pass
 			if err := tt.req.validate(); err == nil {
-				svc.On("AzureAttestationToken", mock.Anything, tt.req.tokenNonce, attestation.Azure).
+				svc.On("AzureAttestationToken", mock.Anything, tt.req.tokenNonce).
 					Return([]byte("mock file"), tt.mockErr).Once()
 			}
 

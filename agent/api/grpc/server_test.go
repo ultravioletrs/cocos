@@ -128,7 +128,7 @@ func TestNewServer(t *testing.T) {
 	assert.Len(t, grpcServer.handlers, 6) // Should have 6 handlers
 
 	// Check that all expected handlers are present
-	expectedHandlers := []string{"algo", "data", "result", "attestation", "imaMeasurements", "attestationToken"}
+	expectedHandlers := []string{"algo", "data", "result", "attestation", "imaMeasurements", "azureAttestationToken"}
 	for _, handler := range expectedHandlers {
 		assert.Contains(t, grpcServer.handlers, handler)
 		assert.NotNil(t, grpcServer.handlers[handler])
@@ -275,7 +275,7 @@ func TestAttestationToken(t *testing.T) {
 	vtpmNonce := [vtpm.Nonce]byte{}
 	attestationType := attestation.SNP
 
-	mockService.On("AzureAttestationToken", mock.Anything, vtpmNonce, attestationType).Return(attestationData, nil)
+	mockService.On("AzureAttestationToken", mock.Anything, vtpmNonce).Return(attestationData, nil)
 
 	resp, err := server.AzureAttestationToken(context.Background(), &agent.AttestationTokenRequest{
 		TokenNonce: vtpmNonce[:],
