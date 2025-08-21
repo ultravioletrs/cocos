@@ -153,13 +153,13 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				attType = attestation.TDX
 			}
 
-			if (attType == attestation.VTPM || attType == attestation.SNPvTPM) && len(nonce) == 0 {
+			if (attestationType == VTPM || attestationType == SNPvTPM) && len(nonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("vTPM nonce must be defined for vTPM attestation ❌ ")
 				cmd.Println(msg)
 				return
 			}
 
-			if (attType == attestation.SNP || attType == attestation.SNPvTPM) && len(teeNonce) == 0 {
+			if (attestationType == SNP || attestationType == SNPvTPM) && len(teeNonce) == 0 {
 				msg := color.New(color.FgRed).Sprint("TEE nonce must be defined for SEV-SNP attestation ❌ ")
 				cmd.Println(msg)
 				return
@@ -183,7 +183,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			}
 
 			var fixedVtpmNonceByte [vtpm.Nonce]byte
-			if attType != attestation.SNP {
+			if attType != attestation.SNP || attestationType == AzureToken {
 				if (len(nonce) > vtpm.Nonce) || (len(tokenNonce) > vtpm.Nonce) {
 					msg := color.New(color.FgRed).Sprintf("vTPM nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.Nonce)
 					cmd.Println(msg)
@@ -219,7 +219,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			if attestationType == AzureToken {
 				err := cli.agentSDK.AttestationToken(cmd.Context(), fixedVtpmNonceByte, int(attType), attestationFile)
 				if err != nil {
-					printError(cmd, "Failed to get attestation result due to error: %v ❌", err)
+					printError(cmd, "Failed to get attestation token due to error: %v ❌", err)
 					return
 				}
 				returnJsonAzureToken = !getAzureTokenJWT
@@ -278,7 +278,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				}
 			}
 
-			cmd.Println("Attestation result retrieved and saved successfully!")
+			cmd.Println("Attestation retrieved and saved successfully!")
 		},
 	}
 
