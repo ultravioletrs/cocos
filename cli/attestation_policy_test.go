@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"os"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestChangeAttestationConfiguration(t *testing.T) {
 
 	initialConfig := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
 
-	initialJSON, err := json.Marshal(initialConfig)
+	initialJSON, err := vtpm.ConvertPolicyToJSON(&initialConfig)
 	require.NoError(t, err)
 	err = os.WriteFile(tmpfile.Name(), initialJSON, 0o644)
 	require.NoError(t, err)
