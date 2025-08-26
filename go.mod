@@ -1,8 +1,6 @@
 module github.com/ultravioletrs/cocos
 
-go 1.23.8
-
-toolchain go1.24.5
+go 1.24.5
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1
@@ -25,7 +23,7 @@ require (
 
 require (
 	cloud.google.com/go/storage v1.56.1
-	github.com/absmach/supermq v0.16.0
+	github.com/absmach/supermq v0.18.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
