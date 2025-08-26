@@ -28,7 +28,7 @@ require (
 	github.com/absmach/supermq v0.16.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/gce-tcb-verifier v0.3.1
 )
 
