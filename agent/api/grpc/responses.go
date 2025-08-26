@@ -7,7 +7,7 @@ type algoRes struct{}
 type dataRes struct{}
 
 type resultRes struct {
-	File []byte `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	File []byte
 }
 
 type attestationRes struct {
@@ -19,6 +19,6 @@ type imaMeasurementsRes struct {
 	PCR10 []byte
 }
 
-type fetchAttestationResultRes struct {
-	File []byte `protobuf:"bytes,1,opt,name=AttestationResult,proto3" json:"AttestationResult,omitempty"`
+type fetchAttestationTokenRes struct {
+	File []byte
 }

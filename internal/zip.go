@@ -111,6 +111,10 @@ func ZipDirectoryToTempFile(sourceDir string) (*os.File, error) {
 		return nil, err
 	}
 
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		return nil, err
+	}
+
 	return tmpFile, nil
 }
 

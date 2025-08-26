@@ -44,6 +44,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			var dataset *os.File
 
 			if f.IsDir() {
+				cmd.Println("Detected directory, zipping dataset...")
 				dataset, err = internal.ZipDirectoryToTempFile(datasetPath)
 				if err != nil {
 					printError(cmd, "Error zipping dataset directory: %v ❌ ", err)

@@ -96,16 +96,16 @@ func imaMeasurementsEndpoint(svc agent.Service) endpoint.Endpoint {
 	}
 }
 
-func attestationResultEndpoint(svc agent.Service) endpoint.Endpoint {
+func azureAttestationTokenEndpoint(svc agent.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(FetchAttestationResultReq)
+		req := request.(azureAttestationTokenReq)
 		if err := req.validate(); err != nil {
-			return fetchAttestationResultRes{}, err
+			return fetchAttestationTokenRes{}, err
 		}
-		file, err := svc.AttestationResult(ctx, req.tokenNonce, attestation.PlatformType(req.AttType))
+		file, err := svc.AzureAttestationToken(ctx, req.tokenNonce)
 		if err != nil {
-			return fetchAttestationResultRes{}, err
+			return fetchAttestationTokenRes{}, err
 		}
-		return fetchAttestationResultRes{File: file}, nil
+		return fetchAttestationTokenRes{File: file}, nil
 	}
 }

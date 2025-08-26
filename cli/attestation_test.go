@@ -67,21 +67,21 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			args:         []string{"snp", "--tee", teeNonce},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
-			expectedOut:  "Attestation result retrieved and saved successfully!",
+			expectedOut:  "Attestation retrieved and saved successfully!",
 		},
 		{
 			name:         "successful vTPM attestation retrieval",
 			args:         []string{"vtpm", "--vtpm", vtpmNonce},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
-			expectedOut:  "Attestation result retrieved and saved successfully!",
+			expectedOut:  "Attestation retrieved and saved successfully!",
 		},
 		{
 			name:         "successful SNP-vTPM attestation retrieval",
 			args:         []string{"snp-vtpm", "--tee", teeNonce, "--vtpm", vtpmNonce},
 			mockResponse: []byte("mock attestation"),
 			mockError:    nil,
-			expectedOut:  "Attestation result retrieved and saved successfully!",
+			expectedOut:  "Attestation retrieved and saved successfully!",
 		},
 		{
 			name:         "missing vTPM nonce",
@@ -137,7 +137,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			args:         []string{"snp", "--tee", teeNonce, "--reporttextproto"},
 			mockResponse: validattestation,
 			mockError:    nil,
-			expectedOut:  "Attestation result retrieved and saved successfully!",
+			expectedOut:  "Attestation retrieved and saved successfully!",
 		},
 		{
 			name:         "connection error",
@@ -151,14 +151,14 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			args:         []string{"azure-token", "--token", tokenNonce},
 			mockResponse: []byte("eyJhbGciOiAiUlMyNTYifQ.eyJzdWIiOiAidGVzdC11c2VyIn0.signature"),
 			mockError:    nil,
-			expectedOut:  "Fetching Azure token\nAttestation result retrieved and saved successfully!\n",
+			expectedOut:  "Fetching Azure token\nAttestation retrieved and saved successfully!\n",
 		},
 		{
 			name:         "failed to retrieve Azure token",
 			args:         []string{"azure-token", "--token", tokenNonce},
 			mockResponse: nil,
 			mockError:    errors.New("error"),
-			expectedErr:  "Fetching Azure token\nFailed to get attestation result due to error: error ❌\n",
+			expectedErr:  "Fetching Azure token\nFailed to get attestation token due to error: error ❌\n",
 		},
 		{
 			name:         "invalid token nonce size",
@@ -189,7 +189,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			mockSDK.On("AttestationResult", mock.Anything, [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+			mockSDK.On("AttestationToken", mock.Anything, [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(3).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})

@@ -128,7 +128,7 @@ func TestNewServer(t *testing.T) {
 	assert.Len(t, grpcServer.handlers, 6) // Should have 6 handlers
 
 	// Check that all expected handlers are present
-	expectedHandlers := []string{"algo", "data", "result", "attestation", "imaMeasurements", "attestationResult"}
+	expectedHandlers := []string{"algo", "data", "result", "attestation", "imaMeasurements", "azureAttestationToken"}
 	for _, handler := range expectedHandlers {
 		assert.Contains(t, grpcServer.handlers, handler)
 		assert.NotNil(t, grpcServer.handlers[handler])
@@ -267,17 +267,17 @@ func TestIMAMeasurements(t *testing.T) {
 	mockStream.AssertExpectations(t)
 }
 
-func TestAttestationResult(t *testing.T) {
+func TestAttestationToken(t *testing.T) {
 	mockService := new(mocks.Service)
 	server := NewServer(mockService)
 
-	attestationData := []byte("attestation result data")
+	attestationData := []byte("attestation token data")
 	vtpmNonce := [vtpm.Nonce]byte{}
 	attestationType := attestation.SNP
 
-	mockService.On("AttestationResult", mock.Anything, vtpmNonce, attestationType).Return(attestationData, nil)
+	mockService.On("AzureAttestationToken", mock.Anything, vtpmNonce).Return(attestationData, nil)
 
-	resp, err := server.AttestationResult(context.Background(), &agent.AttestationResultRequest{
+	resp, err := server.AzureAttestationToken(context.Background(), &agent.AttestationTokenRequest{
 		TokenNonce: vtpmNonce[:],
 		Type:       int32(attestationType),
 	})
@@ -428,34 +428,31 @@ func TestEncodeAttestationResponse(t *testing.T) {
 	assert.Equal(t, &agent.AttestationResponse{File: []byte("attestation")}, encoded)
 }
 
-func TestDecodeAttestationResultRequest(t *testing.T) {
+func TestDecodeAttestationTokenRequest(t *testing.T) {
 	tokenNonce := make([]byte, vtpm.Nonce)
-	req := &agent.AttestationResultRequest{
+	req := &agent.AttestationTokenRequest{
 		TokenNonce: tokenNonce,
 		Type:       int32(attestation.SNP),
 	}
 
-	decoded, err := decodeAttestationResultRequest(context.Background(), req)
+	_, err := decodeAttestationTokenRequest(context.Background(), req)
 	assert.NoError(t, err)
-
-	decodedReq := decoded.(FetchAttestationResultReq)
-	assert.Equal(t, attestation.SNP, decodedReq.AttType)
 }
 
-func TestDecodeAttestationResultRequestWithInvalidNonce(t *testing.T) {
+func TestDecodeAttestationTokenRequestWithInvalidNonce(t *testing.T) {
 	// Test with token nonce too long
 	tokenNonce := make([]byte, vtpm.Nonce+1)
-	req := &agent.AttestationResultRequest{TokenNonce: tokenNonce}
+	req := &agent.AttestationTokenRequest{TokenNonce: tokenNonce}
 
-	_, err := decodeAttestationResultRequest(context.Background(), req)
+	_, err := decodeAttestationTokenRequest(context.Background(), req)
 	assert.Error(t, err)
 	assert.Equal(t, ErrVTPMNonceLength, err)
 }
 
-func TestEncodeAttestationResultResponse(t *testing.T) {
-	encoded, err := encodeAttestationResultResponse(context.Background(), fetchAttestationResultRes{File: []byte("attestation")})
+func TestEncodeAttestationTokenResponse(t *testing.T) {
+	encoded, err := encodeAttestationTokenResponse(context.Background(), fetchAttestationTokenRes{File: []byte("attestation")})
 	assert.NoError(t, err)
-	assert.Equal(t, &agent.AttestationResultResponse{File: []byte("attestation")}, encoded)
+	assert.Equal(t, &agent.AttestationTokenResponse{File: []byte("attestation")}, encoded)
 }
 
 func TestDecodeIMAMeasurementsRequest(t *testing.T) {

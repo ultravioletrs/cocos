@@ -29,7 +29,7 @@ type dataReq struct {
 
 func (req dataReq) validate() error {
 	if len(req.Dataset) == 0 {
-		return errors.New("dataset CSV file is required")
+		return errors.New("dataset is required")
 	}
 	return nil
 }
@@ -47,22 +47,21 @@ type attestationReq struct {
 	AttType   attestation.PlatformType
 }
 
-type FetchAttestationResultReq struct {
+type azureAttestationTokenReq struct {
 	tokenNonce [vtpm.Nonce]byte
-	AttType    attestation.PlatformType
 }
 
 func (req attestationReq) validate() error {
 	return validateAttestationType(req.AttType)
 }
 
-func (req FetchAttestationResultReq) validate() error {
-	return validateAttestationType(req.AttType)
+func (req azureAttestationTokenReq) validate() error {
+	return nil
 }
 
 func validateAttestationType(attType attestation.PlatformType) error {
 	switch attType {
-	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM, attestation.TDX, attestation.AzureToken:
+	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM, attestation.TDX:
 		return nil
 	default:
 		return errors.New("invalid attestation type")

@@ -123,7 +123,7 @@ type Service interface {
 	Result(ctx context.Context) ([]byte, error)
 	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
-	AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
+	AzureAttestationToken(ctx context.Context, nonce [vtpm.Nonce]byte) ([]byte, error)
 	State() string
 }
 
@@ -459,17 +459,16 @@ func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovid
 	}
 }
 
-func (as *agentService) AttestationResult(ctx context.Context, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
-	switch attType {
-	case attestation.AzureToken:
-		token, err := as.provider.AzureAttestationToken(nonce[:])
-		if err != nil {
-			return []byte{}, err
-		}
-		return token, nil
-	default:
+func (as *agentService) AzureAttestationToken(ctx context.Context, nonce [vtpm.Nonce]byte) ([]byte, error) {
+	if attestation.CCPlatform() != attestation.Azure {
 		return []byte{}, ErrAttestationType
 	}
+
+	token, err := as.provider.AzureAttestationToken(nonce[:])
+	if err != nil {
+		return []byte{}, err
+	}
+	return token, nil
 }
 
 func (as *agentService) runComputation(state statemachine.State) {

@@ -60,7 +60,7 @@ message ClientStreamMessage {
     StopComputationResponse stopComputationRes = 4;
     AgentStateRes agentStateRes = 5;
     AttestationResponse vTPMattestationReport = 6;
-    azureAttestationResponse azureAttestationResult = 7;
+    azureAttestationToken azureAttestationToken = 7;
   }
 }
 
@@ -124,7 +124,7 @@ message AttestationResponse {
   string certSerialNumber = 2;
 }
 
-message azureAttestationResponse {
+message azureAttestationToken {
   bytes file = 1;
   string certSerialNumber = 2;
 }

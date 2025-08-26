@@ -220,7 +220,7 @@ func TestData(t *testing.T) {
 				Hash:    dataHash,
 			},
 			userKey: dataProvider1Key,
-			svcErr:  errors.New("dataset CSV file is required"),
+			svcErr:  errors.New("dataset is required"),
 		},
 	}
 
@@ -475,7 +475,7 @@ func TestAttestation(t *testing.T) {
 	}
 }
 
-func TestAttestationResult(t *testing.T) {
+func TestAttestationToken(t *testing.T) {
 	reportData := make([]byte, 64)
 	nonce := make([]byte, 64)
 	report := []byte{
@@ -499,23 +499,23 @@ func TestAttestationResult(t *testing.T) {
 	cases := []struct {
 		name     string
 		nonce    [vtpm.Nonce]byte
-		response *agent.AttestationResultResponse
+		response *agent.AttestationTokenResponse
 		svcRes   []byte
 		err      error
 	}{
 		{
-			name:  "fetch attestation report successfully",
+			name:  "fetch attestation token successfully",
 			nonce: [vtpm.Nonce]byte(nonce),
-			response: &agent.AttestationResultResponse{
+			response: &agent.AttestationTokenResponse{
 				File: report,
 			},
 			svcRes: report,
 			err:    nil,
 		},
 		{
-			name:  "failed to fetch attestation report",
+			name:  "failed to fetch attestation token",
 			nonce: [vtpm.Nonce]byte(nonce),
-			response: &agent.AttestationResultResponse{
+			response: &agent.AttestationTokenResponse{
 				File: []byte{},
 			},
 			err: nil,
@@ -524,7 +524,7 @@ func TestAttestationResult(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svcCall := svc.On("AttestationResult", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
+			svcCall := svc.On("AzureAttestationToken", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.svcRes, tc.err)
 
 			file, err := os.CreateTemp("", "attestation")
 			require.NoError(t, err)
@@ -533,7 +533,7 @@ func TestAttestationResult(t *testing.T) {
 				os.Remove(file.Name())
 			})
 
-			err = sdk.AttestationResult(context.Background(), tc.nonce, 0, file)
+			err = sdk.AttestationToken(context.Background(), tc.nonce, 0, file)
 
 			require.NoError(t, file.Close())
 

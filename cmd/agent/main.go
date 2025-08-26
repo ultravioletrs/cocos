@@ -196,16 +196,16 @@ func main() {
 	}
 
 	if ccPlatform == attestation.Azure {
-		azureAttestationResult, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+		azureAttestationToken, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
 			exitCode = 1
 			return
 		}
 		eventsLogsQueue <- &cvms.ClientStreamMessage{
-			Message: &cvms.ClientStreamMessage_AzureAttestationResult{
-				AzureAttestationResult: &cvms.AzureAttestationResponse{
-					File:             azureAttestationResult,
+			Message: &cvms.ClientStreamMessage_AzureAttestationToken{
+				AzureAttestationToken: &cvms.AzureAttestationToken{
+					File:             azureAttestationToken,
 					CertSerialNumber: azureCertSerialNumber,
 				},
 			},
@@ -279,7 +279,7 @@ func azureAttestationFromCert(ctx context.Context, certFilePath string, svc agen
 	}
 
 	nonceAzure := sha256.Sum256(certFile)
-	attestation, err := svc.AttestationResult(ctx, nonceAzure, attestation.AzureToken)
+	attestation, err := svc.AzureAttestationToken(ctx, nonceAzure)
 	if err != nil {
 		return nil, "", err
 	}
