@@ -165,7 +165,7 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 		return nil, fmt.Errorf("failed to validate token: %w", err)
 	}
 
-	tee, ok := claims["x-ms-isolation-tee"].(map[string]interface{})
+	tee, ok := claims["x-ms-isolation-tee"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("failed to get tee from claims")
 	}
@@ -284,7 +284,7 @@ func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error
 	return []byte(token), nil
 }
 
-func validateToken(token string) (map[string]interface{}, error) {
+func validateToken(token string) (map[string]any, error) {
 	unverifiedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)

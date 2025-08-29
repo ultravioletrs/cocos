@@ -27,15 +27,15 @@ var (
 )
 
 type streamSender interface {
-	Send(interface{}) error
-	CloseAndRecv() (interface{}, error)
+	Send(any) error
+	CloseAndRecv() (any, error)
 }
 
 type algoClientWrapper struct {
 	client agent.AgentService_AlgoClient
 }
 
-func (a *algoClientWrapper) Send(req interface{}) error {
+func (a *algoClientWrapper) Send(req any) error {
 	algoReq, ok := req.(*agent.AlgoRequest)
 	if !ok {
 		return fmt.Errorf("expected *AlgoRequest, got %T", req)
@@ -44,7 +44,7 @@ func (a *algoClientWrapper) Send(req interface{}) error {
 	return a.client.Send(algoReq)
 }
 
-func (a *algoClientWrapper) CloseAndRecv() (interface{}, error) {
+func (a *algoClientWrapper) CloseAndRecv() (any, error) {
 	return a.client.CloseAndRecv()
 }
 
@@ -52,7 +52,7 @@ type dataClientWrapper struct {
 	client agent.AgentService_DataClient
 }
 
-func (a *dataClientWrapper) Send(req interface{}) error {
+func (a *dataClientWrapper) Send(req any) error {
 	dataReq, ok := req.(*agent.DataRequest)
 	if !ok {
 		return fmt.Errorf("expected *DataRequest, got %T", req)
@@ -61,7 +61,7 @@ func (a *dataClientWrapper) Send(req interface{}) error {
 	return a.client.Send(dataReq)
 }
 
-func (a *dataClientWrapper) CloseAndRecv() (interface{}, error) {
+func (a *dataClientWrapper) CloseAndRecv() (any, error) {
 	return a.client.CloseAndRecv()
 }
 
@@ -104,7 +104,7 @@ func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stre
 
 	// Send req first
 	if req != nil {
-		if err := p.sendBuffer(req, wrapper, func(data []byte) interface{} {
+		if err := p.sendBuffer(req, wrapper, func(data []byte) any {
 			return &agent.AlgoRequest{Requirements: data}
 		}); err != nil {
 			return err
@@ -112,7 +112,7 @@ func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stre
 	}
 
 	// Then send algo
-	if err := p.sendBuffer(algo, wrapper, func(data []byte) interface{} {
+	if err := p.sendBuffer(algo, wrapper, func(data []byte) any {
 		return &agent.AlgoRequest{Algorithm: data}
 	}); err != nil {
 		return err
@@ -131,12 +131,12 @@ func (p *ProgressBar) SendAlgorithm(description string, algo, req *os.File, stre
 }
 
 func (p *ProgressBar) SendData(description, filename string, file *os.File, stream agent.AgentService_DataClient) error {
-	return p.sendData(description, file, &dataClientWrapper{client: stream}, func(data []byte) interface{} {
+	return p.sendData(description, file, &dataClientWrapper{client: stream}, func(data []byte) any {
 		return &agent.DataRequest{Dataset: data, Filename: filename}
 	})
 }
 
-func (p *ProgressBar) sendData(description string, file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
+func (p *ProgressBar) sendData(description string, file *os.File, stream streamSender, createRequest func([]byte) any) error {
 	dataInfo, err := file.Stat()
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (p *ProgressBar) sendData(description string, file *os.File, stream streamS
 	return err
 }
 
-func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createRequest func([]byte) interface{}) error {
+func (p *ProgressBar) sendBuffer(file *os.File, stream streamSender, createRequest func([]byte) any) error {
 	buf := make([]byte, bufferSize)
 
 	for {

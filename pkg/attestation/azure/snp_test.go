@@ -452,7 +452,7 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 		maaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/attest":
-				response := map[string]interface{}{
+				response := map[string]any{
 					"token": createMockJWT(),
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -460,7 +460,7 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 					t.Fatalf("Failed to encode response: %v", err)
 				}
 			case "/.well-known/openid_configuration":
-				config := map[string]interface{}{
+				config := map[string]any{
 					"jwks_uri": "maaServer.URL" + "/certs",
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -468,8 +468,8 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 					t.Fatalf("Failed to encode OpenID configuration: %v", err)
 				}
 			case "/certs":
-				jwks := map[string]interface{}{
-					"keys": []map[string]interface{}{
+				jwks := map[string]any{
+					"keys": []map[string]any{
 						{
 							"kid": "test-kid",
 							"kty": "RSA",
@@ -555,7 +555,7 @@ func createMockJWT() string {
 		"aud": "test-audience",
 		"exp": time.Now().Add(time.Hour).Unix(),
 		"iat": time.Now().Unix(),
-		"x-ms-isolation-tee": map[string]interface{}{
+		"x-ms-isolation-tee": map[string]any{
 			"x-ms-sevsnpvm-familyId":          "1234567890abcdef",
 			"x-ms-sevsnpvm-imageId":           "fedcba0987654321",
 			"x-ms-sevsnpvm-launchmeasurement": "abcdef1234567890",

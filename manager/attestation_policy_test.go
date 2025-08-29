@@ -47,10 +47,10 @@ func TestFetchAttestationPolicy(t *testing.T) {
 	testCases := []struct {
 		name           string
 		computationId  string
-		vmConfig       interface{}
+		vmConfig       any
 		binaryBehavior string
 		expectedError  string
-		expectedResult map[string]interface{}
+		expectedResult map[string]any
 	}{
 		{
 			name:           "Valid SEV-SNP configuration",
@@ -136,7 +136,7 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 
-				var attestationPolicy map[string]interface{}
+				var attestationPolicy map[string]any
 				err = json.Unmarshal(result, &attestationPolicy)
 				assert.NoError(t, err)
 

@@ -371,17 +371,17 @@ func TestReadPolicy(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	validPolicy := map[string]interface{}{
-		"policy": map[string]interface{}{
-			"product": map[string]interface{}{
+	validPolicy := map[string]any{
+		"policy": map[string]any{
+			"product": map[string]any{
 				"name": "test-product",
 			},
 		},
-		"rootOfTrust": map[string]interface{}{
+		"rootOfTrust": map[string]any{
 			"productLine": "test-line",
 		},
-		"pcrConfig": map[string]interface{}{
-			"pcrValues": map[string]interface{}{
+		"pcrConfig": map[string]any{
+			"pcrValues": map[string]any{
 				"sha256": map[string]string{
 					"0": "0000000000000000000000000000000000000000000000000000000000000000",
 				},
@@ -557,7 +557,7 @@ func TestConvertPolicyToJSON(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, jsonData)
 
-				var result map[string]interface{}
+				var result map[string]any
 				err = json.Unmarshal(jsonData, &result)
 				assert.NoError(t, err)
 			}

@@ -551,7 +551,7 @@ func decodeJWTToJSON(tokenBytes []byte) ([]byte, error) {
 		return nil, fmt.Errorf("invalid JWT: must have at least 2 parts")
 	}
 
-	decode := func(seg string) (map[string]interface{}, error) {
+	decode := func(seg string) (map[string]any, error) {
 		// Add padding if missing
 		if m := len(seg) % 4; m != 0 {
 			seg += strings.Repeat("=", 4-m)
@@ -562,7 +562,7 @@ func decodeJWTToJSON(tokenBytes []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		var result map[string]interface{}
+		var result map[string]any
 		if err := json.Unmarshal(data, &result); err != nil {
 			return nil, err
 		}
@@ -580,7 +580,7 @@ func decodeJWTToJSON(tokenBytes []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode payload: %v", err)
 	}
 
-	combined := map[string]interface{}{
+	combined := map[string]any{
 		"header":  header,
 		"payload": payload,
 	}

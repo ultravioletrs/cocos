@@ -57,7 +57,7 @@ func TestGenerateAndWriteKeys(t *testing.T) {
 				t.Fatalf("Failed to decode private key PEM")
 			}
 
-			var privKey interface{}
+			var privKey any
 			switch tt.keyType {
 			case "rsa":
 				privKey, err = x509.ParsePKCS1PrivateKey(privPem.Bytes)

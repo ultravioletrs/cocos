@@ -526,7 +526,7 @@ func TestAttestationToJSON(t *testing.T) {
 
 			require.NotNil(t, got)
 
-			var js map[string]interface{}
+			var js map[string]any
 			err = json.Unmarshal(got, &js)
 			assert.NoError(t, err)
 		})

@@ -77,7 +77,7 @@ func TestSendAlgorithm(t *testing.T) {
 			req, err = os.Open(req.Name())
 			assert.NoError(t, err)
 
-			algoStream := new(mocks.AgentService_AlgoClient[agent.AlgoRequest, agent.AlgoResponse])
+			algoStream := new(mocks.AgentService_AlgoClient)
 			algoStream.On("Send", mock.Anything).Return(tc.sendError)
 			algoStream.On("CloseAndRecv").Return(&agent.AlgoResponse{}, tc.closeRecvError)
 			mockStream := &mockAlgoStream{stream: algoStream}
@@ -141,7 +141,7 @@ func TestSendData(t *testing.T) {
 			dataset, err = os.Open(dataset.Name())
 			assert.NoError(t, err)
 
-			dataStream := new(mocks.AgentService_DataClient[agent.DataRequest, agent.DataResponse])
+			dataStream := new(mocks.AgentService_DataClient)
 			dataStream.On("Send", mock.Anything).Return(tc.sendError)
 			dataStream.On("CloseAndRecv").Return(&agent.DataResponse{}, tc.closeRecvError)
 			mockStream := &mockDataStream{stream: dataStream}
@@ -566,7 +566,7 @@ func TestReceiverIMAMeasurements(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStream := new(mocks.AgentService_IMAMeasurementsClient[agent.IMAMeasurementsResponse])
+			mockStream := new(mocks.AgentService_IMAMeasurementsClient)
 
 			p := New(true)
 			p.TerminalWidthFunc = func() (int, error) { return 100, nil }

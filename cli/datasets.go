@@ -89,7 +89,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 	return cmd
 }
 
-func decodeKey(b *pem.Block) (interface{}, error) {
+func decodeKey(b *pem.Block) (any, error) {
 	if b == nil {
 		return nil, errors.New("error decoding key")
 	}

@@ -42,7 +42,7 @@ protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/cvms/cvms.proto
 
 mocks:
-	mockery --config ./mockery.yml
+	mockery --config ./.mockery.yml
 
 install: $(SERVICES) $(ATTESTATION_POLICY)
 	install -d $(INSTALL_DIR)

@@ -96,7 +96,7 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 	}
 }
 
-func generateAndWriteKeys(privKey interface{}, pubKeyBytes []byte, keyType string) error {
+func generateAndWriteKeys(privKey any, pubKeyBytes []byte, keyType string) error {
 	privFile, err := os.Create(privateKeyFile)
 	if err != nil {
 		return err

@@ -27,7 +27,7 @@ func (_m *Provider) EXPECT() *Provider_Expecter {
 }
 
 // Execute provides a mock function with given fields: config, computationId, logger
-func (_m *Provider) Execute(config interface{}, computationId string, logger *slog.Logger) vm.VM {
+func (_m *Provider) Execute(config any, computationId string, logger *slog.Logger) vm.VM {
 	ret := _m.Called(config, computationId, logger)
 
 	if len(ret) == 0 {
@@ -35,7 +35,7 @@ func (_m *Provider) Execute(config interface{}, computationId string, logger *sl
 	}
 
 	var r0 vm.VM
-	if rf, ok := ret.Get(0).(func(interface{}, string, *slog.Logger) vm.VM); ok {
+	if rf, ok := ret.Get(0).(func(any, string, *slog.Logger) vm.VM); ok {
 		r0 = rf(config, computationId, logger)
 	} else {
 		if ret.Get(0) != nil {
@@ -52,16 +52,16 @@ type Provider_Execute_Call struct {
 }
 
 // Execute is a helper method to define mock.On call
-//   - config interface{}
+//   - config any
 //   - computationId string
 //   - logger *slog.Logger
-func (_e *Provider_Expecter) Execute(config interface{}, computationId interface{}, logger interface{}) *Provider_Execute_Call {
+func (_e *Provider_Expecter) Execute(config any, computationId any, logger any) *Provider_Execute_Call {
 	return &Provider_Execute_Call{Call: _e.mock.On("Execute", config, computationId, logger)}
 }
 
-func (_c *Provider_Execute_Call) Run(run func(config interface{}, computationId string, logger *slog.Logger)) *Provider_Execute_Call {
+func (_c *Provider_Execute_Call) Run(run func(config any, computationId string, logger *slog.Logger)) *Provider_Execute_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}), args[1].(string), args[2].(*slog.Logger))
+		run(args[0].(any), args[1].(string), args[2].(*slog.Logger))
 	})
 	return _c
 }
@@ -71,7 +71,7 @@ func (_c *Provider_Execute_Call) Return(_a0 vm.VM) *Provider_Execute_Call {
 	return _c
 }
 
-func (_c *Provider_Execute_Call) RunAndReturn(run func(interface{}, string, *slog.Logger) vm.VM) *Provider_Execute_Call {
+func (_c *Provider_Execute_Call) RunAndReturn(run func(any, string, *slog.Logger) vm.VM) *Provider_Execute_Call {
 	_c.Call.Return(run)
 	return _c
 }

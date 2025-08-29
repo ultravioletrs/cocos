@@ -39,7 +39,7 @@ type qemuVM struct {
 	vm.StateMachine
 }
 
-func NewVM(config interface{}, cvmId string, logger *slog.Logger) vm.VM {
+func NewVM(config any, cvmId string, logger *slog.Logger) vm.VM {
 	return &qemuVM{
 		vmi:          config.(VMInfo),
 		cvmId:        cvmId,
@@ -192,7 +192,7 @@ func processExists(pid int) bool {
 	return false
 }
 
-func (v *qemuVM) GetConfig() interface{} {
+func (v *qemuVM) GetConfig() any {
 	return v.vmi
 }
 
