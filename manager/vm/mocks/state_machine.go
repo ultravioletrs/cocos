@@ -93,7 +93,7 @@ type StateMachine_Transition_Call struct {
 
 // Transition is a helper method to define mock.On call
 //   - newState manager.ManagerState
-func (_e *StateMachine_Expecter) Transition(newState interface{}) *StateMachine_Transition_Call {
+func (_e *StateMachine_Expecter) Transition(newState any) *StateMachine_Transition_Call {
 	return &StateMachine_Transition_Call{Call: _e.mock.On("Transition", newState)}
 }
 

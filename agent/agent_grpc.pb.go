@@ -11,6 +11,7 @@ package agent
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -202,21 +203,21 @@ func RegisterAgentServiceServer(s grpc.ServiceRegistrar, srv AgentServiceServer)
 	s.RegisterService(&AgentService_ServiceDesc, srv)
 }
 
-func _AgentService_Algo_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _AgentService_Algo_Handler(srv any, stream grpc.ServerStream) error {
 	return srv.(AgentServiceServer).Algo(&grpc.GenericServerStream[AlgoRequest, AlgoResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_AlgoServer = grpc.ClientStreamingServer[AlgoRequest, AlgoResponse]
 
-func _AgentService_Data_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _AgentService_Data_Handler(srv any, stream grpc.ServerStream) error {
 	return srv.(AgentServiceServer).Data(&grpc.GenericServerStream[DataRequest, DataResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_DataServer = grpc.ClientStreamingServer[DataRequest, DataResponse]
 
-func _AgentService_Result_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _AgentService_Result_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(ResultRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -227,7 +228,7 @@ func _AgentService_Result_Handler(srv interface{}, stream grpc.ServerStream) err
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_ResultServer = grpc.ServerStreamingServer[ResultResponse]
 
-func _AgentService_Attestation_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _AgentService_Attestation_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(AttestationRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -238,7 +239,7 @@ func _AgentService_Attestation_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_AttestationServer = grpc.ServerStreamingServer[AttestationResponse]
 
-func _AgentService_IMAMeasurements_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _AgentService_IMAMeasurements_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(IMAMeasurementsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -249,7 +250,7 @@ func _AgentService_IMAMeasurements_Handler(srv interface{}, stream grpc.ServerSt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_IMAMeasurementsServer = grpc.ServerStreamingServer[IMAMeasurementsResponse]
 
-func _AgentService_AzureAttestationToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AgentService_AzureAttestationToken_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(AttestationTokenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -261,7 +262,7 @@ func _AgentService_AzureAttestationToken_Handler(srv interface{}, ctx context.Co
 		Server:     srv,
 		FullMethod: AgentService_AzureAttestationToken_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(AgentServiceServer).AzureAttestationToken(ctx, req.(*AttestationTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)

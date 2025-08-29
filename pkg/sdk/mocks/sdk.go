@@ -26,7 +26,7 @@ func (_m *SDK) EXPECT() *SDK_Expecter {
 }
 
 // Algo provides a mock function with given fields: ctx, algorithm, requirements, privKey
-func (_m *SDK) Algo(ctx context.Context, algorithm *os.File, requirements *os.File, privKey interface{}) error {
+func (_m *SDK) Algo(ctx context.Context, algorithm *os.File, requirements *os.File, privKey any) error {
 	ret := _m.Called(ctx, algorithm, requirements, privKey)
 
 	if len(ret) == 0 {
@@ -34,7 +34,7 @@ func (_m *SDK) Algo(ctx context.Context, algorithm *os.File, requirements *os.Fi
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *os.File, *os.File, interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *os.File, *os.File, any) error); ok {
 		r0 = rf(ctx, algorithm, requirements, privKey)
 	} else {
 		r0 = ret.Error(0)
@@ -52,14 +52,14 @@ type SDK_Algo_Call struct {
 //   - ctx context.Context
 //   - algorithm *os.File
 //   - requirements *os.File
-//   - privKey interface{}
-func (_e *SDK_Expecter) Algo(ctx interface{}, algorithm interface{}, requirements interface{}, privKey interface{}) *SDK_Algo_Call {
+//   - privKey any
+func (_e *SDK_Expecter) Algo(ctx any, algorithm any, requirements any, privKey any) *SDK_Algo_Call {
 	return &SDK_Algo_Call{Call: _e.mock.On("Algo", ctx, algorithm, requirements, privKey)}
 }
 
-func (_c *SDK_Algo_Call) Run(run func(ctx context.Context, algorithm *os.File, requirements *os.File, privKey interface{})) *SDK_Algo_Call {
+func (_c *SDK_Algo_Call) Run(run func(ctx context.Context, algorithm *os.File, requirements *os.File, privKey any)) *SDK_Algo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*os.File), args[2].(*os.File), args[3].(interface{}))
+		run(args[0].(context.Context), args[1].(*os.File), args[2].(*os.File), args[3].(any))
 	})
 	return _c
 }
@@ -69,7 +69,7 @@ func (_c *SDK_Algo_Call) Return(_a0 error) *SDK_Algo_Call {
 	return _c
 }
 
-func (_c *SDK_Algo_Call) RunAndReturn(run func(context.Context, *os.File, *os.File, interface{}) error) *SDK_Algo_Call {
+func (_c *SDK_Algo_Call) RunAndReturn(run func(context.Context, *os.File, *os.File, any) error) *SDK_Algo_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -103,7 +103,7 @@ type SDK_Attestation_Call struct {
 //   - nonce [32]byte
 //   - attType int
 //   - attestationFile *os.File
-func (_e *SDK_Expecter) Attestation(ctx interface{}, reportData interface{}, nonce interface{}, attType interface{}, attestationFile interface{}) *SDK_Attestation_Call {
+func (_e *SDK_Expecter) Attestation(ctx any, reportData any, nonce any, attType any, attestationFile any) *SDK_Attestation_Call {
 	return &SDK_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData, nonce, attType, attestationFile)}
 }
 
@@ -152,7 +152,7 @@ type SDK_AttestationToken_Call struct {
 //   - nonce [32]byte
 //   - attType int
 //   - attestationFile *os.File
-func (_e *SDK_Expecter) AttestationToken(ctx interface{}, nonce interface{}, attType interface{}, attestationFile interface{}) *SDK_AttestationToken_Call {
+func (_e *SDK_Expecter) AttestationToken(ctx any, nonce any, attType any, attestationFile any) *SDK_AttestationToken_Call {
 	return &SDK_AttestationToken_Call{Call: _e.mock.On("AttestationToken", ctx, nonce, attType, attestationFile)}
 }
 
@@ -174,7 +174,7 @@ func (_c *SDK_AttestationToken_Call) RunAndReturn(run func(context.Context, [32]
 }
 
 // Data provides a mock function with given fields: ctx, dataset, filename, privKey
-func (_m *SDK) Data(ctx context.Context, dataset *os.File, filename string, privKey interface{}) error {
+func (_m *SDK) Data(ctx context.Context, dataset *os.File, filename string, privKey any) error {
 	ret := _m.Called(ctx, dataset, filename, privKey)
 
 	if len(ret) == 0 {
@@ -182,7 +182,7 @@ func (_m *SDK) Data(ctx context.Context, dataset *os.File, filename string, priv
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *os.File, string, interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *os.File, string, any) error); ok {
 		r0 = rf(ctx, dataset, filename, privKey)
 	} else {
 		r0 = ret.Error(0)
@@ -200,14 +200,14 @@ type SDK_Data_Call struct {
 //   - ctx context.Context
 //   - dataset *os.File
 //   - filename string
-//   - privKey interface{}
-func (_e *SDK_Expecter) Data(ctx interface{}, dataset interface{}, filename interface{}, privKey interface{}) *SDK_Data_Call {
+//   - privKey any
+func (_e *SDK_Expecter) Data(ctx any, dataset any, filename any, privKey any) *SDK_Data_Call {
 	return &SDK_Data_Call{Call: _e.mock.On("Data", ctx, dataset, filename, privKey)}
 }
 
-func (_c *SDK_Data_Call) Run(run func(ctx context.Context, dataset *os.File, filename string, privKey interface{})) *SDK_Data_Call {
+func (_c *SDK_Data_Call) Run(run func(ctx context.Context, dataset *os.File, filename string, privKey any)) *SDK_Data_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*os.File), args[2].(string), args[3].(interface{}))
+		run(args[0].(context.Context), args[1].(*os.File), args[2].(string), args[3].(any))
 	})
 	return _c
 }
@@ -217,7 +217,7 @@ func (_c *SDK_Data_Call) Return(_a0 error) *SDK_Data_Call {
 	return _c
 }
 
-func (_c *SDK_Data_Call) RunAndReturn(run func(context.Context, *os.File, string, interface{}) error) *SDK_Data_Call {
+func (_c *SDK_Data_Call) RunAndReturn(run func(context.Context, *os.File, string, any) error) *SDK_Data_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -260,7 +260,7 @@ type SDK_IMAMeasurements_Call struct {
 // IMAMeasurements is a helper method to define mock.On call
 //   - ctx context.Context
 //   - resultFile *os.File
-func (_e *SDK_Expecter) IMAMeasurements(ctx interface{}, resultFile interface{}) *SDK_IMAMeasurements_Call {
+func (_e *SDK_Expecter) IMAMeasurements(ctx any, resultFile any) *SDK_IMAMeasurements_Call {
 	return &SDK_IMAMeasurements_Call{Call: _e.mock.On("IMAMeasurements", ctx, resultFile)}
 }
 
@@ -282,7 +282,7 @@ func (_c *SDK_IMAMeasurements_Call) RunAndReturn(run func(context.Context, *os.F
 }
 
 // Result provides a mock function with given fields: ctx, privKey, resultFile
-func (_m *SDK) Result(ctx context.Context, privKey interface{}, resultFile *os.File) error {
+func (_m *SDK) Result(ctx context.Context, privKey any, resultFile *os.File) error {
 	ret := _m.Called(ctx, privKey, resultFile)
 
 	if len(ret) == 0 {
@@ -290,7 +290,7 @@ func (_m *SDK) Result(ctx context.Context, privKey interface{}, resultFile *os.F
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, interface{}, *os.File) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, any, *os.File) error); ok {
 		r0 = rf(ctx, privKey, resultFile)
 	} else {
 		r0 = ret.Error(0)
@@ -306,15 +306,15 @@ type SDK_Result_Call struct {
 
 // Result is a helper method to define mock.On call
 //   - ctx context.Context
-//   - privKey interface{}
+//   - privKey any
 //   - resultFile *os.File
-func (_e *SDK_Expecter) Result(ctx interface{}, privKey interface{}, resultFile interface{}) *SDK_Result_Call {
+func (_e *SDK_Expecter) Result(ctx any, privKey any, resultFile any) *SDK_Result_Call {
 	return &SDK_Result_Call{Call: _e.mock.On("Result", ctx, privKey, resultFile)}
 }
 
-func (_c *SDK_Result_Call) Run(run func(ctx context.Context, privKey interface{}, resultFile *os.File)) *SDK_Result_Call {
+func (_c *SDK_Result_Call) Run(run func(ctx context.Context, privKey any, resultFile *os.File)) *SDK_Result_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(interface{}), args[2].(*os.File))
+		run(args[0].(context.Context), args[1].(any), args[2].(*os.File))
 	})
 	return _c
 }
@@ -324,7 +324,7 @@ func (_c *SDK_Result_Call) Return(_a0 error) *SDK_Result_Call {
 	return _c
 }
 
-func (_c *SDK_Result_Call) RunAndReturn(run func(context.Context, interface{}, *os.File) error) *SDK_Result_Call {
+func (_c *SDK_Result_Call) RunAndReturn(run func(context.Context, any, *os.File) error) *SDK_Result_Call {
 	_c.Call.Return(run)
 	return _c
 }

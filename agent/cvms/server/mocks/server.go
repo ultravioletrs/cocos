@@ -49,7 +49,7 @@ type AgentServer_Start_Call struct {
 // Start is a helper method to define mock.On call
 //   - cfg agent.AgentConfig
 //   - cmp agent.Computation
-func (_e *AgentServer_Expecter) Start(cfg interface{}, cmp interface{}) *AgentServer_Start_Call {
+func (_e *AgentServer_Expecter) Start(cfg any, cmp any) *AgentServer_Start_Call {
 	return &AgentServer_Start_Call{Call: _e.mock.On("Start", cfg, cmp)}
 }
 

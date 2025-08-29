@@ -37,7 +37,7 @@ type StateMachine_AddTransition_Call struct {
 
 // AddTransition is a helper method to define mock.On call
 //   - t statemachine.Transition
-func (_e *StateMachine_Expecter) AddTransition(t interface{}) *StateMachine_AddTransition_Call {
+func (_e *StateMachine_Expecter) AddTransition(t any) *StateMachine_AddTransition_Call {
 	return &StateMachine_AddTransition_Call{Call: _e.mock.On("AddTransition", t)}
 }
 
@@ -117,7 +117,7 @@ type StateMachine_Reset_Call struct {
 
 // Reset is a helper method to define mock.On call
 //   - initialState statemachine.State
-func (_e *StateMachine_Expecter) Reset(initialState interface{}) *StateMachine_Reset_Call {
+func (_e *StateMachine_Expecter) Reset(initialState any) *StateMachine_Reset_Call {
 	return &StateMachine_Reset_Call{Call: _e.mock.On("Reset", initialState)}
 }
 
@@ -150,7 +150,7 @@ type StateMachine_SendEvent_Call struct {
 
 // SendEvent is a helper method to define mock.On call
 //   - event statemachine.Event
-func (_e *StateMachine_Expecter) SendEvent(event interface{}) *StateMachine_SendEvent_Call {
+func (_e *StateMachine_Expecter) SendEvent(event any) *StateMachine_SendEvent_Call {
 	return &StateMachine_SendEvent_Call{Call: _e.mock.On("SendEvent", event)}
 }
 
@@ -184,7 +184,7 @@ type StateMachine_SetAction_Call struct {
 // SetAction is a helper method to define mock.On call
 //   - state statemachine.State
 //   - action statemachine.Action
-func (_e *StateMachine_Expecter) SetAction(state interface{}, action interface{}) *StateMachine_SetAction_Call {
+func (_e *StateMachine_Expecter) SetAction(state any, action any) *StateMachine_SetAction_Call {
 	return &StateMachine_SetAction_Call{Call: _e.mock.On("SetAction", state, action)}
 }
 
@@ -230,7 +230,7 @@ type StateMachine_Start_Call struct {
 
 // Start is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *StateMachine_Expecter) Start(ctx interface{}) *StateMachine_Start_Call {
+func (_e *StateMachine_Expecter) Start(ctx any) *StateMachine_Start_Call {
 	return &StateMachine_Start_Call{Call: _e.mock.On("Start", ctx)}
 }
 

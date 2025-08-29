@@ -53,7 +53,7 @@ type Service_Algo_Call struct {
 // Algo is a helper method to define mock.On call
 //   - ctx context.Context
 //   - algorithm agent.Algorithm
-func (_e *Service_Expecter) Algo(ctx interface{}, algorithm interface{}) *Service_Algo_Call {
+func (_e *Service_Expecter) Algo(ctx any, algorithm any) *Service_Algo_Call {
 	return &Service_Algo_Call{Call: _e.mock.On("Algo", ctx, algorithm)}
 }
 
@@ -114,7 +114,7 @@ type Service_Attestation_Call struct {
 //   - reportData [64]byte
 //   - nonce [32]byte
 //   - attType attestation.PlatformType
-func (_e *Service_Expecter) Attestation(ctx interface{}, reportData interface{}, nonce interface{}, attType interface{}) *Service_Attestation_Call {
+func (_e *Service_Expecter) Attestation(ctx any, reportData any, nonce any, attType any) *Service_Attestation_Call {
 	return &Service_Attestation_Call{Call: _e.mock.On("Attestation", ctx, reportData, nonce, attType)}
 }
 
@@ -173,7 +173,7 @@ type Service_AzureAttestationToken_Call struct {
 // AzureAttestationToken is a helper method to define mock.On call
 //   - ctx context.Context
 //   - nonce [32]byte
-func (_e *Service_Expecter) AzureAttestationToken(ctx interface{}, nonce interface{}) *Service_AzureAttestationToken_Call {
+func (_e *Service_Expecter) AzureAttestationToken(ctx any, nonce any) *Service_AzureAttestationToken_Call {
 	return &Service_AzureAttestationToken_Call{Call: _e.mock.On("AzureAttestationToken", ctx, nonce)}
 }
 
@@ -220,7 +220,7 @@ type Service_Data_Call struct {
 // Data is a helper method to define mock.On call
 //   - ctx context.Context
 //   - dataset agent.Dataset
-func (_e *Service_Expecter) Data(ctx interface{}, dataset interface{}) *Service_Data_Call {
+func (_e *Service_Expecter) Data(ctx any, dataset any) *Service_Data_Call {
 	return &Service_Data_Call{Call: _e.mock.On("Data", ctx, dataset)}
 }
 
@@ -287,7 +287,7 @@ type Service_IMAMeasurements_Call struct {
 
 // IMAMeasurements is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Service_Expecter) IMAMeasurements(ctx interface{}) *Service_IMAMeasurements_Call {
+func (_e *Service_Expecter) IMAMeasurements(ctx any) *Service_IMAMeasurements_Call {
 	return &Service_IMAMeasurements_Call{Call: _e.mock.On("IMAMeasurements", ctx)}
 }
 
@@ -334,7 +334,7 @@ type Service_InitComputation_Call struct {
 // InitComputation is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cmp agent.Computation
-func (_e *Service_Expecter) InitComputation(ctx interface{}, cmp interface{}) *Service_InitComputation_Call {
+func (_e *Service_Expecter) InitComputation(ctx any, cmp any) *Service_InitComputation_Call {
 	return &Service_InitComputation_Call{Call: _e.mock.On("InitComputation", ctx, cmp)}
 }
 
@@ -392,7 +392,7 @@ type Service_Result_Call struct {
 
 // Result is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Service_Expecter) Result(ctx interface{}) *Service_Result_Call {
+func (_e *Service_Expecter) Result(ctx any) *Service_Result_Call {
 	return &Service_Result_Call{Call: _e.mock.On("Result", ctx)}
 }
 
@@ -483,7 +483,7 @@ type Service_StopComputation_Call struct {
 
 // StopComputation is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Service_Expecter) StopComputation(ctx interface{}) *Service_StopComputation_Call {
+func (_e *Service_Expecter) StopComputation(ctx any) *Service_StopComputation_Call {
 	return &Service_StopComputation_Call{Call: _e.mock.On("StopComputation", ctx)}
 }
 

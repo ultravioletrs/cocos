@@ -48,7 +48,7 @@ type Persistence_DeleteVM_Call struct {
 
 // DeleteVM is a helper method to define mock.On call
 //   - id string
-func (_e *Persistence_Expecter) DeleteVM(id interface{}) *Persistence_DeleteVM_Call {
+func (_e *Persistence_Expecter) DeleteVM(id any) *Persistence_DeleteVM_Call {
 	return &Persistence_DeleteVM_Call{Call: _e.mock.On("DeleteVM", id)}
 }
 
@@ -151,7 +151,7 @@ type Persistence_SaveVM_Call struct {
 
 // SaveVM is a helper method to define mock.On call
 //   - state qemu.VMState
-func (_e *Persistence_Expecter) SaveVM(state interface{}) *Persistence_SaveVM_Call {
+func (_e *Persistence_Expecter) SaveVM(state any) *Persistence_SaveVM_Call {
 	return &Persistence_SaveVM_Call{Call: _e.mock.On("SaveVM", state)}
 }
 

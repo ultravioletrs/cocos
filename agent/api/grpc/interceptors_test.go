@@ -58,7 +58,7 @@ func TestAuthUnaryInterceptor(t *testing.T) {
 			}
 			unaryInt, _ := NewAuthInterceptor(authmock)
 
-			_, err := unaryInt(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: tt.method}, func(ctx context.Context, req interface{}) (interface{}, error) {
+			_, err := unaryInt(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: tt.method}, func(ctx context.Context, req any) (any, error) {
 				return nil, nil
 			})
 
@@ -129,7 +129,7 @@ func TestAuthStreamInterceptor(t *testing.T) {
 			}
 			_, streamInt := NewAuthInterceptor(authmock)
 
-			err := streamInt(nil, &mockServerStream{ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs())}, &grpc.StreamServerInfo{FullMethod: tt.method}, func(srv interface{}, stream grpc.ServerStream) error {
+			err := streamInt(nil, &mockServerStream{ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs())}, &grpc.StreamServerInfo{FullMethod: tt.method}, func(srv any, stream grpc.ServerStream) error {
 				return nil
 			})
 

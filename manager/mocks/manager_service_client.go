@@ -31,11 +31,11 @@ func (_m *ManagerServiceClient) EXPECT() *ManagerServiceClient_Expecter {
 
 // AttestationPolicy provides a mock function with given fields: ctx, in, opts
 func (_m *ManagerServiceClient) AttestationPolicy(ctx context.Context, in *manager.AttestationPolicyReq, opts ...grpc.CallOption) (*manager.AttestationPolicyRes, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -75,9 +75,9 @@ type ManagerServiceClient_AttestationPolicy_Call struct {
 //   - ctx context.Context
 //   - in *manager.AttestationPolicyReq
 //   - opts ...grpc.CallOption
-func (_e *ManagerServiceClient_Expecter) AttestationPolicy(ctx interface{}, in interface{}, opts ...interface{}) *ManagerServiceClient_AttestationPolicy_Call {
+func (_e *ManagerServiceClient_Expecter) AttestationPolicy(ctx any, in any, opts ...any) *ManagerServiceClient_AttestationPolicy_Call {
 	return &ManagerServiceClient_AttestationPolicy_Call{Call: _e.mock.On("AttestationPolicy",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ManagerServiceClient_AttestationPolicy_Call) Run(run func(ctx context.Context, in *manager.AttestationPolicyReq, opts ...grpc.CallOption)) *ManagerServiceClient_AttestationPolicy_Call {
@@ -105,11 +105,11 @@ func (_c *ManagerServiceClient_AttestationPolicy_Call) RunAndReturn(run func(con
 
 // CVMInfo provides a mock function with given fields: ctx, in, opts
 func (_m *ManagerServiceClient) CVMInfo(ctx context.Context, in *manager.CVMInfoReq, opts ...grpc.CallOption) (*manager.CVMInfoRes, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -149,9 +149,9 @@ type ManagerServiceClient_CVMInfo_Call struct {
 //   - ctx context.Context
 //   - in *manager.CVMInfoReq
 //   - opts ...grpc.CallOption
-func (_e *ManagerServiceClient_Expecter) CVMInfo(ctx interface{}, in interface{}, opts ...interface{}) *ManagerServiceClient_CVMInfo_Call {
+func (_e *ManagerServiceClient_Expecter) CVMInfo(ctx any, in any, opts ...any) *ManagerServiceClient_CVMInfo_Call {
 	return &ManagerServiceClient_CVMInfo_Call{Call: _e.mock.On("CVMInfo",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ManagerServiceClient_CVMInfo_Call) Run(run func(ctx context.Context, in *manager.CVMInfoReq, opts ...grpc.CallOption)) *ManagerServiceClient_CVMInfo_Call {
@@ -179,11 +179,11 @@ func (_c *ManagerServiceClient_CVMInfo_Call) RunAndReturn(run func(context.Conte
 
 // CreateVm provides a mock function with given fields: ctx, in, opts
 func (_m *ManagerServiceClient) CreateVm(ctx context.Context, in *manager.CreateReq, opts ...grpc.CallOption) (*manager.CreateRes, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -223,9 +223,9 @@ type ManagerServiceClient_CreateVm_Call struct {
 //   - ctx context.Context
 //   - in *manager.CreateReq
 //   - opts ...grpc.CallOption
-func (_e *ManagerServiceClient_Expecter) CreateVm(ctx interface{}, in interface{}, opts ...interface{}) *ManagerServiceClient_CreateVm_Call {
+func (_e *ManagerServiceClient_Expecter) CreateVm(ctx any, in any, opts ...any) *ManagerServiceClient_CreateVm_Call {
 	return &ManagerServiceClient_CreateVm_Call{Call: _e.mock.On("CreateVm",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ManagerServiceClient_CreateVm_Call) Run(run func(ctx context.Context, in *manager.CreateReq, opts ...grpc.CallOption)) *ManagerServiceClient_CreateVm_Call {
@@ -253,11 +253,11 @@ func (_c *ManagerServiceClient_CreateVm_Call) RunAndReturn(run func(context.Cont
 
 // RemoveVm provides a mock function with given fields: ctx, in, opts
 func (_m *ManagerServiceClient) RemoveVm(ctx context.Context, in *manager.RemoveReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -297,9 +297,9 @@ type ManagerServiceClient_RemoveVm_Call struct {
 //   - ctx context.Context
 //   - in *manager.RemoveReq
 //   - opts ...grpc.CallOption
-func (_e *ManagerServiceClient_Expecter) RemoveVm(ctx interface{}, in interface{}, opts ...interface{}) *ManagerServiceClient_RemoveVm_Call {
+func (_e *ManagerServiceClient_Expecter) RemoveVm(ctx any, in any, opts ...any) *ManagerServiceClient_RemoveVm_Call {
 	return &ManagerServiceClient_RemoveVm_Call{Call: _e.mock.On("RemoveVm",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ManagerServiceClient_RemoveVm_Call) Run(run func(ctx context.Context, in *manager.RemoveReq, opts ...grpc.CallOption)) *ManagerServiceClient_RemoveVm_Call {

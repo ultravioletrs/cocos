@@ -50,7 +50,7 @@ type Storage_Add_Call struct {
 
 // Add is a helper method to define mock.On call
 //   - msg *cvms.ClientStreamMessage
-func (_e *Storage_Expecter) Add(msg interface{}) *Storage_Add_Call {
+func (_e *Storage_Expecter) Add(msg any) *Storage_Add_Call {
 	return &Storage_Add_Call{Call: _e.mock.On("Add", msg)}
 }
 
@@ -198,7 +198,7 @@ type Storage_Save_Call struct {
 
 // Save is a helper method to define mock.On call
 //   - messages []storage.Message
-func (_e *Storage_Expecter) Save(messages interface{}) *Storage_Save_Call {
+func (_e *Storage_Expecter) Save(messages any) *Storage_Save_Call {
 	return &Storage_Save_Call{Call: _e.mock.On("Save", messages)}
 }
 

@@ -39,7 +39,7 @@ type Service_SendEvent_Call struct {
 //   - event string
 //   - status string
 //   - details json.RawMessage
-func (_e *Service_Expecter) SendEvent(cmpID interface{}, event interface{}, status interface{}, details interface{}) *Service_SendEvent_Call {
+func (_e *Service_Expecter) SendEvent(cmpID any, event any, status any, details any) *Service_SendEvent_Call {
 	return &Service_SendEvent_Call{Call: _e.mock.On("SendEvent", cmpID, event, status, details)}
 }
 

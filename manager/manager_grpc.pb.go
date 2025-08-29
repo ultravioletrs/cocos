@@ -11,6 +11,7 @@ package manager
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -138,7 +139,7 @@ func RegisterManagerServiceServer(s grpc.ServiceRegistrar, srv ManagerServiceSer
 	s.RegisterService(&ManagerService_ServiceDesc, srv)
 }
 
-func _ManagerService_CreateVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ManagerService_CreateVm_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(CreateReq)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -150,13 +151,13 @@ func _ManagerService_CreateVm_Handler(srv interface{}, ctx context.Context, dec 
 		Server:     srv,
 		FullMethod: ManagerService_CreateVm_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(ManagerServiceServer).CreateVm(ctx, req.(*CreateReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ManagerService_RemoveVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ManagerService_RemoveVm_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RemoveReq)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -168,13 +169,13 @@ func _ManagerService_RemoveVm_Handler(srv interface{}, ctx context.Context, dec 
 		Server:     srv,
 		FullMethod: ManagerService_RemoveVm_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(ManagerServiceServer).RemoveVm(ctx, req.(*RemoveReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ManagerService_CVMInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ManagerService_CVMInfo_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(CVMInfoReq)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -186,13 +187,13 @@ func _ManagerService_CVMInfo_Handler(srv interface{}, ctx context.Context, dec f
 		Server:     srv,
 		FullMethod: ManagerService_CVMInfo_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(ManagerServiceServer).CVMInfo(ctx, req.(*CVMInfoReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ManagerService_AttestationPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ManagerService_AttestationPolicy_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(AttestationPolicyReq)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -204,7 +205,7 @@ func _ManagerService_AttestationPolicy_Handler(srv interface{}, ctx context.Cont
 		Server:     srv,
 		FullMethod: ManagerService_AttestationPolicy_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(ManagerServiceServer).AttestationPolicy(ctx, req.(*AttestationPolicyReq))
 	}
 	return interceptor(ctx, in, info, handler)

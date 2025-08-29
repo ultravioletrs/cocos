@@ -45,7 +45,7 @@ type Verifier_JSONToPolicy_Call struct {
 
 // JSONToPolicy is a helper method to define mock.On call
 //   - path string
-func (_e *Verifier_Expecter) JSONToPolicy(path interface{}) *Verifier_JSONToPolicy_Call {
+func (_e *Verifier_Expecter) JSONToPolicy(path any) *Verifier_JSONToPolicy_Call {
 	return &Verifier_JSONToPolicy_Call{Call: _e.mock.On("JSONToPolicy", path)}
 }
 
@@ -92,7 +92,7 @@ type Verifier_VerifTeeAttestation_Call struct {
 // VerifTeeAttestation is a helper method to define mock.On call
 //   - report []byte
 //   - teeNonce []byte
-func (_e *Verifier_Expecter) VerifTeeAttestation(report interface{}, teeNonce interface{}) *Verifier_VerifTeeAttestation_Call {
+func (_e *Verifier_Expecter) VerifTeeAttestation(report any, teeNonce any) *Verifier_VerifTeeAttestation_Call {
 	return &Verifier_VerifTeeAttestation_Call{Call: _e.mock.On("VerifTeeAttestation", report, teeNonce)}
 }
 
@@ -139,7 +139,7 @@ type Verifier_VerifVTpmAttestation_Call struct {
 // VerifVTpmAttestation is a helper method to define mock.On call
 //   - report []byte
 //   - vTpmNonce []byte
-func (_e *Verifier_Expecter) VerifVTpmAttestation(report interface{}, vTpmNonce interface{}) *Verifier_VerifVTpmAttestation_Call {
+func (_e *Verifier_Expecter) VerifVTpmAttestation(report any, vTpmNonce any) *Verifier_VerifVTpmAttestation_Call {
 	return &Verifier_VerifVTpmAttestation_Call{Call: _e.mock.On("VerifVTpmAttestation", report, vTpmNonce)}
 }
 
@@ -187,7 +187,7 @@ type Verifier_VerifyAttestation_Call struct {
 //   - report []byte
 //   - teeNonce []byte
 //   - vTpmNonce []byte
-func (_e *Verifier_Expecter) VerifyAttestation(report interface{}, teeNonce interface{}, vTpmNonce interface{}) *Verifier_VerifyAttestation_Call {
+func (_e *Verifier_Expecter) VerifyAttestation(report any, teeNonce any, vTpmNonce any) *Verifier_VerifyAttestation_Call {
 	return &Verifier_VerifyAttestation_Call{Call: _e.mock.On("VerifyAttestation", report, teeNonce, vTpmNonce)}
 }
 

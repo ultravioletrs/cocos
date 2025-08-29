@@ -58,7 +58,7 @@ type Provider_Attestation_Call struct {
 // Attestation is a helper method to define mock.On call
 //   - teeNonce []byte
 //   - vTpmNonce []byte
-func (_e *Provider_Expecter) Attestation(teeNonce interface{}, vTpmNonce interface{}) *Provider_Attestation_Call {
+func (_e *Provider_Expecter) Attestation(teeNonce any, vTpmNonce any) *Provider_Attestation_Call {
 	return &Provider_Attestation_Call{Call: _e.mock.On("Attestation", teeNonce, vTpmNonce)}
 }
 
@@ -116,7 +116,7 @@ type Provider_AzureAttestationToken_Call struct {
 
 // AzureAttestationToken is a helper method to define mock.On call
 //   - tokenNonce []byte
-func (_e *Provider_Expecter) AzureAttestationToken(tokenNonce interface{}) *Provider_AzureAttestationToken_Call {
+func (_e *Provider_Expecter) AzureAttestationToken(tokenNonce any) *Provider_AzureAttestationToken_Call {
 	return &Provider_AzureAttestationToken_Call{Call: _e.mock.On("AzureAttestationToken", tokenNonce)}
 }
 
@@ -174,7 +174,7 @@ type Provider_TeeAttestation_Call struct {
 
 // TeeAttestation is a helper method to define mock.On call
 //   - teeNonce []byte
-func (_e *Provider_Expecter) TeeAttestation(teeNonce interface{}) *Provider_TeeAttestation_Call {
+func (_e *Provider_Expecter) TeeAttestation(teeNonce any) *Provider_TeeAttestation_Call {
 	return &Provider_TeeAttestation_Call{Call: _e.mock.On("TeeAttestation", teeNonce)}
 }
 
@@ -232,7 +232,7 @@ type Provider_VTpmAttestation_Call struct {
 
 // VTpmAttestation is a helper method to define mock.On call
 //   - vTpmNonce []byte
-func (_e *Provider_Expecter) VTpmAttestation(vTpmNonce interface{}) *Provider_VTpmAttestation_Call {
+func (_e *Provider_Expecter) VTpmAttestation(vTpmNonce any) *Provider_VTpmAttestation_Call {
 	return &Provider_VTpmAttestation_Call{Call: _e.mock.On("VTpmAttestation", vTpmNonce)}
 }
 

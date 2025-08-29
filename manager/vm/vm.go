@@ -17,10 +17,10 @@ type VM interface {
 	GetProcess() int
 	Transition(newState pkgmanager.ManagerState) error
 	State() string
-	GetConfig() interface{}
+	GetConfig() any
 }
 
-type Provider func(config interface{}, computationId string, logger *slog.Logger) VM
+type Provider func(config any, computationId string, logger *slog.Logger) VM
 
 type Event struct {
 	EventType     string

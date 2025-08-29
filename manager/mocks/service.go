@@ -68,7 +68,7 @@ type Service_CreateVM_Call struct {
 // CreateVM is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req *manager.CreateReq
-func (_e *Service_Expecter) CreateVM(ctx interface{}, req interface{}) *Service_CreateVM_Call {
+func (_e *Service_Expecter) CreateVM(ctx any, req any) *Service_CreateVM_Call {
 	return &Service_CreateVM_Call{Call: _e.mock.On("CreateVM", ctx, req)}
 }
 
@@ -127,7 +127,7 @@ type Service_FetchAttestationPolicy_Call struct {
 // FetchAttestationPolicy is a helper method to define mock.On call
 //   - ctx context.Context
 //   - computationID string
-func (_e *Service_Expecter) FetchAttestationPolicy(ctx interface{}, computationID interface{}) *Service_FetchAttestationPolicy_Call {
+func (_e *Service_Expecter) FetchAttestationPolicy(ctx any, computationID any) *Service_FetchAttestationPolicy_Call {
 	return &Service_FetchAttestationPolicy_Call{Call: _e.mock.On("FetchAttestationPolicy", ctx, computationID)}
 }
 
@@ -174,7 +174,7 @@ type Service_RemoveVM_Call struct {
 // RemoveVM is a helper method to define mock.On call
 //   - ctx context.Context
 //   - computationID string
-func (_e *Service_Expecter) RemoveVM(ctx interface{}, computationID interface{}) *Service_RemoveVM_Call {
+func (_e *Service_Expecter) RemoveVM(ctx any, computationID any) *Service_RemoveVM_Call {
 	return &Service_RemoveVM_Call{Call: _e.mock.On("RemoveVM", ctx, computationID)}
 }
 
@@ -244,7 +244,7 @@ type Service_ReturnCVMInfo_Call struct {
 
 // ReturnCVMInfo is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Service_Expecter) ReturnCVMInfo(ctx interface{}) *Service_ReturnCVMInfo_Call {
+func (_e *Service_Expecter) ReturnCVMInfo(ctx any) *Service_ReturnCVMInfo_Call {
 	return &Service_ReturnCVMInfo_Call{Call: _e.mock.On("ReturnCVMInfo", ctx)}
 }
 

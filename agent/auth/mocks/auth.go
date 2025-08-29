@@ -64,7 +64,7 @@ type Authenticator_AuthenticateUser_Call struct {
 // AuthenticateUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - role auth.UserRole
-func (_e *Authenticator_Expecter) AuthenticateUser(ctx interface{}, role interface{}) *Authenticator_AuthenticateUser_Call {
+func (_e *Authenticator_Expecter) AuthenticateUser(ctx any, role any) *Authenticator_AuthenticateUser_Call {
 	return &Authenticator_AuthenticateUser_Call{Call: _e.mock.On("AuthenticateUser", ctx, role)}
 }
 

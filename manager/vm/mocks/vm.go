@@ -24,19 +24,19 @@ func (_m *VM) EXPECT() *VM_Expecter {
 }
 
 // GetConfig provides a mock function with no fields
-func (_m *VM) GetConfig() interface{} {
+func (_m *VM) GetConfig() any {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetConfig")
 	}
 
-	var r0 interface{}
-	if rf, ok := ret.Get(0).(func() interface{}); ok {
+	var r0 any
+	if rf, ok := ret.Get(0).(func() any); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(interface{})
+			r0 = ret.Get(0).(any)
 		}
 	}
 
@@ -60,12 +60,12 @@ func (_c *VM_GetConfig_Call) Run(run func()) *VM_GetConfig_Call {
 	return _c
 }
 
-func (_c *VM_GetConfig_Call) Return(_a0 interface{}) *VM_GetConfig_Call {
+func (_c *VM_GetConfig_Call) Return(_a0 any) *VM_GetConfig_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *VM_GetConfig_Call) RunAndReturn(run func() interface{}) *VM_GetConfig_Call {
+func (_c *VM_GetConfig_Call) RunAndReturn(run func() any) *VM_GetConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -140,7 +140,7 @@ type VM_SetProcess_Call struct {
 
 // SetProcess is a helper method to define mock.On call
 //   - pid int
-func (_e *VM_Expecter) SetProcess(pid interface{}) *VM_SetProcess_Call {
+func (_e *VM_Expecter) SetProcess(pid any) *VM_SetProcess_Call {
 	return &VM_SetProcess_Call{Call: _e.mock.On("SetProcess", pid)}
 }
 
@@ -321,7 +321,7 @@ type VM_Transition_Call struct {
 
 // Transition is a helper method to define mock.On call
 //   - newState manager.ManagerState
-func (_e *VM_Expecter) Transition(newState interface{}) *VM_Transition_Call {
+func (_e *VM_Expecter) Transition(newState any) *VM_Transition_Call {
 	return &VM_Transition_Call{Call: _e.mock.On("Transition", newState)}
 }
 

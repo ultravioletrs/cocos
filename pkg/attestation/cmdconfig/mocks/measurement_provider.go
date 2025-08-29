@@ -57,7 +57,7 @@ type MeasurementProvider_Run_Call struct {
 
 // Run is a helper method to define mock.On call
 //   - binaryPath string
-func (_e *MeasurementProvider_Expecter) Run(binaryPath interface{}) *MeasurementProvider_Run_Call {
+func (_e *MeasurementProvider_Expecter) Run(binaryPath any) *MeasurementProvider_Run_Call {
 	return &MeasurementProvider_Run_Call{Call: _e.mock.On("Run", binaryPath)}
 }
 
