@@ -10,115 +10,132 @@ packages:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       AgentService_DataClient:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       AgentService_IMAMeasurementsClient:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       Service:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/algorithm:
     interfaces:
       Algorithm:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/auth:
     interfaces:
       Authenticator:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage:
     interfaces:
       Storage:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/cvms/server:
     interfaces:
       AgentServer:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/events:
     interfaces:
       Service:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/agent/statemachine:
     interfaces:
       StateMachine:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/internal/server:
     interfaces:
       Server:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/manager:
     interfaces:
       ManagerServiceClient:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       Service:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/manager/qemu:
     interfaces:
       Persistence:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/manager/vm:
     interfaces:
-      Provider:
-        config:
-          dir: '{{.InterfaceDir}}/mocks'
-          structname: '{{.InterfaceName}}'
       StateMachine:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       VM:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/pkg/attestation:
     interfaces:
       Provider:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
       Verifier:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig:
     interfaces:
       MeasurementProvider:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/pkg/clients/grpc:
     interfaces:
       Client:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
   github.com/ultravioletrs/cocos/pkg/sdk:
     interfaces:
       SDK:
         config:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"
