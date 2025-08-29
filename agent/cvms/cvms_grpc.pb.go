@@ -11,7 +11,6 @@ package cvms
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -93,7 +92,7 @@ func RegisterServiceServer(s grpc.ServiceRegistrar, srv ServiceServer) {
 	s.RegisterService(&Service_ServiceDesc, srv)
 }
 
-func _Service_Process_Handler(srv any, stream grpc.ServerStream) error {
+func _Service_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(ServiceServer).Process(&grpc.GenericServerStream[ClientStreamMessage, ServerStreamMessage]{ServerStream: stream})
 }
 
