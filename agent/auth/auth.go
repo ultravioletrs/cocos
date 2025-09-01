@@ -41,9 +41,9 @@ type Authenticator interface {
 }
 
 type service struct {
-	resultConsumers   []interface{}
-	datasetProviders  []interface{}
-	algorithmProvider interface{}
+	resultConsumers   []any
+	datasetProviders  []any
+	algorithmProvider any
 }
 
 func New(manifest agent.Computation) (Authenticator, error) {

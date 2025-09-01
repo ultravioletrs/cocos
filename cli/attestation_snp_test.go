@@ -369,15 +369,15 @@ func TestGetBase(t *testing.T) {
 func TestParseConfig(t *testing.T) {
 	tempDir := t.TempDir()
 
-	validConfig := map[string]interface{}{
-		"rootOfTrust": map[string]interface{}{
+	validConfig := map[string]any{
+		"rootOfTrust": map[string]any{
 			"product":         "test_product",
 			"cabundlePaths":   []string{"test_path"},
 			"cabundles":       []string{"test_bundle"},
 			"checkCrl":        true,
 			"disallowNetwork": true,
 		},
-		"policy": map[string]interface{}{
+		"policy": map[string]any{
 			"minimumGuestSvn":  1,
 			"policy":           "1",
 			"minimumBuild":     1,

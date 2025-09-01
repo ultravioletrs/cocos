@@ -96,7 +96,7 @@ func NewServer(svc agent.Service) agent.AgentServiceServer {
 	}
 }
 
-func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeAlgoRequest(_ context.Context, grpcReq any) (any, error) {
 	req := grpcReq.(*agent.AlgoRequest)
 	return algoReq{
 		Algorithm:    req.Algorithm,
@@ -104,11 +104,11 @@ func decodeAlgoRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	}, nil
 }
 
-func encodeAlgoResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeAlgoResponse(_ context.Context, response any) (any, error) {
 	return &agent.AlgoResponse{}, nil
 }
 
-func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeDataRequest(_ context.Context, grpcReq any) (any, error) {
 	req := grpcReq.(*agent.DataRequest)
 	return dataReq{
 		Dataset:  req.Dataset,
@@ -116,22 +116,22 @@ func decodeDataRequest(_ context.Context, grpcReq interface{}) (interface{}, err
 	}, nil
 }
 
-func encodeDataResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeDataResponse(_ context.Context, response any) (any, error) {
 	return &agent.DataResponse{}, nil
 }
 
-func decodeResultRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeResultRequest(_ context.Context, grpcReq any) (any, error) {
 	return resultReq{}, nil
 }
 
-func encodeResultResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeResultResponse(_ context.Context, response any) (any, error) {
 	res := response.(resultRes)
 	return &agent.ResultResponse{
 		File: res.File,
 	}, nil
 }
 
-func validateNonce(nonce []byte, maxLen int, target interface{}) error {
+func validateNonce(nonce []byte, maxLen int, target any) error {
 	if len(nonce) > maxLen {
 		switch maxLen {
 		case quoteprovider.Nonce:
@@ -154,7 +154,7 @@ func validateNonce(nonce []byte, maxLen int, target interface{}) error {
 	return nil
 }
 
-func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeAttestationRequest(_ context.Context, grpcReq any) (any, error) {
 	req := grpcReq.(*agent.AttestationRequest)
 	var reportData [quoteprovider.Nonce]byte
 	var nonce [vtpm.Nonce]byte
@@ -174,14 +174,14 @@ func decodeAttestationRequest(_ context.Context, grpcReq interface{}) (interface
 	}, nil
 }
 
-func encodeAttestationResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeAttestationResponse(_ context.Context, response any) (any, error) {
 	res := response.(attestationRes)
 	return &agent.AttestationResponse{
 		File: res.File,
 	}, nil
 }
 
-func decodeAttestationTokenRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeAttestationTokenRequest(_ context.Context, grpcReq any) (any, error) {
 	req := grpcReq.(*agent.AttestationTokenRequest)
 	var nonce [vtpm.Nonce]byte
 
@@ -193,18 +193,18 @@ func decodeAttestationTokenRequest(_ context.Context, grpcReq interface{}) (inte
 	}, nil
 }
 
-func encodeAttestationTokenResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeAttestationTokenResponse(_ context.Context, response any) (any, error) {
 	res := response.(fetchAttestationTokenRes)
 	return &agent.AttestationTokenResponse{
 		File: res.File,
 	}, nil
 }
 
-func decodeIMAMeasurementsRequest(_ context.Context, grpcReq interface{}) (interface{}, error) {
+func decodeIMAMeasurementsRequest(_ context.Context, grpcReq any) (any, error) {
 	return imaMeasurementsReq{}, nil
 }
 
-func encodeIMAMeasurementsResponse(_ context.Context, response interface{}) (interface{}, error) {
+func encodeIMAMeasurementsResponse(_ context.Context, response any) (any, error) {
 	res := response.(imaMeasurementsRes)
 	return &agent.IMAMeasurementsResponse{
 		File:  res.File,
@@ -215,10 +215,10 @@ func encodeIMAMeasurementsResponse(_ context.Context, response interface{}) (int
 func (s *grpcServer) streamingHandler(
 	ctx context.Context,
 	handlerName string,
-	req interface{},
-	stream interface{},
+	req any,
+	stream any,
 	sendFn func([]byte) error,
-	getFileData func(interface{}) []byte,
+	getFileData func(any) []byte,
 ) error {
 	handler, ok := s.handlers[handlerName]
 	if !ok {
@@ -350,7 +350,7 @@ func (s *grpcServer) Result(req *agent.ResultRequest, stream agent.AgentService_
 		func(data []byte) error {
 			return stream.Send(&agent.ResultResponse{File: data})
 		},
-		func(res interface{}) []byte {
+		func(res any) []byte {
 			return res.(*agent.ResultResponse).File
 		},
 	)
@@ -365,7 +365,7 @@ func (s *grpcServer) Attestation(req *agent.AttestationRequest, stream agent.Age
 		func(data []byte) error {
 			return stream.Send(&agent.AttestationResponse{File: data})
 		},
-		func(res interface{}) []byte {
+		func(res any) []byte {
 			return res.(*agent.AttestationResponse).File
 		},
 	)

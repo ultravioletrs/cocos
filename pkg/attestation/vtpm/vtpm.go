@@ -415,7 +415,7 @@ func ConvertPolicyToJSON(attestationConfiguration *attestation.Config) ([]byte, 
 		return nil, errors.Wrap(ErrProtoMarshalFailed, err)
 	}
 
-	var pbMap map[string]interface{}
+	var pbMap map[string]any
 	if err := json.Unmarshal(pbJson, &pbMap); err != nil {
 		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
 	}
@@ -425,7 +425,7 @@ func ConvertPolicyToJSON(attestationConfiguration *attestation.Config) ([]byte, 
 		return nil, errors.Wrap(ErrJsonMarshalFailed, err)
 	}
 
-	var pcrMap map[string]interface{}
+	var pcrMap map[string]any
 	if err := json.Unmarshal(pcrJson, &pcrMap); err != nil {
 		return nil, errors.Wrap(ErrJsonUnarshalFailed, err)
 	}

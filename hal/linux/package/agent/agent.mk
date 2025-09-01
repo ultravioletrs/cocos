@@ -24,4 +24,4 @@ define AGENT_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/agent_start_script.sh $(TARGET_DIR)/cocos_init/agent_start_script.sh
 endef
 
-$(eval $(golang-package))
+$(eval $(generic-package))

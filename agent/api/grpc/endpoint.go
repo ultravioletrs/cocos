@@ -11,7 +11,7 @@ import (
 )
 
 func algoEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(algoReq)
 
 		if err := req.validate(); err != nil {
@@ -30,7 +30,7 @@ func algoEndpoint(svc agent.Service) endpoint.Endpoint {
 }
 
 func dataEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(dataReq)
 
 		if err := req.validate(); err != nil {
@@ -49,7 +49,7 @@ func dataEndpoint(svc agent.Service) endpoint.Endpoint {
 }
 
 func resultEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(resultReq)
 
 		if err := req.validate(); err != nil {
@@ -65,7 +65,7 @@ func resultEndpoint(svc agent.Service) endpoint.Endpoint {
 }
 
 func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(attestationReq)
 
 		if err := req.validate(); err != nil {
@@ -81,7 +81,7 @@ func attestationEndpoint(svc agent.Service) endpoint.Endpoint {
 }
 
 func imaMeasurementsEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(imaMeasurementsReq)
 
 		if err := req.validate(); err != nil {
@@ -97,7 +97,7 @@ func imaMeasurementsEndpoint(svc agent.Service) endpoint.Endpoint {
 }
 
 func azureAttestationTokenEndpoint(svc agent.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(azureAttestationTokenReq)
 		if err := req.validate(); err != nil {
 			return fetchAttestationTokenRes{}, err
