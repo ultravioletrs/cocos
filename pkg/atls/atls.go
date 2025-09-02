@@ -44,6 +44,7 @@ const (
 	notAfterYear  = 1
 	notAfterMonth = 0
 	notAfterDay   = 0
+	commonName    = "Ultraviolet"
 )
 
 var (
@@ -219,6 +220,7 @@ func GetCertificate(caUrl string, cvmId string) func(*tls.ClientHelloInfo) (*tls
 				StreetAddress:   []string{streetAddress},
 				PostalCode:      []string{postalCode},
 				ExtraExtensions: []pkix.Extension{attestExtension},
+				CommonName:      commonName,
 			}
 
 			csr, err := certscli.CreateCSR(csrmd, privateKey)
