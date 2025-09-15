@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/absmach/supermq/pkg/prometheus"
@@ -39,8 +38,6 @@ import (
 
 const (
 	svcName          = "agent"
-	defSvcGRPCPort   = "7002"
-	retryInterval    = 5 * time.Second
 	envPrefixCVMGRPC = "AGENT_CVM_GRPC_"
 	storageDir       = "/var/lib/cocos/agent"
 )
@@ -51,6 +48,7 @@ type config struct {
 	AgentGrpcHost string `env:"AGENT_GRPC_HOST"  envDefault:"0.0.0.0"`
 	CAUrl         string `env:"AGENT_CVM_CA_URL" envDefault:""`
 	CVMId         string `env:"AGENT_CVM_ID"     envDefault:""`
+	DomainId      string `env:"AGENT_DOMAIN_ID"  envDefault:""`
 	AgentMaaURL   string `env:"AGENT_MAA_URL"    envDefault:"https://sharedeus2.eus2.attest.azure.net"`
 	AgentOSBuild  string `env:"AGENT_OS_BUILD"   envDefault:"UVC"`
 	AgentOSDistro string `env:"AGENT_OS_DISTRO"  envDefault:"UVC"`
@@ -167,7 +165,7 @@ func main() {
 	var certProvider atls.CertificateProvider
 
 	if ccPlatform != attestation.NoCC {
-		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl)
+		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl, cfg.DomainId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
 			exitCode = 1

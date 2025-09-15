@@ -24,6 +24,7 @@ message CreateReq{
   string agent_cvm_server_url = 5;
   string agent_cvm_ca_url = 6;
   string ttl = 7;
+  string domain_id = 8;
 }
 
 message CreateRes{
