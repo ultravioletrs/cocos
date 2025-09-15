@@ -5,12 +5,18 @@ package atls
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,7 +25,12 @@ import (
 	"github.com/absmach/certs"
 	certscli "github.com/absmach/certs/cli"
 	"github.com/absmach/certs/errors"
-	certssdk "github.com/absmach/certs/sdk"
+	"github.com/absmach/certs/sdk"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -35,42 +46,16 @@ var (
 	TDXOID     = asn1.ObjectIdentifier{2, 99999, 1, 2}
 )
 
-// CertificateSubject contains certificate subject information.
-type CertificateSubject struct {
-	Organization  string
-	Country       string
-	Province      string
-	Locality      string
-	StreetAddress string
-	PostalCode    string
-}
-
-// DefaultCertificateSubject returns the default certificate subject for Ultraviolet.
-func DefaultCertificateSubject() CertificateSubject {
-	return CertificateSubject{
-		Organization:  "Ultraviolet",
-		Country:       "Serbia",
-		Province:      "",
-		Locality:      "Belgrade",
-		StreetAddress: "Bulevar Arsenija Carnojevica 103",
-		PostalCode:    "11000",
-	}
-}
-
-// CAClient handles communication with Certificate Authority.
-type CAClient struct {
-	baseURL string
-	client  *http.Client
-}
-
-type CSRRequest struct {
-	CSR string `json:"csr,omitempty"`
-}
-
-func NewCAClient(baseURL string) *CAClient {
-	return &CAClient{
-		baseURL: baseURL,
-		client:  &http.Client{},
+func getPlatformProvider(platformType attestation.PlatformType) (attestation.Provider, error) {
+	switch platformType {
+	case attestation.SNPvTPM:
+		return vtpm.NewProvider(true, vmpl2), nil
+	case attestation.Azure:
+		return azure.NewProvider(), nil
+	case attestation.TDX:
+		return tdx.NewProvider(), nil
+	default:
+		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
 }
 
@@ -96,7 +81,7 @@ func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey 
 		return nil, fmt.Errorf("failed to process CA request: %w", err)
 	}
 
-	var cert certssdk.Certificate
+	var cert sdk.Certificate
 	if err := json.Unmarshal(responseBody, &cert); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal certificate response: %w", err)
 	}
@@ -114,8 +99,143 @@ func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey 
 	return block.Bytes, nil
 }
 
-func (c *CAClient) processRequest(method, reqURL string, data []byte, headers map[string]string, expectedRespCodes ...int) (http.Header, []byte, errors.SDKError) {
-	req, err := http.NewRequest(method, reqURL, bytes.NewReader(data))
+func GetCertificate(caSDK sdk.SDK, caUrl, cvmId, domainId string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	pType := attestation.CCPlatform()
+
+	provider, err := getPlatformProvider(pType)
+	if err != nil {
+		return func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return nil, fmt.Errorf("failed to get platform provider: %w", err)
+		}
+	}
+
+	teeOid, err := getOID(pType)
+	if err != nil {
+		return func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return nil, fmt.Errorf("failed to get OID for platform type: %w", err)
+		}
+	}
+
+	return func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		curve := elliptic.P256()
+
+		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate private/public key: %w", err)
+		}
+
+		pubKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal public key to DER format: %w", err)
+		}
+
+		sniLength := len(clientHello.ServerName)
+		if sniLength < 7 || clientHello.ServerName[sniLength-6:] != ".nonce" {
+			return nil, fmt.Errorf("invalid server name: %s", clientHello.ServerName)
+		}
+
+		nonceStr := clientHello.ServerName[:sniLength-6]
+		nonce, err := hex.DecodeString(nonceStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode nonce from server name: %w", err)
+		}
+
+		if len(nonce) != 64 {
+			return nil, fmt.Errorf("invalid nonce length: expected 64 bytes, got %d bytes", len(nonce))
+		}
+
+		attestExtension, err := getCertificateExtension(provider, pubKeyDER, nonce, teeOid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get certificate extension: %w", err)
+		}
+
+		var certDERBytes []byte
+
+		if caUrl == "" && cvmId == "" {
+			certTemplate := &x509.Certificate{
+				SerialNumber: big.NewInt(202403311),
+				Subject: pkix.Name{
+					Organization:  []string{organization},
+					Country:       []string{country},
+					Province:      []string{province},
+					Locality:      []string{locality},
+					StreetAddress: []string{streetAddress},
+					PostalCode:    []string{postalCode},
+				},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay),
+				KeyUsage:              x509.KeyUsageDigitalSignature,
+				ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{attestExtension},
+			}
+
+			DERBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create certificate: %w", err)
+			}
+
+			certDERBytes = DERBytes
+		} else {
+			csrmd := certs.CSRMetadata{
+				Organization:    []string{organization},
+				Country:         []string{country},
+				Province:        []string{province},
+				Locality:        []string{locality},
+				StreetAddress:   []string{streetAddress},
+				PostalCode:      []string{postalCode},
+				ExtraExtensions: []pkix.Extension{attestExtension},
+			}
+
+			csr, err := certscli.CreateCSR(csrmd, privateKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create CSR: %w", err)
+			}
+
+			notBefore := time.Now()
+			notAfter := time.Now().AddDate(notAfterYear, notAfterMonth, notAfterDay)
+			ttlString := notAfter.Sub(notBefore).String()
+
+			cert, err := caSDK.IssueFromCSR(cvmId, ttlString, string(csr.CSR), domainId, "")
+			if err != nil {
+				return nil, err
+			}
+
+			cleanCertificateString := strings.ReplaceAll(cert.Certificate, "\\n", "\n")
+
+			block, rest := pem.Decode([]byte(cleanCertificateString))
+
+			if len(rest) != 0 {
+				return nil, fmt.Errorf("failed to convert generated certificate to DER format: %s", cleanCertificateString)
+			}
+
+			certDERBytes = block.Bytes
+		}
+
+		return &tls.Certificate{
+			Certificate: [][]byte{certDERBytes},
+			PrivateKey:  privateKey,
+		}, nil
+	}
+}
+
+func getCertificateExtension(provider attestation.Provider, pubKey []byte, nonce []byte, teeOid asn1.ObjectIdentifier) (pkix.Extension, error) {
+	teeNonce := append(pubKey, nonce...)
+	hashNonce := sha3.Sum512(teeNonce)
+
+	rawAttestation, err := provider.Attestation(hashNonce[:], hashNonce[:vtpm.Nonce])
+	if err != nil {
+		return pkix.Extension{}, fmt.Errorf("failed to get attestation: %w", err)
+	}
+
+	return pkix.Extension{
+		Id:    teeOid,
+		Value: rawAttestation,
+	}, nil
+}
+
+func processRequest(method, reqUrl string, data []byte, headers map[string]string, expectedRespCodes ...int) (http.Header, []byte, errors.SDKError) {
+	req, err := http.NewRequest(method, reqUrl, bytes.NewReader(data))
 	if err != nil {
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
