@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/absmach/certs/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
