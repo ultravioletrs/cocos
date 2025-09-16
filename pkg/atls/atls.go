@@ -99,7 +99,7 @@ func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey 
 	return block.Bytes, nil
 }
 
-func GetCertificate(caSDK sdk.SDK, cvmId, domainId string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+func GetCertificate(caSDK sdk.SDK, cvmId, domainId, agentToken string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	pType := attestation.CCPlatform()
 
 	provider, err := getPlatformProvider(pType)
