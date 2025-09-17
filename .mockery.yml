@@ -68,7 +68,7 @@ packages:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
           filename: "{{.InterfaceName | lower}}.go"
-  github.com/ultravioletrs/cocos/internal/server:
+  github.com/ultravioletrs/cocos/pkg/server:
     interfaces:
       Server:
         config:

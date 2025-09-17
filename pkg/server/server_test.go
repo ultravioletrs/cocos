@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultravioletrs/cocos/internal/server/mocks"
+	"github.com/ultravioletrs/cocos/pkg/server/mocks"
 )
 
 func TestStopAllServer(t *testing.T) {
