@@ -1,3 +1,6 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
 package clients
 
 import (
@@ -72,9 +75,9 @@ func TestLoadBasicTLSConfig(t *testing.T) {
 	keyFile := filepath.Join(tmpDir, "client.key")
 	caFile := filepath.Join(tmpDir, "ca.crt")
 
-	require.NoError(t, os.WriteFile(certFile, cert, 0644))
-	require.NoError(t, os.WriteFile(keyFile, key, 0644))
-	require.NoError(t, os.WriteFile(caFile, caPEM, 0644))
+	require.NoError(t, os.WriteFile(certFile, cert, 0o644))
+	require.NoError(t, os.WriteFile(keyFile, key, 0o644))
+	require.NoError(t, os.WriteFile(caFile, caPEM, 0o644))
 
 	tests := []struct {
 		name           string
@@ -192,10 +195,10 @@ func TestLoadATLSConfig(t *testing.T) {
 	caFile := filepath.Join(tmpDir, "ca.crt")
 	policyFile := filepath.Join(tmpDir, "policy.json")
 
-	require.NoError(t, os.WriteFile(certFile, cert, 0644))
-	require.NoError(t, os.WriteFile(keyFile, key, 0644))
-	require.NoError(t, os.WriteFile(caFile, caPEM, 0644))
-	require.NoError(t, os.WriteFile(policyFile, []byte(`{"policy": "test"}`), 0644))
+	require.NoError(t, os.WriteFile(certFile, cert, 0o644))
+	require.NoError(t, os.WriteFile(keyFile, key, 0o644))
+	require.NoError(t, os.WriteFile(caFile, caPEM, 0o644))
+	require.NoError(t, os.WriteFile(policyFile, []byte(`{"policy": "test"}`), 0o644))
 
 	tests := []struct {
 		name        string
@@ -325,8 +328,8 @@ func TestLoadRootCAs(t *testing.T) {
 	invalidCAFile := filepath.Join(tmpDir, "invalid_ca.crt")
 	nonExistentFile := filepath.Join(tmpDir, "nonexistent.crt")
 
-	require.NoError(t, os.WriteFile(validCAFile, caPEM, 0644))
-	require.NoError(t, os.WriteFile(invalidCAFile, []byte("invalid pem data"), 0644))
+	require.NoError(t, os.WriteFile(validCAFile, caPEM, 0o644))
+	require.NoError(t, os.WriteFile(invalidCAFile, []byte("invalid pem data"), 0o644))
 
 	tests := []struct {
 		name        string
