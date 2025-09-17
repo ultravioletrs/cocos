@@ -7,6 +7,7 @@ import (
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -20,7 +21,7 @@ func NewAgentClient(ctx context.Context, cfg grpc.AgentClientConfig) (grpc.Clien
 		return nil, nil, err
 	}
 
-	if client.Secure() != grpc.WithMATLS && client.Secure() != grpc.WithATLS && client.Secure() != grpc.WithTLS {
+	if client.Secure() != clients.WithMATLS.String() && client.Secure() != clients.WithATLS.String() && client.Secure() != clients.WithTLS.String() {
 		health := grpchealth.NewHealthClient(client.Connection())
 		resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
 			Service: "agent",

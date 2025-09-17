@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 )
 
 func TestNewClient(t *testing.T) {
@@ -118,7 +119,7 @@ func TestNewClient(t *testing.T) {
 				ServerCAFile: "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     errFailedToLoadRootCA,
+			err:     clients.ErrFailedToLoadRootCA,
 		},
 		{
 			name: "Fail with invalid ClientCert",
@@ -129,7 +130,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    clientKeyFile,
 			},
 			wantErr: true,
-			err:     errFailedToLoadClientCertKey,
+			err:     clients.ErrFailedToLoadClientCertKey,
 		},
 		{
 			name: "Fail with invalid ClientKey",
@@ -140,7 +141,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     errFailedToLoadClientCertKey,
+			err:     clients.ErrFailedToLoadClientCertKey,
 		},
 	}
 
@@ -168,39 +169,39 @@ func TestNewClient(t *testing.T) {
 func TestClientSecure(t *testing.T) {
 	tests := []struct {
 		name     string
-		secure   security
+		secure   clients.Security
 		expected string
 	}{
 		{
 			name:     "Without TLS",
-			secure:   withoutTLS,
+			secure:   clients.WithoutTLS,
 			expected: "without TLS",
 		},
 		{
 			name:     "With TLS",
-			secure:   withTLS,
+			secure:   clients.WithTLS,
 			expected: "with TLS",
 		},
 		{
 			name:     "With mTLS",
-			secure:   withmTLS,
+			secure:   clients.WithMTLS,
 			expected: "with mTLS",
 		},
 		{
 			name:     "With aTLS",
-			secure:   withaTLS,
+			secure:   clients.WithATLS,
 			expected: "with aTLS",
 		},
 		{
 			name:     "With maTLS",
-			secure:   withmaTLS,
-			expected: WithMATLS,
+			secure:   clients.WithMATLS,
+			expected: "with maTLS",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &client{secure: tt.secure}
+			c := &client{security: tt.secure}
 			assert.Equal(t, tt.expected, c.Secure())
 		})
 	}
@@ -377,7 +378,7 @@ func TestCheckIfCertificateSelfSigned(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkIfCertificateSigned(tt.cert, nil)
+			err := clients.VerifyCertificateSignature(tt.cert, nil)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
