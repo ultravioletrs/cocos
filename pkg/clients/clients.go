@@ -18,7 +18,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
-// Security represents the type of TLS security configuration
+// Security represents the type of TLS security configuration.
 type Security int
 
 const (
@@ -29,7 +29,7 @@ const (
 	WithMATLS
 )
 
-// String returns a human-readable representation of the security level
+// String returns a human-readable representation of the security level.
 func (s Security) String() string {
 	switch s {
 	case WithTLS:
@@ -59,27 +59,27 @@ var (
 	errAttestationPolicyIrregular = errors.New("attestation policy file is not a regular file")
 )
 
-// BaseConfig contains common TLS configuration fields
+// BaseConfig contains common TLS configuration fields.
 type BaseConfig struct {
 	ClientCert   string
 	ClientKey    string
 	ServerCAFile string
 }
 
-// ATLSConfig contains configuration specific to Attested TLS
+// ATLSConfig contains configuration specific to Attested TLS.
 type ATLSConfig struct {
 	BaseConfig
 	AttestationPolicy string
 	ProductName       string
 }
 
-// TLSResult contains the result of TLS configuration
+// TLSResult contains the result of TLS configuration.
 type TLSResult struct {
 	Config   *tls.Config
 	Security Security
 }
 
-// LoadBasicTLSConfig loads standard TLS configuration (TLS/mTLS)
+// LoadBasicTLSConfig loads standard TLS configuration (TLS/mTLS).
 func LoadBasicTLSConfig(serverCAFile, clientCert, clientKey string) (*TLSResult, error) {
 	tlsConfig := &tls.Config{}
 	security := WithoutTLS
@@ -119,7 +119,7 @@ func LoadBasicTLSConfig(serverCAFile, clientCert, clientKey string) (*TLSResult,
 	return &TLSResult{Config: tlsConfig, Security: security}, nil
 }
 
-// LoadATLSConfig configures Attested TLS
+// LoadATLSConfig configures Attested TLS.
 func LoadATLSConfig(cfg ATLSConfig) (*TLSResult, error) {
 	security := WithATLS
 
@@ -173,7 +173,7 @@ func LoadATLSConfig(cfg ATLSConfig) (*TLSResult, error) {
 	return &TLSResult{Config: tlsConfig, Security: security}, nil
 }
 
-// loadRootCAs loads root CA certificates from a file
+// loadRootCAs loads root CA certificates from a file.
 func loadRootCAs(serverCAFile string) (*x509.CertPool, error) {
 	// Read the certificate file
 	certPEM, err := os.ReadFile(serverCAFile)
@@ -199,7 +199,7 @@ func loadRootCAs(serverCAFile string) (*x509.CertPool, error) {
 	return rootCAs, nil
 }
 
-// VerifyPeerCertificateATLS verifies peer certificates for Attested TLS
+// VerifyPeerCertificateATLS verifies peer certificates for Attested TLS.
 func VerifyPeerCertificateATLS(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte, rootCAs *x509.CertPool) error {
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
@@ -226,7 +226,7 @@ func VerifyPeerCertificateATLS(rawCerts [][]byte, _ [][]*x509.Certificate, nonce
 	return errors.New("attestation extension not found in certificate")
 }
 
-// VerifyCertificateSignature verifies the certificate signature against root CAs
+// VerifyCertificateSignature verifies the certificate signature against root CAs.
 func VerifyCertificateSignature(cert *x509.Certificate, rootCAs *x509.CertPool) error {
 	if rootCAs == nil {
 		rootCAs = x509.NewCertPool()

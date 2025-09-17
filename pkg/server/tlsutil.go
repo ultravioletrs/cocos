@@ -17,13 +17,13 @@ var (
 	ErrAppendClientCA = errors.New("failed to append client ca to tls.Config")
 )
 
-// TLSSetupResult contains the result of TLS configuration setup
+// TLSSetupResult contains the result of TLS configuration setup.
 type TLSSetupResult struct {
 	Config *tls.Config
 	MTLS   bool
 }
 
-// LoadCertFile loads certificate data from file path or returns empty byte slice if path is empty
+// LoadCertFile loads certificate data from file path or returns empty byte slice if path is empty.
 func LoadCertFile(certFile string) ([]byte, error) {
 	if certFile != "" {
 		return ReadFileOrData(certFile)
@@ -32,7 +32,7 @@ func LoadCertFile(certFile string) ([]byte, error) {
 }
 
 // ReadFileOrData reads data from file if input looks like a file path,
-// otherwise treats input as raw data
+// otherwise treats input as raw data.
 func ReadFileOrData(input string) ([]byte, error) {
 	if len(input) < 1000 && !strings.Contains(input, "\n") {
 		data, err := os.ReadFile(input)
@@ -44,7 +44,7 @@ func ReadFileOrData(input string) ([]byte, error) {
 	return []byte(input), nil
 }
 
-// LoadX509KeyPair loads X.509 key pair from certificate and key files or data
+// LoadX509KeyPair loads X.509 key pair from certificate and key files or data.
 func LoadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	cert, err := ReadFileOrData(certfile)
 	if err != nil {
@@ -59,7 +59,7 @@ func LoadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
 	return tls.X509KeyPair(cert, key)
 }
 
-// ConfigureRootCA configures the root CA certificates for the TLS config
+// ConfigureRootCA configures the root CA certificates for the TLS config.
 func ConfigureRootCA(tlsConfig *tls.Config, serverCAFile string) error {
 	rootCA, err := LoadCertFile(serverCAFile)
 	if err != nil {
@@ -82,7 +82,7 @@ func ConfigureRootCA(tlsConfig *tls.Config, serverCAFile string) error {
 }
 
 // ConfigureClientCA configures the client CA certificates for the TLS config
-// Returns true if client CA was configured, false otherwise
+// Returns true if client CA was configured, false otherwise.
 func ConfigureClientCA(tlsConfig *tls.Config, clientCAFile string) (bool, error) {
 	clientCA, err := LoadCertFile(clientCAFile)
 	if err != nil {
@@ -105,7 +105,7 @@ func ConfigureClientCA(tlsConfig *tls.Config, clientCAFile string) (bool, error)
 }
 
 // ConfigureCertificateAuthorities configures both root and client CAs for the TLS config
-// Returns true if mTLS should be enabled (client CA is configured)
+// Returns true if mTLS should be enabled (client CA is configured).
 func ConfigureCertificateAuthorities(tlsConfig *tls.Config, serverCAFile, clientCAFile string) (bool, error) {
 	// Configure root CA
 	if err := ConfigureRootCA(tlsConfig, serverCAFile); err != nil {
@@ -121,7 +121,7 @@ func ConfigureCertificateAuthorities(tlsConfig *tls.Config, serverCAFile, client
 	return hasClientCA, nil
 }
 
-// SetupRegularTLS sets up TLS configuration using regular certificates
+// SetupRegularTLS sets up TLS configuration using regular certificates.
 func SetupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile string) (*TLSSetupResult, error) {
 	certificate, err := LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -145,7 +145,7 @@ func SetupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile string) (*TLS
 	return &TLSSetupResult{Config: tlsConfig, MTLS: mtls}, nil
 }
 
-// BuildMTLSDescription builds a description string for mTLS configuration
+// BuildMTLSDescription builds a description string for mTLS configuration.
 func BuildMTLSDescription(serverCAFile, clientCAFile string) string {
 	var parts []string
 
