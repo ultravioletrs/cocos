@@ -24,8 +24,8 @@ import (
 
 	"github.com/absmach/certs"
 	certscli "github.com/absmach/certs/cli"
-	"github.com/absmach/certs/errors"
 	"github.com/absmach/certs/sdk"
+	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"

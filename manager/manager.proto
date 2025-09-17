@@ -25,6 +25,7 @@ message CreateReq{
   string agent_cvm_ca_url = 6;
   string ttl = 7;
   string domain_id = 8;
+  string agent_certs_token = 9;
 }
 
 message CreateRes{
