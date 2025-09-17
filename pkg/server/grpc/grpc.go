@@ -6,12 +6,9 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -110,39 +107,13 @@ func (s *Server) Start() error {
 			GetCertificate: atls.GetCertificate(s.caUrl, s.cvmId),
 		}
 
-		var mtls bool
-		mtls = false
-
-		// Loading Server CA file
-		rootCA, err := loadCertFile(c.ServerCAFile)
+		mtls, err := server.ConfigureCertificateAuthorities(tlsConfig, c.ServerCAFile, c.ClientCAFile)
 		if err != nil {
-			return fmt.Errorf("failed to load server ca file: %w", err)
-		}
-		if len(rootCA) > 0 {
-			if tlsConfig.RootCAs == nil {
-				tlsConfig.RootCAs = x509.NewCertPool()
-			}
-			if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
-				return fmt.Errorf("failed to append server ca to tls.Config")
-			}
-			mtls = true
+			return fmt.Errorf("failed to configure certificate authorities: %w", err)
 		}
 
-		// Loading Client CA File
-		clientCA, err := loadCertFile(c.ClientCAFile)
-		if err != nil {
-			return fmt.Errorf("failed to load client ca file: %w", err)
-		}
-		if len(clientCA) > 0 {
-			if tlsConfig.ClientCAs == nil {
-				tlsConfig.ClientCAs = x509.NewCertPool()
-			}
-			if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
-				return fmt.Errorf("failed to append client ca to tls.Config")
-			}
-
+		if mtls {
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-			mtls = true
 		}
 
 		creds = grpc.Creds(credentials.NewTLS(tlsConfig))
@@ -155,52 +126,17 @@ func (s *Server) Start() error {
 	} else {
 		switch {
 		case c.CertFile != "" || c.KeyFile != "":
-			certificate, err := loadX509KeyPair(c.CertFile, c.KeyFile)
+			tlsSetup, err := server.SetupRegularTLS(c.CertFile, c.KeyFile, c.ServerCAFile, c.ClientCAFile)
 			if err != nil {
-				return fmt.Errorf("failed to load auth certificates: %w", err)
-			}
-			tlsConfig := &tls.Config{
-				ClientAuth:   tls.NoClientCert,
-				Certificates: []tls.Certificate{certificate},
+				return fmt.Errorf("failed to setup TLS: %w", err)
 			}
 
-			var mtlsCA string
-			// Loading Server CA file
-			rootCA, err := loadCertFile(c.ServerCAFile)
-			if err != nil {
-				return fmt.Errorf("failed to load root ca file: %w", err)
-			}
-			if len(rootCA) > 0 {
-				if tlsConfig.RootCAs == nil {
-					tlsConfig.RootCAs = x509.NewCertPool()
-				}
-				if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCA) {
-					return fmt.Errorf("failed to append root ca to tls.Config")
-				}
-				mtlsCA = fmt.Sprintf("root ca %s", c.ServerCAFile)
-			}
+			creds = grpc.Creds(credentials.NewTLS(tlsSetup.Config))
 
-			// Loading Client CA File
-			clientCA, err := loadCertFile(c.ClientCAFile)
-			if err != nil {
-				return fmt.Errorf("failed to load client ca file: %w", err)
-			}
-			if len(clientCA) > 0 {
-				if tlsConfig.ClientCAs == nil {
-					tlsConfig.ClientCAs = x509.NewCertPool()
-				}
-				if !tlsConfig.ClientCAs.AppendCertsFromPEM(clientCA) {
-					return fmt.Errorf("failed to append client ca to tls.Config")
-				}
-				mtlsCA = fmt.Sprintf("%s client ca %s", mtlsCA, c.ClientCAFile)
-			}
-			creds = grpc.Creds(credentials.NewTLS(tlsConfig))
-			switch {
-			case mtlsCA != "":
-				tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-				creds = grpc.Creds(credentials.NewTLS(tlsConfig))
+			if tlsSetup.MTLS {
+				mtlsCA := server.BuildMTLSDescription(c.ServerCAFile, c.ClientCAFile)
 				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS/mTLS cert %s , key %s and %s", s.Name, s.Address, c.CertFile, c.KeyFile, mtlsCA))
-			default:
+			} else {
 				s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s with TLS cert %s and key %s", s.Name, s.Address, c.CertFile, c.KeyFile))
 			}
 		default:
@@ -271,37 +207,4 @@ func (s *Server) Stop() error {
 
 	s.Logger.Info(fmt.Sprintf("%s gRPC service shutdown at %s", s.Name, s.Address))
 	return nil
-}
-
-func loadCertFile(certFile string) ([]byte, error) {
-	if certFile != "" {
-		return readFileOrData(certFile)
-	}
-	return []byte{}, nil
-}
-
-func readFileOrData(input string) ([]byte, error) {
-	if len(input) < 1000 && !strings.Contains(input, "\n") {
-		data, err := os.ReadFile(input)
-		if err == nil {
-			return data, nil
-		} else {
-			return nil, err
-		}
-	}
-	return []byte(input), nil
-}
-
-func loadX509KeyPair(certfile, keyfile string) (tls.Certificate, error) {
-	cert, err := readFileOrData(certfile)
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("failed to read cert: %v", err)
-	}
-
-	key, err := readFileOrData(keyfile)
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("failed to read key: %v", err)
-	}
-
-	return tls.X509KeyPair(cert, key)
 }

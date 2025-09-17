@@ -53,7 +53,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	agentGrpcServerConfig := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host:         as.host,
 				Port:         cfg.Port,
 				CertFile:     cfg.CertFile,

@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 
 	config := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host: "localhost",
 				Port: "50051",
 			},
@@ -85,7 +85,7 @@ func TestServerStartWithTLSFile(t *testing.T) {
 
 	config := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host:     "localhost",
 				Port:     "0",
 				CertFile: certFile.Name(),
@@ -130,7 +130,7 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 
 	config := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host:         "localhost",
 				Port:         "0",
 				CertFile:     string(clientCertFile),
@@ -173,7 +173,7 @@ func TestServerStop(t *testing.T) {
 
 	config := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host: "localhost",
 				Port: "0",
 			},
@@ -268,7 +268,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "Non-TLS Server Startup",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host: "localhost",
 						Port: "0",
 					},
@@ -280,7 +280,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "TLS Server Startup with Self-Signed Certificate",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host: "localhost",
 						Port: "0",
 					},
@@ -293,7 +293,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "TLS Server Startup with Invalid Certificates",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host:     "localhost",
 						Port:     "0",
 						CertFile: "invalid",
@@ -308,7 +308,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "maTLS Server Startup",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host:         "localhost",
 						Port:         "0",
 						ServerCAFile: "",
@@ -325,7 +325,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "maTLS Server Startup with Invalid Server CA file",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host:         "localhost",
 						Port:         "0",
 						ServerCAFile: "invalid",
@@ -341,7 +341,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			name: "maTLS Server Startup with Invalid Clinet CA file",
 			config: server.AgentConfig{
 				ServerConfig: server.ServerConfig{
-					BaseConfig: server.BaseConfig{
+					Config: server.Config{
 						Host:         "localhost",
 						Port:         "0",
 						ServerCAFile: "invalid",

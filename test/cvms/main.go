@@ -182,7 +182,7 @@ func main() {
 		cvms.RegisterServiceServer(srv, cvmsgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
-		BaseConfig: server.BaseConfig{
+		Config: server.Config{
 			Port: defaultPort,
 		},
 	}
