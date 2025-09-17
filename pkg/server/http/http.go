@@ -80,6 +80,7 @@ func (s *httpServer) shouldUseAttestedTLS() bool {
 	if !ok {
 		return false
 	}
+
 	return cfg.AttestedTLS && s.caURL != ""
 }
 
