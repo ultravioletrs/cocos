@@ -39,14 +39,14 @@ const (
 	nonceSuffix          = ".nonce"
 )
 
-// Platform-specific OIDs for certificate extensions
+// Platform-specific OIDs for certificate extensions.
 var (
 	SNPvTPMOID = asn1.ObjectIdentifier{2, 99999, 1, 0}
 	AzureOID   = asn1.ObjectIdentifier{2, 99999, 1, 1}
 	TDXOID     = asn1.ObjectIdentifier{2, 99999, 1, 2}
 )
 
-// CertificateSubject contains certificate subject information
+// CertificateSubject contains certificate subject information.
 type CertificateSubject struct {
 	Organization  string
 	Country       string
@@ -56,7 +56,7 @@ type CertificateSubject struct {
 	PostalCode    string
 }
 
-// DefaultCertificateSubject returns the default certificate subject for Ultraviolet
+// DefaultCertificateSubject returns the default certificate subject for Ultraviolet.
 func DefaultCertificateSubject() CertificateSubject {
 	return CertificateSubject{
 		Organization:  "Ultraviolet",
@@ -68,17 +68,17 @@ func DefaultCertificateSubject() CertificateSubject {
 	}
 }
 
-// CertificateProvider defines the interface for providing TLS certificates
+// CertificateProvider defines the interface for providing TLS certificates.
 type CertificateProvider interface {
 	GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error)
 }
 
-// CertificateGenerator handles certificate creation
+// CertificateGenerator handles certificate creation.
 type CertificateGenerator interface {
 	GenerateCertificate(privateKey *ecdsa.PrivateKey, subject CertificateSubject, extension pkix.Extension) ([]byte, error)
 }
 
-// UnifiedCertificateGenerator handles both self-signed and CA-signed certificates
+// UnifiedCertificateGenerator handles both self-signed and CA-signed certificates.
 type UnifiedCertificateGenerator struct {
 	caURL         string
 	cvmID         string
@@ -88,7 +88,7 @@ type UnifiedCertificateGenerator struct {
 	caClient      *CAClient
 }
 
-// NewSelfSignedGenerator creates a generator for self-signed certificates
+// NewSelfSignedGenerator creates a generator for self-signed certificates.
 func NewSelfSignedGenerator() *UnifiedCertificateGenerator {
 	return &UnifiedCertificateGenerator{
 		notAfterYears: defaultNotAfterYears,
@@ -96,7 +96,7 @@ func NewSelfSignedGenerator() *UnifiedCertificateGenerator {
 	}
 }
 
-// NewCASignedGenerator creates a generator for CA-signed certificates
+// NewCASignedGenerator creates a generator for CA-signed certificates.
 func NewCASignedGenerator(caURL, cvmID string) *UnifiedCertificateGenerator {
 	return &UnifiedCertificateGenerator{
 		caURL:    caURL,
@@ -107,7 +107,7 @@ func NewCASignedGenerator(caURL, cvmID string) *UnifiedCertificateGenerator {
 	}
 }
 
-// SetTTL sets the certificate TTL for CA-signed certificates
+// SetTTL sets the certificate TTL for CA-signed certificates.
 func (g *UnifiedCertificateGenerator) SetTTL(ttl time.Duration) {
 	g.ttl = ttl
 }
@@ -139,14 +139,14 @@ func (g *UnifiedCertificateGenerator) GenerateCertificate(privateKey *ecdsa.Priv
 	return x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
 }
 
-// PlatformAttestationProvider handles platform attestation operations
+// PlatformAttestationProvider handles platform attestation operations.
 type PlatformAttestationProvider struct {
 	provider     attestation.Provider
 	oid          asn1.ObjectIdentifier
 	platformType attestation.PlatformType
 }
 
-// NewAttestationProvider creates a new attestation provider for the given platform type
+// NewAttestationProvider creates a new attestation provider for the given platform type.
 func NewAttestationProvider(provider attestation.Provider, platformType attestation.PlatformType) (*PlatformAttestationProvider, error) {
 	oid, err := getOID(platformType)
 	if err != nil {
@@ -174,14 +174,14 @@ func (p *PlatformAttestationProvider) GetPlatformType() attestation.PlatformType
 	return p.platformType
 }
 
-// AttestedCertificateProvider provides attested TLS certificates
+// AttestedCertificateProvider provides attested TLS certificates.
 type AttestedCertificateProvider struct {
 	attestationProvider *PlatformAttestationProvider
 	certGenerator       CertificateGenerator
 	subject             CertificateSubject
 }
 
-// NewAttestedProvider creates a new attested certificate provider
+// NewAttestedProvider creates a new attested certificate provider.
 func NewAttestedProvider(
 	attestationProvider *PlatformAttestationProvider,
 	certGenerator CertificateGenerator,
@@ -231,7 +231,7 @@ func (p *AttestedCertificateProvider) GetCertificate(clientHello *tls.ClientHell
 	}, nil
 }
 
-// Factory functions for creating complete certificate providers
+// Factory functions for creating complete certificate providers.
 func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID string) (CertificateProvider, error) {
 	attestationProvider, err := NewAttestationProvider(provider, platformType)
 	if err != nil {
@@ -249,7 +249,7 @@ func NewProvider(provider attestation.Provider, platformType attestation.Platfor
 	return NewAttestedProvider(attestationProvider, certGenerator, subject), nil
 }
 
-// CAClient handles communication with Certificate Authority
+// CAClient handles communication with Certificate Authority.
 type CAClient struct {
 	baseURL string
 	client  *http.Client
@@ -346,7 +346,7 @@ func (c *CAClient) processRequest(method, reqURL string, data []byte, headers ma
 	return resp.Header, body, nil
 }
 
-// CertificateVerifier handles certificate verification operations
+// CertificateVerifier handles certificate verification operations.
 type CertificateVerifier struct {
 	rootCAs *x509.CertPool
 }
@@ -417,7 +417,6 @@ func (v *CertificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	return nil
 }
 
-// Utility functions
 func extractNonceFromSNI(serverName string) ([]byte, error) {
 	if len(serverName) < len(nonceSuffix) || !hasNonceSuffix(serverName) {
 		return nil, fmt.Errorf("invalid server name: %s", serverName)
