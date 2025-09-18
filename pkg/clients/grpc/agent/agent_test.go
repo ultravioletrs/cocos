@@ -101,7 +101,7 @@ func TestAgentClientIntegration(t *testing.T) {
 					Timeout: 1,
 				},
 			},
-			err: errors.New("failed to connect to grpc server"),
+			err: errors.New("agent service is unavailable"),
 		},
 		{
 			name: "invalid config, missing AttestationPolicy with aTLS",
@@ -127,7 +127,7 @@ func TestAgentClientIntegration(t *testing.T) {
 			}
 
 			client, agentClient, err := NewAgentClient(ctx, tt.config)
-			assert.True(t, errors.Contains(err, tt.err))
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error to contain: %v, got: %v", tt.err, err))
 			if err != nil {
 				assert.Nil(t, client)
 				assert.Nil(t, agentClient)

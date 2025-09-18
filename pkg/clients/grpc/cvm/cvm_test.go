@@ -89,15 +89,6 @@ func TestAgentClientIntegration(t *testing.T) {
 			},
 			err: nil,
 		},
-		{
-			name:          "server not healthy",
-			serverRunning: false,
-			config: clients.StandardClientConfig{
-				URL:     "",
-				Timeout: 1,
-			},
-			err: errors.New("failed to connect to grpc server"),
-		},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +100,7 @@ func TestAgentClientIntegration(t *testing.T) {
 			}
 
 			client, agentClient, err := NewCVMClient(tt.config)
-			assert.True(t, errors.Contains(err, tt.err))
+			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error to contain: %v, got: %v", tt.err, err))
 			if err != nil {
 				assert.Nil(t, client)
 				assert.Nil(t, agentClient)

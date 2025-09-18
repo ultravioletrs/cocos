@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/ultravioletrs/cocos/pkg/atls"
+	"github.com/ultravioletrs/cocos/pkg/atls/mocks"
 	"github.com/ultravioletrs/cocos/pkg/server"
 )
 
@@ -75,44 +77,44 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestHttpServer_shouldUseAttestedTLS(t *testing.T) {
+	mockCertProvider := new(mocks.CertificateProvider)
 	tests := []struct {
-		name        string
-		config      server.ServerConfiguration
-		caURL       string
-		attestedTLS bool
-		expected    bool
+		name         string
+		config       server.ServerConfiguration
+		expected     bool
+		certProvider atls.CertificateProvider
 	}{
 		{
-			name: "should use attested TLS when config is AgentConfig and AttestedTLS is true and caURL is not empty",
+			name: "should use attested TLS when config is AgentConfig and AttestedTLS is true and certProvider is not empty",
 			config: server.AgentConfig{
 				AttestedTLS: true,
 			},
-			caURL:    "https://ca.example.com",
-			expected: true,
+			certProvider: mockCertProvider,
+			expected:     true,
 		},
 		{
-			name: "should not use attested TLS when caURL is empty",
+			name: "should not use attested TLS when certProvider is empty",
 			config: server.AgentConfig{
 				AttestedTLS: true,
 			},
-			caURL:    "",
-			expected: false,
+			certProvider: nil,
+			expected:     false,
 		},
 		{
 			name: "should not use attested TLS when AttestedTLS is false",
 			config: server.AgentConfig{
 				AttestedTLS: false,
 			},
-			caURL:    "https://ca.example.com",
-			expected: false,
+			certProvider: mockCertProvider,
+			expected:     false,
 		},
 		{
 			name: "should not use attested TLS when config is not AgentConfig",
 			config: &mockServerConfig{
 				baseConfig: &mockBaseConfig{},
 			},
-			caURL:    "https://ca.example.com",
-			expected: false,
+			certProvider: mockCertProvider,
+			expected:     false,
 		},
 	}
 
@@ -121,7 +123,7 @@ func TestHttpServer_shouldUseAttestedTLS(t *testing.T) {
 			ctx := context.Background()
 			cancel := func() {}
 
-			server := NewServer(ctx, cancel, "test", tt.config, &mockHandler{}, slog.Default(), nil)
+			server := NewServer(ctx, cancel, "test", tt.config, &mockHandler{}, slog.Default(), tt.certProvider)
 			httpSrv := server.(*httpServer)
 
 			result := httpSrv.shouldUseAttestedTLS()

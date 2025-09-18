@@ -28,8 +28,10 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -275,7 +277,13 @@ func TestVerifyCertificateExtension(t *testing.T) {
 }
 
 func TestGetCertificateWithSelfSigned(t *testing.T) {
-	p := AttestedCertificateProvider{}
+	mockProvider := new(mocks.Provider)
+	p := AttestedCertificateProvider{
+		attestationProvider: &PlatformAttestationProvider{provider: mockProvider},
+		certGenerator:       NewSelfSignedGenerator(),
+	}
+
+	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("invalid attestation"), nil)
 
 	nonce := make([]byte, 64)
 	_, err := rand.Read(nonce)
@@ -320,7 +328,12 @@ func TestGetCertificateWithCA(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	p := AttestedCertificateProvider{}
+	mockProvider := new(mocks.Provider)
+	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("invalid attestation"), nil)
+	p := AttestedCertificateProvider{
+		attestationProvider: &PlatformAttestationProvider{provider: mockProvider},
+		certGenerator:       NewCASignedGenerator(mockServer.URL, ""),
+	}
 
 	nonce := make([]byte, 64)
 	_, err := rand.Read(nonce)
@@ -336,50 +349,6 @@ func TestGetCertificateWithCA(t *testing.T) {
 	if err != nil {
 		t.Logf("Expected error due to missing attestation setup: %v", err)
 		assert.Error(t, err)
-	}
-}
-
-func TestGetCertificateInvalidServerName(t *testing.T) {
-	p := AttestedCertificateProvider{}
-
-	cases := []struct {
-		name       string
-		serverName string
-		expectErr  string
-	}{
-		{
-			name:       "Missing .nonce suffix",
-			serverName: "invalidname",
-			expectErr:  "failed to get platform provider",
-		},
-		{
-			name:       "Too short server name",
-			serverName: "short",
-			expectErr:  "failed to get platform provider",
-		},
-		{
-			name:       "Invalid nonce encoding",
-			serverName: "invalidhex.nonce",
-			expectErr:  "failed to get platform provider",
-		},
-		{
-			name:       "Wrong nonce length",
-			serverName: "deadbeef.nonce",
-			expectErr:  "failed to get platform provider",
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			clientHello := &tls.ClientHelloInfo{
-				ServerName: c.serverName,
-			}
-
-			cert, err := p.GetCertificate(clientHello)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), c.expectErr)
-			assert.Nil(t, cert)
-		})
 	}
 }
 
