@@ -10,42 +10,6 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/clients"
 )
 
-type ClientConfiguration interface {
-	Configuration() Config
-}
-
-type Config struct {
-	URL          string        `env:"URL"             envDefault:"localhost:8080"`
-	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
-	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
-	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
-}
-
-type AgentClientConfig struct {
-	Config
-
-	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
-	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
-	ProductName       string `env:"PRODUCT_NAME"       envDefault:"Milan"`
-}
-
-type ProxyClientConfig struct {
-	Config
-}
-
-func (c Config) Configuration() Config {
-	return c
-}
-
-func (a *AgentClientConfig) Configuration() Config {
-	return a.Config
-}
-
-func (a ProxyClientConfig) Configuration() Config {
-	return a.Config
-}
-
 type Client interface {
 	Transport() *http.Transport
 	Secure() string
@@ -54,13 +18,13 @@ type Client interface {
 
 type client struct {
 	transport *http.Transport
-	cfg       ClientConfiguration
+	cfg       clients.ClientConfiguration
 	security  clients.Security
 }
 
 var _ Client = (*client)(nil)
 
-func NewClient(cfg ClientConfiguration) (Client, error) {
+func NewClient(cfg clients.ClientConfiguration) (Client, error) {
 	transport, security, err := createTransport(cfg)
 	if err != nil {
 		return nil, err
@@ -82,10 +46,10 @@ func (c *client) Secure() string {
 }
 
 func (c *client) Timeout() time.Duration {
-	return c.cfg.Configuration().Timeout
+	return c.cfg.GetBaseConfig().Timeout
 }
 
-func createTransport(cfg ClientConfiguration) (*http.Transport, clients.Security, error) {
+func createTransport(cfg clients.ClientConfiguration) (*http.Transport, clients.Security, error) {
 	transport := &http.Transport{
 		MaxIdleConns:        100,
 		IdleConnTimeout:     90 * time.Second,
@@ -94,18 +58,8 @@ func createTransport(cfg ClientConfiguration) (*http.Transport, clients.Security
 
 	security := clients.WithoutTLS
 
-	if agcfg, ok := cfg.(*AgentClientConfig); ok && agcfg.AttestedTLS {
-		atlsConfig := clients.ATLSConfig{
-			BaseConfig: clients.BaseConfig{
-				ClientCert:   agcfg.ClientCert,
-				ClientKey:    agcfg.ClientKey,
-				ServerCAFile: agcfg.ServerCAFile,
-			},
-			AttestationPolicy: agcfg.AttestationPolicy,
-			ProductName:       agcfg.ProductName,
-		}
-
-		result, err := clients.LoadATLSConfig(atlsConfig)
+	if agcfg, ok := cfg.(*clients.AttestedClientConfig); ok && agcfg.AttestedTLS {
+		result, err := clients.LoadATLSConfig(*agcfg)
 		if err != nil {
 			return nil, security, err
 		}
@@ -113,7 +67,7 @@ func createTransport(cfg ClientConfiguration) (*http.Transport, clients.Security
 		transport.TLSClientConfig = result.Config
 		security = result.Security
 	} else {
-		conf := cfg.Configuration()
+		conf := cfg.GetBaseConfig()
 
 		result, err := clients.LoadBasicTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
 		if err != nil {

@@ -202,14 +202,14 @@ func TestLoadATLSConfig(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		config      ATLSConfig
+		config      AttestedClientConfig
 		expectedSec Security
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "ValidATLSConfig",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				BaseConfig: BaseConfig{
 					ServerCAFile: "",
 				},
@@ -221,7 +221,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "ValidMATLSConfig",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				BaseConfig: BaseConfig{
 					ServerCAFile: caFile,
 				},
@@ -233,7 +233,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "ValidATLSWithClientCert",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				BaseConfig: BaseConfig{
 					ClientCert: certFile,
 					ClientKey:  keyFile,
@@ -246,7 +246,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "NonexistentPolicyFile",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				AttestationPolicy: filepath.Join(tmpDir, "nonexistent.json"),
 				ProductName:       "test-product",
 			},
@@ -256,7 +256,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "PolicyFileIsDirectory",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				AttestationPolicy: tmpDir, // Directory instead of file
 				ProductName:       "test-product",
 			},
@@ -266,7 +266,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "InvalidCAFile",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				BaseConfig: BaseConfig{
 					ServerCAFile: filepath.Join(tmpDir, "nonexistent.crt"),
 				},
@@ -279,7 +279,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		},
 		{
 			name: "InvalidClientCert",
-			config: ATLSConfig{
+			config: AttestedClientConfig{
 				BaseConfig: BaseConfig{
 					ClientCert: filepath.Join(tmpDir, "nonexistent.crt"),
 					ClientKey:  keyFile,

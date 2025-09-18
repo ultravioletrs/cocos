@@ -4,8 +4,6 @@
 package grpc
 
 import (
-	"time"
-
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/clients"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -19,45 +17,6 @@ var (
 	errGrpcClose   = errors.New("failed to close grpc connection")
 )
 
-type ClientConfiguration interface {
-	GetBaseConfig() BaseConfig
-}
-
-type BaseConfig struct {
-	URL          string        `env:"URL"             envDefault:"localhost:7001"`
-	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
-	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
-	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
-}
-
-type AgentClientConfig struct {
-	BaseConfig
-	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
-	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
-	ProductName       string `env:"PRODUCT_NAME"       envDefault:"Milan"`
-}
-
-type ManagerClientConfig struct {
-	BaseConfig
-}
-
-type CVMClientConfig struct {
-	BaseConfig
-}
-
-func (a BaseConfig) GetBaseConfig() BaseConfig {
-	return a
-}
-
-func (a AgentClientConfig) GetBaseConfig() BaseConfig {
-	return a.BaseConfig
-}
-
-func (a CVMClientConfig) GetBaseConfig() BaseConfig {
-	return a.BaseConfig
-}
-
 type Client interface {
 	Close() error
 	Secure() string
@@ -66,13 +25,13 @@ type Client interface {
 
 type client struct {
 	*grpc.ClientConn
-	cfg      ClientConfiguration
+	cfg      clients.ClientConfiguration
 	security clients.Security
 }
 
 var _ Client = (*client)(nil)
 
-func NewClient(cfg ClientConfiguration) (Client, error) {
+func NewClient(cfg clients.ClientConfiguration) (Client, error) {
 	conn, security, err := connect(cfg)
 	if err != nil {
 		return nil, err
@@ -100,24 +59,14 @@ func (c *client) Connection() *grpc.ClientConn {
 	return c.ClientConn
 }
 
-func connect(cfg ClientConfiguration) (*grpc.ClientConn, clients.Security, error) {
+func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Security, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 	security := clients.WithoutTLS
 
-	if agcfg, ok := cfg.(AgentClientConfig); ok && agcfg.AttestedTLS {
-		atlsConfig := clients.ATLSConfig{
-			BaseConfig: clients.BaseConfig{
-				ClientCert:   agcfg.ClientCert,
-				ClientKey:    agcfg.ClientKey,
-				ServerCAFile: agcfg.ServerCAFile,
-			},
-			AttestationPolicy: agcfg.AttestationPolicy,
-			ProductName:       agcfg.ProductName,
-		}
-
-		result, err := clients.LoadATLSConfig(atlsConfig)
+	if agcfg, ok := cfg.(clients.AttestedClientConfig); ok && agcfg.AttestedTLS {
+		result, err := clients.LoadATLSConfig(agcfg)
 		if err != nil {
 			return nil, security, err
 		}

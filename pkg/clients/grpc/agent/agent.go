@@ -15,7 +15,7 @@ import (
 var ErrAgentServiceUnavailable = errors.New("agent service is unavailable")
 
 // NewAgentClient creates new agent gRPC client instance.
-func NewAgentClient(ctx context.Context, cfg grpc.AgentClientConfig) (grpc.Client, agent.AgentServiceClient, error) {
+func NewAgentClient(ctx context.Context, cfg clients.AttestedClientConfig) (grpc.Client, agent.AgentServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err

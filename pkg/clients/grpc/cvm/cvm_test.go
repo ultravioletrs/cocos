@@ -14,7 +14,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/mocks"
-	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
@@ -77,14 +77,14 @@ func TestAgentClientIntegration(t *testing.T) {
 	tests := []struct {
 		name          string
 		serverRunning bool
-		config        pkggrpc.CVMClientConfig
+		config        clients.StandardClientConfig
 		err           error
 	}{
 		{
 			name:          "successful connection",
 			serverRunning: true,
-			config: pkggrpc.CVMClientConfig{
-				BaseConfig: pkggrpc.BaseConfig{
+			config: clients.StandardClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:     testServer.listenAddr,
 					Timeout: 1,
 				},
@@ -94,8 +94,8 @@ func TestAgentClientIntegration(t *testing.T) {
 		{
 			name:          "server not healthy",
 			serverRunning: false,
-			config: pkggrpc.CVMClientConfig{
-				BaseConfig: pkggrpc.BaseConfig{
+			config: clients.StandardClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:     "",
 					Timeout: 1,
 				},

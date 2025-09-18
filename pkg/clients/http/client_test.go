@@ -13,15 +13,17 @@ import (
 )
 
 func TestConfig_Configuration(t *testing.T) {
-	config := Config{
-		URL:          "http://localhost:8080",
-		Timeout:      30 * time.Second,
-		ClientCert:   "cert.pem",
-		ClientKey:    "key.pem",
-		ServerCAFile: "ca.pem",
+	config := clients.StandardClientConfig{
+		BaseConfig: clients.BaseConfig{
+			URL:          "http://localhost:8080",
+			Timeout:      30 * time.Second,
+			ClientCert:   "cert.pem",
+			ClientKey:    "key.pem",
+			ServerCAFile: "ca.pem",
+		},
 	}
 
-	result := config.Configuration()
+	result := config.GetBaseConfig()
 
 	assert.Equal(t, config, result)
 	assert.Equal(t, "http://localhost:8080", result.URL)
@@ -32,8 +34,8 @@ func TestConfig_Configuration(t *testing.T) {
 }
 
 func TestAgentClientConfig_Configuration(t *testing.T) {
-	agentConfig := &AgentClientConfig{
-		Config: Config{
+	agentConfig := &clients.AttestedClientConfig{
+		BaseConfig: clients.BaseConfig{
 			URL:          "https://agent.example.com",
 			Timeout:      60 * time.Second,
 			ClientCert:   "agent-cert.pem",
@@ -45,9 +47,9 @@ func TestAgentClientConfig_Configuration(t *testing.T) {
 		ProductName:       "Milan",
 	}
 
-	result := agentConfig.Configuration()
+	result := agentConfig.GetBaseConfig()
 
-	assert.Equal(t, agentConfig.Config, result)
+	assert.Equal(t, agentConfig.BaseConfig, result)
 	assert.Equal(t, "https://agent.example.com", result.URL)
 	assert.Equal(t, 60*time.Second, result.Timeout)
 	assert.Equal(t, "agent-cert.pem", result.ClientCert)
@@ -56,8 +58,8 @@ func TestAgentClientConfig_Configuration(t *testing.T) {
 }
 
 func TestProxyClientConfig_Configuration(t *testing.T) {
-	proxyConfig := ProxyClientConfig{
-		Config: Config{
+	proxyConfig := clients.StandardClientConfig{
+		BaseConfig: clients.BaseConfig{
 			URL:          "http://proxy.example.com",
 			Timeout:      45 * time.Second,
 			ClientCert:   "proxy-cert.pem",
@@ -66,9 +68,9 @@ func TestProxyClientConfig_Configuration(t *testing.T) {
 		},
 	}
 
-	result := proxyConfig.Configuration()
+	result := proxyConfig.BaseConfig
 
-	assert.Equal(t, proxyConfig.Config, result)
+	assert.Equal(t, proxyConfig.BaseConfig, result)
 	assert.Equal(t, "http://proxy.example.com", result.URL)
 	assert.Equal(t, 45*time.Second, result.Timeout)
 }
@@ -76,19 +78,19 @@ func TestProxyClientConfig_Configuration(t *testing.T) {
 func TestNewClient_Success(t *testing.T) {
 	tests := []struct {
 		name   string
-		config ClientConfiguration
+		config clients.ClientConfiguration
 	}{
 		{
 			name: "Basic config",
-			config: Config{
+			config: clients.BaseConfig{
 				URL:     "http://localhost:8080",
 				Timeout: 30 * time.Second,
 			},
 		},
 		{
 			name: "Agent config without attested TLS",
-			config: &AgentClientConfig{
-				Config: Config{
+			config: &clients.AttestedClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:     "https://agent.example.com",
 					Timeout: 60 * time.Second,
 				},
@@ -97,8 +99,8 @@ func TestNewClient_Success(t *testing.T) {
 		},
 		{
 			name: "Proxy config",
-			config: ProxyClientConfig{
-				Config: Config{
+			config: clients.StandardClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:     "http://proxy.example.com",
 					Timeout: 45 * time.Second,
 				},
@@ -113,13 +115,13 @@ func TestNewClient_Success(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, client)
 			assert.NotNil(t, client.Transport())
-			assert.Equal(t, tt.config.Configuration().Timeout, client.Timeout())
+			assert.Equal(t, tt.config.GetBaseConfig().Timeout, client.Timeout())
 		})
 	}
 }
 
 func TestClient_Transport(t *testing.T) {
-	config := Config{
+	config := clients.BaseConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -139,14 +141,16 @@ func TestClient_Transport(t *testing.T) {
 func TestClient_Secure(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   ClientConfiguration
+		config   clients.ClientConfiguration
 		expected string
 	}{
 		{
 			name: "Without TLS",
-			config: Config{
-				URL:     "http://localhost:8080",
-				Timeout: 30 * time.Second,
+			config: clients.StandardClientConfig{
+				BaseConfig: clients.BaseConfig{
+					URL:     "http://localhost:8080",
+					Timeout: 30 * time.Second,
+				},
 			},
 			expected: clients.WithoutTLS.String(),
 		},
@@ -165,7 +169,7 @@ func TestClient_Secure(t *testing.T) {
 
 func TestClient_Timeout(t *testing.T) {
 	expectedTimeout := 45 * time.Second
-	config := Config{
+	config := clients.BaseConfig{
 		URL:     "http://localhost:8080",
 		Timeout: expectedTimeout,
 	}
@@ -178,7 +182,7 @@ func TestClient_Timeout(t *testing.T) {
 }
 
 func TestCreateTransport_DefaultSettings(t *testing.T) {
-	config := Config{
+	config := clients.BaseConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -195,8 +199,8 @@ func TestCreateTransport_DefaultSettings(t *testing.T) {
 }
 
 func TestCreateTransport_ATLSError(t *testing.T) {
-	config := &AgentClientConfig{
-		Config: Config{
+	config := &clients.AttestedClientConfig{
+		BaseConfig: clients.BaseConfig{
 			URL:     "https://agent.example.com",
 			Timeout: 60 * time.Second,
 		},
@@ -214,7 +218,7 @@ func TestCreateTransport_ATLSError(t *testing.T) {
 }
 
 func TestCreateTransport_BasicTLSError(t *testing.T) {
-	config := Config{
+	config := clients.BaseConfig{
 		URL:          "https://example.com",
 		Timeout:      30 * time.Second,
 		ServerCAFile: "invalid",
@@ -229,7 +233,7 @@ func TestCreateTransport_BasicTLSError(t *testing.T) {
 }
 
 func TestClientInterface_Implementation(t *testing.T) {
-	config := Config{
+	config := clients.BaseConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -247,8 +251,8 @@ func TestClientInterface_Implementation(t *testing.T) {
 }
 
 func TestAgentClientConfig_FieldAccess(t *testing.T) {
-	config := &AgentClientConfig{
-		Config: Config{
+	config := &clients.AttestedClientConfig{
+		BaseConfig: clients.BaseConfig{
 			URL:     "https://agent.example.com",
 			Timeout: 60 * time.Second,
 		},
@@ -265,8 +269,8 @@ func TestAgentClientConfig_FieldAccess(t *testing.T) {
 }
 
 func TestProxyClientConfig_FieldAccess(t *testing.T) {
-	config := ProxyClientConfig{
-		Config: Config{
+	config := clients.StandardClientConfig{
+		BaseConfig: clients.BaseConfig{
 			URL:          "http://proxy.example.com",
 			Timeout:      45 * time.Second,
 			ClientCert:   "proxy-cert.pem",
@@ -284,16 +288,16 @@ func TestProxyClientConfig_FieldAccess(t *testing.T) {
 
 func TestClientConfiguration_Interface(t *testing.T) {
 	// Test that all config types implement ClientConfiguration interface
-	var configs []ClientConfiguration
+	var configs []clients.ClientConfiguration
 
-	configs = append(configs, Config{})
-	configs = append(configs, &AgentClientConfig{})
-	configs = append(configs, ProxyClientConfig{})
+	configs = append(configs, clients.BaseConfig{})
+	configs = append(configs, &clients.AttestedClientConfig{})
+	configs = append(configs, clients.StandardClientConfig{})
 
 	for i, config := range configs {
 		t.Run(t.Name()+"_"+string(rune(i+'0')), func(t *testing.T) {
-			result := config.Configuration()
-			assert.IsType(t, Config{}, result)
+			result := config.GetBaseConfig()
+			assert.IsType(t, clients.BaseConfig{}, result)
 		})
 	}
 }

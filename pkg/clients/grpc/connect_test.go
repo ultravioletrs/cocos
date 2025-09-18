@@ -36,14 +36,14 @@ func TestNewClient(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		cfg      BaseConfig
-		agentCfg AgentClientConfig
+		cfg      clients.BaseConfig
+		agentCfg clients.AttestedClientConfig
 		wantErr  bool
 		err      error
 	}{
 		{
 			name: "Success without TLS",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL: "localhost:7001",
 			},
 			wantErr: false,
@@ -51,7 +51,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with TLS",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 			},
@@ -60,7 +60,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with mTLS",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -71,8 +71,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success agent client with mTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -84,8 +84,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success agent client with aTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -99,8 +99,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Failed agent client with aTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				BaseConfig: clients.BaseConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -114,7 +114,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ServerCAFile",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: "nonexistent.pem",
 			},
@@ -123,7 +123,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientCert",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   "nonexistent.pem",
@@ -134,7 +134,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientKey",
-			cfg: BaseConfig{
+			cfg: clients.BaseConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,

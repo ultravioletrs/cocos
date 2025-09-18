@@ -4,11 +4,12 @@ package cvm
 
 import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 // NewManagerClient creates new manager gRPC client instance.
-func NewCVMClient(cfg grpc.CVMClientConfig) (grpc.Client, cvms.ServiceClient, error) {
+func NewCVMClient(cfg clients.StandardClientConfig) (grpc.Client, cvms.ServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err
