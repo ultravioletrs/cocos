@@ -146,7 +146,7 @@ func main() {
 		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(svc))
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, "", "")
+	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, nil)
 
 	hs := httpserver.NewServer(ctx, cancel, svcName, httpServerConfig, http.MakeHandler(chi.NewMux(), svcName, cfg.InstanceID), logger)
 

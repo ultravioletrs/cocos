@@ -23,23 +23,35 @@ const (
 type httpServer struct {
 	server.BaseServer
 
-	server *http.Server
-	caURL  string
+	server             *http.Server
+	certProvider       atls.CertificateProvider
+	attestedTLSEnabled bool
 }
 
 var _ server.Server = (*httpServer)(nil)
 
 func NewServer(
 	ctx context.Context, cancel context.CancelFunc, name string, config server.ServerConfiguration,
-	handler http.Handler, logger *slog.Logger, caURL string,
+	handler http.Handler, logger *slog.Logger, certProvider atls.CertificateProvider,
 ) server.Server {
 	baseServer := server.NewBaseServer(ctx, cancel, name, config, logger)
 	hserver := &http.Server{Addr: baseServer.Address, Handler: handler}
 
+	var attestedTLS bool
+
+	if agentConfig, ok := config.(server.AgentConfig); ok && agentConfig.AttestedTLS {
+		if certProvider == nil {
+			logger.Error("Failed to create certificate provider")
+		} else {
+			attestedTLS = true
+		}
+	}
+
 	return &httpServer{
-		BaseServer: baseServer,
-		server:     hserver,
-		caURL:      caURL,
+		BaseServer:         baseServer,
+		server:             hserver,
+		certProvider:       certProvider,
+		attestedTLSEnabled: attestedTLS,
 	}
 }
 
@@ -66,22 +78,15 @@ func (s *httpServer) Stop() error {
 	if err := s.server.Shutdown(ctx); err != nil {
 		s.Logger.Error(fmt.Sprintf(
 			"%s service %s server error occurred during shutdown at %s: %s", s.Name, s.Protocol, s.Address, err))
-
 		return fmt.Errorf("%s service %s server error occurred during shutdown at %s: %w", s.Name, s.Protocol, s.Address, err)
 	}
 
 	s.Logger.Info(fmt.Sprintf("%s %s service shutdown of http at %s", s.Name, s.Protocol, s.Address))
-
 	return nil
 }
 
 func (s *httpServer) shouldUseAttestedTLS() bool {
-	cfg, ok := s.Config.(server.AgentConfig)
-	if !ok {
-		return false
-	}
-
-	return cfg.AttestedTLS && s.caURL != ""
+	return s.attestedTLSEnabled && s.certProvider != nil
 }
 
 func (s *httpServer) shouldUseRegularTLS() bool {
@@ -91,10 +96,11 @@ func (s *httpServer) shouldUseRegularTLS() bool {
 func (s *httpServer) startWithAttestedTLS() error {
 	tlsConfig := &tls.Config{
 		ClientAuth:     tls.NoClientCert,
-		GetCertificate: atls.GetCertificate(s.caURL, ""),
+		GetCertificate: s.certProvider.GetCertificate,
 	}
 
-	mtls, err := server.ConfigureCertificateAuthorities(tlsConfig, s.Config.GetBaseConfig().ServerCAFile, s.Config.GetBaseConfig().ClientCAFile)
+	baseConfig := s.Config.GetBaseConfig()
+	mtls, err := server.ConfigureCertificateAuthorities(tlsConfig, baseConfig.ServerCAFile, baseConfig.ClientCAFile)
 	if err != nil {
 		return fmt.Errorf("failed to configure certificate authorities: %w", err)
 	}
@@ -107,12 +113,12 @@ func (s *httpServer) startWithAttestedTLS() error {
 	s.Protocol = httpsProtocol
 
 	s.logAttestedTLSStart(mtls)
-
 	return s.listenAndServe(true)
 }
 
 func (s *httpServer) startWithRegularTLS() error {
-	tlsSetup, err := server.SetupRegularTLS(s.Config.GetBaseConfig().CertFile, s.Config.GetBaseConfig().KeyFile, s.Config.GetBaseConfig().ServerCAFile, s.Config.GetBaseConfig().ClientCAFile)
+	baseConfig := s.Config.GetBaseConfig()
+	tlsSetup, err := server.SetupRegularTLS(baseConfig.CertFile, baseConfig.KeyFile, baseConfig.ServerCAFile, baseConfig.ClientCAFile)
 	if err != nil {
 		return fmt.Errorf("failed to setup TLS: %w", err)
 	}
@@ -121,13 +127,11 @@ func (s *httpServer) startWithRegularTLS() error {
 	s.Protocol = httpsProtocol
 
 	s.logRegularTLSStart(tlsSetup.MTLS)
-
 	return s.listenAndServe(true)
 }
 
 func (s *httpServer) startWithoutTLS() error {
 	s.Logger.Info(fmt.Sprintf("%s service %s server listening at %s without TLS", s.Name, s.Protocol, s.Address))
-
 	return s.listenAndServe(false)
 }
 
@@ -140,15 +144,15 @@ func (s *httpServer) logAttestedTLSStart(mtls bool) {
 }
 
 func (s *httpServer) logRegularTLSStart(mtls bool) {
+	baseConfig := s.Config.GetBaseConfig()
 	if mtls {
 		s.Logger.Info(fmt.Sprintf(
 			"%s service %s server listening at %s with TLS/mTLS cert %s , key %s and CAs %s, %s",
-			s.Name, s.Protocol, s.Address, s.Config.GetBaseConfig().CertFile, s.Config.GetBaseConfig().KeyFile,
-			s.Config.GetBaseConfig().ServerCAFile, s.Config.GetBaseConfig().ClientCAFile))
+			s.Name, s.Protocol, s.Address, baseConfig.CertFile, baseConfig.KeyFile,
+			baseConfig.ServerCAFile, baseConfig.ClientCAFile))
 	} else {
-		s.Logger.Info(
-			fmt.Sprintf("%s service %s server listening at %s with TLS cert %s and key %s",
-				s.Name, s.Protocol, s.Address, s.Config.GetBaseConfig().CertFile, s.Config.GetBaseConfig().KeyFile))
+		s.Logger.Info(fmt.Sprintf("%s service %s server listening at %s with TLS cert %s and key %s",
+			s.Name, s.Protocol, s.Address, baseConfig.CertFile, baseConfig.KeyFile))
 	}
 }
 

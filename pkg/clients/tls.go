@@ -137,7 +137,7 @@ func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
 		RootCAs:            rootCAs,
 		ServerName:         sni,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return atls.VerifyPeerCertificateATLS(rawCerts, verifiedChains, nonce, rootCAs)
+			return atls.NewCertificateVerifier(rootCAs).VerifyPeerCertificate(rawCerts, verifiedChains, nonce)
 		},
 	}
 

@@ -28,10 +28,8 @@ import (
 	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -40,50 +38,6 @@ import (
 const sevProductNameMilan = "Milan"
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
-
-func TestGetPlatformProvider(t *testing.T) {
-	cases := []struct {
-		name          string
-		platformType  attestation.PlatformType
-		expectedError error
-	}{
-		{
-			name:          "Valid platform type SNPvTPM",
-			platformType:  attestation.SNPvTPM,
-			expectedError: nil,
-		},
-		{
-			name:          "Valid platform type Azure",
-			platformType:  attestation.Azure,
-			expectedError: nil,
-		},
-		{
-			name:          "Valid platform type TDX",
-			platformType:  attestation.TDX,
-			expectedError: nil,
-		},
-		{
-			name:          "Invalid platform type",
-			platformType:  999,
-			expectedError: errors.New("unsupported platform type: 999"),
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			provider, err := getPlatformProvider(c.platformType)
-
-			if c.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, c.expectedError.Error(), err.Error())
-				assert.Nil(t, provider)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, provider)
-			}
-		})
-	}
-}
 
 func TestGetPlatformVerifier(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "policy")
@@ -309,7 +263,8 @@ func TestVerifyCertificateExtension(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			err := verifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
+			v := CertificateVerifier{}
+			err := v.verifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
 			if c.expectError {
 				assert.Error(t, err)
 			} else {
@@ -319,26 +274,8 @@ func TestVerifyCertificateExtension(t *testing.T) {
 	}
 }
 
-func TestGetCertificateExtension(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-
-	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation-data"), nil)
-
-	pubKey := []byte("test-public-key")
-	nonce := make([]byte, 32)
-	_, err := rand.Read(nonce)
-	require.NoError(t, err)
-
-	testOID := asn1.ObjectIdentifier{1, 2, 3, 4}
-
-	extension, err := getCertificateExtension(mockProvider, pubKey, nonce, testOID)
-	assert.NoError(t, err)
-	assert.Equal(t, testOID, extension.Id)
-	assert.Equal(t, []byte("mock-attestation-data"), extension.Value)
-}
-
 func TestGetCertificateWithSelfSigned(t *testing.T) {
-	getCertFunc := GetCertificate("", "")
+	p := AttestedCertificateProvider{}
 
 	nonce := make([]byte, 64)
 	_, err := rand.Read(nonce)
@@ -350,7 +287,7 @@ func TestGetCertificateWithSelfSigned(t *testing.T) {
 		ServerName: serverName,
 	}
 
-	cert, err := getCertFunc(clientHello)
+	cert, err := p.GetCertificate(clientHello)
 
 	if err != nil {
 		t.Logf("Expected error due to missing attestation setup: %v", err)
@@ -383,7 +320,7 @@ func TestGetCertificateWithCA(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	getCertFunc := GetCertificate(mockServer.URL, "test-cvm-id")
+	p := AttestedCertificateProvider{}
 
 	nonce := make([]byte, 64)
 	_, err := rand.Read(nonce)
@@ -395,7 +332,7 @@ func TestGetCertificateWithCA(t *testing.T) {
 		ServerName: serverName,
 	}
 
-	_, err = getCertFunc(clientHello)
+	_, err = p.GetCertificate(clientHello)
 	if err != nil {
 		t.Logf("Expected error due to missing attestation setup: %v", err)
 		assert.Error(t, err)
@@ -403,7 +340,7 @@ func TestGetCertificateWithCA(t *testing.T) {
 }
 
 func TestGetCertificateInvalidServerName(t *testing.T) {
-	getCertFunc := GetCertificate("", "")
+	p := AttestedCertificateProvider{}
 
 	cases := []struct {
 		name       string
@@ -438,141 +375,12 @@ func TestGetCertificateInvalidServerName(t *testing.T) {
 				ServerName: c.serverName,
 			}
 
-			cert, err := getCertFunc(clientHello)
+			cert, err := p.GetCertificate(clientHello)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), c.expectErr)
 			assert.Nil(t, cert)
 		})
 	}
-}
-
-func TestProcessRequest(t *testing.T) {
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/success":
-			w.WriteHeader(http.StatusOK)
-			if _, err := w.Write([]byte(`{"message": "success"}`)); err != nil {
-				http.Error(w, "Failed to write response", http.StatusInternalServerError)
-				return
-			}
-		case "/notfound":
-			w.WriteHeader(http.StatusNotFound)
-			if _, err := w.Write([]byte(`{"error": "not found"}`)); err != nil {
-				http.Error(w, "Failed to write response", http.StatusInternalServerError)
-				return
-			}
-		case "/headers":
-			if r.Header.Get("X-Custom-Header") == "test-value" {
-				w.Header().Set("X-Response-Header", "received")
-			}
-			w.WriteHeader(http.StatusOK)
-			if _, err := w.Write([]byte(`{"headers": "ok"}`)); err != nil {
-				http.Error(w, "Failed to write response", http.StatusInternalServerError)
-				return
-			}
-		default:
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	}))
-	defer testServer.Close()
-
-	cases := []struct {
-		name              string
-		method            string
-		url               string
-		data              []byte
-		headers           map[string]string
-		expectedRespCodes []int
-		expectError       bool
-	}{
-		{
-			name:              "Successful GET request",
-			method:            http.MethodGet,
-			url:               testServer.URL + "/success",
-			data:              nil,
-			headers:           nil,
-			expectedRespCodes: []int{http.StatusOK},
-			expectError:       false,
-		},
-		{
-			name:              "Successful POST request with data",
-			method:            http.MethodPost,
-			url:               testServer.URL + "/success",
-			data:              []byte(`{"test": "data"}`),
-			headers:           nil,
-			expectedRespCodes: []int{http.StatusOK},
-			expectError:       false,
-		},
-		{
-			name:              "Request with custom headers",
-			method:            http.MethodGet,
-			url:               testServer.URL + "/headers",
-			data:              nil,
-			headers:           map[string]string{"X-Custom-Header": "test-value"},
-			expectedRespCodes: []int{http.StatusOK},
-			expectError:       false,
-		},
-		{
-			name:              "Request with unexpected status code",
-			method:            http.MethodGet,
-			url:               testServer.URL + "/notfound",
-			data:              nil,
-			headers:           nil,
-			expectedRespCodes: []int{http.StatusOK},
-			expectError:       true,
-		},
-		{
-			name:              "Request with multiple expected status codes",
-			method:            http.MethodGet,
-			url:               testServer.URL + "/notfound",
-			data:              nil,
-			headers:           nil,
-			expectedRespCodes: []int{http.StatusOK, http.StatusNotFound},
-			expectError:       false,
-		},
-		{
-			name:              "Request to invalid URL",
-			method:            http.MethodGet,
-			url:               "invalid-url",
-			data:              nil,
-			headers:           nil,
-			expectedRespCodes: []int{http.StatusOK},
-			expectError:       true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			headers, body, err := processRequest(c.method, c.url, c.data, c.headers, c.expectedRespCodes...)
-
-			if c.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, headers)
-				assert.NotNil(t, body)
-
-				if c.name == "Request with custom headers" {
-					assert.Equal(t, "received", headers.Get("X-Response-Header"))
-				}
-			}
-		})
-	}
-}
-
-func TestGetCertificateExtensionError(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-
-	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get attestation"))
-
-	pubKey := []byte("test-public-key")
-	nonce := make([]byte, 32)
-	testOID := asn1.ObjectIdentifier{1, 2, 3, 4}
-
-	extension, err := getCertificateExtension(mockProvider, pubKey, nonce, testOID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get attestation")
-	assert.Equal(t, pkix.Extension{}, extension)
 }
 
 func prepVerifyAttReport(t *testing.T) *sevsnp.Attestation {
@@ -728,7 +536,10 @@ type atlsTestCase struct {
 func runCertificateVerificationTests(t *testing.T, testCases []testCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := verifyCertificateSignature(tc.cert, tc.rootCAs)
+			v := CertificateVerifier{
+				rootCAs: tc.rootCAs,
+			}
+			err := v.verifyCertificateSignature(tc.cert)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -751,7 +562,10 @@ func runCertificateVerificationTests(t *testing.T, testCases []testCase) {
 func runATLSVerificationTests(t *testing.T, testCases []atlsTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := VerifyPeerCertificateATLS(tc.rawCerts, nil, tc.nonce, tc.rootCAs)
+			v := CertificateVerifier{
+				rootCAs: tc.rootCAs,
+			}
+			err := v.VerifyPeerCertificate(tc.rawCerts, nil, tc.nonce)
 
 			if tc.expectError {
 				assert.Error(t, err)

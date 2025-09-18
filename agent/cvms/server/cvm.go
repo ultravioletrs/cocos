@@ -11,6 +11,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/server"
 	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"google.golang.org/grpc"
@@ -28,21 +29,19 @@ type AgentServer interface {
 }
 
 type agentServer struct {
-	gs     server.Server
-	logger *slog.Logger
-	svc    agent.Service
-	host   string
-	caUrl  string
-	cvmId  string
+	gs           server.Server
+	logger       *slog.Logger
+	svc          agent.Service
+	host         string
+	certProvider atls.CertificateProvider
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, host string, caUrl string, cvmId string) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string, certProvider atls.CertificateProvider) AgentServer {
 	return &agentServer{
-		logger: logger,
-		svc:    svc,
-		host:   host,
-		caUrl:  caUrl,
-		cvmId:  cvmId,
+		logger:       logger,
+		svc:          svc,
+		host:         host,
+		certProvider: certProvider,
 	}
 }
 
@@ -78,7 +77,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, authSvc, as.caUrl, as.cvmId)
+	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, authSvc, as.certProvider)
 
 	go func() {
 		err := as.gs.Start()

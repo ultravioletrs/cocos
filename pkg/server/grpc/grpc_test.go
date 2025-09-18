@@ -49,7 +49,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, "", "")
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, nil)
 
 	assert.NotNil(t, srv)
 	assert.IsType(t, &Server{}, srv)
@@ -98,7 +98,7 @@ func TestServerStartWithTLSFile(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, "", "")
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -144,7 +144,7 @@ func TestServerStartWithmTLSFile(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, "", "")
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -183,7 +183,7 @@ func TestServerStop(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	authSvc := new(authmocks.Authenticator)
 
-	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, "", "")
+	srv := New(ctx, cancel, "TestServer", config, func(srv *grpc.Server) {}, logger, authSvc, nil)
 
 	go func() {
 		err := srv.Start()
@@ -367,7 +367,7 @@ func TestServerInitializationAndStartup(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			authSvc := new(authmocks.Authenticator)
 
-			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, authSvc, "", "")
+			srv := New(ctx, cancel, "TestServer", tc.config, func(srv *grpc.Server) {}, logger, authSvc, nil)
 			var wg sync.WaitGroup
 			wg.Add(1)
 

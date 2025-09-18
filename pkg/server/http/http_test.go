@@ -64,14 +64,12 @@ func TestNewServer(t *testing.T) {
 	}
 	handler := &mockHandler{}
 	logger := slog.Default()
-	caURL := "https://ca.example.com"
 
-	server := NewServer(ctx, cancel, name, config, handler, logger, caURL)
+	server := NewServer(ctx, cancel, name, config, handler, logger, nil)
 
 	assert.NotNil(t, server)
 	httpSrv, ok := server.(*httpServer)
 	require.True(t, ok)
-	assert.Equal(t, caURL, httpSrv.caURL)
 	assert.NotNil(t, httpSrv.server)
 	assert.Equal(t, handler, httpSrv.server.Handler)
 }
@@ -123,7 +121,7 @@ func TestHttpServer_shouldUseAttestedTLS(t *testing.T) {
 			ctx := context.Background()
 			cancel := func() {}
 
-			server := NewServer(ctx, cancel, "test", tt.config, &mockHandler{}, slog.Default(), tt.caURL)
+			server := NewServer(ctx, cancel, "test", tt.config, &mockHandler{}, slog.Default(), nil)
 			httpSrv := server.(*httpServer)
 
 			result := httpSrv.shouldUseAttestedTLS()
@@ -176,7 +174,7 @@ func TestHttpServer_shouldUseRegularTLS(t *testing.T) {
 				},
 			}
 
-			server := NewServer(ctx, cancel, "test", config, &mockHandler{}, slog.Default(), "")
+			server := NewServer(ctx, cancel, "test", config, &mockHandler{}, slog.Default(), nil)
 			httpSrv := server.(*httpServer)
 
 			result := httpSrv.shouldUseRegularTLS()
@@ -192,7 +190,7 @@ func TestHttpServer_Stop(t *testing.T) {
 	}
 	handler := &mockHandler{}
 
-	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), "")
+	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), nil)
 	httpSrv := server.(*httpServer)
 
 	// Start a test server that we can control
@@ -229,7 +227,7 @@ func TestHttpServer_logAttestedTLSStart(t *testing.T) {
 				baseConfig: &mockBaseConfig{},
 			}
 
-			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), "")
+			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), nil)
 			httpSrv := server.(*httpServer)
 
 			// This test mainly ensures the method doesn't panic
@@ -269,7 +267,7 @@ func TestHttpServer_logRegularTLSStart(t *testing.T) {
 				},
 			}
 
-			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), "")
+			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), nil)
 			httpSrv := server.(*httpServer)
 
 			// This test mainly ensures the method doesn't panic
@@ -289,7 +287,7 @@ func TestHttpServer_startWithoutTLS(t *testing.T) {
 	}
 	handler := &mockHandler{}
 
-	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), "")
+	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), nil)
 	httpSrv := server.(*httpServer)
 
 	// Use a test server to avoid binding to actual ports
@@ -334,7 +332,7 @@ func TestHttpServer_Protocol(t *testing.T) {
 				baseConfig: &mockBaseConfig{},
 			}
 
-			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), "")
+			server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), nil)
 			httpSrv := server.(*httpServer)
 
 			tt.setupTLS(httpSrv)
@@ -351,7 +349,7 @@ func TestHttpServer_ContextCancellation(t *testing.T) {
 	}
 	handler := &mockHandler{}
 
-	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), "")
+	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), nil)
 	httpSrv := server.(*httpServer)
 
 	// Cancel the context immediately
@@ -372,7 +370,7 @@ func TestHttpServer_TLSConfiguration(t *testing.T) {
 		},
 	}
 
-	server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), "")
+	server := NewServer(ctx, cancel, "test-server", config, &mockHandler{}, slog.Default(), nil)
 	httpSrv := server.(*httpServer)
 
 	// Test TLS configuration setup
@@ -397,7 +395,7 @@ func TestHttpServer_Lifecycle(t *testing.T) {
 	}
 	handler := &mockHandler{}
 
-	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), "")
+	server := NewServer(ctx, cancel, "test-server", config, handler, slog.Default(), nil)
 
 	// Test that server can be created and has expected initial state
 	httpSrv, ok := server.(*httpServer)
