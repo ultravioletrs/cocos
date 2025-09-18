@@ -15,7 +15,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/mocks"
-	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
@@ -78,14 +78,14 @@ func TestAgentClientIntegration(t *testing.T) {
 	tests := []struct {
 		name          string
 		serverRunning bool
-		config        pkggrpc.AgentClientConfig
+		config        clients.AttestedClientConfig
 		err           error
 	}{
 		{
 			name:          "successful connection",
 			serverRunning: true,
-			config: pkggrpc.AgentClientConfig{
-				BaseConfig: pkggrpc.BaseConfig{
+			config: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     testServer.listenAddr,
 					Timeout: 1,
 				},
@@ -95,8 +95,8 @@ func TestAgentClientIntegration(t *testing.T) {
 		{
 			name:          "server not healthy",
 			serverRunning: false,
-			config: pkggrpc.AgentClientConfig{
-				BaseConfig: pkggrpc.BaseConfig{
+			config: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     "",
 					Timeout: 1,
 				},
@@ -105,8 +105,8 @@ func TestAgentClientIntegration(t *testing.T) {
 		},
 		{
 			name: "invalid config, missing AttestationPolicy with aTLS",
-			config: pkggrpc.AgentClientConfig{
-				BaseConfig: pkggrpc.BaseConfig{
+			config: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     testServer.listenAddr,
 					Timeout: 1,
 				},

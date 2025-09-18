@@ -47,9 +47,11 @@ const (
 )
 
 var (
-	SNPvTPMOID = asn1.ObjectIdentifier{2, 99999, 1, 0}
-	AzureOID   = asn1.ObjectIdentifier{2, 99999, 1, 1}
-	TDXOID     = asn1.ObjectIdentifier{2, 99999, 1, 2}
+	SNPvTPMOID          = asn1.ObjectIdentifier{2, 99999, 1, 0}
+	AzureOID            = asn1.ObjectIdentifier{2, 99999, 1, 1}
+	TDXOID              = asn1.ObjectIdentifier{2, 99999, 1, 2}
+	errCertificateParse = errors.New("failed to parse x509 certificate")
+	errAttVerification  = errors.New("certificate is not self signed")
 )
 
 type csrReq struct {
@@ -103,7 +105,7 @@ func getOID(platformType attestation.PlatformType) (asn1.ObjectIdentifier, error
 	}
 }
 
-func GetPlatformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType, error) {
+func getPlatformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType, error) {
 	switch {
 	case oid.Equal(SNPvTPMOID):
 		return attestation.SNPvTPM, nil
@@ -116,7 +118,7 @@ func GetPlatformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType
 	}
 }
 
-func VerifyCertificateExtension(extension []byte, pubKey []byte, nonce []byte, pType attestation.PlatformType) error {
+func verifyCertificateExtension(extension []byte, pubKey []byte, nonce []byte, pType attestation.PlatformType) error {
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 
@@ -330,4 +332,50 @@ func processRequest(method, reqUrl string, data []byte, headers map[string]strin
 		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
 	return resp.Header, body, nil
+}
+
+// VerifyPeerCertificateATLS verifies peer certificates for Attested TLS.
+func VerifyPeerCertificateATLS(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte, rootCAs *x509.CertPool) error {
+	cert, err := x509.ParseCertificate(rawCerts[0])
+	if err != nil {
+		return errors.Wrap(errCertificateParse, err)
+	}
+
+	err = verifyCertificateSignature(cert, rootCAs)
+	if err != nil {
+		return errors.Wrap(errAttVerification, err)
+	}
+
+	for _, ext := range cert.Extensions {
+		pType, err := getPlatformTypeFromOID(ext.Id)
+		if err == nil {
+			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+			if err != nil {
+				return fmt.Errorf("failed to marshal public key to DER format: %w", err)
+			}
+
+			return verifyCertificateExtension(ext.Value, pubKeyDER, nonce, pType)
+		}
+	}
+
+	return errors.New("attestation extension not found in certificate")
+}
+
+// VerifyCertificateSignature verifies the certificate signature against root CAs.
+func verifyCertificateSignature(cert *x509.Certificate, rootCAs *x509.CertPool) error {
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+		rootCAs.AddCert(cert)
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:       rootCAs,
+		CurrentTime: time.Now(),
+	}
+
+	if _, err := cert.Verify(opts); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -4,11 +4,12 @@ package manager
 
 import (
 	"github.com/ultravioletrs/cocos/manager"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 )
 
 // NewManagerClient creates new manager gRPC client instance.
-func NewManagerClient(cfg grpc.ManagerClientConfig) (grpc.Client, manager.ManagerServiceClient, error) {
+func NewManagerClient(cfg clients.StandardClientConfig) (grpc.Client, manager.ManagerServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err

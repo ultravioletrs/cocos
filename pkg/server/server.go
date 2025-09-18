@@ -20,7 +20,7 @@ type ServerConfiguration interface {
 	GetBaseConfig() ServerConfig
 }
 
-type BaseConfig struct {
+type Config struct {
 	Host         string `env:"HOST"               envDefault:"localhost"`
 	Port         string `env:"PORT"               envDefault:"7001"`
 	ServerCAFile string `env:"SERVER_CA_CERTS"    envDefault:""`
@@ -30,7 +30,7 @@ type BaseConfig struct {
 }
 
 type ServerConfig struct {
-	BaseConfig
+	Config
 }
 type AgentConfig struct {
 	ServerConfig
@@ -55,19 +55,20 @@ func (a AgentConfig) GetBaseConfig() ServerConfig {
 	return a.ServerConfig
 }
 
-func stopAllServer(servers ...Server) error {
-	var errs []error
-	for _, server := range servers {
-		if err := server.Stop(); err != nil {
-			errs = append(errs, err)
-		}
-	}
+func NewBaseServer(
+	ctx context.Context, cancel context.CancelFunc, name string, config ServerConfiguration, logger *slog.Logger,
+) BaseServer {
+	cfg := config.GetBaseConfig()
+	address := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 
-	if len(errs) > 0 {
-		return fmt.Errorf("encountered errors while stopping servers: %v", errs)
+	return BaseServer{
+		Ctx:     ctx,
+		Cancel:  cancel,
+		Name:    name,
+		Address: address,
+		Config:  config,
+		Logger:  logger,
 	}
-
-	return nil
 }
 
 func StopHandler(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger, svcName string, servers ...Server) error {
@@ -86,4 +87,19 @@ func StopHandler(ctx context.Context, cancel context.CancelFunc, logger *slog.Lo
 	case <-ctx.Done():
 		return nil
 	}
+}
+
+func stopAllServer(servers ...Server) error {
+	var errs []error
+	for _, server := range servers {
+		if err := server.Stop(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("encountered errors while stopping servers: %v", errs)
+	}
+
+	return nil
 }

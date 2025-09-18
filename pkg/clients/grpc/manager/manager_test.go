@@ -7,21 +7,19 @@ import (
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 )
 
 func TestNewManagerClient(t *testing.T) {
 	tests := []struct {
 		name string
-		cfg  grpc.ManagerClientConfig
+		cfg  clients.StandardClientConfig
 		err  error
 	}{
 		{
 			name: "Valid config",
-			cfg: grpc.ManagerClientConfig{
-				BaseConfig: grpc.BaseConfig{
-					URL: "localhost:7001",
-				},
+			cfg: clients.StandardClientConfig{
+				URL: "localhost:7001",
 			},
 			err: nil,
 		},

@@ -30,6 +30,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
@@ -111,7 +112,7 @@ func main() {
 		provider = &attestation.EmptyProvider{}
 	}
 
-	cvmGrpcConfig := pkggrpc.CVMClientConfig{}
+	cvmGrpcConfig := clients.StandardClientConfig{}
 	if err := env.ParseWithOptions(&cvmGrpcConfig, env.Options{Prefix: envPrefixCVMGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		exitCode = 1

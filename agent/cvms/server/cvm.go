@@ -11,8 +11,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
-	"github.com/ultravioletrs/cocos/internal/server"
-	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
+	"github.com/ultravioletrs/cocos/pkg/server"
+	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -53,7 +53,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	agentGrpcServerConfig := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
-			BaseConfig: server.BaseConfig{
+			Config: server.Config{
 				Host:         as.host,
 				Port:         cfg.Port,
 				CertFile:     cfg.CertFile,

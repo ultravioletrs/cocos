@@ -7,6 +7,7 @@ import (
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -14,13 +15,13 @@ import (
 var ErrAgentServiceUnavailable = errors.New("agent service is unavailable")
 
 // NewAgentClient creates new agent gRPC client instance.
-func NewAgentClient(ctx context.Context, cfg grpc.AgentClientConfig) (grpc.Client, agent.AgentServiceClient, error) {
+func NewAgentClient(ctx context.Context, cfg clients.AttestedClientConfig) (grpc.Client, agent.AgentServiceClient, error) {
 	client, err := grpc.NewClient(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if client.Secure() != grpc.WithMATLS && client.Secure() != grpc.WithATLS && client.Secure() != grpc.WithTLS {
+	if client.Secure() != clients.WithMATLS.String() && client.Secure() != clients.WithATLS.String() && client.Secure() != clients.WithTLS.String() {
 		health := grpchealth.NewHealthClient(client.Connection())
 		resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
 			Service: "agent",

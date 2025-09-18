@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 )
 
 func TestNewClient(t *testing.T) {
@@ -35,14 +36,14 @@ func TestNewClient(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		cfg      BaseConfig
-		agentCfg AgentClientConfig
+		cfg      clients.StandardClientConfig
+		agentCfg clients.AttestedClientConfig
 		wantErr  bool
 		err      error
 	}{
 		{
 			name: "Success without TLS",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL: "localhost:7001",
 			},
 			wantErr: false,
@@ -50,7 +51,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with TLS",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 			},
@@ -59,7 +60,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with mTLS",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -70,8 +71,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success agent client with mTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -83,8 +84,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success agent client with aTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -98,8 +99,8 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Failed agent client with aTLS",
-			agentCfg: AgentClientConfig{
-				BaseConfig: BaseConfig{
+			agentCfg: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -113,34 +114,34 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ServerCAFile",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     errFailedToLoadRootCA,
+			err:     clients.ErrFailedToLoadRootCA,
 		},
 		{
 			name: "Fail with invalid ClientCert",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   "nonexistent.pem",
 				ClientKey:    clientKeyFile,
 			},
 			wantErr: true,
-			err:     errFailedToLoadClientCertKey,
+			err:     clients.ErrFailedToLoadClientCertKey,
 		},
 		{
 			name: "Fail with invalid ClientKey",
-			cfg: BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
 				ClientKey:    "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     errFailedToLoadClientCertKey,
+			err:     clients.ErrFailedToLoadClientCertKey,
 		},
 	}
 
@@ -168,39 +169,39 @@ func TestNewClient(t *testing.T) {
 func TestClientSecure(t *testing.T) {
 	tests := []struct {
 		name     string
-		secure   security
+		secure   clients.Security
 		expected string
 	}{
 		{
 			name:     "Without TLS",
-			secure:   withoutTLS,
+			secure:   clients.WithoutTLS,
 			expected: "without TLS",
 		},
 		{
 			name:     "With TLS",
-			secure:   withTLS,
+			secure:   clients.WithTLS,
 			expected: "with TLS",
 		},
 		{
 			name:     "With mTLS",
-			secure:   withmTLS,
+			secure:   clients.WithMTLS,
 			expected: "with mTLS",
 		},
 		{
 			name:     "With aTLS",
-			secure:   withaTLS,
+			secure:   clients.WithATLS,
 			expected: "with aTLS",
 		},
 		{
 			name:     "With maTLS",
-			secure:   withmaTLS,
-			expected: WithMATLS,
+			secure:   clients.WithMATLS,
+			expected: "with maTLS",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &client{secure: tt.secure}
+			c := &client{security: tt.secure}
 			assert.Equal(t, tt.expected, c.Secure())
 		})
 	}
@@ -353,57 +354,4 @@ func createTempFile(data []byte) (string, error) {
 
 func createTempFileHandle() (*os.File, error) {
 	return os.CreateTemp("", "test")
-}
-
-func TestCheckIfCertificateSelfSigned(t *testing.T) {
-	selfSignedCert := createSelfSignedCert(t)
-
-	tests := []struct {
-		name string
-		cert *x509.Certificate
-		err  error
-	}{
-		{
-			name: "Self-signed certificate",
-			cert: selfSignedCert,
-			err:  nil,
-		},
-		{
-			name: "missing certificate contents",
-			cert: &x509.Certificate{},
-			err:  errors.New("x509: missing ASN.1 contents; use ParseCertificate"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := checkIfCertificateSigned(tt.cert, nil)
-			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
-		})
-	}
-}
-
-func createSelfSignedCert(t *testing.T) *x509.Certificate {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Test Org"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
-	require.NoError(t, err)
-
-	cert, err := x509.ParseCertificate(certDER)
-	require.NoError(t, err)
-
-	return cert
 }

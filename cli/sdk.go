@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/manager"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc/agent"
 	managergrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/manager"
@@ -18,15 +19,15 @@ var Verbose bool
 
 type CLI struct {
 	agentSDK      sdk.SDK
-	agentConfig   grpc.AgentClientConfig
-	managerConfig grpc.ManagerClientConfig
+	agentConfig   clients.AttestedClientConfig
+	managerConfig clients.StandardClientConfig
 	client        grpc.Client
 	managerClient manager.ManagerServiceClient
 	connectErr    error
 	measurement   cmdconfig.MeasurementProvider
 }
 
-func New(agentConfig grpc.AgentClientConfig, managerConfig grpc.ManagerClientConfig, measurement cmdconfig.MeasurementProvider) *CLI {
+func New(agentConfig clients.AttestedClientConfig, managerConfig clients.StandardClientConfig, measurement cmdconfig.MeasurementProvider) *CLI {
 	return &CLI{
 		agentConfig:   agentConfig,
 		managerConfig: managerConfig,

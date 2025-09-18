@@ -4,83 +4,18 @@
 package grpc
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/absmach/supermq/pkg/errors"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type security int
-
-const (
-	withoutTLS security = iota
-	withTLS
-	withmTLS
-	withaTLS
-	withmaTLS
-)
-
-const (
-	AttestationReportSize = 0x4A0
-	WithMATLS             = "with maTLS"
-	WithATLS              = "with aTLS"
-	WithTLS               = "with TLS"
-)
-
 var (
-	errGrpcConnect               = errors.New("failed to connect to grpc server")
-	errGrpcClose                 = errors.New("failed to close grpc connection")
-	errCertificateParse          = errors.New("failed to parse x509 certificate")
-	errAttVerification           = errors.New("certificat is not self signed")
-	errFailedToLoadClientCertKey = errors.New("failed to load client certificate and key")
-	errFailedToLoadRootCA        = errors.New("failed to load root ca file")
+	errGrpcConnect = errors.New("failed to connect to grpc server")
+	errGrpcClose   = errors.New("failed to close grpc connection")
 )
-
-type ClientConfiguration interface {
-	GetBaseConfig() BaseConfig
-}
-
-type BaseConfig struct {
-	URL          string        `env:"URL"             envDefault:"localhost:7001"`
-	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
-	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
-	ClientKey    string        `env:"CLIENT_KEY"      envDefault:""`
-	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
-}
-
-type AgentClientConfig struct {
-	BaseConfig
-	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
-	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
-	ProductName       string `env:"PRODUCT_NAME"       envDefault:"Milan"`
-}
-
-type ManagerClientConfig struct {
-	BaseConfig
-}
-
-type CVMClientConfig struct {
-	BaseConfig
-}
-
-func (a BaseConfig) GetBaseConfig() BaseConfig {
-	return a
-}
-
-func (a AgentClientConfig) GetBaseConfig() BaseConfig {
-	return a.BaseConfig
-}
-
-func (a CVMClientConfig) GetBaseConfig() BaseConfig {
-	return a.BaseConfig
-}
 
 type Client interface {
 	Close() error
@@ -90,14 +25,14 @@ type Client interface {
 
 type client struct {
 	*grpc.ClientConn
-	cfg    ClientConfiguration
-	secure security
+	cfg      clients.ClientConfiguration
+	security clients.Security
 }
 
 var _ Client = (*client)(nil)
 
-func NewClient(cfg ClientConfiguration) (Client, error) {
-	conn, secure, err := connect(cfg)
+func NewClient(cfg clients.ClientConfiguration) (Client, error) {
+	conn, security, err := connect(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +40,7 @@ func NewClient(cfg ClientConfiguration) (Client, error) {
 	return &client{
 		ClientConn: conn,
 		cfg:        cfg,
-		secure:     secure,
+		security:   security,
 	}, nil
 }
 
@@ -117,86 +52,53 @@ func (c *client) Close() error {
 }
 
 func (c *client) Secure() string {
-	switch c.secure {
-	case withTLS:
-		return WithTLS
-	case withmTLS:
-		return "with mTLS"
-	case withaTLS:
-		return "with aTLS"
-	case withmaTLS:
-		return WithMATLS
-	default:
-		return "without TLS"
-	}
+	return c.security.String()
 }
 
 func (c *client) Connection() *grpc.ClientConn {
 	return c.ClientConn
 }
 
-func connect(cfg ClientConfiguration) (*grpc.ClientConn, security, error) {
+func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Security, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
-	secure := withoutTLS
+	security := clients.WithoutTLS
 
-	if agcfg, ok := cfg.(AgentClientConfig); ok && agcfg.AttestedTLS {
-		tc, sec, err := setupATLS(agcfg)
+	if agcfg, ok := cfg.(clients.AttestedClientConfig); ok && agcfg.AttestedTLS {
+		result, err := clients.LoadATLSConfig(agcfg)
 		if err != nil {
-			return nil, secure, err
+			return nil, security, err
 		}
 
-		opts = append(opts, grpc.WithTransportCredentials(tc))
-
-		secure = sec
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(result.Config)))
+		security = result.Security
 	} else {
-		conf := cfg.GetBaseConfig()
+		conf := cfg.Config()
 		transportCreds, sec, err := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
 		if err != nil {
-			return nil, secure, err
+			return nil, security, err
 		}
 		opts = append(opts, grpc.WithTransportCredentials(transportCreds))
-		secure = sec
+		security = sec
 	}
 
-	conn, err := grpc.Dial(cfg.GetBaseConfig().URL, opts...)
+	conn, err := grpc.NewClient(cfg.Config().URL, opts...)
 	if err != nil {
-		return nil, secure, errors.Wrap(errGrpcConnect, err)
+		return nil, security, errors.Wrap(errGrpcConnect, err)
 	}
-	return conn, secure, nil
+	return conn, security, nil
 }
 
-func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, security, error) {
-	tlsConfig := &tls.Config{}
-	secure := withoutTLS
-	tc := insecure.NewCredentials()
-
-	if serverCAFile != "" {
-		rootCA, err := os.ReadFile(serverCAFile)
-		if err != nil {
-			return nil, secure, errors.Wrap(errFailedToLoadRootCA, err)
-		}
-		if len(rootCA) > 0 {
-			capool := x509.NewCertPool()
-			if !capool.AppendCertsFromPEM(rootCA) {
-				return nil, secure, fmt.Errorf("failed to append root ca to tls.Config")
-			}
-			tlsConfig.RootCAs = capool
-			secure = withTLS
-			tc = credentials.NewTLS(tlsConfig)
-		}
+func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, clients.Security, error) {
+	result, err := clients.LoadBasicTLSConfig(serverCAFile, clientCert, clientKey)
+	if err != nil {
+		return nil, clients.WithoutTLS, err
 	}
 
-	if clientCert != "" || clientKey != "" {
-		certificate, err := tls.LoadX509KeyPair(clientCert, clientKey)
-		if err != nil {
-			return nil, secure, errors.Wrap(errFailedToLoadClientCertKey, err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{certificate}
-		secure = withmTLS
-		tc = credentials.NewTLS(tlsConfig)
+	if result.Security == clients.WithoutTLS || result.Config == nil {
+		return insecure.NewCredentials(), result.Security, nil
 	}
 
-	return tc, secure, nil
+	return credentials.NewTLS(result.Config), result.Security, nil
 }

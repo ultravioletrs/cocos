@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/cli"
 	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
-	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients"
 	cmd "github.com/virtee/sev-snp-measure-go/sevsnpmeasure/cmd"
 )
 
@@ -94,14 +94,14 @@ func main() {
 		return
 	}
 
-	agentGRPCConfig := grpc.AgentClientConfig{}
+	agentGRPCConfig := clients.AttestedClientConfig{}
 	if err := env.ParseWithOptions(&agentGRPCConfig, env.Options{Prefix: envPrefixAgentGRPC}); err != nil {
 		message := color.New(color.FgRed).Sprintf("failed to load %s gRPC client configuration : %s", svcName, err)
 		rootCmd.Println(message)
 		return
 	}
 
-	managerGRPCConfig := grpc.ManagerClientConfig{}
+	managerGRPCConfig := clients.StandardClientConfig{}
 	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixManagerGRPC}); err != nil {
 		message := color.New(color.FgRed).Sprintf("failed to load %s gRPC client configuration : %s", svcName, err)
 		rootCmd.Println(message)

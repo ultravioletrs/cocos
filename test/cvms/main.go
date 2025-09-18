@@ -18,8 +18,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	cvmsgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/internal/server"
-	grpcserver "github.com/ultravioletrs/cocos/internal/server/grpc"
+	"github.com/ultravioletrs/cocos/pkg/server"
+	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -182,7 +182,7 @@ func main() {
 		cvms.RegisterServiceServer(srv, cvmsgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
 	grpcServerConfig := server.ServerConfig{
-		BaseConfig: server.BaseConfig{
+		Config: server.Config{
 			Port: defaultPort,
 		},
 	}
