@@ -74,7 +74,7 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Securit
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(result.Config)))
 		security = result.Security
 	} else {
-		conf := cfg.GetBaseConfig()
+		conf := cfg.Config()
 		transportCreds, sec, err := loadTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
 		if err != nil {
 			return nil, security, err
@@ -83,7 +83,7 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Securit
 		security = sec
 	}
 
-	conn, err := grpc.Dial(cfg.GetBaseConfig().URL, opts...)
+	conn, err := grpc.NewClient(cfg.Config().URL, opts...)
 	if err != nil {
 		return nil, security, errors.Wrap(errGrpcConnect, err)
 	}

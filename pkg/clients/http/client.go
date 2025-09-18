@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package httpclient
+package http
 
 import (
 	"net/http"
@@ -46,7 +46,7 @@ func (c *client) Secure() string {
 }
 
 func (c *client) Timeout() time.Duration {
-	return c.cfg.GetBaseConfig().Timeout
+	return c.cfg.Config().Timeout
 }
 
 func createTransport(cfg clients.ClientConfiguration) (*http.Transport, clients.Security, error) {
@@ -67,7 +67,7 @@ func createTransport(cfg clients.ClientConfiguration) (*http.Transport, clients.
 		transport.TLSClientConfig = result.Config
 		security = result.Security
 	} else {
-		conf := cfg.GetBaseConfig()
+		conf := cfg.Config()
 
 		result, err := clients.LoadBasicTLSConfig(conf.ServerCAFile, conf.ClientCert, conf.ClientKey)
 		if err != nil {

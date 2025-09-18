@@ -5,11 +5,17 @@ package clients
 
 import "time"
 
+var (
+	_ ClientConfiguration = (*AttestedClientConfig)(nil)
+	_ ClientConfiguration = (*StandardClientConfig)(nil)
+)
+
 type ClientConfiguration interface {
-	GetBaseConfig() BaseConfig
+	Config() StandardClientConfig
 }
 
-type BaseConfig struct {
+// StandardClientConfig represents a basic client configuration without attested TLS.
+type StandardClientConfig struct {
 	URL          string        `env:"URL"             envDefault:"localhost:7001"`
 	Timeout      time.Duration `env:"TIMEOUT"         envDefault:"60s"`
 	ClientCert   string        `env:"CLIENT_CERT"     envDefault:""`
@@ -17,37 +23,18 @@ type BaseConfig struct {
 	ServerCAFile string        `env:"SERVER_CA_CERTS" envDefault:""`
 }
 
-// AttestedClientConfig represents a client configuration with attested TLS capabilities
+// AttestedClientConfig represents a client configuration with attested TLS capabilities.
 type AttestedClientConfig struct {
-	BaseConfig
+	StandardClientConfig
 	AttestationPolicy string `env:"ATTESTATION_POLICY" envDefault:""`
 	AttestedTLS       bool   `env:"ATTESTED_TLS"       envDefault:"false"`
 	ProductName       string `env:"PRODUCT_NAME"       envDefault:"Milan"`
 }
 
-// StandardClientConfig represents a basic client configuration without attested TLS
-type StandardClientConfig struct {
-	BaseConfig
+func (c AttestedClientConfig) Config() StandardClientConfig {
+	return c.StandardClientConfig
 }
 
-// Interface implementations
-func (c BaseConfig) GetBaseConfig() BaseConfig {
+func (c StandardClientConfig) Config() StandardClientConfig {
 	return c
-}
-
-func (c AttestedClientConfig) GetBaseConfig() BaseConfig {
-	return c.BaseConfig
-}
-
-func (c StandardClientConfig) GetBaseConfig() BaseConfig {
-	return c.BaseConfig
-}
-
-// Helper functions to create specific client types
-func NewAttestedClient() AttestedClientConfig {
-	return AttestedClientConfig{}
-}
-
-func NewStandardClient() StandardClientConfig {
-	return StandardClientConfig{}
 }

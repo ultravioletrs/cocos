@@ -19,9 +19,7 @@ func TestNewManagerClient(t *testing.T) {
 		{
 			name: "Valid config",
 			cfg: clients.StandardClientConfig{
-				BaseConfig: clients.BaseConfig{
-					URL: "localhost:7001",
-				},
+				URL: "localhost:7001",
 			},
 			err: nil,
 		},

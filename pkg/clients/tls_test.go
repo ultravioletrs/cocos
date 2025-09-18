@@ -210,7 +210,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		{
 			name: "ValidATLSConfig",
 			config: AttestedClientConfig{
-				BaseConfig: BaseConfig{
+				StandardClientConfig: StandardClientConfig{
 					ServerCAFile: "",
 				},
 				AttestationPolicy: policyFile,
@@ -222,7 +222,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		{
 			name: "ValidMATLSConfig",
 			config: AttestedClientConfig{
-				BaseConfig: BaseConfig{
+				StandardClientConfig: StandardClientConfig{
 					ServerCAFile: caFile,
 				},
 				AttestationPolicy: policyFile,
@@ -234,7 +234,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		{
 			name: "ValidATLSWithClientCert",
 			config: AttestedClientConfig{
-				BaseConfig: BaseConfig{
+				StandardClientConfig: StandardClientConfig{
 					ClientCert: certFile,
 					ClientKey:  keyFile,
 				},
@@ -267,7 +267,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		{
 			name: "InvalidCAFile",
 			config: AttestedClientConfig{
-				BaseConfig: BaseConfig{
+				StandardClientConfig: StandardClientConfig{
 					ServerCAFile: filepath.Join(tmpDir, "nonexistent.crt"),
 				},
 				AttestationPolicy: policyFile,
@@ -280,7 +280,7 @@ func TestLoadATLSConfig(t *testing.T) {
 		{
 			name: "InvalidClientCert",
 			config: AttestedClientConfig{
-				BaseConfig: BaseConfig{
+				StandardClientConfig: StandardClientConfig{
 					ClientCert: filepath.Join(tmpDir, "nonexistent.crt"),
 					ClientKey:  keyFile,
 				},
@@ -375,103 +375,6 @@ func TestLoadRootCAs(t *testing.T) {
 	}
 }
 
-func TestVerifyCertificateSignature(t *testing.T) {
-	// Generate test certificates
-	cert, rootCert := generateCertificateChain(t)
-
-	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(rootCert)
-
-	tests := []struct {
-		name        string
-		cert        *x509.Certificate
-		rootCAs     *x509.CertPool
-		expectError bool
-	}{
-		{
-			name:        "ValidCertificateWithRootCA",
-			cert:        cert,
-			rootCAs:     rootCAs,
-			expectError: false,
-		},
-		{
-			name:        "SelfSignedCertificate",
-			cert:        rootCert,
-			rootCAs:     nil, // Will create self-signed verification
-			expectError: false,
-		},
-		{
-			name:        "InvalidCertificateWithRootCA",
-			cert:        rootCert,           // Using root cert with different root CAs
-			rootCAs:     x509.NewCertPool(), // Empty pool
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := VerifyCertificateSignature(tt.cert, tt.rootCAs)
-
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestVerifyPeerCertificateATLS(t *testing.T) {
-	// Generate test certificate
-	cert, rootCert := generateCertificateChain(t)
-
-	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(rootCert)
-
-	// Create valid raw certificate data
-	rawCerts := [][]byte{cert.Raw}
-	nonce := make([]byte, 64)
-	_, err := rand.Read(nonce)
-	require.NoError(t, err)
-
-	tests := []struct {
-		name        string
-		rawCerts    [][]byte
-		nonce       []byte
-		rootCAs     *x509.CertPool
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "InvalidCertificateData",
-			rawCerts:    [][]byte{[]byte("invalid cert data")},
-			nonce:       nonce,
-			rootCAs:     rootCAs,
-			expectError: true,
-			errorMsg:    "failed to parse x509 certificate",
-		},
-		{
-			name:        "ValidCertificateNoAttestationExtension",
-			rawCerts:    rawCerts,
-			nonce:       nonce,
-			rootCAs:     rootCAs,
-			expectError: true,
-			errorMsg:    "attestation extension not found in certificate",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := VerifyPeerCertificateATLS(tt.rawCerts, nil, tt.nonce, tt.rootCAs)
-
-			assert.Error(t, err) // All test cases expect errors
-			if tt.errorMsg != "" {
-				assert.Contains(t, err.Error(), tt.errorMsg)
-			}
-		})
-	}
-}
-
 // Helper functions for generating test certificates
 
 func generateTestCertificates(t *testing.T) (certPEM, keyPEM, caPEM []byte) {
@@ -534,54 +437,4 @@ func generateTestCertificates(t *testing.T) (certPEM, keyPEM, caPEM []byte) {
 	})
 
 	return certPEM, keyPEM, caPEM
-}
-
-func generateCertificateChain(t *testing.T) (cert, rootCert *x509.Certificate) {
-	// Generate root certificate
-	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	rootTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Test Root CA"},
-			Country:      []string{"US"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-
-	rootCertDER, err := x509.CreateCertificate(rand.Reader, &rootTemplate, &rootTemplate, &rootKey.PublicKey, rootKey)
-	require.NoError(t, err)
-
-	rootCert, err = x509.ParseCertificate(rootCertDER)
-	require.NoError(t, err)
-
-	// Generate leaf certificate signed by root
-	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	leafTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(2),
-		Subject: pkix.Name{
-			Organization: []string{"Test Leaf"},
-			Country:      []string{"US"},
-		},
-		NotBefore:   time.Now(),
-		NotAfter:    time.Now().Add(24 * time.Hour),
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-
-	leafCertDER, err := x509.CreateCertificate(rand.Reader, &leafTemplate, &rootTemplate, &leafKey.PublicKey, rootKey)
-	require.NoError(t, err)
-
-	cert, err = x509.ParseCertificate(leafCertDER)
-	require.NoError(t, err)
-
-	return cert, rootCert
 }

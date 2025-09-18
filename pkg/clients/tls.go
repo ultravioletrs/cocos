@@ -9,9 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
-	"fmt"
 	"os"
-	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/atls"
@@ -52,8 +50,6 @@ const AttestationReportSize = 0x4A0
 var (
 	ErrFailedToLoadClientCertKey  = errors.New("failed to load client certificate and key")
 	ErrFailedToLoadRootCA         = errors.New("failed to load root ca file")
-	errCertificateParse           = errors.New("failed to parse x509 certificate")
-	errAttVerification            = errors.New("certificate is not self signed")
 	errAttestationPolicyIrregular = errors.New("attestation policy file is not a regular file")
 )
 
@@ -141,7 +137,7 @@ func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
 		RootCAs:            rootCAs,
 		ServerName:         sni,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return VerifyPeerCertificateATLS(rawCerts, verifiedChains, nonce, rootCAs)
+			return atls.VerifyPeerCertificateATLS(rawCerts, verifiedChains, nonce, rootCAs)
 		},
 	}
 
@@ -181,50 +177,4 @@ func loadRootCAs(serverCAFile string) (*x509.CertPool, error) {
 	rootCAs.AddCert(cert)
 
 	return rootCAs, nil
-}
-
-// VerifyPeerCertificateATLS verifies peer certificates for Attested TLS.
-func VerifyPeerCertificateATLS(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte, rootCAs *x509.CertPool) error {
-	cert, err := x509.ParseCertificate(rawCerts[0])
-	if err != nil {
-		return errors.Wrap(errCertificateParse, err)
-	}
-
-	err = VerifyCertificateSignature(cert, rootCAs)
-	if err != nil {
-		return errors.Wrap(errAttVerification, err)
-	}
-
-	for _, ext := range cert.Extensions {
-		pType, err := atls.GetPlatformTypeFromOID(ext.Id)
-		if err == nil {
-			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
-			if err != nil {
-				return fmt.Errorf("failed to marshal public key to DER format: %w", err)
-			}
-
-			return atls.VerifyCertificateExtension(ext.Value, pubKeyDER, nonce, pType)
-		}
-	}
-
-	return errors.New("attestation extension not found in certificate")
-}
-
-// VerifyCertificateSignature verifies the certificate signature against root CAs.
-func VerifyCertificateSignature(cert *x509.Certificate, rootCAs *x509.CertPool) error {
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-		rootCAs.AddCert(cert)
-	}
-
-	opts := x509.VerifyOptions{
-		Roots:       rootCAs,
-		CurrentTime: time.Now(),
-	}
-
-	if _, err := cert.Verify(opts); err != nil {
-		return err
-	}
-
-	return nil
 }

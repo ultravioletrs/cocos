@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package httpclient
+package http
 
 import (
 	"net/http"
@@ -14,16 +14,14 @@ import (
 
 func TestConfig_Configuration(t *testing.T) {
 	config := clients.StandardClientConfig{
-		BaseConfig: clients.BaseConfig{
-			URL:          "http://localhost:8080",
-			Timeout:      30 * time.Second,
-			ClientCert:   "cert.pem",
-			ClientKey:    "key.pem",
-			ServerCAFile: "ca.pem",
-		},
+		URL:          "http://localhost:8080",
+		Timeout:      30 * time.Second,
+		ClientCert:   "cert.pem",
+		ClientKey:    "key.pem",
+		ServerCAFile: "ca.pem",
 	}
 
-	result := config.GetBaseConfig()
+	result := config.Config()
 
 	assert.Equal(t, config, result)
 	assert.Equal(t, "http://localhost:8080", result.URL)
@@ -35,7 +33,7 @@ func TestConfig_Configuration(t *testing.T) {
 
 func TestAgentClientConfig_Configuration(t *testing.T) {
 	agentConfig := &clients.AttestedClientConfig{
-		BaseConfig: clients.BaseConfig{
+		StandardClientConfig: clients.StandardClientConfig{
 			URL:          "https://agent.example.com",
 			Timeout:      60 * time.Second,
 			ClientCert:   "agent-cert.pem",
@@ -47,9 +45,9 @@ func TestAgentClientConfig_Configuration(t *testing.T) {
 		ProductName:       "Milan",
 	}
 
-	result := agentConfig.GetBaseConfig()
+	result := agentConfig.Config()
 
-	assert.Equal(t, agentConfig.BaseConfig, result)
+	assert.Equal(t, agentConfig.StandardClientConfig, result)
 	assert.Equal(t, "https://agent.example.com", result.URL)
 	assert.Equal(t, 60*time.Second, result.Timeout)
 	assert.Equal(t, "agent-cert.pem", result.ClientCert)
@@ -59,18 +57,16 @@ func TestAgentClientConfig_Configuration(t *testing.T) {
 
 func TestProxyClientConfig_Configuration(t *testing.T) {
 	proxyConfig := clients.StandardClientConfig{
-		BaseConfig: clients.BaseConfig{
-			URL:          "http://proxy.example.com",
-			Timeout:      45 * time.Second,
-			ClientCert:   "proxy-cert.pem",
-			ClientKey:    "proxy-key.pem",
-			ServerCAFile: "proxy-ca.pem",
-		},
+		URL:          "http://proxy.example.com",
+		Timeout:      45 * time.Second,
+		ClientCert:   "proxy-cert.pem",
+		ClientKey:    "proxy-key.pem",
+		ServerCAFile: "proxy-ca.pem",
 	}
 
-	result := proxyConfig.BaseConfig
+	result := proxyConfig
 
-	assert.Equal(t, proxyConfig.BaseConfig, result)
+	assert.Equal(t, proxyConfig, result)
 	assert.Equal(t, "http://proxy.example.com", result.URL)
 	assert.Equal(t, 45*time.Second, result.Timeout)
 }
@@ -82,7 +78,7 @@ func TestNewClient_Success(t *testing.T) {
 	}{
 		{
 			name: "Basic config",
-			config: clients.BaseConfig{
+			config: clients.StandardClientConfig{
 				URL:     "http://localhost:8080",
 				Timeout: 30 * time.Second,
 			},
@@ -90,7 +86,7 @@ func TestNewClient_Success(t *testing.T) {
 		{
 			name: "Agent config without attested TLS",
 			config: &clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     "https://agent.example.com",
 					Timeout: 60 * time.Second,
 				},
@@ -100,10 +96,8 @@ func TestNewClient_Success(t *testing.T) {
 		{
 			name: "Proxy config",
 			config: clients.StandardClientConfig{
-				BaseConfig: clients.BaseConfig{
-					URL:     "http://proxy.example.com",
-					Timeout: 45 * time.Second,
-				},
+				URL:     "http://proxy.example.com",
+				Timeout: 45 * time.Second,
 			},
 		},
 	}
@@ -115,13 +109,13 @@ func TestNewClient_Success(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, client)
 			assert.NotNil(t, client.Transport())
-			assert.Equal(t, tt.config.GetBaseConfig().Timeout, client.Timeout())
+			assert.Equal(t, tt.config.Config().Timeout, client.Timeout())
 		})
 	}
 }
 
 func TestClient_Transport(t *testing.T) {
-	config := clients.BaseConfig{
+	config := clients.StandardClientConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -147,10 +141,8 @@ func TestClient_Secure(t *testing.T) {
 		{
 			name: "Without TLS",
 			config: clients.StandardClientConfig{
-				BaseConfig: clients.BaseConfig{
-					URL:     "http://localhost:8080",
-					Timeout: 30 * time.Second,
-				},
+				URL:     "http://localhost:8080",
+				Timeout: 30 * time.Second,
 			},
 			expected: clients.WithoutTLS.String(),
 		},
@@ -169,7 +161,7 @@ func TestClient_Secure(t *testing.T) {
 
 func TestClient_Timeout(t *testing.T) {
 	expectedTimeout := 45 * time.Second
-	config := clients.BaseConfig{
+	config := clients.StandardClientConfig{
 		URL:     "http://localhost:8080",
 		Timeout: expectedTimeout,
 	}
@@ -182,7 +174,7 @@ func TestClient_Timeout(t *testing.T) {
 }
 
 func TestCreateTransport_DefaultSettings(t *testing.T) {
-	config := clients.BaseConfig{
+	config := clients.StandardClientConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -200,7 +192,7 @@ func TestCreateTransport_DefaultSettings(t *testing.T) {
 
 func TestCreateTransport_ATLSError(t *testing.T) {
 	config := &clients.AttestedClientConfig{
-		BaseConfig: clients.BaseConfig{
+		StandardClientConfig: clients.StandardClientConfig{
 			URL:     "https://agent.example.com",
 			Timeout: 60 * time.Second,
 		},
@@ -218,7 +210,7 @@ func TestCreateTransport_ATLSError(t *testing.T) {
 }
 
 func TestCreateTransport_BasicTLSError(t *testing.T) {
-	config := clients.BaseConfig{
+	config := clients.StandardClientConfig{
 		URL:          "https://example.com",
 		Timeout:      30 * time.Second,
 		ServerCAFile: "invalid",
@@ -233,7 +225,7 @@ func TestCreateTransport_BasicTLSError(t *testing.T) {
 }
 
 func TestClientInterface_Implementation(t *testing.T) {
-	config := clients.BaseConfig{
+	config := clients.StandardClientConfig{
 		URL:     "http://localhost:8080",
 		Timeout: 30 * time.Second,
 	}
@@ -252,7 +244,7 @@ func TestClientInterface_Implementation(t *testing.T) {
 
 func TestAgentClientConfig_FieldAccess(t *testing.T) {
 	config := &clients.AttestedClientConfig{
-		BaseConfig: clients.BaseConfig{
+		StandardClientConfig: clients.StandardClientConfig{
 			URL:     "https://agent.example.com",
 			Timeout: 60 * time.Second,
 		},
@@ -270,13 +262,11 @@ func TestAgentClientConfig_FieldAccess(t *testing.T) {
 
 func TestProxyClientConfig_FieldAccess(t *testing.T) {
 	config := clients.StandardClientConfig{
-		BaseConfig: clients.BaseConfig{
-			URL:          "http://proxy.example.com",
-			Timeout:      45 * time.Second,
-			ClientCert:   "proxy-cert.pem",
-			ClientKey:    "proxy-key.pem",
-			ServerCAFile: "proxy-ca.pem",
-		},
+		URL:          "http://proxy.example.com",
+		Timeout:      45 * time.Second,
+		ClientCert:   "proxy-cert.pem",
+		ClientKey:    "proxy-key.pem",
+		ServerCAFile: "proxy-ca.pem",
 	}
 
 	assert.Equal(t, "http://proxy.example.com", config.URL)
@@ -290,14 +280,13 @@ func TestClientConfiguration_Interface(t *testing.T) {
 	// Test that all config types implement ClientConfiguration interface
 	var configs []clients.ClientConfiguration
 
-	configs = append(configs, clients.BaseConfig{})
-	configs = append(configs, &clients.AttestedClientConfig{})
 	configs = append(configs, clients.StandardClientConfig{})
+	configs = append(configs, &clients.AttestedClientConfig{})
 
 	for i, config := range configs {
 		t.Run(t.Name()+"_"+string(rune(i+'0')), func(t *testing.T) {
-			result := config.GetBaseConfig()
-			assert.IsType(t, clients.BaseConfig{}, result)
+			result := config.Config()
+			assert.IsType(t, clients.StandardClientConfig{}, result)
 		})
 	}
 }

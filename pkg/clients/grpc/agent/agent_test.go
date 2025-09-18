@@ -85,7 +85,7 @@ func TestAgentClientIntegration(t *testing.T) {
 			name:          "successful connection",
 			serverRunning: true,
 			config: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     testServer.listenAddr,
 					Timeout: 1,
 				},
@@ -96,7 +96,7 @@ func TestAgentClientIntegration(t *testing.T) {
 			name:          "server not healthy",
 			serverRunning: false,
 			config: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     "",
 					Timeout: 1,
 				},
@@ -106,7 +106,7 @@ func TestAgentClientIntegration(t *testing.T) {
 		{
 			name: "invalid config, missing AttestationPolicy with aTLS",
 			config: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:     testServer.listenAddr,
 					Timeout: 1,
 				},

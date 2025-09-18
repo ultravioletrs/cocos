@@ -84,10 +84,8 @@ func TestAgentClientIntegration(t *testing.T) {
 			name:          "successful connection",
 			serverRunning: true,
 			config: clients.StandardClientConfig{
-				BaseConfig: clients.BaseConfig{
-					URL:     testServer.listenAddr,
-					Timeout: 1,
-				},
+				URL:     testServer.listenAddr,
+				Timeout: 1,
 			},
 			err: nil,
 		},
@@ -95,10 +93,8 @@ func TestAgentClientIntegration(t *testing.T) {
 			name:          "server not healthy",
 			serverRunning: false,
 			config: clients.StandardClientConfig{
-				BaseConfig: clients.BaseConfig{
-					URL:     "",
-					Timeout: 1,
-				},
+				URL:     "",
+				Timeout: 1,
 			},
 			err: errors.New("failed to connect to grpc server"),
 		},

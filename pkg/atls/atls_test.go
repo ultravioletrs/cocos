@@ -6,17 +6,21 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	certssdk "github.com/absmach/certs/sdk"
 	"github.com/absmach/supermq/pkg/errors"
@@ -217,7 +221,7 @@ func TestGetPlatformTypeFromOID(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pType, err := GetPlatformTypeFromOID(c.oid)
+			pType, err := getPlatformTypeFromOID(c.oid)
 
 			if c.expectedError != nil {
 				assert.Error(t, err)
@@ -305,7 +309,7 @@ func TestVerifyCertificateExtension(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			err := VerifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
+			err := verifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
 			if c.expectError {
 				assert.Error(t, err)
 			} else {
@@ -621,4 +625,231 @@ func setAttestationPolicy(rr *sevsnp.Attestation, policyDirectory string) error 
 	attestation.AttestationPolicyPath = policyPath
 
 	return nil
+}
+
+// TestCertificateVerification unified test suite for certificate verification.
+func TestCertificateVerification(t *testing.T) {
+	// Setup common test data
+	selfSignedCert := createSelfSignedCert(t)
+	leafCert, rootCert := generateCertificateChain(t)
+	rootCAs := createCertPool(rootCert)
+	emptyPool := x509.NewCertPool()
+
+	t.Run("SelfSignedCertificates", func(t *testing.T) {
+		testCases := []testCase{
+			{
+				name:        "ValidSelfSignedCertificate",
+				cert:        selfSignedCert,
+				rootCAs:     nil,
+				expectError: false,
+			},
+			{
+				name:        "EmptyCertificate",
+				cert:        &x509.Certificate{},
+				rootCAs:     nil,
+				expectError: true,
+				errorMsg:    "x509: missing ASN.1 contents; use ParseCertificate",
+			},
+		}
+
+		runCertificateVerificationTests(t, testCases)
+	})
+
+	t.Run("CertificateChainVerification", func(t *testing.T) {
+		testCases := []testCase{
+			{
+				name:        "ValidCertificateWithRootCA",
+				cert:        leafCert,
+				rootCAs:     rootCAs,
+				expectError: false,
+			},
+			{
+				name:        "SelfSignedCertificate",
+				cert:        rootCert,
+				rootCAs:     nil, // Self-signed verification
+				expectError: false,
+			},
+			{
+				name:        "InvalidCertificateWithEmptyPool",
+				cert:        rootCert,
+				rootCAs:     emptyPool,
+				expectError: true,
+			},
+		}
+
+		runCertificateVerificationTests(t, testCases)
+	})
+
+	t.Run("ATLSPeerCertificateVerification", func(t *testing.T) {
+		nonce := generateNonce(t)
+
+		testCases := []atlsTestCase{
+			{
+				name:        "InvalidCertificateData",
+				rawCerts:    [][]byte{[]byte("invalid cert data")},
+				nonce:       nonce,
+				rootCAs:     rootCAs,
+				expectError: true,
+				errorMsg:    "failed to parse x509 certificate",
+			},
+			{
+				name:        "ValidCertificateNoAttestationExtension",
+				rawCerts:    [][]byte{leafCert.Raw},
+				nonce:       nonce,
+				rootCAs:     rootCAs,
+				expectError: true,
+				errorMsg:    "attestation extension not found in certificate",
+			},
+		}
+
+		runATLSVerificationTests(t, testCases)
+	})
+}
+
+// Unified test case structures.
+type testCase struct {
+	name        string
+	cert        *x509.Certificate
+	rootCAs     *x509.CertPool
+	expectError bool
+	errorMsg    string
+}
+
+type atlsTestCase struct {
+	name        string
+	rawCerts    [][]byte
+	nonce       []byte
+	rootCAs     *x509.CertPool
+	expectError bool
+	errorMsg    string
+}
+
+// Unified test runners.
+func runCertificateVerificationTests(t *testing.T, testCases []testCase) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := verifyCertificateSignature(tc.cert, tc.rootCAs)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorMsg != "" {
+					if tc.errorMsg == "x509: missing ASN.1 contents; use ParseCertificate" {
+						// For specific error matching
+						assert.True(t, errors.Contains(err, errors.New(tc.errorMsg)),
+							fmt.Sprintf("expected error %q, got %v", tc.errorMsg, err))
+					} else {
+						assert.Contains(t, err.Error(), tc.errorMsg)
+					}
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func runATLSVerificationTests(t *testing.T, testCases []atlsTestCase) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := VerifyPeerCertificateATLS(tc.rawCerts, nil, tc.nonce, tc.rootCAs)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorMsg != "" {
+					assert.Contains(t, err.Error(), tc.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Unified certificate creation utilities.
+func createSelfSignedCert(t *testing.T) *x509.Certificate {
+	privateKey := generateRSAKey(t)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour), // Consistent duration
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	return createCertificateFromTemplate(t, &template, &template, &privateKey.PublicKey, privateKey)
+}
+
+func generateCertificateChain(t *testing.T) (leafCert, rootCert *x509.Certificate) {
+	// Generate root certificate
+	rootKey := generateRSAKey(t)
+	rootTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Root CA"},
+			Country:      []string{"US"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	rootCert = createCertificateFromTemplate(t, &rootTemplate, &rootTemplate, &rootKey.PublicKey, rootKey)
+
+	// Generate leaf certificate signed by root
+	leafKey := generateRSAKey(t)
+	leafTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Leaf"},
+			Country:      []string{"US"},
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+
+	leafCert = createCertificateFromTemplate(t, &leafTemplate, &rootTemplate, &leafKey.PublicKey, rootKey)
+
+	return leafCert, rootCert
+}
+
+// Helper functions for consistency.
+func generateRSAKey(t *testing.T) *rsa.PrivateKey {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	return privateKey
+}
+
+func createCertificateFromTemplate(t *testing.T, template, parent *x509.Certificate, pub interface{}, priv interface{}) *x509.Certificate {
+	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, priv)
+	require.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	return cert
+}
+
+func createCertPool(certs ...*x509.Certificate) *x509.CertPool {
+	pool := x509.NewCertPool()
+	for _, cert := range certs {
+		pool.AddCert(cert)
+	}
+	return pool
+}
+
+func generateNonce(t *testing.T) []byte {
+	nonce := make([]byte, 64)
+	_, err := rand.Read(nonce)
+	require.NoError(t, err)
+	return nonce
 }

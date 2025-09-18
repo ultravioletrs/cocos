@@ -36,14 +36,14 @@ func TestNewClient(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		cfg      clients.BaseConfig
+		cfg      clients.StandardClientConfig
 		agentCfg clients.AttestedClientConfig
 		wantErr  bool
 		err      error
 	}{
 		{
 			name: "Success without TLS",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL: "localhost:7001",
 			},
 			wantErr: false,
@@ -51,7 +51,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with TLS",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 			},
@@ -60,7 +60,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Success with mTLS",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -72,7 +72,7 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "Success agent client with mTLS",
 			agentCfg: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -85,7 +85,7 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "Success agent client with aTLS",
 			agentCfg: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -100,7 +100,7 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "Failed agent client with aTLS",
 			agentCfg: clients.AttestedClientConfig{
-				BaseConfig: clients.BaseConfig{
+				StandardClientConfig: clients.StandardClientConfig{
 					URL:          "localhost:7001",
 					ServerCAFile: caCertFile,
 					ClientCert:   clientCertFile,
@@ -114,7 +114,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ServerCAFile",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: "nonexistent.pem",
 			},
@@ -123,7 +123,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientCert",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   "nonexistent.pem",
@@ -134,7 +134,7 @@ func TestNewClient(t *testing.T) {
 		},
 		{
 			name: "Fail with invalid ClientKey",
-			cfg: clients.BaseConfig{
+			cfg: clients.StandardClientConfig{
 				URL:          "localhost:7001",
 				ServerCAFile: caCertFile,
 				ClientCert:   clientCertFile,
@@ -354,57 +354,4 @@ func createTempFile(data []byte) (string, error) {
 
 func createTempFileHandle() (*os.File, error) {
 	return os.CreateTemp("", "test")
-}
-
-func TestCheckIfCertificateSelfSigned(t *testing.T) {
-	selfSignedCert := createSelfSignedCert(t)
-
-	tests := []struct {
-		name string
-		cert *x509.Certificate
-		err  error
-	}{
-		{
-			name: "Self-signed certificate",
-			cert: selfSignedCert,
-			err:  nil,
-		},
-		{
-			name: "missing certificate contents",
-			cert: &x509.Certificate{},
-			err:  errors.New("x509: missing ASN.1 contents; use ParseCertificate"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := clients.VerifyCertificateSignature(tt.cert, nil)
-			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
-		})
-	}
-}
-
-func createSelfSignedCert(t *testing.T) *x509.Certificate {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Test Org"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
-	require.NoError(t, err)
-
-	cert, err := x509.ParseCertificate(certDER)
-	require.NoError(t, err)
-
-	return cert
 }
