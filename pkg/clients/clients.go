@@ -47,9 +47,7 @@ func (s Security) String() string {
 	}
 }
 
-const (
-	AttestationReportSize = 0x4A0
-)
+const AttestationReportSize = 0x4A0
 
 var (
 	ErrFailedToLoadClientCertKey  = errors.New("failed to load client certificate and key")
