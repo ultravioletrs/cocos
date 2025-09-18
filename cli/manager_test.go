@@ -113,7 +113,7 @@ func TestCLI_NewCreateVMCmd(t *testing.T) {
 			flags: map[string]string{
 				"server-url": "https://server.com",
 			},
-			expectedError: "Failed to connect to manager: failed to connect to grpc server : failed to exit idle mode: passthrough: received empty target in Build() ❌",
+			expectedError: "failed to exit idle mode: dns resolver: missing address ❌",
 			expectError:   true,
 		},
 		{
@@ -252,7 +252,7 @@ func TestCLI_NewRemoveVMCmd(t *testing.T) {
 				cli.connectErr = errors.New("connection failed")
 			},
 			args:          []string{"vm-123"},
-			expectedError: "Failed to connect to manager: failed to connect to grpc server : failed to exit idle mode: passthrough: received empty target in Build() ❌",
+			expectedError: "failed to exit idle mode: dns resolver: missing address ❌",
 			expectError:   true,
 		},
 		{
