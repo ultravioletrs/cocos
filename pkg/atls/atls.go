@@ -5,7 +5,6 @@ package atls
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
@@ -21,8 +20,6 @@ import (
 	certscli "github.com/absmach/certs/cli"
 	"github.com/absmach/certs/errors"
 	certssdk "github.com/absmach/certs/sdk"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -145,77 +142,6 @@ func (c *CAClient) processRequest(method, reqURL string, data []byte, headers ma
 	}
 
 	return resp.Header, body, nil
-}
-
-// CertificateVerifier handles certificate verification operations.
-type CertificateVerifier struct {
-	rootCAs *x509.CertPool
-}
-
-func NewCertificateVerifier(rootCAs *x509.CertPool) *CertificateVerifier {
-	return &CertificateVerifier{rootCAs: rootCAs}
-}
-
-func (v *CertificateVerifier) VerifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte) error {
-	if len(rawCerts) == 0 {
-		return fmt.Errorf("no certificates provided")
-	}
-
-	cert, err := x509.ParseCertificate(rawCerts[0])
-	if err != nil {
-		return fmt.Errorf("failed to parse x509 certificate: %w", err)
-	}
-
-	if err := v.verifyCertificateSignature(cert); err != nil {
-		return fmt.Errorf("certificate signature verification failed: %w", err)
-	}
-
-	return v.verifyAttestationExtension(cert, nonce)
-}
-
-func (v *CertificateVerifier) verifyCertificateSignature(cert *x509.Certificate) error {
-	rootCAs := v.rootCAs
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-		rootCAs.AddCert(cert)
-	}
-
-	opts := x509.VerifyOptions{
-		Roots:       rootCAs,
-		CurrentTime: time.Now(),
-	}
-
-	_, err := cert.Verify(opts)
-	return err
-}
-
-func (v *CertificateVerifier) verifyAttestationExtension(cert *x509.Certificate, nonce []byte) error {
-	for _, ext := range cert.Extensions {
-		if platformType, err := getPlatformTypeFromOID(ext.Id); err == nil {
-			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
-			if err != nil {
-				return fmt.Errorf("failed to marshal public key: %w", err)
-			}
-			return v.verifyCertificateExtension(ext.Value, pubKeyDER, nonce, platformType)
-		}
-	}
-	return fmt.Errorf("attestation extension not found in certificate")
-}
-
-func (v *CertificateVerifier) verifyCertificateExtension(extension []byte, pubKey []byte, nonce []byte, platformType attestation.PlatformType) error {
-	verifier, err := getPlatformVerifier(platformType)
-	if err != nil {
-		return fmt.Errorf("failed to get platform verifier: %w", err)
-	}
-
-	teeNonce := append(pubKey, nonce...)
-	hashNonce := sha3.Sum512(teeNonce)
-
-	if err = verifier.VerifyAttestation(extension, hashNonce[:], hashNonce[:32]); err != nil {
-		return fmt.Errorf("failed to verify attestation: %w", err)
-	}
-
-	return nil
 }
 
 func extractNonceFromSNI(serverName string) ([]byte, error) {

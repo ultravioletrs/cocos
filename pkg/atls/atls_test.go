@@ -234,7 +234,7 @@ func TestCertificateVerifier(t *testing.T) {
 
 	t.Run("NewCertificateVerifier", func(t *testing.T) {
 		rootCAs := x509.NewCertPool()
-		verifier := NewCertificateVerifier(rootCAs)
+		verifier := certificateVerifier{rootCAs: rootCAs}
 
 		assert.Equal(t, rootCAs, verifier.rootCAs)
 	})
@@ -501,7 +501,7 @@ func TestVerifyCertificateExtension(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			v := CertificateVerifier{}
+			v := certificateVerifier{}
 			err := v.verifyCertificateExtension(c.extension, c.pubKey, c.nonce, c.platformType)
 			if c.expectError {
 				assert.Error(t, err)
@@ -768,7 +768,7 @@ func TestCertificateWithAttestationExtension(t *testing.T) {
 		cert, err := x509.ParseCertificate(certDER)
 		require.NoError(t, err)
 
-		verifier := NewCertificateVerifier(nil)
+		verifier := certificateVerifier{}
 		err = verifier.verifyAttestationExtension(cert, nonce)
 
 		// Expect error due to invalid attestation data, but extension should be found
@@ -957,7 +957,7 @@ type atlsTestCase struct {
 func runCertificateVerificationTests(t *testing.T, testCases []testCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := CertificateVerifier{
+			v := certificateVerifier{
 				rootCAs: tc.rootCAs,
 			}
 			err := v.verifyCertificateSignature(tc.cert)
@@ -983,7 +983,7 @@ func runCertificateVerificationTests(t *testing.T, testCases []testCase) {
 func runATLSVerificationTests(t *testing.T, testCases []atlsTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := CertificateVerifier{
+			v := certificateVerifier{
 				rootCAs: tc.rootCAs,
 			}
 			err := v.VerifyPeerCertificate(tc.rawCerts, nil, tc.nonce)

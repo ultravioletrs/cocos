@@ -23,7 +23,7 @@ type CertificateProvider interface {
 }
 
 // AttestedCertificateProvider provides attested TLS certificates.
-type AttestedCertificateProvider struct {
+type attestedCertificateProvider struct {
 	attestationProvider AttestationProvider
 	caClient            *CAClient
 	subject             CertificateSubject
@@ -38,7 +38,7 @@ func NewAttestedProvider(
 	attestationProvider AttestationProvider,
 	subject CertificateSubject,
 ) CertificateProvider {
-	return &AttestedCertificateProvider{
+	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
 		useCA:               false,
@@ -52,7 +52,7 @@ func NewAttestedCAProvider(
 	subject CertificateSubject,
 	caURL, cvmID string,
 ) CertificateProvider {
-	return &AttestedCertificateProvider{
+	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
 		caClient:            NewCAClient(caURL),
@@ -63,11 +63,11 @@ func NewAttestedCAProvider(
 }
 
 // SetTTL sets the certificate TTL for CA-signed certificates.
-func (p *AttestedCertificateProvider) SetTTL(ttl time.Duration) {
+func (p *attestedCertificateProvider) SetTTL(ttl time.Duration) {
 	p.ttl = ttl
 }
 
-func (p *AttestedCertificateProvider) GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+func (p *attestedCertificateProvider) GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -110,7 +110,7 @@ func (p *AttestedCertificateProvider) GetCertificate(clientHello *tls.ClientHell
 	}, nil
 }
 
-func (p *AttestedCertificateProvider) generateSelfSignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
+func (p *attestedCertificateProvider) generateSelfSignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
@@ -132,7 +132,7 @@ func (p *AttestedCertificateProvider) generateSelfSignedCertificate(privateKey *
 	return x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
 }
 
-func (p *AttestedCertificateProvider) generateCASignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
+func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
 	csrMetadata := certs.CSRMetadata{
 		Organization:    []string{p.subject.Organization},
 		Country:         []string{p.subject.Country},

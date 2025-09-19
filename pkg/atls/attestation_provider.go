@@ -21,7 +21,7 @@ type AttestationProvider interface {
 }
 
 // PlatformAttestationProvider handles platform attestation operations.
-type PlatformAttestationProvider struct {
+type platformAttestationProvider struct {
 	provider     attestation.Provider
 	oid          asn1.ObjectIdentifier
 	platformType attestation.PlatformType
@@ -34,24 +34,24 @@ func NewAttestationProvider(provider attestation.Provider, platformType attestat
 		return nil, fmt.Errorf("failed to get OID: %w", err)
 	}
 
-	return &PlatformAttestationProvider{
+	return &platformAttestationProvider{
 		provider:     provider,
 		oid:          oid,
 		platformType: platformType,
 	}, nil
 }
 
-func (p *PlatformAttestationProvider) GetAttestation(pubKey []byte, nonce []byte) ([]byte, error) {
+func (p *platformAttestationProvider) GetAttestation(pubKey []byte, nonce []byte) ([]byte, error) {
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 	return p.provider.Attestation(hashNonce[:], hashNonce[:32])
 }
 
-func (p *PlatformAttestationProvider) GetOID() asn1.ObjectIdentifier {
+func (p *platformAttestationProvider) GetOID() asn1.ObjectIdentifier {
 	return p.oid
 }
 
-func (p *PlatformAttestationProvider) GetPlatformType() attestation.PlatformType {
+func (p *platformAttestationProvider) GetPlatformType() attestation.PlatformType {
 	return p.platformType
 }
 
