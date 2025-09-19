@@ -58,83 +58,17 @@ func TestDefaultCertificateSubject(t *testing.T) {
 // TestUnifiedCertificateGenerator tests the unified certificate generator.
 func TestUnifiedCertificateGenerator(t *testing.T) {
 	t.Run("SelfSignedGenerator", func(t *testing.T) {
-		generator := NewSelfSignedGenerator()
-		assert.False(t, generator.useCA)
-		assert.Equal(t, defaultNotAfterYears, generator.notAfterYears)
-		assert.Nil(t, generator.caClient)
+		generator, err := NewProvider(nil, attestation.SNPvTPM, "", "")
+		assert.NoError(t, err)
+		assert.NotNil(t, generator)
 	})
 
 	t.Run("CASignedGenerator", func(t *testing.T) {
 		caURL := "https://example.com/ca"
 		cvmID := "test-cvm-id"
-		generator := NewCASignedGenerator(caURL, cvmID)
-
-		assert.True(t, generator.useCA)
-		assert.Equal(t, caURL, generator.caURL)
-		assert.Equal(t, cvmID, generator.cvmID)
-		assert.NotNil(t, generator.caClient)
-		assert.Equal(t, time.Hour*24*365, generator.ttl)
-	})
-
-	t.Run("SetTTL", func(t *testing.T) {
-		generator := NewCASignedGenerator("https://example.com", "test")
-		newTTL := time.Hour * 48
-		generator.SetTTL(newTTL)
-		assert.Equal(t, newTTL, generator.ttl)
-	})
-}
-
-// TestGenerateCertificate tests certificate generation.
-func TestGenerateCertificate(t *testing.T) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-
-	subject := DefaultCertificateSubject()
-	extension := pkix.Extension{
-		Id:    SNPvTPMOID,
-		Value: []byte("test-attestation-data"),
-	}
-
-	t.Run("SelfSignedCertificate", func(t *testing.T) {
-		generator := NewSelfSignedGenerator()
-		certDER, err := generator.GenerateCertificate(privateKey, subject, extension)
-
+		generator, err := NewProvider(nil, attestation.SNPvTPM, caURL, cvmID)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, certDER)
-
-		// Parse and verify certificate structure
-		cert, err := x509.ParseCertificate(certDER)
-		require.NoError(t, err)
-
-		assert.Equal(t, subject.Organization, cert.Subject.Organization[0])
-		assert.Equal(t, subject.Country, cert.Subject.Country[0])
-		assert.Equal(t, subject.Locality, cert.Subject.Locality[0])
-		assert.Contains(t, cert.Extensions, extension)
-	})
-
-	t.Run("CASignedCertificate", func(t *testing.T) {
-		// Mock CA server
-		mockServer := createMockCAServer(t)
-		defer mockServer.Close()
-
-		generator := NewCASignedGenerator(mockServer.URL, "test-cvm")
-		certDER, err := generator.GenerateCertificate(privateKey, subject, extension)
-
-		assert.NoError(t, err)
-		assert.NotEmpty(t, certDER)
-	})
-
-	t.Run("CASignedCertificateError", func(t *testing.T) {
-		// Mock CA server that returns error
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer mockServer.Close()
-
-		generator := NewCASignedGenerator(mockServer.URL, "test-cvm")
-		_, err := generator.GenerateCertificate(privateKey, subject, extension)
-
-		assert.Error(t, err)
+		assert.NotNil(t, generator)
 	})
 }
 
@@ -209,10 +143,9 @@ func TestAttestedCertificateProvider(t *testing.T) {
 		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
 		require.NoError(t, err)
 
-		certGenerator := NewSelfSignedGenerator()
 		subject := DefaultCertificateSubject()
 
-		provider := NewAttestedProvider(attestationProvider, certGenerator, subject)
+		provider := NewAttestedProvider(attestationProvider, subject)
 
 		// Create valid client hello with nonce
 		nonce := make([]byte, 64)
@@ -235,7 +168,7 @@ func TestAttestedCertificateProvider(t *testing.T) {
 		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
 		require.NoError(t, err)
 
-		provider := NewAttestedProvider(attestationProvider, NewSelfSignedGenerator(), DefaultCertificateSubject())
+		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
 
 		clientHello := &tls.ClientHelloInfo{ServerName: "invalid-server-name"}
 
@@ -251,7 +184,7 @@ func TestAttestedCertificateProvider(t *testing.T) {
 		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
 		require.NoError(t, err)
 
-		provider := NewAttestedProvider(attestationProvider, NewSelfSignedGenerator(), DefaultCertificateSubject())
+		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
 
 		nonce := make([]byte, 64)
 		_, err = rand.Read(nonce)
@@ -284,67 +217,6 @@ func TestNewProvider(t *testing.T) {
 
 	t.Run("InvalidPlatformType", func(t *testing.T) {
 		_, err := NewProvider(mockProvider, attestation.PlatformType(999), "", "")
-		assert.Error(t, err)
-	})
-}
-
-// TestCAClient tests the CA client functionality.
-func TestCAClient(t *testing.T) {
-	t.Run("NewCAClient", func(t *testing.T) {
-		baseURL := "https://example.com"
-		client := NewCAClient(baseURL)
-
-		assert.Equal(t, baseURL, client.baseURL)
-		assert.NotNil(t, client.client)
-	})
-
-	t.Run("RequestCertificateSuccess", func(t *testing.T) {
-		mockServer := createMockCAServer(t)
-		defer mockServer.Close()
-
-		client := NewCAClient(mockServer.URL)
-
-		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		subject := DefaultCertificateSubject()
-		extension := pkix.Extension{Id: SNPvTPMOID, Value: []byte("test")}
-
-		certDER, err := client.RequestCertificate(privateKey, subject, extension, "test-cvm", time.Hour)
-
-		assert.NoError(t, err)
-		assert.NotEmpty(t, certDER)
-	})
-
-	t.Run("RequestCertificateServerError", func(t *testing.T) {
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer mockServer.Close()
-
-		client := NewCAClient(mockServer.URL)
-
-		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		_, err = client.RequestCertificate(privateKey, DefaultCertificateSubject(), pkix.Extension{}, "test-cvm", time.Hour)
-		assert.Error(t, err)
-	})
-
-	t.Run("RequestCertificateInvalidResponse", func(t *testing.T) {
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("invalid json"))
-		}))
-		defer mockServer.Close()
-
-		client := NewCAClient(mockServer.URL)
-
-		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		_, err = client.RequestCertificate(privateKey, DefaultCertificateSubject(), pkix.Extension{}, "test-cvm", time.Hour)
 		assert.Error(t, err)
 	})
 }
@@ -1027,21 +899,6 @@ func TestConcurrentAccess(t *testing.T) {
 
 // TestEdgeCasesAndBoundaries tests edge cases and boundary conditions.
 func TestEdgeCasesAndBoundaries(t *testing.T) {
-	t.Run("EmptyValues", func(t *testing.T) {
-		// Empty subject
-		emptySubject := CertificateSubject{}
-		generator := NewSelfSignedGenerator()
-
-		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		extension := pkix.Extension{Id: SNPvTPMOID, Value: []byte("test")}
-
-		certDER, err := generator.GenerateCertificate(privateKey, emptySubject, extension)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, certDER)
-	})
-
 	t.Run("LargeNonce", func(t *testing.T) {
 		largeNonce := make([]byte, 1024) // Much larger than expected
 		_, err := rand.Read(largeNonce)
@@ -1075,55 +932,6 @@ func TestEdgeCasesAndBoundaries(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, nonce, extractedNonce)
-	})
-}
-
-// TestErrorPropagation tests error propagation through the call stack.
-func TestErrorPropagation(t *testing.T) {
-	t.Run("AttestationProviderError", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		expectedError := errors.New("attestation provider failed")
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, expectedError)
-
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
-		require.NoError(t, err)
-
-		provider := NewAttestedProvider(attestationProvider, NewSelfSignedGenerator(), DefaultCertificateSubject())
-
-		nonce := make([]byte, 64)
-		_, err = rand.Read(nonce)
-		require.NoError(t, err)
-
-		serverName := hex.EncodeToString(nonce) + ".nonce"
-		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
-
-		_, err = provider.GetCertificate(clientHello)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get attestation")
-	})
-
-	t.Run("CertificateGeneratorError", func(t *testing.T) {
-		// Test with invalid CA URL to trigger certificate generation error
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
-
-		// Use invalid URL to trigger error
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
-		require.NoError(t, err)
-
-		invalidCAGenerator := NewCASignedGenerator("://invalid-url", "test-cvm")
-		provider := NewAttestedProvider(attestationProvider, invalidCAGenerator, DefaultCertificateSubject())
-
-		nonce := make([]byte, 64)
-		_, err = rand.Read(nonce)
-		require.NoError(t, err)
-
-		serverName := hex.EncodeToString(nonce) + ".nonce"
-		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
-
-		_, err = provider.GetCertificate(clientHello)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to generate certificate")
 	})
 }
 

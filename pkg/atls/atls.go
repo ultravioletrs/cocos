@@ -5,18 +5,13 @@ package atls
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -27,9 +22,6 @@ import (
 	"github.com/absmach/certs/errors"
 	certssdk "github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -68,187 +60,6 @@ func DefaultCertificateSubject() CertificateSubject {
 	}
 }
 
-// CertificateProvider defines the interface for providing TLS certificates.
-type CertificateProvider interface {
-	GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error)
-}
-
-// CertificateGenerator handles certificate creation.
-type CertificateGenerator interface {
-	GenerateCertificate(privateKey *ecdsa.PrivateKey, subject CertificateSubject, extension pkix.Extension) ([]byte, error)
-}
-
-// UnifiedCertificateGenerator handles both self-signed and CA-signed certificates.
-type UnifiedCertificateGenerator struct {
-	caURL         string
-	cvmID         string
-	ttl           time.Duration
-	notAfterYears int
-	useCA         bool
-	caClient      *CAClient
-}
-
-// NewSelfSignedGenerator creates a generator for self-signed certificates.
-func NewSelfSignedGenerator() *UnifiedCertificateGenerator {
-	return &UnifiedCertificateGenerator{
-		notAfterYears: defaultNotAfterYears,
-		useCA:         false,
-	}
-}
-
-// NewCASignedGenerator creates a generator for CA-signed certificates.
-func NewCASignedGenerator(caURL, cvmID string) *UnifiedCertificateGenerator {
-	return &UnifiedCertificateGenerator{
-		caURL:    caURL,
-		cvmID:    cvmID,
-		ttl:      time.Hour * 24 * 365, // Default 1 year
-		useCA:    true,
-		caClient: NewCAClient(caURL),
-	}
-}
-
-// SetTTL sets the certificate TTL for CA-signed certificates.
-func (g *UnifiedCertificateGenerator) SetTTL(ttl time.Duration) {
-	g.ttl = ttl
-}
-
-func (g *UnifiedCertificateGenerator) GenerateCertificate(privateKey *ecdsa.PrivateKey, subject CertificateSubject, extension pkix.Extension) ([]byte, error) {
-	if g.useCA {
-		return g.caClient.RequestCertificate(privateKey, subject, extension, g.cvmID, g.ttl)
-	}
-
-	// Self-signed certificate generation
-	certTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().Unix()),
-		Subject: pkix.Name{
-			Organization:  []string{subject.Organization},
-			Country:       []string{subject.Country},
-			Province:      []string{subject.Province},
-			Locality:      []string{subject.Locality},
-			StreetAddress: []string{subject.StreetAddress},
-			PostalCode:    []string{subject.PostalCode},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(g.notAfterYears, 0, 0),
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		ExtraExtensions:       []pkix.Extension{extension},
-	}
-
-	return x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
-}
-
-// PlatformAttestationProvider handles platform attestation operations.
-type PlatformAttestationProvider struct {
-	provider     attestation.Provider
-	oid          asn1.ObjectIdentifier
-	platformType attestation.PlatformType
-}
-
-// NewAttestationProvider creates a new attestation provider for the given platform type.
-func NewAttestationProvider(provider attestation.Provider, platformType attestation.PlatformType) (*PlatformAttestationProvider, error) {
-	oid, err := getOID(platformType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OID: %w", err)
-	}
-
-	return &PlatformAttestationProvider{
-		provider:     provider,
-		oid:          oid,
-		platformType: platformType,
-	}, nil
-}
-
-func (p *PlatformAttestationProvider) GetAttestation(pubKey []byte, nonce []byte) ([]byte, error) {
-	teeNonce := append(pubKey, nonce...)
-	hashNonce := sha3.Sum512(teeNonce)
-	return p.provider.Attestation(hashNonce[:], hashNonce[:vtpm.Nonce])
-}
-
-func (p *PlatformAttestationProvider) GetOID() asn1.ObjectIdentifier {
-	return p.oid
-}
-
-func (p *PlatformAttestationProvider) GetPlatformType() attestation.PlatformType {
-	return p.platformType
-}
-
-// AttestedCertificateProvider provides attested TLS certificates.
-type AttestedCertificateProvider struct {
-	attestationProvider *PlatformAttestationProvider
-	certGenerator       CertificateGenerator
-	subject             CertificateSubject
-}
-
-// NewAttestedProvider creates a new attested certificate provider.
-func NewAttestedProvider(
-	attestationProvider *PlatformAttestationProvider,
-	certGenerator CertificateGenerator,
-	subject CertificateSubject,
-) *AttestedCertificateProvider {
-	return &AttestedCertificateProvider{
-		attestationProvider: attestationProvider,
-		certGenerator:       certGenerator,
-		subject:             subject,
-	}
-}
-
-func (p *AttestedCertificateProvider) GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	pubKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal public key: %w", err)
-	}
-
-	nonce, err := extractNonceFromSNI(clientHello.ServerName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract nonce: %w", err)
-	}
-
-	attestationData, err := p.attestationProvider.GetAttestation(pubKeyDER, nonce)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attestation: %w", err)
-	}
-
-	extension := pkix.Extension{
-		Id:    p.attestationProvider.GetOID(),
-		Value: attestationData,
-	}
-
-	certDERBytes, err := p.certGenerator.GenerateCertificate(privateKey, p.subject, extension)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate certificate: %w", err)
-	}
-
-	return &tls.Certificate{
-		Certificate: [][]byte{certDERBytes},
-		PrivateKey:  privateKey,
-	}, nil
-}
-
-// Factory functions for creating complete certificate providers.
-func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID string) (CertificateProvider, error) {
-	attestationProvider, err := NewAttestationProvider(provider, platformType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
-	}
-
-	var certGenerator CertificateGenerator
-	if caURL != "" && cvmID != "" {
-		certGenerator = NewCASignedGenerator(caURL, cvmID)
-	} else {
-		certGenerator = NewSelfSignedGenerator()
-	}
-
-	subject := DefaultCertificateSubject()
-	return NewAttestedProvider(attestationProvider, certGenerator, subject), nil
-}
-
 // CAClient handles communication with Certificate Authority.
 type CAClient struct {
 	baseURL string
@@ -266,17 +77,7 @@ func NewCAClient(baseURL string) *CAClient {
 	}
 }
 
-func (c *CAClient) RequestCertificate(privateKey *ecdsa.PrivateKey, subject CertificateSubject, extension pkix.Extension, cvmID string, ttl time.Duration) ([]byte, error) {
-	csrMetadata := certs.CSRMetadata{
-		Organization:    []string{subject.Organization},
-		Country:         []string{subject.Country},
-		Province:        []string{subject.Province},
-		Locality:        []string{subject.Locality},
-		StreetAddress:   []string{subject.StreetAddress},
-		PostalCode:      []string{subject.PostalCode},
-		ExtraExtensions: []pkix.Extension{extension},
-	}
-
+func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey *ecdsa.PrivateKey, cvmID string, ttl time.Duration) ([]byte, error) {
 	csr, sdkerr := certscli.CreateCSR(csrMetadata, privateKey)
 	if sdkerr != nil {
 		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
@@ -410,7 +211,7 @@ func (v *CertificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 
-	if err = verifier.VerifyAttestation(extension, hashNonce[:], hashNonce[:vtpm.Nonce]); err != nil {
+	if err = verifier.VerifyAttestation(extension, hashNonce[:], hashNonce[:32]); err != nil {
 		return fmt.Errorf("failed to verify attestation: %w", err)
 	}
 
@@ -438,51 +239,4 @@ func extractNonceFromSNI(serverName string) ([]byte, error) {
 func hasNonceSuffix(serverName string) bool {
 	return len(serverName) >= len(nonceSuffix) &&
 		serverName[len(serverName)-len(nonceSuffix):] == nonceSuffix
-}
-
-func getOID(platformType attestation.PlatformType) (asn1.ObjectIdentifier, error) {
-	switch platformType {
-	case attestation.SNPvTPM:
-		return SNPvTPMOID, nil
-	case attestation.Azure:
-		return AzureOID, nil
-	case attestation.TDX:
-		return TDXOID, nil
-	default:
-		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
-	}
-}
-
-func getPlatformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType, error) {
-	switch {
-	case oid.Equal(SNPvTPMOID):
-		return attestation.SNPvTPM, nil
-	case oid.Equal(AzureOID):
-		return attestation.Azure, nil
-	case oid.Equal(TDXOID):
-		return attestation.TDX, nil
-	default:
-		return 0, fmt.Errorf("unsupported OID: %v", oid)
-	}
-}
-
-func getPlatformVerifier(platformType attestation.PlatformType) (attestation.Verifier, error) {
-	var verifier attestation.Verifier
-
-	switch platformType {
-	case attestation.SNPvTPM:
-		verifier = vtpm.NewVerifier(nil)
-	case attestation.Azure:
-		verifier = azure.NewVerifier(nil)
-	case attestation.TDX:
-		verifier = tdx.NewVerifier()
-	default:
-		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
-	}
-
-	err := verifier.JSONToPolicy(attestation.AttestationPolicyPath)
-	if err != nil {
-		return nil, err
-	}
-	return verifier, nil
 }
