@@ -83,13 +83,13 @@ func (p *attestedCertificateProvider) GetCertificate(clientHello *tls.ClientHell
 		return nil, fmt.Errorf("failed to extract nonce: %w", err)
 	}
 
-	attestationData, err := p.attestationProvider.GetAttestation(pubKeyDER, nonce)
+	attestationData, err := p.attestationProvider.Attest(pubKeyDER, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attestation: %w", err)
 	}
 
 	extension := pkix.Extension{
-		Id:    p.attestationProvider.GetOID(),
+		Id:    p.attestationProvider.OID(),
 		Value: attestationData,
 	}
 

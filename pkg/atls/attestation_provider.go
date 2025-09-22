@@ -7,17 +7,14 @@ import (
 	"fmt"
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 )
 
 // AttestationProvider defines the interface for platform attestation operations.
 type AttestationProvider interface {
-	GetAttestation(pubKey []byte, nonce []byte) ([]byte, error)
-	GetOID() asn1.ObjectIdentifier
-	GetPlatformType() attestation.PlatformType
+	Attest(pubKey []byte, nonce []byte) ([]byte, error)
+	OID() asn1.ObjectIdentifier
+	PlatformType() attestation.PlatformType
 }
 
 // PlatformAttestationProvider handles platform attestation operations.
@@ -29,7 +26,7 @@ type platformAttestationProvider struct {
 
 // NewAttestationProvider creates a new attestation provider for the given platform type.
 func NewAttestationProvider(provider attestation.Provider, platformType attestation.PlatformType) (AttestationProvider, error) {
-	oid, err := getOID(platformType)
+	oid, err := OID(platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OID: %w", err)
 	}
@@ -41,21 +38,21 @@ func NewAttestationProvider(provider attestation.Provider, platformType attestat
 	}, nil
 }
 
-func (p *platformAttestationProvider) GetAttestation(pubKey []byte, nonce []byte) ([]byte, error) {
+func (p *platformAttestationProvider) Attest(pubKey []byte, nonce []byte) ([]byte, error) {
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 	return p.provider.Attestation(hashNonce[:], hashNonce[:32])
 }
 
-func (p *platformAttestationProvider) GetOID() asn1.ObjectIdentifier {
+func (p *platformAttestationProvider) OID() asn1.ObjectIdentifier {
 	return p.oid
 }
 
-func (p *platformAttestationProvider) GetPlatformType() attestation.PlatformType {
+func (p *platformAttestationProvider) PlatformType() attestation.PlatformType {
 	return p.platformType
 }
 
-func getOID(platformType attestation.PlatformType) (asn1.ObjectIdentifier, error) {
+func OID(platformType attestation.PlatformType) (asn1.ObjectIdentifier, error) {
 	switch platformType {
 	case attestation.SNPvTPM:
 		return SNPvTPMOID, nil
@@ -66,38 +63,4 @@ func getOID(platformType attestation.PlatformType) (asn1.ObjectIdentifier, error
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
-}
-
-func getPlatformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType, error) {
-	switch {
-	case oid.Equal(SNPvTPMOID):
-		return attestation.SNPvTPM, nil
-	case oid.Equal(AzureOID):
-		return attestation.Azure, nil
-	case oid.Equal(TDXOID):
-		return attestation.TDX, nil
-	default:
-		return 0, fmt.Errorf("unsupported OID: %v", oid)
-	}
-}
-
-func getPlatformVerifier(platformType attestation.PlatformType) (attestation.Verifier, error) {
-	var verifier attestation.Verifier
-
-	switch platformType {
-	case attestation.SNPvTPM:
-		verifier = vtpm.NewVerifier(nil)
-	case attestation.Azure:
-		verifier = azure.NewVerifier(nil)
-	case attestation.TDX:
-		verifier = tdx.NewVerifier()
-	default:
-		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
-	}
-
-	err := verifier.JSONToPolicy(attestation.AttestationPolicyPath)
-	if err != nil {
-		return nil, err
-	}
-	return verifier, nil
 }

@@ -98,7 +98,7 @@ func TestPlatformAttestationProvider(t *testing.T) {
 				} else {
 					assert.NoError(t, err)
 					assert.NotNil(t, provider)
-					assert.Equal(t, c.platformType, provider.GetPlatformType())
+					assert.Equal(t, c.platformType, provider.PlatformType())
 				}
 			})
 		}
@@ -114,7 +114,7 @@ func TestPlatformAttestationProvider(t *testing.T) {
 		pubKey := []byte("test-pubkey")
 		nonce := []byte("test-nonce")
 
-		attestation, err := provider.GetAttestation(pubKey, nonce)
+		attestation, err := provider.Attest(pubKey, nonce)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedAttestation, attestation)
@@ -128,7 +128,7 @@ func TestPlatformAttestationProvider(t *testing.T) {
 		provider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
 		require.NoError(t, err)
 
-		_, err = provider.GetAttestation([]byte("pubkey"), []byte("nonce"))
+		_, err = provider.Attest([]byte("pubkey"), []byte("nonce"))
 		assert.Error(t, err)
 	})
 }
@@ -335,7 +335,7 @@ func TestHasNonceSuffix(t *testing.T) {
 }
 
 // TestOIDFunctions tests OID-related functions.
-func TestGetPlatformVerifier(t *testing.T) {
+func TestPlatformVerifier(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "policy")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
@@ -357,7 +357,7 @@ func TestGetPlatformVerifier(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			verifier, err := getPlatformVerifier(c.platformType)
+			verifier, err := platformVerifier(c.platformType)
 
 			if c.expectedError {
 				assert.Error(t, err)
@@ -385,7 +385,7 @@ func TestGetOID(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			oid, err := getOID(c.platformType)
+			oid, err := OID(c.platformType)
 
 			if c.expectedError {
 				assert.Error(t, err)
@@ -398,7 +398,7 @@ func TestGetOID(t *testing.T) {
 	}
 }
 
-func TestGetPlatformTypeFromOID(t *testing.T) {
+func TestPlatformTypeFromOID(t *testing.T) {
 	cases := []struct {
 		name          string
 		oid           asn1.ObjectIdentifier
@@ -413,7 +413,7 @@ func TestGetPlatformTypeFromOID(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pType, err := getPlatformTypeFromOID(c.oid)
+			pType, err := platformTypeFromOID(c.oid)
 
 			if c.expectedError {
 				assert.Error(t, err)

@@ -4,10 +4,14 @@ package atls
 
 import (
 	"crypto/x509"
+	"encoding/asn1"
 	"fmt"
 	"time"
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -59,7 +63,7 @@ func (v *certificateVerifier) verifyCertificateSignature(cert *x509.Certificate)
 
 func (v *certificateVerifier) verifyAttestationExtension(cert *x509.Certificate, nonce []byte) error {
 	for _, ext := range cert.Extensions {
-		if platformType, err := getPlatformTypeFromOID(ext.Id); err == nil {
+		if platformType, err := platformTypeFromOID(ext.Id); err == nil {
 			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
 			if err != nil {
 				return fmt.Errorf("failed to marshal public key: %w", err)
@@ -71,7 +75,7 @@ func (v *certificateVerifier) verifyAttestationExtension(cert *x509.Certificate,
 }
 
 func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKey []byte, nonce []byte, platformType attestation.PlatformType) error {
-	verifier, err := getPlatformVerifier(platformType)
+	verifier, err := platformVerifier(platformType)
 	if err != nil {
 		return fmt.Errorf("failed to get platform verifier: %w", err)
 	}
@@ -84,4 +88,38 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	}
 
 	return nil
+}
+
+func platformTypeFromOID(oid asn1.ObjectIdentifier) (attestation.PlatformType, error) {
+	switch {
+	case oid.Equal(SNPvTPMOID):
+		return attestation.SNPvTPM, nil
+	case oid.Equal(AzureOID):
+		return attestation.Azure, nil
+	case oid.Equal(TDXOID):
+		return attestation.TDX, nil
+	default:
+		return 0, fmt.Errorf("unsupported OID: %v", oid)
+	}
+}
+
+func platformVerifier(platformType attestation.PlatformType) (attestation.Verifier, error) {
+	var verifier attestation.Verifier
+
+	switch platformType {
+	case attestation.SNPvTPM:
+		verifier = vtpm.NewVerifier(nil)
+	case attestation.Azure:
+		verifier = azure.NewVerifier(nil)
+	case attestation.TDX:
+		verifier = tdx.NewVerifier()
+	default:
+		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
+	}
+
+	err := verifier.JSONToPolicy(attestation.AttestationPolicyPath)
+	if err != nil {
+		return nil, err
+	}
+	return verifier, nil
 }
