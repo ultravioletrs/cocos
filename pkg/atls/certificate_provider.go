@@ -1,0 +1,162 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+package atls
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"fmt"
+	"math/big"
+	"time"
+
+	"github.com/absmach/certs"
+	"github.com/ultravioletrs/cocos/pkg/attestation"
+)
+
+// CertificateProvider defines the interface for providing TLS certificates.
+type CertificateProvider interface {
+	GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error)
+}
+
+// AttestedCertificateProvider provides attested TLS certificates.
+type attestedCertificateProvider struct {
+	attestationProvider AttestationProvider
+	caClient            *CAClient
+	subject             CertificateSubject
+	useCA               bool
+	cvmID               string
+	ttl                 time.Duration
+	notAfterYears       int
+}
+
+// NewAttestedProvider creates a new attested certificate provider for self-signed certificates.
+func NewAttestedProvider(
+	attestationProvider AttestationProvider,
+	subject CertificateSubject,
+) CertificateProvider {
+	return &attestedCertificateProvider{
+		attestationProvider: attestationProvider,
+		subject:             subject,
+		useCA:               false,
+		notAfterYears:       defaultNotAfterYears,
+	}
+}
+
+// NewAttestedCAProvider creates a new attested certificate provider for CA-signed certificates.
+func NewAttestedCAProvider(
+	attestationProvider AttestationProvider,
+	subject CertificateSubject,
+	caURL, cvmID string,
+) CertificateProvider {
+	return &attestedCertificateProvider{
+		attestationProvider: attestationProvider,
+		subject:             subject,
+		caClient:            NewCAClient(caURL),
+		useCA:               true,
+		cvmID:               cvmID,
+		ttl:                 time.Hour * 24 * 365, // Default 1 year
+	}
+}
+
+// SetTTL sets the certificate TTL for CA-signed certificates.
+func (p *attestedCertificateProvider) SetTTL(ttl time.Duration) {
+	p.ttl = ttl
+}
+
+func (p *attestedCertificateProvider) GetCertificate(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	pubKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+
+	nonce, err := extractNonceFromSNI(clientHello.ServerName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract nonce: %w", err)
+	}
+
+	attestationData, err := p.attestationProvider.Attest(pubKeyDER, nonce)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation: %w", err)
+	}
+
+	extension := pkix.Extension{
+		Id:    p.attestationProvider.OID(),
+		Value: attestationData,
+	}
+
+	var certDERBytes []byte
+	if p.useCA {
+		certDERBytes, err = p.generateCASignedCertificate(privateKey, extension)
+	} else {
+		certDERBytes, err = p.generateSelfSignedCertificate(privateKey, extension)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate certificate: %w", err)
+	}
+
+	return &tls.Certificate{
+		Certificate: [][]byte{certDERBytes},
+		PrivateKey:  privateKey,
+	}, nil
+}
+
+func (p *attestedCertificateProvider) generateSelfSignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject: pkix.Name{
+			Organization:  []string{p.subject.Organization},
+			Country:       []string{p.subject.Country},
+			Province:      []string{p.subject.Province},
+			Locality:      []string{p.subject.Locality},
+			StreetAddress: []string{p.subject.StreetAddress},
+			PostalCode:    []string{p.subject.PostalCode},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(p.notAfterYears, 0, 0),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		ExtraExtensions:       []pkix.Extension{extension},
+	}
+
+	return x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+}
+
+func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
+	csrMetadata := certs.CSRMetadata{
+		Organization:    []string{p.subject.Organization},
+		Country:         []string{p.subject.Country},
+		Province:        []string{p.subject.Province},
+		Locality:        []string{p.subject.Locality},
+		StreetAddress:   []string{p.subject.StreetAddress},
+		PostalCode:      []string{p.subject.PostalCode},
+		ExtraExtensions: []pkix.Extension{extension},
+	}
+
+	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.ttl)
+}
+
+func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID string) (CertificateProvider, error) {
+	attestationProvider, err := NewAttestationProvider(provider, platformType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
+	}
+
+	subject := DefaultCertificateSubject()
+
+	if caURL != "" && cvmID != "" {
+		return NewAttestedCAProvider(attestationProvider, subject, caURL, cvmID), nil
+	}
+
+	return NewAttestedProvider(attestationProvider, subject), nil
+}

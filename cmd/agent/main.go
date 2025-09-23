@@ -26,6 +26,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
@@ -163,7 +164,18 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, cfg.CAUrl, cfg.CVMId), storageDir, reconnectFn, cvmGRPCClient)
+	var certProvider atls.CertificateProvider
+
+	if ccPlatform != attestation.NoCC {
+		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
+			exitCode = 1
+			return
+		}
+	}
+
+	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
