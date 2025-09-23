@@ -133,8 +133,8 @@ fn main() {
     let family_id = BASE64_STANDARD.encode(vec![0; 16]);
     let image_id = BASE64_STANDARD.encode(vec![0; 16]);
     let vmpl = 2;
-    let minimum_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
-    let minimum_launch_tcb = get_uint64_from_tcb(&status.platform_tcb_version);
+    let minimum_tcb = get_uint64_from_tcb(&status.reported_tcb_version);
+    let minimum_launch_tcb = get_uint64_from_tcb(&status.reported_tcb_version);
     let require_author_key = false;
     let measurement = BASE64_STANDARD.encode(vec![0; 48]);
     let host_data = BASE64_STANDARD.encode(vec![0; 32]);
