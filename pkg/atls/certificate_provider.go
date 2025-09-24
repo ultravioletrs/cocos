@@ -51,12 +51,12 @@ func NewAttestedProvider(
 func NewAttestedCAProvider(
 	attestationProvider AttestationProvider,
 	subject CertificateSubject,
-	caURL, cvmID, domainId string,
+	caURL, cvmID, domainId, agentToken string,
 ) CertificateProvider {
 	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
-		caClient:            NewCAClient(caURL),
+		caClient:            NewCAClient(caURL, agentToken),
 		useCA:               true,
 		cvmID:               cvmID,
 		domainID:            domainId,
@@ -148,7 +148,7 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.domainID, p.ttl)
 }
 
-func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID, domainId string) (CertificateProvider, error) {
+func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID, domainId, agentToken string) (CertificateProvider, error) {
 	attestationProvider, err := NewAttestationProvider(provider, platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
@@ -157,7 +157,7 @@ func NewProvider(provider attestation.Provider, platformType attestation.Platfor
 	subject := DefaultCertificateSubject()
 
 	if caURL != "" && cvmID != "" {
-		return NewAttestedCAProvider(attestationProvider, subject, caURL, cvmID, domainId), nil
+		return NewAttestedCAProvider(attestationProvider, subject, caURL, cvmID, domainId, agentToken), nil
 	}
 
 	return NewAttestedProvider(attestationProvider, subject), nil

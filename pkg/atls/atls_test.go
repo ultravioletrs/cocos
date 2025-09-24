@@ -58,7 +58,7 @@ func TestDefaultCertificateSubject(t *testing.T) {
 // TestUnifiedCertificateGenerator tests the unified certificate generator.
 func TestUnifiedCertificateGenerator(t *testing.T) {
 	t.Run("SelfSignedGenerator", func(t *testing.T) {
-		generator, err := NewProvider(nil, attestation.SNPvTPM, "", "", "")
+		generator, err := NewProvider(nil, attestation.SNPvTPM, "", "", "", "")
 		assert.NoError(t, err)
 		assert.NotNil(t, generator)
 	})
@@ -67,7 +67,7 @@ func TestUnifiedCertificateGenerator(t *testing.T) {
 		caURL := "https://example.com/ca"
 		cvmID := "test-cvm-id"
 		domainId := "test-domain-id"
-		generator, err := NewProvider(nil, attestation.SNPvTPM, caURL, cvmID, domainId)
+		generator, err := NewProvider(nil, attestation.SNPvTPM, caURL, cvmID, domainId, "test_token")
 		assert.NoError(t, err)
 		assert.NotNil(t, generator)
 	})
@@ -205,19 +205,19 @@ func TestNewProvider(t *testing.T) {
 	mockProvider := new(mocks.Provider)
 
 	t.Run("SelfSignedProvider", func(t *testing.T) {
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "")
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "", "")
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
 	t.Run("CASignedProvider", func(t *testing.T) {
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "https://example.com", "test-cvm", "test-domain")
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "https://example.com", "test-cvm", "test-domain", "test_token")
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
 	t.Run("InvalidPlatformType", func(t *testing.T) {
-		_, err := NewProvider(mockProvider, attestation.PlatformType(999), "", "", "")
+		_, err := NewProvider(mockProvider, attestation.PlatformType(999), "", "", "", "")
 		assert.Error(t, err)
 	})
 }
@@ -689,15 +689,15 @@ func TestCertificateVerification(t *testing.T) {
 
 // TestProcessRequestEdgeCases tests CAClient.processRequest edge cases.
 func TestProcessRequestEdgeCases(t *testing.T) {
-	client := NewCAClient("http://example.com")
+	client := NewCAClient("http://example.com", "test-agent-token")
 
 	t.Run("InvalidURL", func(t *testing.T) {
-		_, _, err := client.processRequest("GET", "://invalid-url", nil, nil, http.StatusOK)
+		_, _, err := client.processRequest("GET", "://invalid-url", nil, nil, "", http.StatusOK)
 		assert.Error(t, err)
 	})
 
 	t.Run("NetworkError", func(t *testing.T) {
-		_, _, err := client.processRequest("GET", "http://nonexistent-domain-12345.com", nil, nil, http.StatusOK)
+		_, _, err := client.processRequest("GET", "http://nonexistent-domain-12345.com", nil, nil, "", http.StatusOK)
 		assert.Error(t, err)
 	})
 
@@ -709,7 +709,7 @@ func TestProcessRequestEdgeCases(t *testing.T) {
 		defer server.Close()
 
 		headers := map[string]string{"Custom-Header": "test-value"}
-		_, _, err := client.processRequest("GET", server.URL, nil, headers, http.StatusOK)
+		_, _, err := client.processRequest("GET", server.URL, nil, headers, "", http.StatusOK)
 		assert.NoError(t, err)
 	})
 
@@ -719,7 +719,7 @@ func TestProcessRequestEdgeCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		_, _, err := client.processRequest("GET", server.URL, nil, nil, http.StatusOK)
+		_, _, err := client.processRequest("GET", server.URL, nil, nil, "", http.StatusOK)
 		assert.Error(t, err)
 	})
 }
@@ -794,7 +794,7 @@ func TestIntegrationScenarios(t *testing.T) {
 		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
 		// Create provider
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "")
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "", "")
 		require.NoError(t, err)
 
 		// Generate certificate
@@ -836,7 +836,7 @@ func TestIntegrationScenarios(t *testing.T) {
 		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
 		// Create CA-signed provider
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, mockServer.URL, "test-cvm", "test-domain")
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, mockServer.URL, "test-cvm", "test-domain", "test_token")
 		require.NoError(t, err)
 
 		// Generate certificate
@@ -858,7 +858,7 @@ func TestConcurrentAccess(t *testing.T) {
 	mockProvider := new(mocks.Provider)
 	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
-	provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "")
+	provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", "", "")
 	require.NoError(t, err)
 
 	const numGoroutines = 10

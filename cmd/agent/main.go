@@ -166,7 +166,7 @@ func main() {
 	var certProvider atls.CertificateProvider
 
 	if ccPlatform != attestation.NoCC {
-		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl, cfg.DomainId)
+		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl, cfg.DomainId, cfg.CertsToken)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
 			exitCode = 1
