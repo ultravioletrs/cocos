@@ -177,7 +177,7 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 		return []byte{}, fmt.Errorf("failed to get quote proto")
 	}
 
-	homePath, err := os.UserHomeDir()
+	homePath, _ := os.UserHomeDir()
 	vcekPath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), vcekName)
 	arkAskBundlePath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), arkAskBundleName)
 
@@ -220,7 +220,7 @@ func GetProductName(product string) sevsnp.SevProduct_SevProductName {
 	}
 }
 
-func derToPem(der []byte, typ string) []byte {
+func derToPem(der []byte) []byte {
 	// Try to parse to make sure it's a certificate
 	if _, err := x509.ParseCertificate(der); err != nil {
 		// cert_chain endpoint already returns PEM; just pass through
@@ -241,7 +241,10 @@ func FetchCertificates(vmpl uint) error {
 		return fmt.Errorf("attestation report size mismatch")
 	}
 
-	rand.Read(reportData[:])
+	_, err = rand.Read(reportData[:])
+	if err != nil {
+		return fmt.Errorf("failed to read random data: %v", err)
+	}
 
 	quoteProto, err := client.GetQuoteProtoAtLevel(qp, reportData, vmpl) // for coverage
 	if err != nil {
@@ -262,24 +265,24 @@ func FetchCertificates(vmpl uint) error {
 		return fmt.Errorf("could not get fetch certificates: %v", err)
 	}
 
-	homePath, err := os.UserHomeDir()
+	homePath, _ := os.UserHomeDir()
 
 	vcekPath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), vcekName)
 	arkAskBundlePath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), arkAskBundleName)
 
-	vcekPem := derToPem(result.CertificateChain.VcekCert, "CERTIFICATE")
-	askPem := derToPem(result.CertificateChain.AskCert, "CERTIFICATE")
-	arkPem := derToPem(result.CertificateChain.ArkCert, "CERTIFICATE")
+	vcekPem := derToPem(result.CertificateChain.VcekCert)
+	askPem := derToPem(result.CertificateChain.AskCert)
+	arkPem := derToPem(result.CertificateChain.ArkCert)
 
 	arkAskBundlePem := append(askPem, arkPem...)
 
 	vcekDir := filepath.Dir(vcekPath)
-	err = os.MkdirAll(vcekDir, 0755)
+	err = os.MkdirAll(vcekDir, 0o755)
 	if err != nil {
 		return fmt.Errorf("could not create VCEK directory: %v", err)
 	}
 	askArkBundleDir := filepath.Dir(arkAskBundlePath)
-	err = os.MkdirAll(askArkBundleDir, 0755)
+	err = os.MkdirAll(askArkBundleDir, 0o755)
 	if err != nil {
 		return fmt.Errorf("could not create ask/ark bundle directory: %v", err)
 	}
