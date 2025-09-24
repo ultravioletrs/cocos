@@ -7,10 +7,14 @@
 package quoteprovider
 
 import (
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
@@ -22,11 +26,13 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
-	cocosDirectory     = ".cocos"
-	caBundleName       = "ask_ark.pem"
+	cocosDirectory     = "/cocos"
+	arkAskBundleName   = "ask_ark.pem"
+	vcekName           = "vcek.pem"
 	Nonce              = 64
 	sevSnpProductMilan = "Milan"
 	sevSnpProductGenoa = "Genoa"
@@ -57,7 +63,7 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) 
 			return err
 		}
 
-		bundlePath := path.Join(homePath, cocosDirectory, product, caBundleName)
+		bundlePath := path.Join(homePath, cocosDirectory, product, arkAskBundleName)
 		if _, err := os.Stat(bundlePath); err == nil {
 			amdRootCerts := trust.AMDRootCerts{}
 			if err := amdRootCerts.FromKDSCert(bundlePath); err != nil {
@@ -166,12 +172,39 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 	}
 	copy(reportData[:], reportDataSlice)
 
-	rawQuote, err := qp.GetRawQuoteAtLevel(reportData, vmpl)
+	quoteProto, err := client.GetQuoteProtoAtLevel(qp, reportData, vmpl)
 	if err != nil {
-		return []byte{}, fmt.Errorf("failed to get raw quote")
+		return []byte{}, fmt.Errorf("failed to get quote proto")
 	}
 
-	return rawQuote, nil
+	homePath, _ := os.UserHomeDir()
+	vcekPath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), vcekName)
+	arkAskBundlePath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), arkAskBundleName)
+
+	vcekBytes, err := os.ReadFile(vcekPath)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not read VCEK file: %v", err)
+	}
+
+	arkAskBundleBytes, err := os.ReadFile(arkAskBundlePath)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not read ask/ark bundle file: %v", err)
+	}
+
+	vcekPem, _ := pem.Decode(vcekBytes)
+	arkPem, rest := pem.Decode(arkAskBundleBytes)
+	askPem, _ := pem.Decode(rest)
+
+	quoteProto.CertificateChain.VcekCert = vcekPem.Bytes
+	quoteProto.CertificateChain.AskCert = askPem.Bytes
+	quoteProto.CertificateChain.ArkCert = arkPem.Bytes
+
+	result, err := protojson.Marshal(quoteProto)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to marshal quote proto: %v", err)
+	}
+
+	return result, nil
 }
 
 func GetProductName(product string) sevsnp.SevProduct_SevProductName {
@@ -183,4 +216,84 @@ func GetProductName(product string) sevsnp.SevProduct_SevProductName {
 	default:
 		return sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN
 	}
+}
+
+func derToPem(der []byte) []byte {
+	// Try to parse to make sure it's a certificate
+	if _, err := x509.ParseCertificate(der); err != nil {
+		// cert_chain endpoint already returns PEM; just pass through
+		return der
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func FetchCertificates(vmpl uint) error {
+	var reportData [Nonce]byte
+
+	qp, err := GetLeveledQuoteProvider()
+	if err != nil {
+		return fmt.Errorf("could not get quote provider")
+	}
+
+	if len(reportData) > Nonce {
+		return fmt.Errorf("attestation report size mismatch")
+	}
+
+	_, err = rand.Read(reportData[:])
+	if err != nil {
+		return fmt.Errorf("failed to read random data: %v", err)
+	}
+
+	quoteProto, err := client.GetQuoteProtoAtLevel(qp, reportData, vmpl) // for coverage
+	if err != nil {
+		return fmt.Errorf("failed to get quote proto")
+	}
+
+	options := &verify.Options{
+		CheckRevocations:    true,
+		DisableCertFetching: false,
+		Getter:              trust.DefaultHTTPSGetter(),
+		Now:                 time.Now(),
+		TrustedRoots:        nil,
+		Product:             quoteProto.Product,
+	}
+
+	result, err := verify.GetAttestationFromReport(quoteProto.Report, options)
+	if err != nil {
+		return fmt.Errorf("could not get fetch certificates: %v", err)
+	}
+
+	homePath, _ := os.UserHomeDir()
+
+	vcekPath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), vcekName)
+	arkAskBundlePath := path.Join(homePath, cocosDirectory, fmt.Sprintf("%d", quoteProto.Product.Name), arkAskBundleName)
+
+	vcekPem := derToPem(result.CertificateChain.VcekCert)
+	askPem := derToPem(result.CertificateChain.AskCert)
+	arkPem := derToPem(result.CertificateChain.ArkCert)
+
+	arkAskBundlePem := append(askPem, arkPem...)
+
+	vcekDir := filepath.Dir(vcekPath)
+	err = os.MkdirAll(vcekDir, 0o755)
+	if err != nil {
+		return fmt.Errorf("could not create VCEK directory: %v", err)
+	}
+	askArkBundleDir := filepath.Dir(arkAskBundlePath)
+	err = os.MkdirAll(askArkBundleDir, 0o755)
+	if err != nil {
+		return fmt.Errorf("could not create ask/ark bundle directory: %v", err)
+	}
+
+	err = os.WriteFile(vcekPath, vcekPem, 0o644)
+	if err != nil {
+		return fmt.Errorf("could not write VCEK file: %v", err)
+	}
+
+	err = os.WriteFile(arkAskBundlePath, arkAskBundlePem, 0o644)
+	if err != nil {
+		return fmt.Errorf("could not write ark/ask bundle file: %v", err)
+	}
+
+	return nil
 }
