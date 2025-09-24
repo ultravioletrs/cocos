@@ -204,8 +204,6 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 		return []byte{}, fmt.Errorf("failed to marshal quote proto: %v", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "HERE\n")
-
 	return result, nil
 }
 
