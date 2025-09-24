@@ -34,7 +34,7 @@ func TestFillInAttestationLocal(t *testing.T) {
 	require.NoError(t, err)
 
 	bundleContent := []byte("mock ASK ARK bundle")
-	bundlePath := path.Join(cocosDir, caBundleName)
+	bundlePath := path.Join(cocosDir, arkAskBundleName)
 	err = os.WriteFile(bundlePath, bundleContent, 0o644)
 	require.NoError(t, err)
 
