@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/absmach/certs/sdk"
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/absmach/supermq/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
@@ -166,7 +167,13 @@ func main() {
 	var certProvider atls.CertificateProvider
 
 	if ccPlatform != attestation.NoCC {
-		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CVMId, cfg.CAUrl, cfg.DomainId, cfg.CertsToken)
+		var certsSDK sdk.SDK
+		if cfg.CAUrl != "" {
+			certsSDK = sdk.NewSDK(sdk.Config{
+				HostURL: cfg.CAUrl,
+			})
+		}
+		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
 			exitCode = 1

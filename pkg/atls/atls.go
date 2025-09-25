@@ -3,22 +3,18 @@
 package atls
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/asn1"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/absmach/certs"
+	"github.com/absmach/certs/sdk"
 	certssdk "github.com/absmach/certs/sdk"
-	"github.com/absmach/supermq/pkg/errors"
 )
 
 const (
@@ -59,7 +55,7 @@ func DefaultCertificateSubject() CertificateSubject {
 
 // CAClient handles communication with Certificate Authority.
 type CAClient struct {
-	baseURL    string
+	casdk      sdk.SDK
 	client     *http.Client
 	agentToken string
 }
@@ -68,9 +64,9 @@ type CSRRequest struct {
 	CSR string `json:"csr,omitempty"`
 }
 
-func NewCAClient(baseURL string, agentToken string) *CAClient {
+func NewCAClient(casdk sdk.SDK, agentToken string) *CAClient {
 	return &CAClient{
-		baseURL:    baseURL,
+		casdk:      casdk,
 		client:     &http.Client{},
 		agentToken: agentToken,
 	}
@@ -82,25 +78,9 @@ func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey 
 		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
 	}
 
-	request := CSRRequest{CSR: string(csr.CSR)}
-	requestData, err := json.Marshal(request)
+	cert, err := c.casdk.IssueFromCSRInternal(cvmID, ttl.String(), string(csr.CSR), c.agentToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal CSR request: %w", err)
-	}
-
-	endpoint := fmt.Sprintf("certs/csrs/%s", cvmID)
-	query := url.Values{}
-	query.Add("ttl", ttl.String())
-	requestURL := fmt.Sprintf("%s/%s?%s", c.baseURL, endpoint, query.Encode())
-
-	_, responseBody, err := c.processRequest(http.MethodPost, requestURL, requestData, nil, c.agentToken, http.StatusOK)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process CA request: %w", err)
-	}
-
-	var cert certssdk.Certificate
-	if err := json.Unmarshal(responseBody, &cert); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal certificate response: %w", err)
+		return nil, err
 	}
 
 	cleanCertificateString := strings.ReplaceAll(cert.Certificate, "\\n", "\n")
@@ -114,41 +94,6 @@ func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey 
 	}
 
 	return block.Bytes, nil
-}
-
-func (c *CAClient) processRequest(method, reqURL string, data []byte, headers map[string]string, token string, expectedRespCodes ...int) (http.Header, []byte, errors.SDKError) {
-	req, err := http.NewRequest(method, reqURL, bytes.NewReader(data))
-	if err != nil {
-		return make(http.Header), []byte{}, errors.NewSDKError(err)
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
-
-	if token != "" {
-		token = fmt.Sprintf("%s%s", bearerPrefix, token)
-		req.Header.Set("Authorization", token)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return make(http.Header), []byte{}, errors.NewSDKError(err)
-	}
-	defer resp.Body.Close()
-
-	sdkErr := errors.CheckError(resp, expectedRespCodes...)
-	if sdkErr != nil {
-		return make(http.Header), []byte{}, sdkErr
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return make(http.Header), []byte{}, errors.NewSDKError(err)
-	}
-
-	return resp.Header, body, nil
 }
 
 func extractNonceFromSNI(serverName string) ([]byte, error) {

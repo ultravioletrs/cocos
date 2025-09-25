@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/absmach/certs"
+	"github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
@@ -51,15 +52,14 @@ func NewAttestedProvider(
 func NewAttestedCAProvider(
 	attestationProvider AttestationProvider,
 	subject CertificateSubject,
-	caURL, cvmID, domainId, agentToken string,
+	certsSDK sdk.SDK, cvmID, agentToken string,
 ) CertificateProvider {
 	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
-		caClient:            NewCAClient(caURL, agentToken),
+		caClient:            NewCAClient(certsSDK, agentToken),
 		useCA:               true,
 		cvmID:               cvmID,
-		domainID:            domainId,
 		ttl:                 time.Hour * 24 * 365, // Default 1 year
 	}
 }
@@ -148,7 +148,7 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.domainID, p.ttl)
 }
 
-func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID, domainId, agentToken string) (CertificateProvider, error) {
+func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {
 	attestationProvider, err := NewAttestationProvider(provider, platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
@@ -156,8 +156,8 @@ func NewProvider(provider attestation.Provider, platformType attestation.Platfor
 
 	subject := DefaultCertificateSubject()
 
-	if caURL != "" && cvmID != "" {
-		return NewAttestedCAProvider(attestationProvider, subject, caURL, cvmID, domainId, agentToken), nil
+	if certsSDK != nil {
+		return NewAttestedCAProvider(attestationProvider, subject, certsSDK, cvmID, agentToken), nil
 	}
 
 	return NewAttestedProvider(attestationProvider, subject), nil
