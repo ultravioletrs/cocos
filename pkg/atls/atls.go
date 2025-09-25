@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/absmach/certs"
-	certscli "github.com/absmach/certs/cli"
 	certssdk "github.com/absmach/certs/sdk"
 	"github.com/absmach/supermq/pkg/errors"
 )
@@ -78,7 +77,7 @@ func NewCAClient(baseURL string, agentToken string) *CAClient {
 }
 
 func (c *CAClient) RequestCertificate(csrMetadata certs.CSRMetadata, privateKey *ecdsa.PrivateKey, cvmID, domainId string, ttl time.Duration) ([]byte, error) {
-	csr, sdkerr := certscli.CreateCSR(csrMetadata, privateKey)
+	csr, sdkerr := certssdk.CreateCSR(csrMetadata, privateKey)
 	if sdkerr != nil {
 		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
 	}

@@ -89,7 +89,6 @@ require (
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/api v0.247.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 	moul.io/http2curl v1.0.0 // indirect
 )
@@ -134,3 +133,5 @@ require (
 replace github.com/virtee/sev-snp-measure-go => github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825
 
 replace github.com/google/go-tpm-tools => github.com/danko-miladinovic/go-tpm-tools v0.0.0-20250228160324-1ebcfd79567c
+
+replace github.com/absmach/certs => github.com/washingtonkk/certs v0.0.0-20250925140628-7d1de8d1b5e4
