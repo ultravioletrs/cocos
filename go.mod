@@ -17,8 +17,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sync v0.16.0
-	google.golang.org/grpc v1.75.0
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/grpc v1.75.1
+	google.golang.org/protobuf v1.36.9
 )
 
 require (
@@ -89,13 +89,12 @@ require (
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/api v0.247.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 	moul.io/http2curl v1.0.0 // indirect
 )
 
 require (
-	github.com/absmach/certs v0.17.0
+	github.com/absmach/certs v0.17.1-0.20250917112321-8f5858cda80e
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -134,3 +133,5 @@ require (
 replace github.com/virtee/sev-snp-measure-go => github.com/sammyoina/sev-snp-measure-go v0.0.0-20241202151803-ef189f0ff825
 
 replace github.com/google/go-tpm-tools => github.com/danko-miladinovic/go-tpm-tools v0.0.0-20250228160324-1ebcfd79567c
+
+replace github.com/absmach/certs => github.com/washingtonkk/certs v0.0.0-20250925140628-7d1de8d1b5e4

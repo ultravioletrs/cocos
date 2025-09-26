@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	hashLength              = 32
 	persistenceDir          = "/tmp/cocos"
 	agentLogLevelKey        = "AGENT_LOG_LEVEL"
 	agentCvmGrpcUrlKey      = "AGENT_CVM_GRPC_URL"
@@ -35,6 +34,7 @@ const (
 	agentCvmClientKey       = "AGENT_CVM_GRPC_CLIENT_KEY"
 	agentCvmServerCaCertKey = "AGENT_CVM_GRPC_SERVER_CA_CERTS"
 	agentCvmId              = "AGENT_CVM_ID"
+	agentCaToken            = "AGENT_CERTS_TOKEN"
 	agentCvmCaUrl           = "AGENT_CVM_CA_URL"
 	defClientCertPath       = "/etc/certs/cert.pem"
 	defClientKeyPath        = "/etc/certs/key.pem"
@@ -446,6 +446,7 @@ func tmpEnvironment(id string, req *CreateReq) (string, error) {
 		agentLogLevelKey:   req.AgentLogLevel,
 		agentCvmGrpcUrlKey: req.AgentCvmServerUrl,
 		agentCvmId:         id,
+		agentCaToken:       req.AgentCertsToken,
 		agentCvmCaUrl:      req.AgentCvmCaUrl,
 	}
 

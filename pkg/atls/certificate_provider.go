@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/absmach/certs"
+	"github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
@@ -29,6 +30,7 @@ type attestedCertificateProvider struct {
 	subject             CertificateSubject
 	useCA               bool
 	cvmID               string
+	domainID            string
 	ttl                 time.Duration
 	notAfterYears       int
 }
@@ -50,12 +52,12 @@ func NewAttestedProvider(
 func NewAttestedCAProvider(
 	attestationProvider AttestationProvider,
 	subject CertificateSubject,
-	caURL, cvmID string,
+	certsSDK sdk.SDK, cvmID, agentToken string,
 ) CertificateProvider {
 	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
-		caClient:            NewCAClient(caURL),
+		caClient:            NewCAClient(certsSDK, agentToken),
 		useCA:               true,
 		cvmID:               cvmID,
 		ttl:                 time.Hour * 24 * 365, // Default 1 year
@@ -143,10 +145,10 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 		ExtraExtensions: []pkix.Extension{extension},
 	}
 
-	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.ttl)
+	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.domainID, p.ttl)
 }
 
-func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, caURL, cvmID string) (CertificateProvider, error) {
+func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {
 	attestationProvider, err := NewAttestationProvider(provider, platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
@@ -154,8 +156,8 @@ func NewProvider(provider attestation.Provider, platformType attestation.Platfor
 
 	subject := DefaultCertificateSubject()
 
-	if caURL != "" && cvmID != "" {
-		return NewAttestedCAProvider(attestationProvider, subject, caURL, cvmID), nil
+	if certsSDK != nil {
+		return NewAttestedCAProvider(attestationProvider, subject, certsSDK, cvmID, agentToken), nil
 	}
 
 	return NewAttestedProvider(attestationProvider, subject), nil
