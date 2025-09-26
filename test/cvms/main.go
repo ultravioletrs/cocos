@@ -41,8 +41,6 @@ var (
 	attestedTLS       bool
 	pubKeyFile        string
 	clientCAFile      string
-	domainId          string
-	cvmId             string
 )
 
 type svc struct {
@@ -108,8 +106,6 @@ func main() {
 	flagSet.StringVar(&pubKeyFile, "public-key-path", "", "Path to the public key file")
 	flagSet.StringVar(&attestedTLSString, "attested-tls-bool", "", "Should aTLS be used, must be 'true' or 'false'")
 	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas")
-	flagSet.StringVar(&cvmId, "cvm-id", "", "UUID for a CVM, must be specified if aTLS is used")
-	flagSet.StringVar(&domainId, "domain-id", "", "Domain ID for the attestation service, must be specified if aTLS is used")
 	flagSet.StringVar(&clientCAFile, "client-ca-file", "", "Client CA root certificate file path")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
