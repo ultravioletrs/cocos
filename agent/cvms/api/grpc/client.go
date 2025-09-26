@@ -16,7 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
-	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,12 +24,11 @@ import (
 const (
 	reconnectInterval = 5 * time.Second
 	sendTimeout       = 5 * time.Second
-	pendingMsgFile    = "pending_messages.json"
 )
 
 var (
 	errCorruptedManifest  = errors.New("received manifest may be corrupted")
-	errUnknonwMessageType = errors.New("unknown message type")
+	errUnknownMessageType = errors.New("unknown message type")
 )
 
 type PendingMessage struct {
@@ -46,12 +45,12 @@ type CVMSClient struct {
 	runReqManager *runRequestManager
 	sp            server.AgentServer
 	storage       storage.Storage
-	reconnectFn   func(context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error)
-	grpcClient    pkggrpc.Client
+	reconnectFn   func(context.Context) (grpc.Client, cvms.Service_ProcessClient, error)
+	grpcClient    grpc.Client
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error), grpcClient pkggrpc.Client) (*CVMSClient, error) {
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (grpc.Client, cvms.Service_ProcessClient, error), grpcClient grpc.Client) (*CVMSClient, error) {
 	store, err := storage.NewFileStorage(storageDir)
 	if err != nil {
 		return nil, err
@@ -187,7 +186,7 @@ func (client *CVMSClient) processIncomingMessage(ctx context.Context, req *cvms.
 		}
 		client.mu.Unlock()
 	default:
-		return errUnknonwMessageType
+		return errUnknownMessageType
 	}
 	return nil
 }
