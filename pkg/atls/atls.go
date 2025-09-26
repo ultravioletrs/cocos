@@ -21,7 +21,6 @@ const (
 	defaultNotAfterYears = 1
 	nonceLength          = 64
 	nonceSuffix          = ".nonce"
-	bearerPrefix         = "Bearer "
 )
 
 // Platform-specific OIDs for certificate extensions.
@@ -58,10 +57,6 @@ type CAClient struct {
 	casdk      sdk.SDK
 	client     *http.Client
 	agentToken string
-}
-
-type CSRRequest struct {
-	CSR string `json:"csr,omitempty"`
 }
 
 func NewCAClient(casdk sdk.SDK, agentToken string) *CAClient {
