@@ -16,8 +16,7 @@ import (
 	"time"
 
 	"github.com/absmach/certs"
-	certssdk "github.com/absmach/certs/sdk"
-	"github.com/absmach/certs/sdk"
+	sdk "github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
@@ -149,7 +148,7 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 		ExtraExtensions: []pkix.Extension{extension},
 	}
 
-	csr, sdkerr := certssdk.CreateCSR(csrMetadata, privateKey)
+	csr, sdkerr := sdk.CreateCSR(csrMetadata, privateKey)
 	if sdkerr != nil {
 		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
 	}

@@ -43,7 +43,6 @@ func DefaultCertificateSubject() CertificateSubject {
 	}
 }
 
-
 func extractNonceFromSNI(serverName string) ([]byte, error) {
 	if len(serverName) < len(nonceSuffix) || !hasNonceSuffix(serverName) {
 		return nil, fmt.Errorf("invalid server name: %s", serverName)

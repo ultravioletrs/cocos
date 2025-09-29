@@ -685,7 +685,6 @@ func TestCertificateVerification(t *testing.T) {
 	})
 }
 
-
 func TestNewAttestedCAProvider(t *testing.T) {
 	mockProvider := new(mocks.Provider)
 	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
