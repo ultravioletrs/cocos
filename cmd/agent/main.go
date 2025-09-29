@@ -49,7 +49,6 @@ type config struct {
 	AgentGrpcHost string `env:"AGENT_GRPC_HOST"   envDefault:"0.0.0.0"`
 	CAUrl         string `env:"AGENT_CVM_CA_URL"  envDefault:""`
 	CVMId         string `env:"AGENT_CVM_ID"      envDefault:""`
-	DomainId      string `env:"AGENT_DOMAIN_ID"   envDefault:""`
 	CertsToken    string `env:"AGENT_CERTS_TOKEN" envDefault:""`
 	AgentMaaURL   string `env:"AGENT_MAA_URL"     envDefault:"https://sharedeus2.eus2.attest.azure.net"`
 	AgentOSBuild  string `env:"AGENT_OS_BUILD"    envDefault:"UVC"`

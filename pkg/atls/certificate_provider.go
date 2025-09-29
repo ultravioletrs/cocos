@@ -30,7 +30,6 @@ type attestedCertificateProvider struct {
 	subject             CertificateSubject
 	useCA               bool
 	cvmID               string
-	domainID            string
 	ttl                 time.Duration
 	notAfterYears       int
 }
@@ -145,7 +144,7 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 		ExtraExtensions: []pkix.Extension{extension},
 	}
 
-	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.domainID, p.ttl)
+	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.ttl)
 }
 
 func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {
