@@ -9,11 +9,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/absmach/certs"
+	certssdk "github.com/absmach/certs/sdk"
 	"github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
@@ -26,7 +29,8 @@ type CertificateProvider interface {
 // AttestedCertificateProvider provides attested TLS certificates.
 type attestedCertificateProvider struct {
 	attestationProvider AttestationProvider
-	caClient            *CAClient
+	certsSDK            sdk.SDK
+	agentToken          string
 	subject             CertificateSubject
 	useCA               bool
 	cvmID               string
@@ -56,7 +60,8 @@ func NewAttestedCAProvider(
 	return &attestedCertificateProvider{
 		attestationProvider: attestationProvider,
 		subject:             subject,
-		caClient:            NewCAClient(certsSDK, agentToken),
+		certsSDK:            certsSDK,
+		agentToken:          agentToken,
 		useCA:               true,
 		cvmID:               cvmID,
 		ttl:                 time.Hour * 24 * 365, // Default 1 year
@@ -144,7 +149,27 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 		ExtraExtensions: []pkix.Extension{extension},
 	}
 
-	return p.caClient.RequestCertificate(csrMetadata, privateKey, p.cvmID, p.ttl)
+	csr, sdkerr := certssdk.CreateCSR(csrMetadata, privateKey)
+	if sdkerr != nil {
+		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
+	}
+
+	cert, err := p.certsSDK.IssueFromCSRInternal(p.cvmID, p.ttl.String(), string(csr.CSR), p.agentToken)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanCertificateString := strings.ReplaceAll(cert.Certificate, "\\n", "\n")
+	block, rest := pem.Decode([]byte(cleanCertificateString))
+
+	if len(rest) != 0 {
+		return nil, fmt.Errorf("failed to decode certificate PEM: unexpected remaining data")
+	}
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode certificate PEM: no PEM block found")
+	}
+
+	return block.Bytes, nil
 }
 
 func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {

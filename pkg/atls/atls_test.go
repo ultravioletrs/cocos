@@ -685,15 +685,6 @@ func TestCertificateVerification(t *testing.T) {
 	})
 }
 
-func TestCAClient(t *testing.T) {
-	t.Run("NewCAClient", func(t *testing.T) {
-		agentToken := "test-token"
-		client := NewCAClient(nil, agentToken)
-
-		assert.NotNil(t, client)
-		assert.Equal(t, agentToken, client.agentToken)
-	})
-}
 
 func TestNewAttestedCAProvider(t *testing.T) {
 	mockProvider := new(mocks.Provider)
