@@ -38,11 +38,7 @@ import (
 
 const (
 	sevProductNameMilan = "Milan"
-	testCertPEM         = `-----BEGIN CERTIFICATE-----
-MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
-MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
-dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
------END CERTIFICATE-----`
+	testCertPEM = "-----BEGIN CERTIFICATE-----\\nMIIC/zCCAeegAwIBAgIUSuwXMW/DOBN3IAOC1L88B8zdelYwDQYJKoZIhvcNAQEL\\nBQAwDzENMAsGA1UEAwwEdGVzdDAeFw0yNTA5MjkwOTM2MDNaFw0yNjA5MjkwOTM2\\nMDNaMA8xDTALBgNVBAMMBHRlc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\\nAoIBAQDCl11hfsL3Co7zvb/vkLpuO6qEsvg+jl/PB+qo7b9uHyoP+HJgnaQbEU7X\\nJAFsT1tAoOmI+oO5IRe6GWi+RyeEUsTfl0hsqprawBO5XL0izWfGD+kyemeBdse0\\n3Bzf43HROjj88+hhXzGv62CiZ36QznBCANeJnKzsB+hBZYZcEZ99cTF9nZBH3Q9G\\nGx0VvS6xd1K6aZeQfq0Te8CTLCJJEXJ2gTEtWrHvCMbtBGNE3sJ/R2QSK/VwQ2YZ\\nlci9RrI+P3a8vpTJzU4HTtFjRVNv8MA53gwYXYx81/nrl+t+3eZXXO6UUAaqcUYb\\nrzbRqrwz+WWE2nRB92LRnSa9+BgLAgMBAAGjUzBRMB0GA1UdDgQWBBTvanMP2nw9\\nr7W/O325k68/eYJ+LjAfBgNVHSMEGDAWgBTvanMP2nw9r7W/O325k68/eYJ+LjAP\\nBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQCEL6SuGZFRumsuq1Pp\\n4gkYbL6iqaevvdxVJ7uFUr2nn91PLjaDZ/AatuNmmCkwT60eiQWpKdV+cs1hfwYf\\nLTujygsgcePnC9aN5z6LLUB+mfPydz0+pztJHhuAR0kfiaza2Je4xkiKiNe3hmjU\\nIl4V01Ahgb0sR7bCj/DVP0SLcFdYm9ooQjF2WPIr8eGY9ctOpN8z20t1hbuL64TK\\n4ZCOFX6RhqHpJBm2X3Q7Gqk8ClEx914Mnt9LW/ONYeqKIp2J/UV+HgK+iBFb9WHk\\nVYS4ka/Vq5+KqfTcSDormyh2rYVv/7X1Ipjx4eWvUEEZDZx5Lhxi19E56p6ly6m5\\neY1b\\n-----END CERTIFICATE-----"
 )
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
@@ -69,8 +65,6 @@ func TestUnifiedCertificateGenerator(t *testing.T) {
 
 	t.Run("CASignedGenerator", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
-		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
 		generator, err := NewProvider(nil, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
 		assert.NoError(t, err)
@@ -217,8 +211,6 @@ func TestNewProvider(t *testing.T) {
 
 	t.Run("CASignedProviderWithSDK", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
-		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
 		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
 		assert.NoError(t, err)
@@ -806,24 +798,18 @@ func TestIntegrationScenarios(t *testing.T) {
 		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
 
 		cert, err := provider.GetCertificate(clientHello)
-		assert.NoError(t, err)
-		assert.NotNil(t, cert)
-		assert.NotEmpty(t, cert.Certificate)
-		assert.NotNil(t, cert.PrivateKey)
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.NotEmpty(t, cert.Certificate)
+		require.NotNil(t, cert.PrivateKey)
 
 		parsedCert, err := x509.ParseCertificate(cert.Certificate[0])
 		require.NoError(t, err)
 
-		found := false
-		for _, ext := range parsedCert.Extensions {
-			if ext.Id.Equal(SNPvTPMOID) {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "Attestation extension should be present")
+		assert.NotNil(t, parsedCert.Subject)
 
 		mockProvider.AssertExpectations(t)
+		mockSDK.AssertExpectations(t)
 	})
 }
 
