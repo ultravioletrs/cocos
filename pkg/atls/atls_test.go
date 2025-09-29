@@ -12,6 +12,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"os"
@@ -38,10 +39,41 @@ import (
 
 const (
 	sevProductNameMilan = "Milan"
-	testCertPEM         = "-----BEGIN CERTIFICATE-----\\nMIIC/zCCAeegAwIBAgIUSuwXMW/DOBN3IAOC1L88B8zdelYwDQYJKoZIhvcNAQEL\\nBQAwDzENMAsGA1UEAwwEdGVzdDAeFw0yNTA5MjkwOTM2MDNaFw0yNjA5MjkwOTM2\\nMDNaMA8xDTALBgNVBAMMBHRlc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\\nAoIBAQDCl11hfsL3Co7zvb/vkLpuO6qEsvg+jl/PB+qo7b9uHyoP+HJgnaQbEU7X\\nJAFsT1tAoOmI+oO5IRe6GWi+RyeEUsTfl0hsqprawBO5XL0izWfGD+kyemeBdse0\\n3Bzf43HROjj88+hhXzGv62CiZ36QznBCANeJnKzsB+hBZYZcEZ99cTF9nZBH3Q9G\\nGx0VvS6xd1K6aZeQfq0Te8CTLCJJEXJ2gTEtWrHvCMbtBGNE3sJ/R2QSK/VwQ2YZ\\nlci9RrI+P3a8vpTJzU4HTtFjRVNv8MA53gwYXYx81/nrl+t+3eZXXO6UUAaqcUYb\\nrzbRqrwz+WWE2nRB92LRnSa9+BgLAgMBAAGjUzBRMB0GA1UdDgQWBBTvanMP2nw9\\nr7W/O325k68/eYJ+LjAfBgNVHSMEGDAWgBTvanMP2nw9r7W/O325k68/eYJ+LjAP\\nBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQCEL6SuGZFRumsuq1Pp\\n4gkYbL6iqaevvdxVJ7uFUr2nn91PLjaDZ/AatuNmmCkwT60eiQWpKdV+cs1hfwYf\\nLTujygsgcePnC9aN5z6LLUB+mfPydz0+pztJHhuAR0kfiaza2Je4xkiKiNe3hmjU\\nIl4V01Ahgb0sR7bCj/DVP0SLcFdYm9ooQjF2WPIr8eGY9ctOpN8z20t1hbuL64TK\\n4ZCOFX6RhqHpJBm2X3Q7Gqk8ClEx914Mnt9LW/ONYeqKIp2J/UV+HgK+iBFb9WHk\\nVYS4ka/Vq5+KqfTcSDormyh2rYVv/7X1Ipjx4eWvUEEZDZx5Lhxi19E56p6ly6m5\\neY1b\\n-----END CERTIFICATE-----"
 )
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+
+func generateTestCertPEM(t *testing.T) string {
+	return generateTestCertPEMWithSubject(t, "test")
+}
+
+func generateTestCertPEMWithSubject(t *testing.T, commonName string) string {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: commonName,
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDER,
+	})
+
+	return strings.ReplaceAll(string(certPEM), "\n", "\\n")
+}
 
 // TestCertificateSubject tests the CertificateSubject functionality.
 func TestDefaultCertificateSubject(t *testing.T) {
@@ -660,7 +692,6 @@ func TestCAClient(t *testing.T) {
 
 		assert.NotNil(t, client)
 		assert.Equal(t, agentToken, client.agentToken)
-		assert.NotNil(t, client.client)
 	})
 }
 
@@ -781,7 +812,7 @@ func TestIntegrationScenarios(t *testing.T) {
 
 	t.Run("FullCASignedFlow", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
+		expectedCert := certssdk.Certificate{Certificate: generateTestCertPEM(t)}
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
 		mockProvider := new(mocks.Provider)

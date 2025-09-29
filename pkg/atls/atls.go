@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -55,14 +54,12 @@ func DefaultCertificateSubject() CertificateSubject {
 // CAClient handles communication with Certificate Authority.
 type CAClient struct {
 	casdk      sdk.SDK
-	client     *http.Client
 	agentToken string
 }
 
 func NewCAClient(casdk sdk.SDK, agentToken string) *CAClient {
 	return &CAClient{
 		casdk:      casdk,
-		client:     &http.Client{},
 		agentToken: agentToken,
 	}
 }
