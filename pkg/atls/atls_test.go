@@ -36,10 +36,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const sevProductNameMilan = "Milan"
+const (
+	sevProductNameMilan = "Milan"
+	testCertPEM         = `-----BEGIN CERTIFICATE-----
+MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
+MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
+dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
+-----END CERTIFICATE-----`
+)
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
-
 
 // TestCertificateSubject tests the CertificateSubject functionality.
 func TestDefaultCertificateSubject(t *testing.T) {
@@ -63,12 +69,6 @@ func TestUnifiedCertificateGenerator(t *testing.T) {
 
 	t.Run("CASignedGenerator", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		testCertPEM := `-----BEGIN CERTIFICATE-----
-MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
-MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
-dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
------END CERTIFICATE-----`
-
 		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
@@ -217,12 +217,6 @@ func TestNewProvider(t *testing.T) {
 
 	t.Run("CASignedProviderWithSDK", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		testCertPEM := `-----BEGIN CERTIFICATE-----
-MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
-MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
-dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
------END CERTIFICATE-----`
-
 		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
@@ -536,7 +530,6 @@ func TestVerifyCertificateExtension(t *testing.T) {
 
 // Helper functions
 
-
 func prepVerifyAttReport(t *testing.T) *sevsnp.Attestation {
 	file, err := os.ReadFile("../../attestation.bin")
 	require.NoError(t, err)
@@ -796,12 +789,6 @@ func TestIntegrationScenarios(t *testing.T) {
 
 	t.Run("FullCASignedFlow", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
-		testCertPEM := `-----BEGIN CERTIFICATE-----
-MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
-MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
-dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
------END CERTIFICATE-----`
-
 		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
