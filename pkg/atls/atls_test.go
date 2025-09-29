@@ -12,12 +12,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
-	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +21,7 @@ import (
 	"time"
 
 	certssdk "github.com/absmach/certs/sdk"
+	sdkmocks "github.com/absmach/certs/sdk/mocks"
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/proto/check"
@@ -42,6 +39,7 @@ import (
 const sevProductNameMilan = "Milan"
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+
 
 // TestCertificateSubject tests the CertificateSubject functionality.
 func TestDefaultCertificateSubject(t *testing.T) {
@@ -64,8 +62,19 @@ func TestUnifiedCertificateGenerator(t *testing.T) {
 	})
 
 	t.Run("CASignedGenerator", func(t *testing.T) {
-		// Skip CA-signed test for now as it requires actual SDK implementation
-		t.Skip("CA-signed generator test skipped - requires full SDK implementation")
+		mockSDK := sdkmocks.NewSDK(t)
+		testCertPEM := `-----BEGIN CERTIFICATE-----
+MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
+MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
+dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
+-----END CERTIFICATE-----`
+
+		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
+
+		generator, err := NewProvider(nil, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
+		assert.NoError(t, err)
+		assert.NotNil(t, generator)
 	})
 }
 
@@ -206,9 +215,26 @@ func TestNewProvider(t *testing.T) {
 		assert.NotNil(t, provider)
 	})
 
-	t.Run("CASignedProvider", func(t *testing.T) {
-		// Skip CA-signed test for now as it requires actual SDK implementation
-		t.Skip("CA-signed provider test skipped - requires full SDK implementation")
+	t.Run("CASignedProviderWithSDK", func(t *testing.T) {
+		mockSDK := sdkmocks.NewSDK(t)
+		testCertPEM := `-----BEGIN CERTIFICATE-----
+MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
+MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
+dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
+-----END CERTIFICATE-----`
+
+		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
+
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("SelfSignedProviderNilSDK", func(t *testing.T) {
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
 	})
 
 	t.Run("InvalidPlatformType", func(t *testing.T) {
@@ -510,46 +536,6 @@ func TestVerifyCertificateExtension(t *testing.T) {
 
 // Helper functions
 
-func createMockCAServer(t *testing.T) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Create a valid test certificate
-		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		template := &x509.Certificate{
-			SerialNumber: big.NewInt(1),
-			Subject: pkix.Name{
-				Organization: []string{"Test CA"},
-			},
-			NotBefore:   time.Now(),
-			NotAfter:    time.Now().Add(24 * time.Hour),
-			KeyUsage:    x509.KeyUsageDigitalSignature,
-			ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		}
-
-		certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
-		require.NoError(t, err)
-
-		certPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: certDER,
-		})
-
-		mockCert := certssdk.Certificate{
-			Certificate: string(certPEM),
-		}
-
-		response, _ := json.Marshal(mockCert)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(response)
-	}))
-}
 
 func prepVerifyAttReport(t *testing.T) *sevsnp.Attestation {
 	file, err := os.ReadFile("../../attestation.bin")
@@ -682,12 +668,28 @@ func TestCertificateVerification(t *testing.T) {
 	})
 }
 
-// TestCAClient tests CAClient functionality.
 func TestCAClient(t *testing.T) {
 	t.Run("NewCAClient", func(t *testing.T) {
-		// Skip CA client test for now as it requires actual SDK implementation
-		t.Skip("CA client test skipped - requires full SDK implementation")
+		agentToken := "test-token"
+		client := NewCAClient(nil, agentToken)
+
+		assert.NotNil(t, client)
+		assert.Equal(t, agentToken, client.agentToken)
+		assert.NotNil(t, client.client)
 	})
+}
+
+func TestNewAttestedCAProvider(t *testing.T) {
+	mockProvider := new(mocks.Provider)
+	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+	require.NoError(t, err)
+
+	subject := DefaultCertificateSubject()
+	cvmID := "test-cvm-id"
+	agentToken := "test-token"
+
+	provider := NewAttestedCAProvider(attestationProvider, subject, nil, cvmID, agentToken)
+	assert.NotNil(t, provider)
 }
 
 // TestCertificateWithAttestationExtension tests certificates with attestation extensions.
@@ -793,16 +795,48 @@ func TestIntegrationScenarios(t *testing.T) {
 	})
 
 	t.Run("FullCASignedFlow", func(t *testing.T) {
-		// Setup mock CA server
-		mockServer := createMockCAServer(t)
-		defer mockServer.Close()
+		mockSDK := sdkmocks.NewSDK(t)
+		testCertPEM := `-----BEGIN CERTIFICATE-----
+MIICljCCAX4CAQAwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIVGVzdCBDZXJ0
+MB4XDTIzMDEwMTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVz
+dEBjDEFGHIJKLMNOPQRSTUVWXYZ1234567890qwertyuiopasdfghjklzxcvbnm
+-----END CERTIFICATE-----`
 
-		// Setup mock provider
+		expectedCert := certssdk.Certificate{Certificate: testCertPEM}
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
+
 		mockProvider := new(mocks.Provider)
 		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
-		// Skip CA-signed test for now as it requires actual SDK implementation
-		t.Skip("CA-signed integration test skipped - requires full SDK implementation")
+		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
+		require.NoError(t, err)
+
+		nonce := make([]byte, 64)
+		_, err = rand.Read(nonce)
+		require.NoError(t, err)
+
+		serverName := hex.EncodeToString(nonce) + ".nonce"
+		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
+
+		cert, err := provider.GetCertificate(clientHello)
+		assert.NoError(t, err)
+		assert.NotNil(t, cert)
+		assert.NotEmpty(t, cert.Certificate)
+		assert.NotNil(t, cert.PrivateKey)
+
+		parsedCert, err := x509.ParseCertificate(cert.Certificate[0])
+		require.NoError(t, err)
+
+		found := false
+		for _, ext := range parsedCert.Extensions {
+			if ext.Id.Equal(SNPvTPMOID) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Attestation extension should be present")
+
+		mockProvider.AssertExpectations(t)
 	})
 }
 
