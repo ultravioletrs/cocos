@@ -75,6 +75,32 @@ func generateTestCertPEMWithSubject(t *testing.T, commonName string) string {
 	return strings.ReplaceAll(string(certPEM), "\n", "\\n")
 }
 
+func generateTestCertificateWithExtensions(t *testing.T, extensions []pkix.Extension) *x509.Certificate {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "test",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		ExtraExtensions:       extensions,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	return cert
+}
+
 // TestCertificateSubject tests the CertificateSubject functionality.
 func TestDefaultCertificateSubject(t *testing.T) {
 	subject := DefaultCertificateSubject()
@@ -685,7 +711,8 @@ func TestCertificateVerification(t *testing.T) {
 	})
 }
 
-func TestNewAttestedCAProvider(t *testing.T) {
+// TestAttestedCAProvider tests the CA-signed certificate provider.
+func TestAttestedCAProvider(t *testing.T) {
 	mockProvider := new(mocks.Provider)
 	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
 	require.NoError(t, err)
@@ -694,8 +721,186 @@ func TestNewAttestedCAProvider(t *testing.T) {
 	cvmID := "test-cvm-id"
 	agentToken := "test-token"
 
-	provider := NewAttestedCAProvider(attestationProvider, subject, nil, cvmID, agentToken)
-	assert.NotNil(t, provider)
+	t.Run("NewAttestedCAProvider", func(t *testing.T) {
+		provider := NewAttestedCAProvider(attestationProvider, subject, nil, cvmID, agentToken)
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("SetTTL", func(t *testing.T) {
+		provider := NewAttestedCAProvider(attestationProvider, subject, nil, cvmID, agentToken)
+
+		newTTL := time.Hour * 48
+		provider.(*attestedCertificateProvider).SetTTL(newTTL)
+
+		attestedProvider := provider.(*attestedCertificateProvider)
+		assert.Equal(t, newTTL, attestedProvider.ttl)
+	})
+}
+
+// TestCASignedCertificateErrors tests error cases in CA-signed certificate generation.
+func TestCASignedCertificateErrors(t *testing.T) {
+	mockProvider := new(mocks.Provider)
+	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+	require.NoError(t, err)
+
+	subject := DefaultCertificateSubject()
+	cvmID := "test-cvm-id"
+	agentToken := "test-token"
+
+	cases := []struct {
+		name          string
+		certificate   string
+		sdkError      error
+		expectedError string
+	}{
+		{"SDKIssueError", "", errors.NewSDKError(errors.New("SDK error")), "SDK error"},
+		{"InvalidPEMWithRemainingData", "-----BEGIN CERTIFICATE-----\\nVGVzdA==\\n-----END CERTIFICATE-----\\nExtra data here", nil, "unexpected remaining data"},
+		{"NoPEMBlockFound", "", nil, "no PEM block found"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mockSDK := sdkmocks.NewSDK(t)
+			mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{Certificate: c.certificate}, c.sdkError)
+
+			provider := NewAttestedCAProvider(attestationProvider, subject, mockSDK, cvmID, agentToken)
+			attestedProvider := provider.(*attestedCertificateProvider)
+
+			privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			require.NoError(t, err)
+
+			extension := pkix.Extension{
+				Id:    SNPvTPMOID,
+				Value: []byte("test-data"),
+			}
+
+			_, err = attestedProvider.generateCASignedCertificate(privateKey, extension)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), c.expectedError)
+		})
+	}
+}
+
+// TestGetCertificateErrors tests error paths in certificate generation.
+func TestGetCertificateErrors(t *testing.T) {
+	t.Run("InvalidServerNameFormat", func(t *testing.T) {
+		mockProvider := new(mocks.Provider)
+		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		require.NoError(t, err)
+
+		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
+
+		clientHello := &tls.ClientHelloInfo{
+			ServerName: "invalid-format",
+		}
+
+		_, err = provider.GetCertificate(clientHello)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to extract nonce")
+	})
+
+	t.Run("AttestationProviderError", func(t *testing.T) {
+		mockProvider := new(mocks.Provider)
+		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
+
+		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		require.NoError(t, err)
+
+		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
+
+		nonce := make([]byte, 64)
+		_, err = rand.Read(nonce)
+		require.NoError(t, err)
+
+		serverName := hex.EncodeToString(nonce) + ".nonce"
+		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
+
+		_, err = provider.GetCertificate(clientHello)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get attestation")
+	})
+
+	t.Run("CASignedCertificateError", func(t *testing.T) {
+		mockProvider := new(mocks.Provider)
+		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("test-attestation"), nil)
+
+		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		require.NoError(t, err)
+
+		mockSDK := sdkmocks.NewSDK(t)
+		sdkErr := errors.NewSDKError(errors.New("CA error"))
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{}, sdkErr)
+
+		provider := NewAttestedCAProvider(attestationProvider, DefaultCertificateSubject(), mockSDK, "test-cvm", "test-token")
+
+		nonce := make([]byte, 64)
+		_, err = rand.Read(nonce)
+		require.NoError(t, err)
+
+		serverName := hex.EncodeToString(nonce) + ".nonce"
+		clientHello := &tls.ClientHelloInfo{ServerName: serverName}
+
+		_, err = provider.GetCertificate(clientHello)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to generate certificate")
+	})
+}
+
+// TestCertificateVerificationEdgeCases tests edge cases in certificate verification.
+func TestCertificateVerificationEdgeCases(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	attestationPB := prepVerifyAttReport(t)
+	err = setAttestationPolicy(attestationPB, tempDir)
+	require.NoError(t, err)
+
+	t.Run("VerifyPeerCertificateWithMultipleCerts", func(t *testing.T) {
+		verifier := NewCertificateVerifier(nil)
+		cert1 := createSelfSignedCert(t)
+		cert2 := createSelfSignedCert(t)
+		nonce := generateNonce(t)
+
+		err := verifier.VerifyPeerCertificate([][]byte{cert1.Raw, cert2.Raw}, nil, nonce)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "attestation extension not found")
+	})
+
+	t.Run("VerifyAttestationExtensionWithNoExtensions", func(t *testing.T) {
+		cert := createSelfSignedCert(t)
+		verifier := certificateVerifier{}
+		nonce := generateNonce(t)
+
+		err := verifier.verifyAttestationExtension(cert, nonce)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "attestation extension not found")
+	})
+
+	t.Run("VerifyAttestationExtensionWithWrongOID", func(t *testing.T) {
+		wrongOID := asn1.ObjectIdentifier{1, 2, 3, 4, 5}
+		extension := pkix.Extension{
+			Id:    wrongOID,
+			Value: []byte("test-data"),
+		}
+
+		cert := generateTestCertificateWithExtensions(t, []pkix.Extension{extension})
+		verifier := certificateVerifier{}
+		nonce := generateNonce(t)
+
+		err := verifier.verifyAttestationExtension(cert, nonce)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "attestation extension not found")
+	})
+
+	t.Run("VerifyCertificateExtensionPlatformVerifierError", func(t *testing.T) {
+		verifier := certificateVerifier{}
+		invalidPlatformType := attestation.PlatformType(999)
+
+		err := verifier.verifyCertificateExtension([]byte("test-extension"), []byte("test-pubkey"), []byte("test-nonce"), invalidPlatformType)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported platform type")
+	})
 }
 
 // TestCertificateWithAttestationExtension tests certificates with attestation extensions.
