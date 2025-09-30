@@ -34,6 +34,7 @@ type CreateReq struct {
 	AgentCvmServerUrl    string                 `protobuf:"bytes,5,opt,name=agent_cvm_server_url,json=agentCvmServerUrl,proto3" json:"agent_cvm_server_url,omitempty"`
 	AgentCvmCaUrl        string                 `protobuf:"bytes,6,opt,name=agent_cvm_ca_url,json=agentCvmCaUrl,proto3" json:"agent_cvm_ca_url,omitempty"`
 	Ttl                  string                 `protobuf:"bytes,7,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	AgentCertsToken      string                 `protobuf:"bytes,8,opt,name=agent_certs_token,json=agentCertsToken,proto3" json:"agent_certs_token,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -113,6 +114,13 @@ func (x *CreateReq) GetAgentCvmCaUrl() string {
 func (x *CreateReq) GetTtl() string {
 	if x != nil {
 		return x.Ttl
+	}
+	return ""
+}
+
+func (x *CreateReq) GetAgentCertsToken() string {
+	if x != nil {
+		return x.AgentCertsToken
 	}
 	return ""
 }
@@ -441,7 +449,7 @@ var File_manager_manager_proto protoreflect.FileDescriptor
 
 const file_manager_manager_proto_rawDesc = "" +
 	"\n" +
-	"\x15manager/manager.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"\xbb\x02\n" +
+	"\x15manager/manager.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"\xe7\x02\n" +
 	"\tCreateReq\x12&\n" +
 	"\x0fagent_log_level\x18\x01 \x01(\tR\ragentLogLevel\x126\n" +
 	"\x18agent_cvm_server_ca_cert\x18\x02 \x01(\fR\x14agentCvmServerCaCert\x12/\n" +
@@ -449,7 +457,8 @@ const file_manager_manager_proto_rawDesc = "" +
 	"\x15agent_cvm_client_cert\x18\x04 \x01(\fR\x12agentCvmClientCert\x12/\n" +
 	"\x14agent_cvm_server_url\x18\x05 \x01(\tR\x11agentCvmServerUrl\x12'\n" +
 	"\x10agent_cvm_ca_url\x18\x06 \x01(\tR\ragentCvmCaUrl\x12\x10\n" +
-	"\x03ttl\x18\a \x01(\tR\x03ttl\"I\n" +
+	"\x03ttl\x18\a \x01(\tR\x03ttl\x12*\n" +
+	"\x11agent_certs_token\x18\b \x01(\tR\x0fagentCertsToken\"I\n" +
 	"\tCreateRes\x12%\n" +
 	"\x0eforwarded_port\x18\x01 \x01(\tR\rforwardedPort\x12\x15\n" +
 	"\x06cvm_id\x18\x02 \x01(\tR\x05cvmId\"\"\n" +

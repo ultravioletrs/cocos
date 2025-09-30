@@ -110,7 +110,7 @@ func main() {
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
 	if flagSetParseError != nil {
-		log.Fatalf("Error parsing flagas: %v", flagSetParseError)
+		log.Fatalf("Error parsing flags: %v", flagSetParseError)
 	}
 
 	parsingError := !flagSet.Parsed()
