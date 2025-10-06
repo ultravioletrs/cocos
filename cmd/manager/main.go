@@ -35,12 +35,11 @@ import (
 )
 
 const (
-	svcName          = "manager"
-	envPrefixGRPC    = "MANAGER_GRPC_"
-	envPrefixHTTP    = "MANAGER_HTTP_"
-	envPrefixQemu    = "MANAGER_QEMU_"
-	clientBufferSize = 100
-	defSvcHTTPPort   = "7003"
+	svcName        = "manager"
+	envPrefixGRPC  = "MANAGER_GRPC_"
+	envPrefixHTTP  = "MANAGER_HTTP_"
+	envPrefixQemu  = "MANAGER_QEMU_"
+	defSvcHTTPPort = "7003"
 )
 
 type config struct {
