@@ -169,7 +169,7 @@ func main() {
 		var certsSDK sdk.SDK
 		if cfg.CAUrl != "" {
 			certsSDK = sdk.NewSDK(sdk.Config{
-				HostURL: cfg.CAUrl,
+				CertsURL: cfg.CAUrl,
 			})
 		}
 		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)

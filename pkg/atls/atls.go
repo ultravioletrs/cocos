@@ -24,6 +24,7 @@ var (
 // CertificateSubject contains certificate subject information.
 type CertificateSubject struct {
 	Organization  string
+	CommonName    string
 	Country       string
 	Province      string
 	Locality      string
@@ -35,6 +36,7 @@ type CertificateSubject struct {
 func DefaultCertificateSubject() CertificateSubject {
 	return CertificateSubject{
 		Organization:  "Ultraviolet",
+		CommonName:    "Ultraviolet",
 		Country:       "Serbia",
 		Province:      "",
 		Locality:      "Belgrade",
