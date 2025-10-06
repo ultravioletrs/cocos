@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/absmach/certs"
 	certssdk "github.com/absmach/certs/sdk"
 	sdkmocks "github.com/absmach/certs/sdk/mocks"
 	"github.com/absmach/supermq/pkg/errors"
@@ -761,6 +762,8 @@ func TestCASignedCertificateErrors(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			mockSDK := sdkmocks.NewSDK(t)
+			expectedCSR := certs.CSR{CSR: []byte("test-csr")}
+			mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
 			mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{Certificate: c.certificate}, c.sdkError)
 
 			provider := NewAttestedCAProvider(attestationProvider, subject, mockSDK, cvmID, agentToken)
@@ -828,7 +831,9 @@ func TestGetCertificateErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		mockSDK := sdkmocks.NewSDK(t)
+		expectedCSR := certs.CSR{CSR: []byte("test-csr")}
 		sdkErr := errors.NewSDKError(errors.New("CA error"))
+		mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{}, sdkErr)
 
 		provider := NewAttestedCAProvider(attestationProvider, DefaultCertificateSubject(), mockSDK, "test-cvm", "test-token")
@@ -1007,7 +1012,9 @@ func TestIntegrationScenarios(t *testing.T) {
 
 	t.Run("FullCASignedFlow", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
+		expectedCSR := certs.CSR{CSR: []byte("test-csr")}
 		expectedCert := certssdk.Certificate{Certificate: generateTestCertPEM(t)}
+		mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
 		mockProvider := new(mocks.Provider)
