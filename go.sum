@@ -34,8 +34,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
-github.com/absmach/certs v0.17.1-0.20251006092614-ffc1e886a28a h1:894h9JmlnXp4/Qzpkauk/bd/6QapxXdBcc8i+88Sf1Q=
-github.com/absmach/certs v0.17.1-0.20251006092614-ffc1e886a28a/go.mod h1:m6CWmAio930laR1TLZ3HhQna4f9KmSyyUGfD8EFZHwE=
+github.com/absmach/certs v0.18.0 h1:4m1uFhFOmIoNyKIVyknaynwnME4OaMcrdYb9zeZzZ20=
+github.com/absmach/certs v0.18.0/go.mod h1:m6CWmAio930laR1TLZ3HhQna4f9KmSyyUGfD8EFZHwE=
 github.com/absmach/senml v1.0.8 h1:+opem/r4g6c6eA/JLyCIuksyEhj7eBdysY3pEmy1mqo=
 github.com/absmach/senml v1.0.8/go.mod h1:DRhzHLgvQoIUHroBgpFrSWso+bJZO9E96RlHAHy+VRI=
 github.com/absmach/supermq v0.18.1 h1:JRLP6rfSzZoHgRGPfwNSmzJ7a4K4b4Dvz2nCmR32rxI=
