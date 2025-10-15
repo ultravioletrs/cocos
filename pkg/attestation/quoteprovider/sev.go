@@ -26,7 +26,7 @@ import (
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -199,7 +199,7 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 	quoteProto.CertificateChain.AskCert = askPem.Bytes
 	quoteProto.CertificateChain.ArkCert = arkPem.Bytes
 
-	result, err := protojson.Marshal(quoteProto)
+	result, err := proto.Marshal(quoteProto)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to marshal quote proto: %v", err)
 	}

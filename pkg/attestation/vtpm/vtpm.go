@@ -310,9 +310,10 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte, vmpl uint)
 		return fmt.Errorf("failed to fetch TEE attestation report: %v", err)
 	}
 
-	extReport, err := abi.ReportCertsToProto(rawTeeAttestation)
+	extReport := &sevsnp.Attestation{}
+	err = proto.Unmarshal(rawTeeAttestation, extReport)
 	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
+		return errors.Wrap(fmt.Errorf("failed to unmarshal TEE report proto"), err)
 	}
 	attestation.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: extReport,

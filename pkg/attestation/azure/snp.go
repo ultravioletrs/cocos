@@ -63,7 +63,6 @@ func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 	quote.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: snpReport,
 	}
-
 	return proto.Marshal(quote)
 }
 
