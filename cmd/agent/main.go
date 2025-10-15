@@ -159,7 +159,6 @@ func main() {
 	err = quoteprovider.FetchCertificates(uint(cfg.Vmpl))
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
-		logger.Error("failed to fetch certificates, exiting")
 		exitCode = 1
 		return
 	}
@@ -218,7 +217,6 @@ func main() {
 	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
-		logger.Error("attestation failed, exiting")
 		exitCode = 1
 		return
 	}
