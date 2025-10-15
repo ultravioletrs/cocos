@@ -42,7 +42,6 @@ func NewProvider() attestation.Provider {
 }
 
 func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
-	fmt.Println("Fetching Azure attestation token &&&&&&&&&&&&&&&&&&&&&")
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
 
@@ -64,12 +63,6 @@ func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 	quote.TeeAttestation = &attest.Attestation_SevSnpAttestation{
 		SevSnpAttestation: snpReport,
 	}
-	fmt.Println("SNP Report:", hex.EncodeToString(params.SNPReport))
-	fmt.Println("THUS FARRRRRR@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-
-	fmt.Println()
-
-	fmt.Println("vTPM Quote:", quote.GetSevSnpAttestation())
 	return proto.Marshal(quote)
 }
 

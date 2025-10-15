@@ -271,14 +271,12 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 
 	certFile, err := os.ReadFile(certFilePath)
 	if err != nil {
-		fmt.Println("failed to read cert file:", err)
 		return nil, "", err
 	}
 
 	certPem, _ := pem.Decode(certFile)
 	certx509, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
-		fmt.Println("failed to parse x509 cert:", err)
 		return nil, "", err
 	}
 
@@ -286,7 +284,6 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 	nonceVTPM := sha256.Sum256(certFile)
 	attest, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestation.SNPvTPM)
 	if err != nil {
-		fmt.Println("failed to get attestation:", err)
 		return nil, "", err
 	}
 

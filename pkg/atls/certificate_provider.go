@@ -90,9 +90,6 @@ func (p *attestedCertificateProvider) GetCertificate(clientHello *tls.ClientHell
 
 	attestationData, err := p.attestationProvider.Attest(pubKeyDER, nonce)
 	if err != nil {
-		fmt.Println("failed to get attestation:", err)
-		fmt.Println("Attestation data:", attestationData)
-		fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@))))))))))))))))))))))0000000000000000000000000000000000000000000ujuuuuuuuuuuuuuuuuuuuuuuuuuu")
 		return nil, fmt.Errorf("failed to get attestation: %w", err)
 	}
 
