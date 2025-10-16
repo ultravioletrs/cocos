@@ -156,11 +156,13 @@ func main() {
 		return
 	}
 
-	err = quoteprovider.FetchCertificates(uint(cfg.Vmpl))
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
-		exitCode = 1
-		return
+	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
+		err = quoteprovider.FetchCertificates(uint(cfg.Vmpl))
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
+			exitCode = 1
+			return
+		}
 	}
 
 	svc := newService(ctx, logger, eventSvc, provider, cfg.Vmpl)
