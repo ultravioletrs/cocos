@@ -239,7 +239,9 @@ func VerifyQuote(quote []byte, vtpmNonce []byte, writer io.Writer, policy *attes
 		return err
 	}
 
-	ms, err := server.VerifyAttestation(attestation, server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}})
+	verifyOpts := server.VerifyOpts{Nonce: vtpmNonce, TrustedAKs: []crypto.PublicKey{cryptoPub}, AllowEFIAppBeforeCallingEvent: true}
+
+	ms, err := server.VerifyAttestation(attestation, verifyOpts)
 	if err != nil {
 		return errors.Wrap(fmt.Errorf("failed to verify attestation"), err)
 	}
