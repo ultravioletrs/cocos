@@ -216,8 +216,8 @@ func VTPMVerify(quote []byte, teeNonce []byte, vtpmNonce []byte, writer io.Write
 	akPub := attestation.GetAkPub()
 
 	nonce := make([]byte, 0, len(teeNonce)+len(akPub))
-	nonce = append(teeNonce, teeNonce...)
-	nonce = append(teeNonce, akPub...)
+	nonce = append(nonce, teeNonce...)
+	nonce = append(nonce, akPub...)
 
 	attestData := sha3.Sum512(nonce)
 
