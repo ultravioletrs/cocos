@@ -777,7 +777,7 @@ func TestCASignedCertificateErrors(t *testing.T) {
 				Value: []byte("test-data"),
 			}
 
-			_, err = attestedProvider.generateCASignedCertificate(privateKey, extension)
+			_, err = attestedProvider.generateCASignedCertificate(t.Context(), privateKey, extension)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), c.expectedError)
 		})
