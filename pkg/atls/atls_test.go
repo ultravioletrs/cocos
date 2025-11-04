@@ -763,8 +763,8 @@ func TestCASignedCertificateErrors(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			mockSDK := sdkmocks.NewSDK(t)
 			expectedCSR := certs.CSR{CSR: []byte("test-csr")}
-			mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
-			mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{Certificate: c.certificate}, c.sdkError)
+			mockSDK.On("CreateCSR", mock.Anything, mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
+			mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{Certificate: c.certificate}, c.sdkError)
 
 			provider := NewAttestedCAProvider(attestationProvider, subject, mockSDK, cvmID, agentToken)
 			attestedProvider := provider.(*attestedCertificateProvider)
@@ -777,7 +777,7 @@ func TestCASignedCertificateErrors(t *testing.T) {
 				Value: []byte("test-data"),
 			}
 
-			_, err = attestedProvider.generateCASignedCertificate(privateKey, extension)
+			_, err = attestedProvider.generateCASignedCertificate(t.Context(), privateKey, extension)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), c.expectedError)
 		})
@@ -833,8 +833,8 @@ func TestGetCertificateErrors(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
 		expectedCSR := certs.CSR{CSR: []byte("test-csr")}
 		sdkErr := errors.NewSDKError(errors.New("CA error"))
-		mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
-		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{}, sdkErr)
+		mockSDK.On("CreateCSR", mock.Anything, mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certssdk.Certificate{}, sdkErr)
 
 		provider := NewAttestedCAProvider(attestationProvider, DefaultCertificateSubject(), mockSDK, "test-cvm", "test-token")
 
@@ -1014,8 +1014,8 @@ func TestIntegrationScenarios(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
 		expectedCSR := certs.CSR{CSR: []byte("test-csr")}
 		expectedCert := certssdk.Certificate{Certificate: generateTestCertPEM(t)}
-		mockSDK.On("CreateCSR", mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
-		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
+		mockSDK.On("CreateCSR", mock.Anything, mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
+		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
 		mockProvider := new(mocks.Provider)
 		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)

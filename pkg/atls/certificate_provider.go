@@ -3,6 +3,7 @@
 package atls
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -100,7 +101,7 @@ func (p *attestedCertificateProvider) GetCertificate(clientHello *tls.ClientHell
 
 	var certDERBytes []byte
 	if p.useCA {
-		certDERBytes, err = p.generateCASignedCertificate(privateKey, extension)
+		certDERBytes, err = p.generateCASignedCertificate(clientHello.Context(), privateKey, extension)
 	} else {
 		certDERBytes, err = p.generateSelfSignedCertificate(privateKey, extension)
 	}
@@ -137,7 +138,7 @@ func (p *attestedCertificateProvider) generateSelfSignedCertificate(privateKey *
 	return x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
 }
 
-func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
+func (p *attestedCertificateProvider) generateCASignedCertificate(ctx context.Context, privateKey *ecdsa.PrivateKey, extension pkix.Extension) ([]byte, error) {
 	csrMetadata := certs.CSRMetadata{
 		Organization:    []string{p.subject.Organization},
 		Country:         []string{p.subject.Country},
@@ -149,12 +150,12 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(privateKey *ec
 		ExtraExtensions: []pkix.Extension{extension},
 	}
 
-	csr, sdkerr := p.certsSDK.CreateCSR(csrMetadata, privateKey)
+	csr, sdkerr := p.certsSDK.CreateCSR(ctx, csrMetadata, privateKey)
 	if sdkerr != nil {
 		return nil, fmt.Errorf("failed to create CSR: %w", sdkerr)
 	}
 
-	cert, err := p.certsSDK.IssueFromCSRInternal(p.cvmID, p.ttl.String(), string(csr.CSR), p.agentToken)
+	cert, err := p.certsSDK.IssueFromCSRInternal(ctx, p.cvmID, p.ttl.String(), string(csr.CSR), p.agentToken)
 	if err != nil {
 		return nil, err
 	}
