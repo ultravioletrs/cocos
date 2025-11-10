@@ -78,7 +78,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "Directory where the result file will be saved")
-	cmd.Flags().StringVarP(&filename, "filename", "f", resultFilename, "Name of the result file (default: results.zip)")
+	cmd.Flags().StringVarP(&filename, "filename", "f", resultFilename, "Name of the result file")
 
 	return cmd
 }
