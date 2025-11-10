@@ -36,11 +36,9 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			// Construct full output path
 			var outputPath string
 			if outputDir != "" {
-				// Create output directory if it doesn't exist
-				if err := os.MkdirAll(outputDir, 0755); err != nil {
+				if err := os.MkdirAll(outputDir, 0o755); err != nil {
 					printError(cmd, "Error creating output directory: %v ❌ ", err)
 					return
 				}
@@ -49,7 +47,6 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				outputPath = filename
 			}
 
-			// Get absolute path for display
 			absPath, err := filepath.Abs(outputPath)
 			if err != nil {
 				absPath = outputPath
