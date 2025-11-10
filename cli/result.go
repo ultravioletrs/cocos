@@ -5,23 +5,23 @@ package cli
 import (
 	"encoding/pem"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
-const (
-	resultFilePrefix = "results"
-	resultFileExt    = ".zip"
-	resultfilename   = "results.zip"
-)
+const resultFilename = "results.zip"
 
 func (cli *CLI) NewResultsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "result",
+	var outputDir string
+	var filename string
+
+	cmd := &cobra.Command{
+		Use:     "result <private_key_file_path>",
 		Short:   "Retrieve computation result file",
-		Example: "result <private_key_file_path> <optional_file_name.zip>",
-		Args:    cobra.MinimumNArgs(1),
+		Example: "result <private_key_file_path> --filename my_results.zip --output-dir /path/to/directory",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
 				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
@@ -36,9 +36,23 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			filename := resultfilename
-			if len(args) > 1 {
-				filename = args[1]
+			// Construct full output path
+			var outputPath string
+			if outputDir != "" {
+				// Create output directory if it doesn't exist
+				if err := os.MkdirAll(outputDir, 0755); err != nil {
+					printError(cmd, "Error creating output directory: %v ❌ ", err)
+					return
+				}
+				outputPath = filepath.Join(outputDir, filename)
+			} else {
+				outputPath = filename
+			}
+
+			// Get absolute path for display
+			absPath, err := filepath.Abs(outputPath)
+			if err != nil {
+				absPath = outputPath
 			}
 
 			pemBlock, _ := pem.Decode(privKeyFile)
@@ -49,7 +63,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			resultFile, err := os.Create(filename)
+			resultFile, err := os.Create(outputPath)
 			if err != nil {
 				printError(cmd, "Error creating result file: %v ❌ ", err)
 				return
@@ -61,7 +75,13 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 				return
 			}
 
-			cmd.Println(color.New(color.FgGreen).Sprintf("Computation result retrieved and saved successfully as %s! ✔ ", filename))
+			cmd.Println(color.New(color.FgGreen).Sprintf("Computation result retrieved and saved successfully! ✔"))
+			cmd.Println(color.New(color.FgCyan).Sprintf("📁 Location: %s", absPath))
 		},
 	}
+
+	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "Directory where the result file will be saved")
+	cmd.Flags().StringVarP(&filename, "filename", "f", resultFilename, "Name of the result file (default: results.zip)")
+
+	return cmd
 }
