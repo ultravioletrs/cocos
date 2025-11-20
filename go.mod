@@ -7,7 +7,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/google/go-sev-guest v0.13.0
+	github.com/google/go-sev-guest v0.14.0
 	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
@@ -104,7 +104,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-configfs-tsm v0.3.3-0.20240919001351-b4b5b84fdcbc // indirect
 	github.com/google/go-tpm v0.9.6
-	github.com/google/go-tpm-tools v0.4.6
+	github.com/google/go-tpm-tools v0.4.7
 	github.com/google/logger v1.1.1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
