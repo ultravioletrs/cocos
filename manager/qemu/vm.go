@@ -3,6 +3,7 @@
 package qemu
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -22,6 +23,7 @@ const (
 	KernelFile      = "bzImage"
 	rootfsFile      = "rootfs.cpio"
 	tmpDir          = "/tmp"
+	diskDstName     = "cvmDisk"
 	interval        = 5 * time.Second
 	shutdownTimeout = 30 * time.Second
 )
@@ -37,6 +39,10 @@ type qemuVM struct {
 	cvmId  string
 	logger *slog.Logger
 	vm.StateMachine
+}
+
+type qemuInfo struct {
+	VirtualSize int64 `json:"virtual-size"`
 }
 
 func NewVM(config any, cvmId string, logger *slog.Logger) vm.VM {
@@ -73,6 +79,22 @@ func (v *qemuVM) Start() (err error) {
 			return err
 		}
 		v.vmi.Config.OVMFVarsConfig.File = dstFile
+	}
+
+	if v.vmi.Config.EnableDisk {
+		sizeGB, err := GetVirtualSizeGB(v.vmi.Config.SrcFile)
+		if err != nil {
+			return err
+		}
+
+		dstDiskFile := fmt.Sprintf("%s/%s-%s.qcow2", tmpDir, diskDstName, id)
+		sizeArg := fmt.Sprintf("%dG", sizeGB)
+
+		cmd := exec.Command("qemu-img", "create", "-f", "qcow2", dstDiskFile, sizeArg)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("qemu-img create failed: %w: %s", err, string(out))
+		}
+		v.vmi.Config.DstFile = dstDiskFile
 	}
 
 	exe, args, err := v.executableAndArgs()
@@ -230,4 +252,33 @@ func TDXEnabledOnHost() bool {
 	}
 
 	return TDXEnabled(string(cpuinfo), string(kernelParam))
+}
+
+func GetVirtualSizeBytes(path string) (int64, error) {
+	cmd := exec.Command("qemu-img", "info", "--output=json", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("qemu-img info failed: %w", err)
+	}
+
+	var info qemuInfo
+	if err := json.Unmarshal(out, &info); err != nil {
+		return 0, fmt.Errorf("failed to parse qemu-img JSON: %w", err)
+	}
+
+	if info.VirtualSize <= 0 {
+		return 0, fmt.Errorf("invalid virtual size: %d", info.VirtualSize)
+	}
+
+	return info.VirtualSize, nil
+}
+
+func GetVirtualSizeGB(path string) (int, error) {
+	bytes, err := GetVirtualSizeBytes(path)
+	if err != nil {
+		return 0, err
+	}
+
+	gb := (bytes + (1<<30 - 1)) >> 30
+	return int(gb), nil
 }

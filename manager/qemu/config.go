@@ -74,10 +74,11 @@ type IGVMConfig struct {
 }
 
 type DiskConfig struct {
-	File   string `env:"DISK_FILE"   envDefault:"img/enc_os.qcow2"`
-	ID     string `env:"DISK_ID"     envDefault:"disk0"`
-	Format string `env:"DISK_FORMAT" envDefault:"qcow2"`
-	SCSIID string `env:"DISK_SCSI_ID" envDefault:"scsi0"`
+	SrcFile string `env:"SRC_DISK_FILE"   envDefault:"img/enc_os.qcow2"`
+	DstFile string `env:"DST_DISK_FILE"   envDefault:"img/enc_os.qcow2"`
+	ID      string `env:"DISK_ID"     envDefault:"disk0"`
+	Format  string `env:"DISK_FORMAT" envDefault:"qcow2"`
+	SCSIID  string `env:"DISK_SCSI_ID" envDefault:"scsi0"`
 }
 
 type Config struct {
@@ -192,7 +193,7 @@ func (config Config) ConstructQemuArgs() []string {
 		// disk image
 		args = append(args, "-drive",
 			fmt.Sprintf("file=%s,if=none,id=%s,format=%s",
-				config.DiskConfig.File,
+				config.DiskConfig.DstFile,
 				config.DiskConfig.ID,
 				config.DiskConfig.Format))
 		args = append(args, "-device",
