@@ -49,7 +49,7 @@ type VirtioNetPciConfig struct {
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
-type DiskImgConfig struct {
+type KernelConfig struct {
 	KernelFile string `env:"DISK_IMG_KERNEL_FILE" envDefault:"img/bzImage"`
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
@@ -73,9 +73,17 @@ type IGVMConfig struct {
 	File string `env:"IGVM_FILE"      envDefault:"/root/coconut-qemu.igvm"`
 }
 
+type DiskConfig struct {
+	File   string `env:"DISK_FILE"   envDefault:"img/enc_os.qcow2"`
+	ID     string `env:"DISK_ID"     envDefault:"disk0"`
+	Format string `env:"DISK_FORMAT" envDefault:"qcow2"`
+	SCSIID string `env:"DISK_SCSI_ID" envDefault:"scsi0"`
+}
+
 type Config struct {
 	EnableSEVSNP bool
 	EnableTDX    bool
+	EnableDisk   bool
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
 
@@ -97,8 +105,11 @@ type Config struct {
 	NetDevConfig
 	VirtioNetPciConfig
 
-	// disk
-	DiskImgConfig
+	// disk config
+	DiskConfig
+
+	// kernel and initramfs
+	KernelConfig
 
 	// SEV-SNP
 	SEVSNPConfig
@@ -177,6 +188,22 @@ func (config Config) ConstructQemuArgs() []string {
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
 
+	if config.EnableDisk {
+		// disk image
+		args = append(args, "-drive",
+			fmt.Sprintf("file=%s,if=none,id=%s,format=%s",
+				config.DiskConfig.File,
+				config.DiskConfig.ID,
+				config.DiskConfig.Format))
+		args = append(args, "-device",
+			fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=on,iommu_platform=true",
+				config.DiskConfig.SCSIID))
+		args = append(args, "-device",
+			fmt.Sprintf("scsi-hd,drive=%s,bus=%s.0",
+				config.DiskConfig.ID,
+				config.DiskConfig.SCSIID))
+	}
+
 	// SEV-SNP
 	if config.EnableSEVSNP {
 		sevSnpType := "sev-snp-guest"
@@ -231,9 +258,9 @@ func (config Config) ConstructQemuArgs() []string {
 		args = append(args, "-nodefaults")
 	}
 
-	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
+	args = append(args, "-kernel", config.KernelConfig.KernelFile)
 	args = append(args, "-append", strconv.Quote(KernelCommandLine))
-	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
+	args = append(args, "-initrd", config.KernelConfig.RootFsFile)
 
 	// display
 	if config.NoGraphic {

@@ -1,10 +1,7 @@
 #!/bin/sh
 
-set -e
-
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-/bin/mount -t devtmpfs devtmpfs /dev
 if (exec 0</dev/console) 2>/dev/null; then
     exec 0</dev/console
     exec 1>/dev/console
@@ -39,13 +36,14 @@ ROOT_PART=""
 ROOT_PART_CANDIDATE1="/dev/mapper/${MAP}p1"
 ROOT_PART_CANDIDATE2="/dev/mapper/${MAP}1"
 ROOTFS_TYPE="ext4"
-LUKS_PARAMS="--cipher aes-xts-plain64 --integrity hmac-sha256"
+LUKS_PARAMS="--cipher aes-xts-plain64"
+HASH256=/hash_rootimg.sha256
+HASH384=/hash_rootimg.sha384
 
-
-echo "[init] Starting encrypting disk..."
+echo "[init] Starting disk encryption..."
 
 echo "[init] Assign IP address..."
-dhclient
+udhcpc
 
 echo "[init] Connecting NBD service..."
 nbd-client -N src "$SRC_IP" "$SRC_PORT" "$SRC"
@@ -59,13 +57,26 @@ cryptsetup luksFormat "$DST" --type luks2 $LUKS_PARAMS --key-file="$KK_BIN" -q
 cryptsetup open "$DST" "$MAP" --key-file="$KK_BIN"
 
 echo "[clone] Copying raw blocks from $SRC → $MAPPER ..."
-dd if="$SRC" of="$MAPPER" bs=16M oflag=direct conv=fsync
+dd if="$SRC" bs=16M \
+  | tee >(sha256sum > "$HASH256") \
+        >(sha384sum > "$HASH384") \
+  | dd of="$MAPPER" bs=16M oflag=direct conv=fsync
+
+sync
 
 echo "[init] Disconnecting NBD..."
 nbd-client -d "$SRC" || true
 
+DISK_HASH256=$(cut -d' ' -f1 "$HASH256")
+DISK_HASH384=$(cut -d' ' -f1 "$HASH384")
+if [ -e /dev/tpm0 ] && [ -e /dev/sev-guest ]; then
+    echo "[init] vTPM and SEV-SNP devices present, extending PCR16..."
+    tpm2_pcrextend 16:sha256="$DISK_HASH256" ${DISK_HASH384:+,sha384="$DISK_HASH384"}
+else
+    echo "[init] vTPM or SEV-SNP device missing, skipping PCR extension"
+fi
+
 echo "[init] Triggering partition scan on $MAPPER..."
-# partprobe "$MAPPER" 2>/dev/null || true
 kpartx -av $MAPPER
 sleep 1
 

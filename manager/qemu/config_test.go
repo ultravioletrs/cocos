@@ -51,7 +51,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
@@ -114,7 +114,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
