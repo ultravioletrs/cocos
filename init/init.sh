@@ -25,7 +25,7 @@ MNT_DIR=/root
 BASE=$(pwd)
 
 SRC=/dev/nbd2
-SRC_IP=147.91.12.238
+SRC_IP=10.172.192.30
 SRC_PORT=10809
 
 DST=/dev/sda

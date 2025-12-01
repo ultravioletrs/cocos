@@ -33,8 +33,8 @@ fi
 
 echo "Building the Rust crate..."
 
-RELEASE=1 make bin/igvmmeasure BUILDDIR="$BUILD_DIR"
+RELEASE=1 make bin/igvmmeasure
 
-mv bin/igvmmeasure "$BUILD_DIR/"
+mv "$BUILD_DIR"/svsm/bin/igvmmeasure "$BUILD_DIR/"
 
 echo "Binary stored in: $BUILD_DIR/igvmmeasure"
