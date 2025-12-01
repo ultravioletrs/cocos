@@ -148,6 +148,15 @@ else
     echo "[init] vTPM or SEV-SNP device missing, skipping PCR extension"
 fi
 
+DISK_HASH256=$(cut -d' ' -f1 "$HASH256")
+DISK_HASH384=$(cut -d' ' -f1 "$HASH384")
+if [ -e /dev/tpm0 ] && [ -e /dev/sev-guest ]; then
+    echo "[init] vTPM and SEV-SNP devices present, extending PCR16..."
+    tpm2_pcrextend 16:sha256="$DISK_HASH256" ${DISK_HASH384:+,sha384="$DISK_HASH384"}
+else
+    echo "[init] vTPM or SEV-SNP device missing, skipping PCR extension"
+fi
+
 echo "[init] Triggering partition scan on $MAPPER..."
 kpartx -av $MAPPER || {
     echo "[init] FATAL: kpartx failed"
