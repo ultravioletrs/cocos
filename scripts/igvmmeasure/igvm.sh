@@ -8,7 +8,7 @@ mkdir -p "$BUILD_DIR"
 
 # Define the target directory for cloning inside the build directory
 TARGET_DIR="$BUILD_DIR/svsm"
-SUBDIR="igvmmeasure"
+SUBDIR="tools/igvmmeasure"
 
 # Clone the repository if it doesn't exist
 if [ -d "$TARGET_DIR" ]; then
@@ -33,8 +33,8 @@ fi
 
 echo "Building the Rust crate..."
 
-RELEASE=1 make bin/igvmmeasure BUILDDIR="$BUILD_DIR"
+RELEASE=1 make bin/igvmmeasure
 
-mv bin/igvmmeasure "$BUILD_DIR/"
+mv "$BUILD_DIR"/svsm/bin/igvmmeasure "$BUILD_DIR/"
 
 echo "Binary stored in: $BUILD_DIR/igvmmeasure"
