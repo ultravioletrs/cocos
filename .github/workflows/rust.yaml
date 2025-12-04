@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./scripts/attestation_policy
+        working-directory: ./scripts/attestation_policy/sev-snp
 
     steps:
       - name: Checkout Code
