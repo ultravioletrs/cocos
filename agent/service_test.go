@@ -24,7 +24,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	mocks2 "github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
@@ -123,7 +122,8 @@ func TestAlgo(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
-			svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
+			client := new(MockAttestationClient)
+			svc := New(ctx, mglog.NewMock(), events, client, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -216,7 +216,8 @@ func TestData(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
+			client := new(MockAttestationClient)
+			svc := New(ctx, mglog.NewMock(), events, client, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -292,16 +293,18 @@ func TestResult(t *testing.T) {
 				ctx = tc.ctxSetup(ctx)
 			}
 
+			client := new(MockAttestationClient)
+
 			sm := new(smmocks.StateMachine)
 			sm.On("Start", ctx).Return(nil)
 			sm.On("GetState").Return(tc.state)
 			sm.On("SendEvent", mock.Anything).Return()
 
 			svc := &agentService{
-				sm:          sm,
-				eventSvc:    events,
-				provider:    &attestation.EmptyProvider{},
-				computation: testComputation(t),
+				sm:                sm,
+				eventSvc:          events,
+				attestationClient: client,
+				computation:       testComputation(t),
 			}
 
 			go func() {
@@ -321,7 +324,7 @@ func TestResult(t *testing.T) {
 }
 
 func TestAttestation(t *testing.T) {
-	provider := new(mocks2.Provider)
+	client := new(MockAttestationClient)
 
 	cases := []struct {
 		name       string
@@ -391,19 +394,13 @@ func TestAttestation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			getQuote := provider.On("TeeAttestation", mock.Anything).Return(tc.rawQuote, tc.err)
-			vtpmQuote := provider.On("VTpmAttestation", mock.Anything).Return(tc.rawQuote, tc.err)
-			snpVtpm := provider.On("Attestation", mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
+			getQuote := client.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
 			if tc.err != ErrAttestationFailed && tc.err != ErrAttestationVTpmFailed {
-				getQuote = provider.On("TeeAttestation", mock.Anything).Return(tc.nonce, nil)
-				vtpmQuote = provider.On("VTpmAttestation", mock.Anything).Return(tc.nonce[:], nil)
-				snpVtpm = provider.On("Attestation", mock.Anything, mock.Anything).Return(tc.nonce[:], nil)
+				getQuote = client.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.nonce[:], nil)
 			}
 			defer getQuote.Unset()
-			defer vtpmQuote.Unset()
-			defer snpVtpm.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, provider, 0)
+			svc := New(ctx, mglog.NewMock(), events, client, 0)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, tc.platform)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -412,7 +409,7 @@ func TestAttestation(t *testing.T) {
 }
 
 func TestAzureAttestationToken(t *testing.T) {
-	provider := new(mocks2.Provider)
+	client := new(MockAttestationClient)
 	cases := []struct {
 		name  string
 		nonce [vtpm.Nonce]byte
@@ -423,17 +420,22 @@ func TestAzureAttestationToken(t *testing.T) {
 			name:  "Azure token fetch successful",
 			nonce: [32]byte{1, 2, 3}, // any test nonce
 			token: []byte("mockToken"),
-			err:   ErrAttestationType,
+			err:   nil, // fixed expectation as err was ErrAttestationType in original but logic suggests success if token returns? Wait, orig test had ErrAttestationType? Ah, maybe provider mock returns error.
+			// Re-reading original test:
+			// err: ErrAttestationType
+			// provider.On(...).Return(tc.token, tc.err)
+			// svc.AzureAttestationToken...
+			// In original code, AzureAttestationToken checked `attestation.CCPlatform() != attestation.Azure`.
+			// Since test runs on non-azure, it returns ErrAttestationType.
+			// My new client calls GetAzureToken. The logic for checking platform moved to attestation-service.
+			// So `agent` just calls the client.
+			// So here we should expect whatever the client returns.
+			// Mock client returns tc.err.
+			// If I want to test success, I should set err: nil.
 		},
 		{
 			name:  "Azure token fetch failed",
 			nonce: [32]byte{4, 5, 6},
-			token: []byte{},
-			err:   ErrAttestationType,
-		},
-		{
-			name:  "Invalid attestation type",
-			nonce: [32]byte{7, 8, 9},
 			token: []byte{},
 			err:   ErrAttestationType,
 		},
@@ -444,11 +446,11 @@ func TestAzureAttestationToken(t *testing.T) {
 			events := new(mocks.Service)
 			events.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
-			provider.On("AzureAttestationToken", tc.nonce[:]).Return(tc.token, tc.err)
+			client.On("GetAzureToken", mock.Anything, tc.nonce).Return(tc.token, tc.err)
 
 			ctx := context.Background()
 
-			svc := New(ctx, mglog.NewMock(), events, provider, 0)
+			svc := New(ctx, mglog.NewMock(), events, client, 0)
 
 			_, err := svc.AzureAttestationToken(ctx, tc.nonce)
 			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
@@ -536,7 +538,8 @@ func TestStopComputation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0).(*agentService)
+			client := new(MockAttestationClient)
+			svc := New(ctx, mglog.NewMock(), events, client, 0).(*agentService)
 
 			svc.computation = Computation{
 				ID:   "test-computation",
@@ -604,7 +607,8 @@ func TestStopComputationIntegration(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
+	client := new(MockAttestationClient)
+	svc := New(ctx, mglog.NewMock(), events, client, 0)
 
 	computation := Computation{
 		ID:   "integration-test",
@@ -642,7 +646,8 @@ func TestStopComputationConcurrent(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	svc := New(ctx, mglog.NewMock(), events, &attestation.EmptyProvider{}, 0)
+	client := new(MockAttestationClient)
+	svc := New(ctx, mglog.NewMock(), events, client, 0)
 
 	svc.(*agentService).computation = Computation{
 		ID:   "concurrent-test",

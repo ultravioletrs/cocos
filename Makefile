@@ -1,5 +1,5 @@
 BUILD_DIR = build
-SERVICES = manager agent cli
+SERVICES = manager agent cli attestation-service
 ATTESTATION_POLICY = attestation_policy
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
@@ -40,6 +40,7 @@ protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative manager/manager.proto
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/events/events.proto
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/cvms/cvms.proto
+	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/proto/attestation/v1/attestation.proto
 
 mocks:
 	mockery --config ./.mockery.yml

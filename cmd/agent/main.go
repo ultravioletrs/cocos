@@ -29,11 +29,9 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
-	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/clients"
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
 )
@@ -45,16 +43,17 @@ const (
 )
 
 type config struct {
-	LogLevel      string `env:"AGENT_LOG_LEVEL"   envDefault:"debug"`
-	Vmpl          int    `env:"AGENT_VMPL"        envDefault:"2"`
-	AgentGrpcHost string `env:"AGENT_GRPC_HOST"   envDefault:"0.0.0.0"`
-	CAUrl         string `env:"AGENT_CVM_CA_URL"  envDefault:""`
-	CVMId         string `env:"AGENT_CVM_ID"      envDefault:""`
-	CertsToken    string `env:"AGENT_CERTS_TOKEN" envDefault:""`
-	AgentMaaURL   string `env:"AGENT_MAA_URL"     envDefault:"https://sharedeus2.eus2.attest.azure.net"`
-	AgentOSBuild  string `env:"AGENT_OS_BUILD"    envDefault:"UVC"`
-	AgentOSDistro string `env:"AGENT_OS_DISTRO"   envDefault:"UVC"`
-	AgentOSType   string `env:"AGENT_OS_TYPE"     envDefault:"UVC"`
+	LogLevel                 string `env:"AGENT_LOG_LEVEL"              envDefault:"debug"`
+	Vmpl                     int    `env:"AGENT_VMPL"                   envDefault:"2"`
+	AgentGrpcHost            string `env:"AGENT_GRPC_HOST"              envDefault:"0.0.0.0"`
+	CAUrl                    string `env:"AGENT_CVM_CA_URL"             envDefault:""`
+	CVMId                    string `env:"AGENT_CVM_ID"                 envDefault:""`
+	CertsToken               string `env:"AGENT_CERTS_TOKEN"            envDefault:""`
+	AgentMaaURL              string `env:"AGENT_MAA_URL"                envDefault:"https://sharedeus2.eus2.attest.azure.net"`
+	AgentOSBuild             string `env:"AGENT_OS_BUILD"               envDefault:"UVC"`
+	AgentOSDistro            string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
+	AgentOSType              string `env:"AGENT_OS_TYPE"                envDefault:"UVC"`
+	AttestationServiceSocket string `env:"ATTESTATION_SERVICE_SOCKET" envDefault:"/run/cocos/attestation.sock"`
 }
 
 func main() {
@@ -99,20 +98,6 @@ func main() {
 	)
 	azure.InitializeDefaultMAAVars(azureConfig)
 
-	switch ccPlatform {
-	case attestation.SNP:
-		provider = vtpm.NewProvider(false, uint(cfg.Vmpl))
-	case attestation.SNPvTPM:
-		provider = vtpm.NewProvider(true, uint(cfg.Vmpl))
-	case attestation.Azure:
-		provider = azure.NewProvider()
-	case attestation.TDX:
-		provider = tdx.NewProvider()
-	case attestation.NoCC:
-		logger.Info("TEE device not found")
-		provider = &attestation.EmptyProvider{}
-	}
-
 	cvmGrpcConfig := clients.StandardClientConfig{}
 	if err := env.ParseWithOptions(&cvmGrpcConfig, env.Options{Prefix: envPrefixCVMGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
@@ -156,16 +141,15 @@ func main() {
 		return
 	}
 
-	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
-		err = quoteprovider.FetchCertificates(uint(cfg.Vmpl))
-		if err != nil {
-			logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
-			exitCode = 1
-			return
-		}
+	attClient, err := attestation_client.NewClient(cfg.AttestationServiceSocket)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create attestation client: %s", err))
+		exitCode = 1
+		return
 	}
+	defer attClient.Close()
 
-	svc := newService(ctx, logger, eventSvc, provider, cfg.Vmpl)
+	svc := newService(ctx, logger, eventSvc, attClient, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -254,8 +238,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestation.Provider, vmpl int) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, provider, vmpl)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attClient attestation_client.Client, vmpl int) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, attClient, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")

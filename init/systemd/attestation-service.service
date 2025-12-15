@@ -1,0 +1,16 @@
+[Unit]
+Description=Cocos Attestation Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/attestation-service
+Restart=always
+RestartSec=5
+Environment=ATTESTATION_LOG_LEVEL=debug
+Environment=ATTESTATION_SERVICE_SOCKET=/run/cocos/attestation.sock
+Environment=ATTESTATION_VMPL=2
+ExecStartPre=/cocos_init/attestation_setup.sh
+
+[Install]
+WantedBy=multi-user.target
