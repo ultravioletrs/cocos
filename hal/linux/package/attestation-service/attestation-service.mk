@@ -4,19 +4,15 @@
 #
 ################################################################################
 
-ATTESTATION_SERVICE_VERSION = local
-ATTESTATION_SERVICE_SITE = $(TOPDIR)/../..
-ATTESTATION_SERVICE_SITE_METHOD = local
-ATTESTATION_SERVICE_GO_ENV = $(GO_GO_ENV)
+ATTESTATION_SERVICE_VERSION = main
+ATTESTATION_SERVICE_SITE = $(call github,ultravioletrs,cocos,$(ATTESTATION_SERVICE_VERSION))
 
 define ATTESTATION_SERVICE_BUILD_CMDS
-	cd $(@D); \
-	$(ATTESTATION_SERVICE_GO_ENV) \
-	$(GO_BIN) build -v -ldflags "-s -w" -o bin/attestation-service cmd/attestation-service/main.go
+	$(MAKE) -C $(@D) attestation-service
 endef
 
 define ATTESTATION_SERVICE_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/bin/attestation-service $(TARGET_DIR)/usr/bin/attestation-service
+	$(INSTALL) -D -m 0755 $(@D)/build/cocos-attestation-service $(TARGET_DIR)/usr/bin/attestation-service
 endef
 
 define ATTESTATION_SERVICE_INSTALL_INIT_SYSTEMD
