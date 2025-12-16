@@ -436,17 +436,11 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
-	// TODO: verify if we can merge these calls and let the attestation service handle the logic
-	switch attType {
-	case attestation.SNP, attestation.TDX, attestation.VTPM, attestation.SNPvTPM:
-		rawQuote, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attType)
-		if err != nil {
-			return []byte{}, errors.Wrap(ErrAttestationFailed, err)
-		}
-		return rawQuote, nil
-	default:
-		return []byte{}, ErrAttestationType
+	rawQuote, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attType)
+	if err != nil {
+		return []byte{}, errors.Wrap(ErrAttestationFailed, err)
 	}
+	return rawQuote, nil
 }
 
 func (as *agentService) AzureAttestationToken(ctx context.Context, nonce [vtpm.Nonce]byte) ([]byte, error) {

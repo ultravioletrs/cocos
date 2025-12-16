@@ -102,7 +102,7 @@ func main() {
 	}
 
 	dir := socketPath[:len(socketPath)-len("/attestation.sock")]
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create socket directory: %s", err))
 		exitCode = 1
 		return
@@ -115,7 +115,7 @@ func main() {
 		return
 	}
 
-	if err := os.Chmod(socketPath, 0777); err != nil {
+	if err := os.Chmod(socketPath, 0o777); err != nil {
 		logger.Error(fmt.Sprintf("failed to chmod socket: %s", err))
 		exitCode = 1
 		return
