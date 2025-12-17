@@ -5,6 +5,7 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/clients/grpc"
+	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -44,13 +46,14 @@ type CVMSClient struct {
 	logger        *slog.Logger
 	runReqManager *runRequestManager
 	sp            server.AgentServer
+	ingressProxy  ingress.ProxyServer
 	storage       storage.Storage
 	reconnectFn   func(context.Context) (grpc.Client, cvms.Service_ProcessClient, error)
 	grpcClient    grpc.Client
 }
 
 // NewClient returns new gRPC client instance.
-func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, storageDir string, reconnectFn func(context.Context) (grpc.Client, cvms.Service_ProcessClient, error), grpcClient grpc.Client) (*CVMSClient, error) {
+func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueue chan *cvms.ClientStreamMessage, logger *slog.Logger, sp server.AgentServer, ingressProxy ingress.ProxyServer, storageDir string, reconnectFn func(context.Context) (grpc.Client, cvms.Service_ProcessClient, error), grpcClient grpc.Client) (*CVMSClient, error) {
 	store, err := storage.NewFileStorage(storageDir)
 	if err != nil {
 		return nil, err
@@ -63,6 +66,7 @@ func NewClient(stream cvms.Service_ProcessClient, svc agent.Service, messageQueu
 		logger:        logger,
 		runReqManager: newRunRequestManager(),
 		sp:            sp,
+		ingressProxy:  ingressProxy,
 		storage:       store,
 		reconnectFn:   reconnectFn,
 		grpcClient:    grpcClient,
@@ -278,6 +282,23 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		runRes.RunRes.Error = err.Error()
 	}
 
+	// Start ingress proxy if available
+	if client.ingressProxy != nil {
+		if err := client.ingressProxy.Start(
+			ingress.AgentConfigToProxyConfig(agent.AgentConfig{
+				Port:         runReq.AgentConfig.Port,
+				CertFile:     runReq.AgentConfig.CertFile,
+				KeyFile:      runReq.AgentConfig.KeyFile,
+				ServerCAFile: runReq.AgentConfig.ServerCaFile,
+				ClientCAFile: runReq.AgentConfig.ClientCaFile,
+				AttestedTls:  runReq.AgentConfig.AttestedTls,
+			}),
+			ingress.ComputationToProxyContext(ac),
+		); err != nil {
+			client.logger.Warn(fmt.Sprintf("failed to start ingress proxy: %s", err.Error()))
+		}
+	}
+
 	defer func() {
 		if ccPlatform == attestation.Azure || ccPlatform == attestation.SNPvTPM {
 			cmpJson, err := json.Marshal(ac)
@@ -308,6 +329,12 @@ func (client *CVMSClient) handleStopComputation(ctx context.Context, mes *cvms.S
 	client.mu.Lock()
 	if err := client.sp.Stop(); err != nil {
 		msg.StopComputationRes.Message = err.Error()
+	}
+	// Stop ingress proxy if available
+	if client.ingressProxy != nil {
+		if err := client.ingressProxy.Stop(); err != nil {
+			client.logger.Warn(fmt.Sprintf("failed to stop ingress proxy: %s", err.Error()))
+		}
 	}
 	client.mu.Unlock()
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Cocos Ingress Proxy Service
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/cocos/environment
+ExecStart=/usr/bin/ingress-proxy --port=7002
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

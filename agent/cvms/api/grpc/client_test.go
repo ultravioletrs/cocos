@@ -121,7 +121,7 @@ func TestManagerClient_Process(t *testing.T) {
 
 			grpcClient := new(clientmocks.Client)
 
-			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
+			client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, nil, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 			assert.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -151,7 +151,7 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 	logger := mglog.NewMock()
 	grpcClient := new(clientmocks.Client)
 
-	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, nil, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 	assert.NoError(t, err)
 
 	runReq := &cvms.ComputationRunReq{
@@ -216,7 +216,7 @@ func TestManagerClient_handleStopComputation(t *testing.T) {
 	logger := mglog.NewMock()
 	grpcClient := new(clientmocks.Client)
 
-	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, nil, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
 	assert.NoError(t, err)
 
 	stopReq := &cvms.ServerStreamMessage_StopComputation{

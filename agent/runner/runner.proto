@@ -1,0 +1,38 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package runner;
+
+option go_package = "./runner";
+
+import "google/protobuf/empty.proto";
+
+service ComputationRunner {
+  rpc Run(RunRequest) returns (RunResponse);
+  rpc Stop(StopRequest) returns (google.protobuf.Empty);
+}
+
+message RunRequest {
+  string computation_id = 1;
+  string algo_type = 2; // "binary", "python", "wasm", "docker"
+  bytes algorithm = 3; // The algorithm binary/script content
+  bytes requirements = 4; // Python requirements.txt content
+  repeated string args = 5;
+  repeated Dataset datasets = 6;
+}
+
+message Dataset {
+  string filename = 1;
+  bytes hash = 2; 
+}
+
+message RunResponse {
+  string computation_id = 1;
+  string error = 2;
+}
+
+message StopRequest {
+  string computation_id = 1;
+}

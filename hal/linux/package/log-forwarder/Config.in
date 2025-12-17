@@ -1,0 +1,4 @@
+config BR2_PACKAGE_LOG_FORWARDER
+	bool "log-forwarder"
+	help
+	  Cocos AI Log Forwarder service.

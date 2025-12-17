@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,6 +26,7 @@ import (
 	cvmsapi "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/cvms/server"
 	"github.com/ultravioletrs/cocos/agent/events"
+	logpb "github.com/ultravioletrs/cocos/agent/log"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
@@ -33,6 +35,9 @@ import (
 	pkggrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
+	runnerclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
+	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -54,6 +59,7 @@ type config struct {
 	AgentOSDistro            string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
 	AgentOSType              string `env:"AGENT_OS_TYPE"                envDefault:"UVC"`
 	AttestationServiceSocket string `env:"ATTESTATION_SERVICE_SOCKET" envDefault:"/run/cocos/attestation.sock"`
+	EnableATLS               bool   `env:"AGENT_ENABLE_ATLS"          envDefault:"true"`
 }
 
 func main() {
@@ -75,17 +81,65 @@ func main() {
 		return
 	}
 
-	eventsLogsQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	logQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	cvmsQueue := make(chan *cvms.ClientStreamMessage, 1000)
 
-	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, eventsLogsQueue)
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
 	logger := slog.New(handler)
 
-	eventSvc, err := events.New(svcName, eventsLogsQueue)
+	eventSvc, err := events.New(svcName, logQueue)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create events service %s", err.Error()))
 		exitCode = 1
 		return
 	}
+
+	// Log Client
+	logClient, err := logclient.NewClient("/run/cocos/log.sock")
+	if err != nil {
+		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
+	} else {
+		defer logClient.Close()
+	}
+
+	// Consume logQueue
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case msg := <-logQueue:
+				if logClient == nil {
+					continue
+				}
+				// Convert cvms.ClientStreamMessage to log.LogEntry or log.EventEntry
+				switch m := msg.Message.(type) {
+				case *cvms.ClientStreamMessage_AgentLog:
+					err := logClient.SendLog(ctx, &logpb.LogEntry{
+						Message:       m.AgentLog.Message,
+						ComputationId: m.AgentLog.ComputationId,
+						Level:         m.AgentLog.Level,
+						Timestamp:     m.AgentLog.Timestamp,
+					})
+					if err != nil {
+						// Fallback to stdout? Already handled by slog handler writing to stdout too?
+						// agentlogger writes to stdout AND queue.
+					}
+				case *cvms.ClientStreamMessage_AgentEvent:
+					err := logClient.SendEvent(ctx, &logpb.EventEntry{
+						EventType:     m.AgentEvent.EventType,
+						Timestamp:     m.AgentEvent.Timestamp,
+						ComputationId: m.AgentEvent.ComputationId,
+						Details:       m.AgentEvent.Details,
+						Originator:    m.AgentEvent.Originator,
+						Status:        m.AgentEvent.Status,
+					})
+					if err != nil {
+					}
+				}
+			}
+		}
+	})
 
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
@@ -149,7 +203,15 @@ func main() {
 	}
 	defer attClient.Close()
 
-	svc := newService(ctx, logger, eventSvc, attClient, cfg.Vmpl)
+	runnerClient, err := runnerclient.NewClient("/run/cocos/runner.sock")
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create runner client: %s", err))
+		exitCode = 1
+		return
+	}
+	defer runnerClient.Close()
+
+	svc := newService(ctx, logger, eventSvc, attClient, runnerClient, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("failed to create storage directory: %s", err))
@@ -158,8 +220,7 @@ func main() {
 	}
 
 	var certProvider atls.CertificateProvider
-
-	if ccPlatform != attestation.NoCC {
+	if cfg.EnableATLS && ccPlatform != attestation.NoCC {
 		var certsSDK sdk.SDK
 		if cfg.CAUrl != "" {
 			certsSDK = sdk.NewSDK(sdk.Config{
@@ -174,7 +235,16 @@ func main() {
 		}
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, eventsLogsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), storageDir, reconnectFn, cvmGRPCClient)
+	// Create ingress proxy server
+	backendURL, err := url.Parse("http://localhost:7001")
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to parse backend URL: %s", err))
+		exitCode = 1
+		return
+	}
+	ingressProxy := ingress.NewProxyServer(logger, backendURL, certProvider)
+
+	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -214,7 +284,7 @@ func main() {
 			exitCode = 1
 			return
 		}
-		eventsLogsQueue <- &cvms.ClientStreamMessage{
+		cvmsQueue <- &cvms.ClientStreamMessage{
 			Message: &cvms.ClientStreamMessage_AzureAttestationToken{
 				AzureAttestationToken: &cvms.AzureAttestationToken{
 					File:             azureAttestationToken,
@@ -224,7 +294,7 @@ func main() {
 		}
 	}
 
-	eventsLogsQueue <- &cvms.ClientStreamMessage{
+	cvmsQueue <- &cvms.ClientStreamMessage{
 		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
 			VTPMattestationReport: &cvms.AttestationResponse{
 				File:             attest,
@@ -238,8 +308,8 @@ func main() {
 	}
 }
 
-func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attClient attestation_client.Client, vmpl int) agent.Service {
-	svc := agent.New(ctx, logger, eventSvc, attClient, vmpl)
+func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attClient attestation_client.Client, runnerClient runnerclient.Client, vmpl int) agent.Service {
+	svc := agent.New(ctx, logger, eventSvc, attClient, runnerClient, vmpl)
 
 	svc = api.LoggingMiddleware(svc, logger)
 	counter, latency := prometheus.MakeMetrics(svcName, "api")
