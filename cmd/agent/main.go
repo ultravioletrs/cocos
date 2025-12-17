@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/absmach/certs/sdk"
 	mglog "github.com/absmach/supermq/logger"
@@ -187,13 +188,18 @@ func main() {
 	}
 
 	slog.Info("attempting to connect to cvm manager", "url", cvmGrpcConfig.URL)
-	pc, err := cvmsClient.Process(ctx)
+
+	// Create a timeout context for the initial connection
+	connectCtx, connectCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer connectCancel()
+
+	pc, err := cvmsClient.Process(connectCtx)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to connect to cvm manager: %s", err))
+		logger.Error(fmt.Sprintf("failed to connect to cms: %s", err))
 		exitCode = 1
 		return
 	}
-	slog.Info("connected to cvm manager")
+	slog.Info("connected to cms")
 
 	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
 		logger.Error("vmpl level must be in a range [0, 3]")

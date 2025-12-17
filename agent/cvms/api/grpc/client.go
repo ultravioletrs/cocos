@@ -80,6 +80,7 @@ func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc
 			return ctx.Err()
 		}
 
+		slog.Info("Connection lost, attempting to reconnect...")
 		client.logger.Info("Connection lost, attempting to reconnect...", "error", err)
 		time.Sleep(reconnectInterval)
 
