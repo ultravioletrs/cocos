@@ -27,7 +27,7 @@ const (
 )
 
 type config struct {
-	LogLevel     string `env:"RUNNER_LOG_LEVEL,AGENT_LOG_LEVEL" envDefault:"debug"`
+	LogLevel     string `env:"RUNNER_LOG_LEVEL" envAlternate:"AGENT_LOG_LEVEL" envDefault:"debug"`
 	LogForwarder string `env:"LOG_FORWARDER_SOCKET" envDefault:"/run/cocos/log.sock"`
 }
 

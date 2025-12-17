@@ -29,7 +29,7 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"LOG_FORWARDER_LOG_LEVEL,AGENT_LOG_LEVEL" envDefault:"debug"`
+	LogLevel string `env:"LOG_FORWARDER_LOG_LEVEL" envAlternate:"AGENT_LOG_LEVEL" envDefault:"debug"`
 }
 
 func main() {

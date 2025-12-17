@@ -27,7 +27,7 @@ const (
 )
 
 type config struct {
-	LogLevel string `env:"COCOS_LOG_LEVEL,AGENT_LOG_LEVEL" envDefault:"info"`
+	LogLevel string `env:"COCOS_LOG_LEVEL" envAlternate:"AGENT_LOG_LEVEL" envDefault:"info"`
 	Backend  string `env:"COCOS_INGRESS_BACKEND"           envDefault:"http://localhost:7001"`
 
 	// ATLS Config

@@ -22,7 +22,7 @@ const (
 )
 
 type config struct {
-	Level string `env:"COCOS_LOG_LEVEL,AGENT_LOG_LEVEL" envDefault:"info"`
+	Level string `env:"COCOS_LOG_LEVEL" envAlternate:"AGENT_LOG_LEVEL" envDefault:"info"`
 	Port  string `env:"COCOS_PROXY_PORT"                envDefault:"3128"`
 }
 
