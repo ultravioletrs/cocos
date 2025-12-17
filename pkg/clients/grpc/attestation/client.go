@@ -63,7 +63,7 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 		PlatformType: platformType,
 	}
 
-	resp, err := c.client.GetAttestation(ctx, req)
+	resp, err := c.client.FetchAttestation(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *client) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, err
 		Nonce: nonce[:],
 	}
 
-	resp, err := c.client.GetAzureToken(ctx, req)
+	resp, err := c.client.FetchAzureToken(ctx, req)
 	if err != nil {
 		return nil, err
 	}
