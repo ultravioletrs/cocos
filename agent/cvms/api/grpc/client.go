@@ -118,12 +118,12 @@ func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 		default:
 			req, err := client.stream.Recv()
 			if err != nil {
-				client.logger.Error("Failed to receive message from stream", "error", err)
+				slog.Error("Failed to receive message from stream", "error", err)
 				return err
 			}
-			client.logger.Debug("Received message from cms", "type", fmt.Sprintf("%T", req.Message))
+			slog.Debug("Received message from cms", "type", fmt.Sprintf("%T", req.Message))
 			if err := client.processIncomingMessage(ctx, req); err != nil {
-				client.logger.Error("Failed to process incoming message", "error", err)
+				slog.Error("Failed to process incoming message", "error", err)
 				return err
 			}
 		}
