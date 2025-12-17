@@ -186,12 +186,14 @@ func main() {
 		return grpcClient, pc, nil
 	}
 
+	slog.Info("attempting to connect to cvm manager", "url", cvmGrpcConfig.URL)
 	pc, err := cvmsClient.Process(ctx)
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error(fmt.Sprintf("failed to connect to cvm manager: %s", err))
 		exitCode = 1
 		return
 	}
+	slog.Info("connected to cvm manager")
 
 	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
 		logger.Error("vmpl level must be in a range [0, 3]")
