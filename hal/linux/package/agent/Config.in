@@ -1,6 +1,7 @@
 config BR2_PACKAGE_AGENT
 	bool "agent"
 	default y
+	select BR2_PACKAGE_ATTESTATION_SERVICE
 	help
 	  Confidential Computing Agent is a state machine capable of
 	  receiving datasets and algorithm, running computations, and

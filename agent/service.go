@@ -26,6 +26,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -128,33 +129,33 @@ type Service interface {
 }
 
 type agentService struct {
-	mu              sync.Mutex
-	computation     Computation               // Holds the current computation request details.
-	algorithm       algorithm.Algorithm       // Filepath to the algorithm received for the computation.
-	result          []byte                    // Stores the result of the computation.
-	sm              statemachine.StateMachine // Manages the state transitions of the agent service.
-	runError        error                     // Stores any error encountered during the computation run.
-	eventSvc        events.Service            // Service for publishing events related to computation.
-	provider        attestation.Provider      // Provider for generating attestation quotes.
-	logger          *slog.Logger              // Logger for the agent service.
-	resultsConsumed bool                      // Indicates if the results have been consumed.
-	cancel          context.CancelFunc        // Cancels the computation context.
-	vmpl            int                       // VMPL at which the Agent is running.
+	mu                sync.Mutex
+	computation       Computation               // Holds the current computation request details.
+	algorithm         algorithm.Algorithm       // Filepath to the algorithm received for the computation.
+	result            []byte                    // Stores the result of the computation.
+	sm                statemachine.StateMachine // Manages the state transitions of the agent service.
+	runError          error                     // Stores any error encountered during the computation run.
+	eventSvc          events.Service            // Service for publishing events related to computation.
+	attestationClient attestation_client.Client // Client for attestation service.
+	logger            *slog.Logger              // Logger for the agent service.
+	resultsConsumed   bool                      // Indicates if the results have been consumed.
+	cancel            context.CancelFunc        // Cancels the computation context.
+	vmpl              int                       // VMPL at which the Agent is running.
 }
 
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, provider attestation.Provider, vmlp int) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attestationClient attestation_client.Client, vmlp int) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
-		sm:       sm,
-		eventSvc: eventSvc,
-		provider: provider,
-		logger:   logger,
-		cancel:   cancel,
-		vmpl:     vmlp,
+		sm:                sm,
+		eventSvc:          eventSvc,
+		attestationClient: attestationClient,
+		logger:            logger,
+		cancel:            cancel,
+		vmpl:              vmlp,
 	}
 
 	transitions := []statemachine.Transition{
@@ -435,36 +436,15 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
-	switch attType {
-	case attestation.SNP, attestation.TDX:
-		rawQuote, err := as.provider.TeeAttestation(reportData[:])
-		if err != nil {
-			return []byte{}, errors.Wrap(ErrAttestationFailed, err)
-		}
-		return rawQuote, nil
-	case attestation.VTPM:
-		vTPMQuote, err := as.provider.VTpmAttestation(nonce[:])
-		if err != nil {
-			return []byte{}, errors.Wrap(ErrAttestationVTpmFailed, err)
-		}
-		return vTPMQuote, nil
-	case attestation.SNPvTPM:
-		vTPMQuote, err := as.provider.Attestation(reportData[:], nonce[:])
-		if err != nil {
-			return []byte{}, errors.Wrap(ErrAttestationVTpmFailed, err)
-		}
-		return vTPMQuote, nil
-	default:
-		return []byte{}, ErrAttestationType
+	rawQuote, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attType)
+	if err != nil {
+		return []byte{}, errors.Wrap(ErrAttestationFailed, err)
 	}
+	return rawQuote, nil
 }
 
 func (as *agentService) AzureAttestationToken(ctx context.Context, nonce [vtpm.Nonce]byte) ([]byte, error) {
-	if attestation.CCPlatform() != attestation.Azure {
-		return []byte{}, ErrAttestationType
-	}
-
-	token, err := as.provider.AzureAttestationToken(nonce[:])
+	token, err := as.attestationClient.GetAzureToken(ctx, nonce)
 	if err != nil {
 		return []byte{}, err
 	}

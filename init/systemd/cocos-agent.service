@@ -1,6 +1,7 @@
 [Unit]
 Description=Cocos AI agent
-After=network.target
+After=network.target attestation-service.service
+Requires=attestation-service.service
 Before=docker.service
 
 [Service]

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package attestation.v1;
+
+option go_package = "github.com/ultravioletrs/cocos/internal/proto/attestation/v1;attestation";
+
+service AttestationService {
+  rpc FetchAttestation (AttestationRequest) returns (AttestationResponse);
+  rpc FetchAzureToken (AzureTokenRequest) returns (AzureTokenResponse);
+}
+
+message AttestationRequest {
+  bytes report_data = 1; // 64 bytes for SNP/TDX
+  bytes nonce = 2;       // Nonce for vTPM
+  PlatformType platform_type = 3;
+}
+
+message AttestationResponse {
+  bytes quote = 1;
+}
+
+message AzureTokenRequest {
+  bytes nonce = 1;
+}
+
+message AzureTokenResponse {
+  bytes token = 1;
+}
+
+enum PlatformType {
+  PLATFORM_TYPE_UNSPECIFIED = 0;
+  PLATFORM_TYPE_SNP = 1;
+  PLATFORM_TYPE_TDX = 2;
+  PLATFORM_TYPE_VTPM = 3;
+  PLATFORM_TYPE_SNP_VTPM = 4;
+  PLATFORM_TYPE_AZURE = 5;
+  PLATFORM_TYPE_NO_CC = 6;
+}

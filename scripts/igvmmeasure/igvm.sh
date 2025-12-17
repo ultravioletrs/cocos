@@ -8,7 +8,7 @@ mkdir -p "$BUILD_DIR"
 
 # Define the target directory for cloning inside the build directory
 TARGET_DIR="$BUILD_DIR/svsm"
-SUBDIR="igvmmeasure"
+SUBDIR="tools/igvmmeasure"
 
 # Clone the repository if it doesn't exist
 if [ -d "$TARGET_DIR" ]; then
