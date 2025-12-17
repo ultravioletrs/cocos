@@ -110,9 +110,12 @@ func main() {
 		for {
 			select {
 			case <-ctx.Done():
+				slog.Info("log queue consumer exiting")
 				return nil
 			case msg := <-logQueue:
+				slog.Info("received log message", "message", msg)
 				if logClient == nil {
+					slog.Info("log client is nil, skipping message")
 					continue
 				}
 				// Convert cvms.ClientStreamMessage to log.LogEntry or log.EventEntry
@@ -171,6 +174,7 @@ func main() {
 		return
 	}
 	defer cvmGRPCClient.Close()
+	slog.Info("created cvm gRPC client")
 
 	reconnectFn := func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) {
 		grpcClient, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
@@ -187,19 +191,11 @@ func main() {
 		return grpcClient, pc, nil
 	}
 
-	slog.Info("attempting to connect to cvm manager", "url", cvmGrpcConfig.URL)
+	slog.Info("attempting to connect to cvm server", "url", cvmGrpcConfig.URL)
 
 	// Create a timeout context for the initial connection
 	connectCtx, connectCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer connectCancel()
-
-	pc, err := cvmsClient.Process(connectCtx)
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed to connect to cms: %s", err))
-		exitCode = 1
-		return
-	}
-	slog.Info("connected to cms")
 
 	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
 		logger.Error("vmpl level must be in a range [0, 3]")
@@ -263,6 +259,14 @@ func main() {
 		return
 	}
 	ingressProxy := ingress.NewProxyServer(logger, backendURL, certProvider)
+
+	pc, err := cvmsClient.Process(connectCtx)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to connect to cvm server: %s", err))
+		exitCode = 1
+		return
+	}
+	slog.Info("connected to cvm server")
 
 	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
