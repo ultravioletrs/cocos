@@ -4,32 +4,49 @@ package egress
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http2"
 )
 
 // Proxy is an egress proxy server.
 type Proxy struct {
-	logger *slog.Logger
-	server *http.Server
-	addr   string
+	logger    *slog.Logger
+	server    *http.Server
+	addr      string
+	transport *http.Transport
 }
 
 // NewProxy creates a new egress proxy.
 func NewProxy(logger *slog.Logger, addr string) *Proxy {
+	// Create HTTP/2 capable transport
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: false,
+		},
+		ForceAttemptHTTP2: true,
+	}
+	// Enable HTTP/2
+	if err := http2.ConfigureTransport(transport); err != nil {
+		logger.Warn("Failed to configure HTTP/2 transport", "error", err)
+	}
+
 	p := &Proxy{
-		logger: logger,
-		addr:   addr,
+		logger:    logger,
+		addr:      addr,
+		transport: transport,
 	}
 	p.server = &http.Server{
 		Addr:    addr,
 		Handler: http.HandlerFunc(p.handle),
-		// Disable HTTP/2 for now to simplify CONNECT handling if needed,
-		// though net/http handles it well.
 	}
 	return p
 }
@@ -49,6 +66,8 @@ func (p *Proxy) Stop(ctx context.Context) error {
 func (p *Proxy) handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
 		p.handleConnect(w, r)
+	} else if r.ProtoMajor == 2 {
+		p.handleHTTP2(w, r)
 	} else {
 		p.handleHTTP(w, r)
 	}
@@ -115,6 +134,48 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
+}
+
+func (p *Proxy) handleHTTP2(w http.ResponseWriter, r *http.Request) {
+	p.logger.Info("HTTP/2 request", "method", r.Method, "host", r.Host, "path", r.URL.Path)
+
+	// TODO: Check allowlist here
+
+	// Parse the target URL from the request
+	targetURL := &url.URL{
+		Scheme: "http",
+		Host:   r.Host,
+	}
+
+	// If the request has a full URL (absolute form), use it
+	if r.URL.IsAbs() {
+		targetURL = r.URL
+	}
+
+	// Create a reverse proxy with HTTP/2 transport
+	proxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = targetURL.Scheme
+			req.URL.Host = targetURL.Host
+			req.Host = targetURL.Host
+
+			// Preserve the original path and query
+			if !r.URL.IsAbs() {
+				req.URL.Path = r.URL.Path
+				req.URL.RawQuery = r.URL.RawQuery
+			}
+
+			// Remove hop-by-hop headers
+			delHopHeaders(req.Header)
+		},
+		Transport: p.transport,
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			p.logger.Error("HTTP/2 proxy error", "error", err, "host", r.Host)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+		},
+	}
+
+	proxy.ServeHTTP(w, r)
 }
 
 func (p *Proxy) pipe(src, dst net.Conn) {
