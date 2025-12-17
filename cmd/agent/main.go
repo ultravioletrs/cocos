@@ -94,13 +94,15 @@ func main() {
 		return
 	}
 
-	// Log Client
+	slog.Info("connected to events service")
+
 	logClient, err := logclient.NewClient("/run/cocos/log.sock")
 	if err != nil {
 		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
 	} else {
 		defer logClient.Close()
 	}
+	slog.Info("connected to log service")
 
 	// Consume logQueue
 	g.Go(func() error {
@@ -122,6 +124,7 @@ func main() {
 						Timestamp:     m.AgentLog.Timestamp,
 					})
 					if err != nil {
+						slog.Error("failed to send log", "error", err)
 						// Fallback to stdout? Already handled by slog handler writing to stdout too?
 						// agentlogger writes to stdout AND queue.
 					}
@@ -135,6 +138,7 @@ func main() {
 						Status:        m.AgentEvent.Status,
 					})
 					if err != nil {
+						slog.Error("failed to send event", "error", err)
 					}
 				}
 			}
@@ -203,6 +207,8 @@ func main() {
 	}
 	defer attClient.Close()
 
+	slog.Info("connected to attestation service")
+
 	runnerClient, err := runnerclient.NewClient("/run/cocos/runner.sock")
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create runner client: %s", err))
@@ -211,6 +217,8 @@ func main() {
 	}
 	defer runnerClient.Close()
 
+	slog.Info("connected to runner service")
+
 	svc := newService(ctx, logger, eventSvc, attClient, runnerClient, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
@@ -218,6 +226,8 @@ func main() {
 		exitCode = 1
 		return
 	}
+
+	slog.Info("created storage directory")
 
 	var certProvider atls.CertificateProvider
 	if cfg.EnableATLS && ccPlatform != attestation.NoCC {
@@ -234,6 +244,8 @@ func main() {
 			return
 		}
 	}
+
+	slog.Info("created certificate provider")
 
 	// Create ingress proxy server
 	backendURL, err := url.Parse("http://localhost:7001")

@@ -118,9 +118,12 @@ func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 		default:
 			req, err := client.stream.Recv()
 			if err != nil {
+				client.logger.Error("Failed to receive message from stream", "error", err)
 				return err
 			}
+			client.logger.Debug("Received message from cms", "type", fmt.Sprintf("%T", req.Message))
 			if err := client.processIncomingMessage(ctx, req); err != nil {
+				client.logger.Error("Failed to process incoming message", "error", err)
 				return err
 			}
 		}
@@ -209,14 +212,17 @@ func (client *CVMSClient) handleAgentStateReq(mes *cvms.ServerStreamMessage_Agen
 }
 
 func (client *CVMSClient) handleRunReqChunks(ctx context.Context, msg *cvms.ServerStreamMessage_RunReqChunks) error {
+	client.logger.Debug("Received RunReq chunk", "id", msg.RunReqChunks.Id, "size", len(msg.RunReqChunks.Data), "isLast", msg.RunReqChunks.IsLast)
 	buffer, complete := client.runReqManager.addChunk(msg.RunReqChunks.Id, msg.RunReqChunks.Data, msg.RunReqChunks.IsLast)
 
 	if complete {
+		client.logger.Info("Received complete computation run request", "id", msg.RunReqChunks.Id, "totalSize", len(buffer))
 		var runReq cvms.ComputationRunReq
 		if err := proto.Unmarshal(buffer, &runReq); err != nil {
 			return errors.Wrap(err, errCorruptedManifest)
 		}
 
+		client.logger.Info("Starting computation execution", "computationId", runReq.Id, "name", runReq.Name)
 		go client.executeRun(ctx, &runReq)
 	}
 
