@@ -5,8 +5,8 @@ package attestation.v1;
 option go_package = "github.com/ultravioletrs/cocos/internal/proto/attestation/v1;attestation";
 
 service AttestationService {
-  rpc GetAttestation (AttestationRequest) returns (AttestationResponse);
-  rpc GetAzureToken (AzureTokenRequest) returns (AzureTokenResponse);
+  rpc FetchAttestation (AttestationRequest) returns (AttestationResponse);
+  rpc FetchAzureToken (AzureTokenRequest) returns (AzureTokenResponse);
 }
 
 message AttestationRequest {

@@ -19,16 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AttestationService_GetAttestation_FullMethodName = "/attestation.v1.AttestationService/GetAttestation"
-	AttestationService_GetAzureToken_FullMethodName  = "/attestation.v1.AttestationService/GetAzureToken"
+	AttestationService_FetchAttestation_FullMethodName = "/attestation.v1.AttestationService/FetchAttestation"
+	AttestationService_FetchAzureToken_FullMethodName  = "/attestation.v1.AttestationService/FetchAzureToken"
 )
 
 // AttestationServiceClient is the client API for AttestationService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AttestationServiceClient interface {
-	GetAttestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error)
-	GetAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error)
+	FetchAttestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error)
+	FetchAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error)
 }
 
 type attestationServiceClient struct {
@@ -39,20 +39,20 @@ func NewAttestationServiceClient(cc grpc.ClientConnInterface) AttestationService
 	return &attestationServiceClient{cc}
 }
 
-func (c *attestationServiceClient) GetAttestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error) {
+func (c *attestationServiceClient) FetchAttestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AttestationResponse)
-	err := c.cc.Invoke(ctx, AttestationService_GetAttestation_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, AttestationService_FetchAttestation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *attestationServiceClient) GetAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error) {
+func (c *attestationServiceClient) FetchAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AzureTokenResponse)
-	err := c.cc.Invoke(ctx, AttestationService_GetAzureToken_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, AttestationService_FetchAzureToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,8 @@ func (c *attestationServiceClient) GetAzureToken(ctx context.Context, in *AzureT
 // All implementations must embed UnimplementedAttestationServiceServer
 // for forward compatibility.
 type AttestationServiceServer interface {
-	GetAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error)
-	GetAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error)
+	FetchAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error)
+	FetchAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error)
 	mustEmbedUnimplementedAttestationServiceServer()
 }
 
@@ -75,11 +75,11 @@ type AttestationServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAttestationServiceServer struct{}
 
-func (UnimplementedAttestationServiceServer) GetAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAttestation not implemented")
+func (UnimplementedAttestationServiceServer) FetchAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchAttestation not implemented")
 }
-func (UnimplementedAttestationServiceServer) GetAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAzureToken not implemented")
+func (UnimplementedAttestationServiceServer) FetchAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchAzureToken not implemented")
 }
 func (UnimplementedAttestationServiceServer) mustEmbedUnimplementedAttestationServiceServer() {}
 func (UnimplementedAttestationServiceServer) testEmbeddedByValue()                            {}
@@ -102,38 +102,38 @@ func RegisterAttestationServiceServer(s grpc.ServiceRegistrar, srv AttestationSe
 	s.RegisterService(&AttestationService_ServiceDesc, srv)
 }
 
-func _AttestationService_GetAttestation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AttestationService_FetchAttestation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AttestationRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AttestationServiceServer).GetAttestation(ctx, in)
+		return srv.(AttestationServiceServer).FetchAttestation(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AttestationService_GetAttestation_FullMethodName,
+		FullMethod: AttestationService_FetchAttestation_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AttestationServiceServer).GetAttestation(ctx, req.(*AttestationRequest))
+		return srv.(AttestationServiceServer).FetchAttestation(ctx, req.(*AttestationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AttestationService_GetAzureToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AttestationService_FetchAzureToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AzureTokenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AttestationServiceServer).GetAzureToken(ctx, in)
+		return srv.(AttestationServiceServer).FetchAzureToken(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AttestationService_GetAzureToken_FullMethodName,
+		FullMethod: AttestationService_FetchAzureToken_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AttestationServiceServer).GetAzureToken(ctx, req.(*AzureTokenRequest))
+		return srv.(AttestationServiceServer).FetchAzureToken(ctx, req.(*AzureTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -146,12 +146,12 @@ var AttestationService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AttestationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetAttestation",
-			Handler:    _AttestationService_GetAttestation_Handler,
+			MethodName: "FetchAttestation",
+			Handler:    _AttestationService_FetchAttestation_Handler,
 		},
 		{
-			MethodName: "GetAzureToken",
-			Handler:    _AttestationService_GetAzureToken_Handler,
+			MethodName: "FetchAzureToken",
+			Handler:    _AttestationService_FetchAzureToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

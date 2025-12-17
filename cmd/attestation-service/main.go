@@ -108,7 +108,7 @@ func main() {
 		return
 	}
 
-	lis, err := net.Listen("unix", socketPath)
+	l, err := net.Listen("unix", socketPath)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to listen on socket: %s", err))
 		exitCode = 1
@@ -146,7 +146,7 @@ func main() {
 
 	g.Go(func() error {
 		logger.Info(fmt.Sprintf("%s started on %s", svcName, socketPath))
-		return grpcServer.Serve(lis)
+		return grpcServer.Serve(l)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -160,7 +160,7 @@ type service struct {
 	logger   *slog.Logger
 }
 
-func (s *service) GetAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
+func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
 	var quote []byte
 	var err error
 

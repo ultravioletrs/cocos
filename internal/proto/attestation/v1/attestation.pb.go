@@ -297,10 +297,10 @@ const file_internal_proto_attestation_v1_attestation_proto_rawDesc = "" +
 	"\x12PLATFORM_TYPE_VTPM\x10\x03\x12\x1a\n" +
 	"\x16PLATFORM_TYPE_SNP_VTPM\x10\x04\x12\x17\n" +
 	"\x13PLATFORM_TYPE_AZURE\x10\x05\x12\x17\n" +
-	"\x13PLATFORM_TYPE_NO_CC\x10\x062\xc7\x01\n" +
-	"\x12AttestationService\x12Y\n" +
-	"\x0eGetAttestation\x12\".attestation.v1.AttestationRequest\x1a#.attestation.v1.AttestationResponse\x12V\n" +
-	"\rGetAzureToken\x12!.attestation.v1.AzureTokenRequest\x1a\".attestation.v1.AzureTokenResponseBJZHgithub.com/ultravioletrs/cocos/internal/proto/attestation/v1;attestationb\x06proto3"
+	"\x13PLATFORM_TYPE_NO_CC\x10\x062\xcb\x01\n" +
+	"\x12AttestationService\x12[\n" +
+	"\x10FetchAttestation\x12\".attestation.v1.AttestationRequest\x1a#.attestation.v1.AttestationResponse\x12X\n" +
+	"\x0fFetchAzureToken\x12!.attestation.v1.AzureTokenRequest\x1a\".attestation.v1.AzureTokenResponseBJZHgithub.com/ultravioletrs/cocos/internal/proto/attestation/v1;attestationb\x06proto3"
 
 var (
 	file_internal_proto_attestation_v1_attestation_proto_rawDescOnce sync.Once
@@ -325,10 +325,10 @@ var file_internal_proto_attestation_v1_attestation_proto_goTypes = []any{
 }
 var file_internal_proto_attestation_v1_attestation_proto_depIdxs = []int32{
 	0, // 0: attestation.v1.AttestationRequest.platform_type:type_name -> attestation.v1.PlatformType
-	1, // 1: attestation.v1.AttestationService.GetAttestation:input_type -> attestation.v1.AttestationRequest
-	3, // 2: attestation.v1.AttestationService.GetAzureToken:input_type -> attestation.v1.AzureTokenRequest
-	2, // 3: attestation.v1.AttestationService.GetAttestation:output_type -> attestation.v1.AttestationResponse
-	4, // 4: attestation.v1.AttestationService.GetAzureToken:output_type -> attestation.v1.AzureTokenResponse
+	1, // 1: attestation.v1.AttestationService.FetchAttestation:input_type -> attestation.v1.AttestationRequest
+	3, // 2: attestation.v1.AttestationService.FetchAzureToken:input_type -> attestation.v1.AzureTokenRequest
+	2, // 3: attestation.v1.AttestationService.FetchAttestation:output_type -> attestation.v1.AttestationResponse
+	4, // 4: attestation.v1.AttestationService.FetchAzureToken:output_type -> attestation.v1.AzureTokenResponse
 	3, // [3:5] is the sub-list for method output_type
 	1, // [1:3] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
