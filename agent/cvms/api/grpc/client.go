@@ -257,6 +257,15 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		})
 	}
 
+	// Check if the agent is in the correct state to initialize a new computation.
+	// If the agent is already processing this computation (e.g., after a reconnection),
+	// skip initialization to avoid state errors.
+	currentState := client.svc.State()
+	if currentState != "ReceivingManifest" {
+		client.logger.Info("Agent already processing computation, skipping initialization", "state", currentState, "computationId", runReq.Id)
+		return
+	}
+
 	if err := client.svc.InitComputation(ctx, ac); err != nil {
 		client.logger.Warn(err.Error())
 		return

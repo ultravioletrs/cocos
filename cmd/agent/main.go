@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/absmach/certs/sdk"
 	mglog "github.com/absmach/supermq/logger"
@@ -193,10 +192,6 @@ func main() {
 
 	slog.Info("attempting to connect to cvm server", "url", cvmGrpcConfig.URL)
 
-	// Create a timeout context for the initial connection
-	connectCtx, connectCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer connectCancel()
-
 	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
 		logger.Error("vmpl level must be in a range [0, 3]")
 		exitCode = 1
@@ -260,7 +255,7 @@ func main() {
 	}
 	ingressProxy := ingress.NewProxyServer(logger, backendURL, certProvider)
 
-	pc, err := cvmsClient.Process(connectCtx)
+	pc, err := cvmsClient.Process(ctx)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to connect to cvm server: %s", err))
 		exitCode = 1
