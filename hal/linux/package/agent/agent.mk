@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-AGENT_VERSION = 9004d340a686f1a215375796ad8d45a01d7fda40
-AGENT_SITE = $(call github,sammyoina,cocos-ai,$(AGENT_VERSION))
+AGENT_VERSION = main
+AGENT_SITE = $(call github,ultravioletrs,cocos,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS
 	$(MAKE) -C $(@D) agent EMBED_ENABLED=$(AGENT_EMBED_ENABLED)

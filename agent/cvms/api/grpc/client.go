@@ -80,7 +80,6 @@ func (client *CVMSClient) Process(ctx context.Context, cancel context.CancelFunc
 			return ctx.Err()
 		}
 
-		slog.Info("Connection lost, attempting to reconnect...")
 		client.logger.Info("Connection lost, attempting to reconnect...", "error", err)
 		time.Sleep(reconnectInterval)
 
@@ -119,12 +118,9 @@ func (client *CVMSClient) handleIncomingMessages(ctx context.Context) error {
 		default:
 			req, err := client.stream.Recv()
 			if err != nil {
-				slog.Error("Failed to receive message from stream", "error", err)
 				return err
 			}
-			slog.Debug("Received message from cms", "type", fmt.Sprintf("%T", req.Message))
 			if err := client.processIncomingMessage(ctx, req); err != nil {
-				slog.Error("Failed to process incoming message", "error", err)
 				return err
 			}
 		}

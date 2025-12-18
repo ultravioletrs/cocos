@@ -94,30 +94,22 @@ func main() {
 		return
 	}
 
-	slog.Info("connected to events service")
-
 	logClient, err := logclient.NewClient("/run/cocos/log.sock")
 	if err != nil {
 		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
 	} else {
 		defer logClient.Close()
 	}
-	slog.Info("connected to log service")
 
-	// Consume logQueue
 	g.Go(func() error {
 		for {
 			select {
 			case <-ctx.Done():
-				slog.Info("log queue consumer exiting")
 				return nil
 			case msg := <-logQueue:
-				slog.Info("received log message", "message", msg)
 				if logClient == nil {
-					slog.Info("log client is nil, skipping message")
 					continue
 				}
-				// Convert cvms.ClientStreamMessage to log.LogEntry or log.EventEntry
 				switch m := msg.Message.(type) {
 				case *cvms.ClientStreamMessage_AgentLog:
 					err := logClient.SendLog(ctx, &logpb.LogEntry{
@@ -127,9 +119,7 @@ func main() {
 						Timestamp:     m.AgentLog.Timestamp,
 					})
 					if err != nil {
-						slog.Error("failed to send log", "error", err)
-						// Fallback to stdout? Already handled by slog handler writing to stdout too?
-						// agentlogger writes to stdout AND queue.
+						logger.Error("failed to send log", "error", err)
 					}
 				case *cvms.ClientStreamMessage_AgentEvent:
 					err := logClient.SendEvent(ctx, &logpb.EventEntry{
@@ -141,7 +131,7 @@ func main() {
 						Status:        m.AgentEvent.Status,
 					})
 					if err != nil {
-						slog.Error("failed to send event", "error", err)
+						logger.Error("failed to send event", "error", err)
 					}
 				}
 			}
@@ -173,7 +163,6 @@ func main() {
 		return
 	}
 	defer cvmGRPCClient.Close()
-	slog.Info("created cvm gRPC client")
 
 	reconnectFn := func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) {
 		grpcClient, newClient, err := cvmsgrpc.NewCVMClient(cvmGrpcConfig)
@@ -190,8 +179,6 @@ func main() {
 		return grpcClient, pc, nil
 	}
 
-	slog.Info("attempting to connect to cvm server", "url", cvmGrpcConfig.URL)
-
 	if cfg.Vmpl < 0 || cfg.Vmpl > 3 {
 		logger.Error("vmpl level must be in a range [0, 3]")
 		exitCode = 1
@@ -206,8 +193,6 @@ func main() {
 	}
 	defer attClient.Close()
 
-	slog.Info("connected to attestation service")
-
 	runnerClient, err := runnerclient.NewClient("/run/cocos/runner.sock")
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create runner client: %s", err))
@@ -216,8 +201,6 @@ func main() {
 	}
 	defer runnerClient.Close()
 
-	slog.Info("connected to runner service")
-
 	svc := newService(ctx, logger, eventSvc, attClient, runnerClient, cfg.Vmpl)
 
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
@@ -225,8 +208,6 @@ func main() {
 		exitCode = 1
 		return
 	}
-
-	slog.Info("created storage directory")
 
 	var certProvider atls.CertificateProvider
 	if cfg.EnableATLS && ccPlatform != attestation.NoCC {
@@ -244,8 +225,6 @@ func main() {
 		}
 	}
 
-	slog.Info("created certificate provider")
-
 	// Create ingress proxy server
 	backendURL, err := url.Parse("unix:///run/cocos/agent.sock")
 	if err != nil {
@@ -261,7 +240,6 @@ func main() {
 		exitCode = 1
 		return
 	}
-	slog.Info("connected to cvm server")
 
 	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
