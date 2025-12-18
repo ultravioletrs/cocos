@@ -81,12 +81,26 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 	rp := httputil.NewSingleHostReverseProxy(p.backendURL)
 
 	// Configure Transport to support HTTP/2 Cleartext (h2c) to backend
-	rp.Transport = &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, network, addr)
-		},
+	// Check if backend is Unix socket or TCP
+	if p.backendURL.Scheme == "unix" {
+		// Unix socket backend
+		rp.Transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				// Use Unix socket path from URL
+				return d.DialContext(ctx, "unix", p.backendURL.Path)
+			},
+		}
+	} else {
+		// TCP backend
+		rp.Transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
 	}
 
 	p.httpServer = &http.Server{

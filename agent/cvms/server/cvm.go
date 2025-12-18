@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	svcName        = "agent"
-	defSvcGRPCPort = "7001"
+	svcName          = "agent"
+	defSvcGRPCSocket = "/run/cocos/agent.sock"
 )
 
 type AgentServer interface {
@@ -46,15 +46,11 @@ func NewServer(logger *slog.Logger, svc agent.Service, host string, certProvider
 }
 
 func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error {
-	if cfg.Port == "" {
-		cfg.Port = defSvcGRPCPort
-	}
-
 	agentGrpcServerConfig := server.AgentConfig{
 		ServerConfig: server.ServerConfig{
 			Config: server.Config{
-				Host:         as.host,
-				Port:         cfg.Port,
+				Host:         defSvcGRPCSocket,
+				Port:         "",
 				CertFile:     cfg.CertFile,
 				KeyFile:      cfg.KeyFile,
 				ServerCAFile: cfg.ServerCAFile,

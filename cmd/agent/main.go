@@ -252,7 +252,7 @@ func main() {
 	slog.Info("created certificate provider")
 
 	// Create ingress proxy server
-	backendURL, err := url.Parse("http://localhost:7001")
+	backendURL, err := url.Parse("unix:///run/cocos/agent.sock")
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to parse backend URL: %s", err))
 		exitCode = 1

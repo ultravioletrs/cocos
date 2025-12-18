@@ -7,7 +7,7 @@ import "github.com/ultravioletrs/cocos/agent"
 // AgentConfigToProxyConfig converts agent.AgentConfig to ProxyConfig.
 func AgentConfigToProxyConfig(cfg agent.AgentConfig) ProxyConfig {
 	return ProxyConfig{
-		Port:         cfg.Port,
+		Port:         "7002", // Ingress-proxy always uses port 7002
 		CertFile:     cfg.CertFile,
 		KeyFile:      cfg.KeyFile,
 		ServerCAFile: cfg.ServerCAFile,
