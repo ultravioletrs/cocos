@@ -75,10 +75,11 @@ func (p *Proxy) handle(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
-	p.logger.Info("Connect request", "host", host)
+	p.logger.Info("CONNECT request received", "host", host)
 
 	// TODO: Check allowlist here
 
+	p.logger.Debug("Dialing destination", "host", host)
 	destConn, err := net.DialTimeout("tcp", host, 10*time.Second)
 	if err != nil {
 		p.logger.Error("Failed to dial destination", "host", host, "error", err)
@@ -86,8 +87,9 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer destConn.Close()
+	p.logger.Info("Successfully connected to destination", "host", host)
 
-	w.WriteHeader(http.StatusOK)
+	p.logger.Debug("Hijacking client connection")
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		p.logger.Error("Hijacking not supported")
@@ -97,12 +99,22 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 	clientConn, _, err := hijacker.Hijack()
 	if err != nil {
 		p.logger.Error("Failed to hijack connection", "error", err)
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer clientConn.Close()
+	p.logger.Info("Successfully hijacked client connection", "host", host)
+
+	// Send 200 Connection Established response
+	p.logger.Debug("Sending 200 Connection Established")
+	_, err = clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+	if err != nil {
+		p.logger.Error("Failed to send CONNECT response", "error", err)
+		return
+	}
+	p.logger.Info("Starting bidirectional pipe", "host", host)
 
 	p.pipe(clientConn, destConn)
+	p.logger.Info("Pipe completed", "host", host)
 }
 
 func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +196,8 @@ func (p *Proxy) pipe(src, dst net.Conn) {
 
 	go func() {
 		defer wg.Done()
-		io.Copy(dst, src)
+		n, err := io.Copy(dst, src)
+		p.logger.Debug("Pipe src->dst completed", "bytes", n, "error", err)
 		// Close write end of dst if possible, or just close it
 		if c, ok := dst.(*net.TCPConn); ok {
 			c.CloseWrite()
@@ -193,7 +206,8 @@ func (p *Proxy) pipe(src, dst net.Conn) {
 
 	go func() {
 		defer wg.Done()
-		io.Copy(src, dst)
+		n, err := io.Copy(src, dst)
+		p.logger.Debug("Pipe dst->src completed", "bytes", n, "error", err)
 		if c, ok := src.(*net.TCPConn); ok {
 			c.CloseWrite()
 		}
