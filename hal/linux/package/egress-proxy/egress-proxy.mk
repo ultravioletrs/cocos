@@ -4,15 +4,15 @@
 #
 ################################################################################
 
-EGRESS_PROXY_VERSION = main
-EGRESS_PROXY_SITE = $(call github,ultravioletrs,cocos,$(EGRESS_PROXY_VERSION))
+EGRESS_PROXY_VERSION = 9992f033cb436feeaede9126726c5f78f39fdd18
+EGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(EGRESS_PROXY_VERSION))
 
 define EGRESS_PROXY_BUILD_CMDS
 	$(MAKE) -C $(@D) egress-proxy
 endef
 
 define EGRESS_PROXY_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/build/egress-proxy $(TARGET_DIR)/usr/bin/egress-proxy
+	$(INSTALL) -D -m 0755 $(@D)/build/cocos-egress-proxy $(TARGET_DIR)/usr/bin/egress-proxy
 endef
 
 define EGRESS_PROXY_INSTALL_INIT_SYSTEMD

@@ -526,5 +526,5 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 
 func TestConstants(t *testing.T) {
 	assert.Equal(t, "agent", svcName)
-	assert.Equal(t, "7002", defSvcGRPCPort)
+	assert.Equal(t, "7001", defSvcGRPCPort)
 }

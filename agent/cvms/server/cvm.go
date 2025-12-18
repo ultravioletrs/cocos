@@ -20,7 +20,7 @@ import (
 
 const (
 	svcName        = "agent"
-	defSvcGRPCPort = "7002"
+	defSvcGRPCPort = "7001"
 )
 
 type AgentServer interface {

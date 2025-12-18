@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-COMPUTATION_RUNNER_VERSION = main
-COMPUTATION_RUNNER_SITE = $(call github,ultravioletrs,cocos,$(COMPUTATION_RUNNER_VERSION))
+COMPUTATION_RUNNER_VERSION = 9992f033cb436feeaede9126726c5f78f39fdd18
+COMPUTATION_RUNNER_SITE = $(call github,sammyoina,cocos-ai,$(COMPUTATION_RUNNER_VERSION))
 
 define COMPUTATION_RUNNER_BUILD_CMDS
 	$(MAKE) -C $(@D) computation-runner

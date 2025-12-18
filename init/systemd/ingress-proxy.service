@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/cocos/environment
-ExecStart=/usr/bin/ingress-proxy --port=7002
+ExecStart=/usr/bin/ingress-proxy
 Restart=always
 RestartSec=5
 User=root
