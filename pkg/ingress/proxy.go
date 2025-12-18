@@ -16,6 +16,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/server"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 // ProxyConfig contains configuration for starting a proxy instance.
@@ -103,13 +104,13 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		}
 	}
 
+	// Wrap handler with h2c for HTTP/2 cleartext support (required for gRPC without TLS)
+	h2cHandler := h2c.NewHandler(rp, &http2.Server{})
+
 	p.httpServer = &http.Server{
 		Addr:    addr,
-		Handler: rp,
+		Handler: h2cHandler,
 	}
-
-	// Enable HTTP/2 on the server side
-	http2.ConfigureServer(p.httpServer, nil)
 
 	// Configure TLS
 	var tlsConfig *tls.Config
