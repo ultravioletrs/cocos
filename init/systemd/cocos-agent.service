@@ -1,7 +1,7 @@
 [Unit]
 Description=Cocos AI agent
-After=network.target attestation-service.service log-forwarder.service computation-runner.service egress-proxy.service ingress-proxy.service
-Requires=log-forwarder.service computation-runner.service egress-proxy.service ingress-proxy.service
+After=network.target attestation-service.service log-forwarder.service computation-runner.service egress-proxy.service
+Requires=log-forwarder.service computation-runner.service egress-proxy.service
 Before=docker.service
 
 [Service]
