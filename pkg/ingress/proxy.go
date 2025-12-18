@@ -79,12 +79,28 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 	addr := fmt.Sprintf("0.0.0.0:%s", cfg.Port)
 
 	// Configure Reverse Proxy
-	rp := httputil.NewSingleHostReverseProxy(p.backendURL)
+	var rp *httputil.ReverseProxy
 
-	// Configure Transport to support HTTP/2 Cleartext (h2c) to backend
 	// Check if backend is Unix socket or TCP
 	if p.backendURL.Scheme == "unix" {
-		// Unix socket backend
+		// For Unix socket backend, we need to manually configure the reverse proxy
+		// because NewSingleHostReverseProxy doesn't support unix:// scheme
+		targetURL := &url.URL{
+			Scheme: "http",
+			Host:   "unix",
+		}
+		rp = httputil.NewSingleHostReverseProxy(targetURL)
+
+		// Override the Director to not modify the request
+		originalDirector := rp.Director
+		rp.Director = func(req *http.Request) {
+			originalDirector(req)
+			// Set the URL to point to the backend service
+			req.URL.Scheme = "http"
+			req.URL.Host = "unix"
+		}
+
+		// Configure Transport for Unix socket with HTTP/2
 		rp.Transport = &http2.Transport{
 			AllowHTTP: true,
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
@@ -95,6 +111,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		}
 	} else {
 		// TCP backend
+		rp = httputil.NewSingleHostReverseProxy(p.backendURL)
 		rp.Transport = &http2.Transport{
 			AllowHTTP: true,
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {

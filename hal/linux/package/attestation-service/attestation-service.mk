@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-ATTESTATION_SERVICE_VERSION = bb694c0cabd466f9dcef732cdd982f047b5812ed
+ATTESTATION_SERVICE_VERSION = 9004d340a686f1a215375796ad8d45a01d7fda40
 ATTESTATION_SERVICE_SITE = $(call github,sammyoina,cocos-ai,$(ATTESTATION_SERVICE_VERSION))
 
 define ATTESTATION_SERVICE_BUILD_CMDS
