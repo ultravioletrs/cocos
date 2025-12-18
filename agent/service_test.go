@@ -673,4 +673,3 @@ func TestStopComputationConcurrent(t *testing.T) {
 
 	assert.True(t, len(errors) < numGoroutines, "All StopComputation calls failed")
 }
-

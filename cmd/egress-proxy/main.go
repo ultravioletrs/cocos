@@ -36,8 +36,8 @@ func main() {
 	cmd := &cobra.Command{
 		Use:   svcName,
 		Short: "Egress Proxy Service",
-		Run: func(cmd *cobra.Command, args []string) {
-			run(cfg)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cfg)
 		},
 	}
 
@@ -50,11 +50,10 @@ func main() {
 	}
 }
 
-func run(cfg config) {
+func run(cfg config) error {
 	logger, err := mglog.New(os.Stdout, cfg.Level)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create logger: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create logger: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,14 +74,15 @@ func run(cfg config) {
 		case s := <-c:
 			logger.Info(fmt.Sprintf("received signal %s, stopping", s))
 			cancel()
-			return proxy.Stop(context.Background())
+			return proxy.Stop(ctx)
 		case <-ctx.Done():
 			return nil
 		}
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Error(fmt.Sprintf("server exit with error: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("server exit with error: %w", err)
 	}
+
+	return nil
 }

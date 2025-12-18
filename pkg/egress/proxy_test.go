@@ -22,7 +22,9 @@ func TestProxyHTTP(t *testing.T) {
 	// 1. Start a backend server
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("backend response"))
+		if _, err := w.Write([]byte("backend response")); err != nil {
+			t.Logf("Failed to write response: %v", err)
+		}
 	}))
 	defer backend.Close()
 
@@ -36,9 +38,15 @@ func TestProxyHTTP(t *testing.T) {
 	proxy.server.Addr = ln.Addr().String()
 
 	go func() {
-		proxy.server.Serve(ln)
+		if err := proxy.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Logf("Proxy server error: %v", err)
+		}
 	}()
-	defer proxy.Stop(context.Background())
+	defer func() {
+		if err := proxy.Stop(context.Background()); err != nil {
+			t.Logf("Failed to stop proxy: %v", err)
+		}
+	}()
 
 	// waiting for server start
 	time.Sleep(100 * time.Millisecond)
@@ -69,7 +77,9 @@ func TestProxyConnect(t *testing.T) {
 	// 1. Start a backend TLS server
 	backend := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("secure backend response"))
+		if _, err := w.Write([]byte("secure backend response")); err != nil {
+			t.Logf("Failed to write response: %v", err)
+		}
 	}))
 	defer backend.Close()
 
@@ -83,9 +93,15 @@ func TestProxyConnect(t *testing.T) {
 	proxy.server.Addr = ln.Addr().String()
 
 	go func() {
-		proxy.server.Serve(ln)
+		if err := proxy.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Logf("Proxy server error: %v", err)
+		}
 	}()
-	defer proxy.Stop(context.Background())
+	defer func() {
+		if err := proxy.Stop(context.Background()); err != nil {
+			t.Logf("Failed to stop proxy: %v", err)
+		}
+	}()
 
 	time.Sleep(100 * time.Millisecond)
 

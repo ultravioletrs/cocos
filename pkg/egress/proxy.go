@@ -77,7 +77,7 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
 	p.logger.Info("CONNECT request received", "host", host)
 
-	// TODO: Check allowlist here
+	// nolint:godox // TODO: Check allowlist here - allowlist implementation deferred
 
 	p.logger.Debug("Dialing destination", "host", host)
 	destConn, err := net.DialTimeout("tcp", host, 10*time.Second)
@@ -120,7 +120,7 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	p.logger.Info("HTTP request", "method", r.Method, "url", r.URL.String())
 
-	// TODO: Check allowlist here
+	// nolint:godox // TODO: Check allowlist here - allowlist implementation deferred
 
 	r.RequestURI = "" // RequestURI must be empty for Client.Do
 
@@ -145,13 +145,15 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	// Copy headers
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		p.logger.Error("Failed to copy response body", "error", err)
+	}
 }
 
 func (p *Proxy) handleHTTP2(w http.ResponseWriter, r *http.Request) {
 	p.logger.Info("HTTP/2 request", "method", r.Method, "host", r.Host, "path", r.URL.Path)
 
-	// TODO: Check allowlist here
+	// nolint:godox // TODO: Check allowlist here - allowlist implementation deferred
 
 	// Parse the target URL from the request
 	targetURL := &url.URL{
@@ -200,7 +202,9 @@ func (p *Proxy) pipe(src, dst net.Conn) {
 		p.logger.Debug("Pipe src->dst completed", "bytes", n, "error", err)
 		// Close write end of dst if possible, or just close it
 		if c, ok := dst.(*net.TCPConn); ok {
-			c.CloseWrite()
+			if err := c.CloseWrite(); err != nil {
+				p.logger.Debug("Failed to close write end of dst", "error", err)
+			}
 		}
 	}()
 
@@ -209,7 +213,9 @@ func (p *Proxy) pipe(src, dst net.Conn) {
 		n, err := io.Copy(src, dst)
 		p.logger.Debug("Pipe dst->src completed", "bytes", n, "error", err)
 		if c, ok := src.(*net.TCPConn); ok {
-			c.CloseWrite()
+			if err := c.CloseWrite(); err != nil {
+				p.logger.Debug("Failed to close write end of src", "error", err)
+			}
 		}
 	}()
 

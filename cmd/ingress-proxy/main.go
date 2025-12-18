@@ -50,8 +50,8 @@ func main() {
 	cmd := &cobra.Command{
 		Use:   svcName,
 		Short: "Ingress Proxy Service",
-		Run: func(cmd *cobra.Command, args []string) {
-			run(cfg)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cfg)
 		},
 	}
 
@@ -64,17 +64,15 @@ func main() {
 	}
 }
 
-func run(cfg config) {
+func run(cfg config) error {
 	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create logger: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create logger: %w", err)
 	}
 
 	backendURL, err := url.Parse(cfg.Backend)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to parse backend URL: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to parse backend URL: %w", err)
 	}
 
 	// Initialize Certificate Provider
@@ -100,8 +98,7 @@ func run(cfg config) {
 		}
 		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to create certificate provider: %w", err)
 		}
 	} else {
 		logger.Warn("No Confidential Computing platform detected. ATLS will not be available.")
@@ -133,7 +130,8 @@ func run(cfg config) {
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Error(fmt.Sprintf("server exit with error: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("server exit with error: %w", err)
 	}
+
+	return nil
 }
