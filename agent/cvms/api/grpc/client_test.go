@@ -187,6 +187,7 @@ func TestManagerClient_handleRunReqChunks(t *testing.T) {
 		},
 	}
 
+	mockSvc.On("State").Return("ReceivingManifest")
 	mockSvc.On("InitComputation", mock.Anything, mock.Anything).Return(nil)
 	mockServerSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
