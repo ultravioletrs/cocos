@@ -389,3 +389,166 @@ func TestProxyWithLargeBody(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, len(largeBody), len(body))
 }
+
+// TestCopyHeader tests the copyHeader utility function.
+func TestCopyHeader(t *testing.T) {
+	src := http.Header{}
+	src.Add("X-Custom-Header", "value1")
+	src.Add("X-Custom-Header", "value2")
+	src.Add("Content-Type", "application/json")
+
+	dst := http.Header{}
+	copyHeader(dst, src)
+
+	assert.Equal(t, []string{"value1", "value2"}, dst["X-Custom-Header"])
+	assert.Equal(t, []string{"application/json"}, dst["Content-Type"])
+}
+
+// TestDelHopHeaders tests the delHopHeaders utility function.
+func TestDelHopHeaders(t *testing.T) {
+	header := http.Header{}
+	header.Set("Connection", "keep-alive")
+	header.Set("Keep-Alive", "timeout=5")
+	header.Set("Proxy-Authenticate", "Basic")
+	header.Set("Proxy-Authorization", "Bearer token")
+	header.Set("Te", "trailers")
+	header.Set("Trailers", "X-Custom")
+	header.Set("Transfer-Encoding", "chunked")
+	header.Set("Upgrade", "websocket")
+	header.Set("X-Custom-Header", "should-remain")
+
+	delHopHeaders(header)
+
+	// Hop-by-hop headers should be removed
+	assert.Empty(t, header.Get("Connection"))
+	assert.Empty(t, header.Get("Keep-Alive"))
+	assert.Empty(t, header.Get("Proxy-Authenticate"))
+	assert.Empty(t, header.Get("Proxy-Authorization"))
+	assert.Empty(t, header.Get("Te"))
+	assert.Empty(t, header.Get("Trailers"))
+	assert.Empty(t, header.Get("Transfer-Encoding"))
+	assert.Empty(t, header.Get("Upgrade"))
+
+	// Custom headers should remain
+	assert.Equal(t, "should-remain", header.Get("X-Custom-Header"))
+}
+
+// TestProxyConnectDialTimeout tests CONNECT with dial timeout.
+func TestProxyConnectDialTimeout(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ln, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+
+	proxy := NewProxy(logger, ln.Addr().String())
+	proxy.server.Addr = ln.Addr().String()
+
+	go func() {
+		if err := proxy.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Logf("Proxy server error: %v", err)
+		}
+	}()
+	defer func() {
+		if err := proxy.Stop(context.Background()); err != nil {
+			t.Logf("Failed to stop proxy: %v", err)
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Try to CONNECT to a non-routable address (should timeout)
+	proxyURL := fmt.Sprintf("http://%s", ln.Addr().String())
+	os.Setenv("HTTPS_PROXY", proxyURL)
+	defer os.Unsetenv("HTTPS_PROXY")
+
+	// Create a client with very short timeout
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+		Timeout: 2 * time.Second,
+	}
+
+	// This should fail because 192.0.2.1 is a TEST-NET address (non-routable)
+	_, err = client.Get("https://192.0.2.1:9999/test")
+	assert.Error(t, err)
+}
+
+// TestProxyHTTPWithRedirect tests HTTP proxy handling redirects.
+func TestProxyHTTPWithRedirect(t *testing.T) {
+	// Create a backend that redirects
+	redirectCount := 0
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if redirectCount == 0 {
+			redirectCount++
+			http.Redirect(w, r, "/redirected", http.StatusFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("redirected response")); err != nil {
+			t.Logf("Failed to write response: %v", err)
+		}
+	}))
+	defer backend.Close()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ln, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+
+	proxy := NewProxy(logger, ln.Addr().String())
+	proxy.server.Addr = ln.Addr().String()
+
+	go func() {
+		if err := proxy.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Logf("Proxy server error: %v", err)
+		}
+	}()
+	defer func() {
+		if err := proxy.Stop(context.Background()); err != nil {
+			t.Logf("Failed to stop proxy: %v", err)
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	proxyURL := fmt.Sprintf("http://%s", ln.Addr().String())
+	os.Setenv("HTTP_PROXY", proxyURL)
+	defer os.Unsetenv("HTTP_PROXY")
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+	}
+
+	resp, err := client.Get(backend.URL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "redirected response", string(body))
+}
+
+// TestProxyStopContext tests proxy stop with context.
+func TestProxyStopContext(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ln, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+
+	proxy := NewProxy(logger, ln.Addr().String())
+	proxy.server.Addr = ln.Addr().String()
+
+	go func() {
+		if err := proxy.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Logf("Proxy server error: %v", err)
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = proxy.Stop(ctx)
+	assert.NoError(t, err)
+}
