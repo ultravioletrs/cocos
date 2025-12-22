@@ -1,0 +1,4 @@
+config BR2_PACKAGE_INGRESS_PROXY
+	bool "ingress-proxy"
+	help
+	  Cocos Ingress Proxy service.

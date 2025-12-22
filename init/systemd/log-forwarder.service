@@ -1,0 +1,17 @@
+[Unit]
+Description=Cocos AI Log Forwarder
+After=network.target
+Before=cocos-agent.service
+
+[Service]
+WorkingDirectory=/cocos
+StandardOutput=file:/var/log/cocos/log-forwarder.stdout
+StandardError=file:/var/log/cocos/log-forwarder.stderr
+EnvironmentFile=/etc/cocos/environment
+ExecStartPre=/cocos_init/agent_setup.sh
+ExecStart=/usr/bin/log-forwarder
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
