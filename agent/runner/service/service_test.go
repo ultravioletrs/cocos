@@ -15,7 +15,7 @@ import (
 	pb "github.com/ultravioletrs/cocos/agent/runner"
 )
 
-// MockEventService is a mock implementation of events.Service
+// MockEventService is a mock implementation of events.Service.
 type MockEventService struct {
 	events []interface{}
 }
@@ -29,7 +29,7 @@ func (m *MockEventService) SendEvent(cmpID, event, status string, details json.R
 	})
 }
 
-// TestNewRunnerService tests the creation of a new runner service
+// TestNewRunnerService tests the creation of a new runner service.
 func TestNewRunnerService(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -41,7 +41,7 @@ func TestNewRunnerService(t *testing.T) {
 	assert.Nil(t, rs.currentAlgo)
 }
 
-// TestRunWithBinaryAlgorithm tests running a binary algorithm
+// TestRunWithBinaryAlgorithm tests running a binary algorithm.
 func TestRunWithBinaryAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -60,7 +60,7 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	assert.Equal(t, "test-1", resp.ComputationId)
 }
 
-// TestRunWithPythonAlgorithm tests running a Python algorithm
+// TestRunWithPythonAlgorithm tests running a Python algorithm.
 func TestRunWithPythonAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -80,7 +80,7 @@ func TestRunWithPythonAlgorithm(t *testing.T) {
 	assert.Equal(t, "test-python", resp.ComputationId)
 }
 
-// TestRunWithPythonAlgorithmNoRequirements tests running Python without requirements
+// TestRunWithPythonAlgorithmNoRequirements tests running Python without requirements.
 func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -99,7 +99,7 @@ func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	assert.Equal(t, "test-python-noreq", resp.ComputationId)
 }
 
-// TestRunWithWasmAlgorithm tests running a WASM algorithm
+// TestRunWithWasmAlgorithm tests running a WASM algorithm.
 func TestRunWithWasmAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -118,7 +118,7 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 	assert.Equal(t, "test-wasm", resp.ComputationId)
 }
 
-// TestRunWithDockerAlgorithm tests running a Docker algorithm
+// TestRunWithDockerAlgorithm tests running a Docker algorithm.
 func TestRunWithDockerAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -137,7 +137,7 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 	assert.Equal(t, "test-docker", resp.ComputationId)
 }
 
-// TestRunWithUnsupportedAlgorithmType tests running with unsupported algorithm type
+// TestRunWithUnsupportedAlgorithmType tests running with unsupported algorithm type.
 func TestRunWithUnsupportedAlgorithmType(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -155,7 +155,7 @@ func TestRunWithUnsupportedAlgorithmType(t *testing.T) {
 	require.Nil(t, resp)
 }
 
-// TestRunAlreadyRunning tests running computation when one is already running
+// TestRunAlreadyRunning tests running computation when one is already running.
 func TestRunAlreadyRunning(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -170,7 +170,9 @@ func TestRunAlreadyRunning(t *testing.T) {
 	}
 
 	// Start first computation (will run for 30 seconds)
-	go rs.Run(context.Background(), req)
+	go func() {
+		_, _ = rs.Run(context.Background(), req)
+	}()
 
 	// Give it time to start
 	time.Sleep(500 * time.Millisecond)
@@ -182,7 +184,7 @@ func TestRunAlreadyRunning(t *testing.T) {
 	assert.Equal(t, "computation already running", resp.Error)
 }
 
-// TestStopWhenRunning tests stopping a running computation
+// TestStopWhenRunning tests stopping a running computation.
 func TestStopWhenRunning(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -207,7 +209,7 @@ func TestStopWhenRunning(t *testing.T) {
 	require.NotNil(t, stopResp)
 }
 
-// TestStopWhenNotRunning tests stopping when no computation is running
+// TestStopWhenNotRunning tests stopping when no computation is running.
 func TestStopWhenNotRunning(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -222,7 +224,7 @@ func TestStopWhenNotRunning(t *testing.T) {
 	require.NotNil(t, stopResp)
 }
 
-// TestConcurrentRun tests that concurrent runs are properly serialized
+// TestConcurrentRun tests that concurrent runs are properly serialized.
 func TestConcurrentRun(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -236,7 +238,9 @@ func TestConcurrentRun(t *testing.T) {
 	}
 
 	// Start first run in goroutine (will run for 15 seconds)
-	go rs.Run(context.Background(), req)
+	go func() {
+		_, _ = rs.Run(context.Background(), req)
+	}()
 
 	// Give it time to actually start
 	time.Sleep(500 * time.Millisecond)
@@ -247,7 +251,7 @@ func TestConcurrentRun(t *testing.T) {
 	assert.Equal(t, "computation already running", resp2.Error)
 }
 
-// TestRunWithMultipleArgs tests running with multiple arguments
+// TestRunWithMultipleArgs tests running with multiple arguments.
 func TestRunWithMultipleArgs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}

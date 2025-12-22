@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// TestNewLogForwarder tests the creation of a new log forwarder
+// TestNewLogForwarder tests the creation of a new log forwarder.
 func TestNewLogForwarder(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 10)
@@ -29,7 +29,7 @@ func TestNewLogForwarder(t *testing.T) {
 	assert.NotNil(t, lf.logQueue)
 }
 
-// TestSendLog tests sending a log entry
+// TestSendLog tests sending a log entry.
 func TestSendLog(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 10)
@@ -61,7 +61,7 @@ func TestSendLog(t *testing.T) {
 	}
 }
 
-// TestSendEvent tests sending an event entry
+// TestSendEvent tests sending an event entry.
 func TestSendEvent(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 10)
@@ -99,7 +99,7 @@ func TestSendEvent(t *testing.T) {
 	}
 }
 
-// TestSendMultipleLogs tests sending multiple log entries
+// TestSendMultipleLogs tests sending multiple log entries.
 func TestSendMultipleLogs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 100)
@@ -122,7 +122,7 @@ func TestSendMultipleLogs(t *testing.T) {
 	assert.Equal(t, 5, len(queue))
 }
 
-// TestSendEventWithVariousTypes tests sending events with different types
+// TestSendEventWithVariousTypes tests sending events with different types.
 func TestSendEventWithVariousTypes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 100)
@@ -131,7 +131,8 @@ func TestSendEventWithVariousTypes(t *testing.T) {
 
 	eventTypes := []string{"STARTED", "RUNNING", "COMPLETED", "FAILED"}
 	for _, eventType := range eventTypes {
-		details, _ := json.Marshal(map[string]string{"type": eventType})
+		details, err := json.Marshal(map[string]string{"type": eventType})
+		require.NoError(t, err)
 		req := &log.EventEntry{
 			EventType:     eventType,
 			Timestamp:     timestamppb.New(time.Now()),
@@ -149,7 +150,7 @@ func TestSendEventWithVariousTypes(t *testing.T) {
 	assert.Equal(t, 4, len(queue))
 }
 
-// TestSendLogWithEmptyMessage tests sending log with empty message
+// TestSendLogWithEmptyMessage tests sending log with empty message.
 func TestSendLogWithEmptyMessage(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 10)
@@ -176,7 +177,7 @@ func TestSendLogWithEmptyMessage(t *testing.T) {
 	}
 }
 
-// TestSendEventWithNilDetails tests sending event with nil details
+// TestSendEventWithNilDetails tests sending event with nil details.
 func TestSendEventWithNilDetails(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 10)
@@ -205,7 +206,7 @@ func TestSendEventWithNilDetails(t *testing.T) {
 	}
 }
 
-// TestSendLogWithVariousLevels tests sending logs with various severity levels
+// TestSendLogWithVariousLevels tests sending logs with various severity levels.
 func TestSendLogWithVariousLevels(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 100)
@@ -229,7 +230,7 @@ func TestSendLogWithVariousLevels(t *testing.T) {
 	assert.Equal(t, 4, len(queue))
 }
 
-// TestSendLogWithDifferentComputationIds tests sending logs with different computation IDs
+// TestSendLogWithDifferentComputationIds tests sending logs with different computation IDs.
 func TestSendLogWithDifferentComputationIds(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 100)
@@ -252,7 +253,7 @@ func TestSendLogWithDifferentComputationIds(t *testing.T) {
 	assert.Equal(t, 3, len(queue))
 }
 
-// TestQueueBehavior tests that queue is properly used
+// TestQueueBehavior tests that queue is properly used.
 func TestQueueBehavior(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 1)
@@ -273,7 +274,7 @@ func TestQueueBehavior(t *testing.T) {
 	assert.Equal(t, 1, len(queue))
 }
 
-// TestConcurrentSendLog tests concurrent log sending
+// TestConcurrentSendLog tests concurrent log sending.
 func TestConcurrentSendLog(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	queue := make(chan *cvms.ClientStreamMessage, 100)

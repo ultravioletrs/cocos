@@ -132,7 +132,7 @@ func TestProxyConnect(t *testing.T) {
 	assert.Equal(t, "secure backend response", string(body))
 }
 
-// TestProxyHTTP2 tests HTTP/2 requests through the proxy
+// TestProxyHTTP2 tests HTTP/2 requests through the proxy.
 func TestProxyHTTP2(t *testing.T) {
 	// 1. Start a backend server
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +185,7 @@ func TestProxyHTTP2(t *testing.T) {
 	}
 }
 
-// TestProxyHeaderHandling tests that headers are properly handled
+// TestProxyHeaderHandling tests that headers are properly handled.
 func TestProxyHeaderHandling(t *testing.T) {
 	// Start a backend server that echoes headers
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +239,7 @@ func TestProxyHeaderHandling(t *testing.T) {
 	}
 }
 
-// TestProxyWithDifferentMethods tests different HTTP methods
+// TestProxyWithDifferentMethods tests different HTTP methods.
 func TestProxyWithDifferentMethods(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -291,7 +291,7 @@ func TestProxyWithDifferentMethods(t *testing.T) {
 	}
 }
 
-// TestProxyErrorHandling tests error handling in the proxy
+// TestProxyErrorHandling tests error handling in the proxy.
 func TestProxyErrorHandling(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ln, err := net.Listen("tcp", ":0")
@@ -326,6 +326,9 @@ func TestProxyErrorHandling(t *testing.T) {
 
 	// This should fail because the backend doesn't exist
 	resp, err := client.Get("http://nonexistent.example.com:99999")
+	if err != nil {
+		return
+	}
 	if resp != nil {
 		defer resp.Body.Close()
 		// Status should be error
@@ -333,7 +336,7 @@ func TestProxyErrorHandling(t *testing.T) {
 	}
 }
 
-// TestProxyWithLargeBody tests proxy with large response body
+// TestProxyWithLargeBody tests proxy with large response body.
 func TestProxyWithLargeBody(t *testing.T) {
 	largeBody := make([]byte, 1024*1024) // 1MB
 	for i := range largeBody {

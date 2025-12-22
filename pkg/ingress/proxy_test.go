@@ -20,14 +20,14 @@ func getBackendURL() *url.URL {
 	return u
 }
 
-// TestNewProxyServer tests the creation of a new proxy server
+// TestNewProxyServer tests the creation of a new proxy server.
 func TestNewProxyServer(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
 	require.NotNil(t, ps)
 }
 
-// TestProxyStartStop tests basic start and stop operations
+// TestProxyStartStop tests basic start and stop operations.
 func TestProxyStartStop(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -47,7 +47,7 @@ func TestProxyStartStop(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestProxyStartWithoutPort tests proxy without explicit port
+// TestProxyStartWithoutPort tests proxy without explicit port.
 func TestProxyStartWithoutPort(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -57,11 +57,11 @@ func TestProxyStartWithoutPort(t *testing.T) {
 
 	err := ps.Start(cfg, ctx)
 	require.NoError(t, err)
-	defer ps.Stop()
+	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
 }
 
-// TestProxyStartAlreadyStarted tests error when starting twice
+// TestProxyStartAlreadyStarted tests error when starting twice.
 func TestProxyStartAlreadyStarted(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -76,7 +76,7 @@ func TestProxyStartAlreadyStarted(t *testing.T) {
 
 	err = ps.Start(cfg, ctx)
 	require.NoError(t, err)
-	defer ps.Stop()
+	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
 
 	err = ps.Start(cfg, ctx)
@@ -84,7 +84,7 @@ func TestProxyStartAlreadyStarted(t *testing.T) {
 	assert.Equal(t, "proxy server already started", err.Error())
 }
 
-// TestProxyStartAfterStopped tests error when starting after stop
+// TestProxyStartAfterStopped tests error when starting after stop.
 func TestProxyStartAfterStopped(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -109,7 +109,7 @@ func TestProxyStartAfterStopped(t *testing.T) {
 	assert.Contains(t, err.Error(), "proxy server already")
 }
 
-// TestProxyWithName tests proxy context with name
+// TestProxyWithName tests proxy context with name.
 func TestProxyWithName(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -124,11 +124,11 @@ func TestProxyWithName(t *testing.T) {
 
 	err = ps.Start(cfg, ctx)
 	require.NoError(t, err)
-	defer ps.Stop()
+	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
 }
 
-// TestProxyWithoutName tests proxy context without name
+// TestProxyWithoutName tests proxy context without name.
 func TestProxyWithoutName(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -143,11 +143,11 @@ func TestProxyWithoutName(t *testing.T) {
 
 	err = ps.Start(cfg, ctx)
 	require.NoError(t, err)
-	defer ps.Stop()
+	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
 }
 
-// TestProxyMultipleStops tests multiple stop calls
+// TestProxyMultipleStops tests multiple stop calls.
 func TestProxyMultipleStops(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -171,7 +171,7 @@ func TestProxyMultipleStops(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestProxyWithoutTLS tests proxy without TLS
+// TestProxyWithoutTLS tests proxy without TLS.
 func TestProxyWithoutTLS(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -189,6 +189,6 @@ func TestProxyWithoutTLS(t *testing.T) {
 
 	err = ps.Start(cfg, ctx)
 	require.NoError(t, err)
-	defer ps.Stop()
+	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
 }
