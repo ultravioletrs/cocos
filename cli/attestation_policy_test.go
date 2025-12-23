@@ -397,7 +397,7 @@ func TestExtendWithManifestHandling(t *testing.T) {
 
 	t.Run("Invalid manifest file", func(t *testing.T) {
 		cmd := cli.NewExtendWithManifestCmd()
-		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", "nonexistent.manifest.json"})
+		cmd.SetArgs([]string{"../scripts/attestation_policy/sev-snp/attestation_policy.json", "nonexistent.manifest.json"})
 
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)
@@ -458,7 +458,7 @@ func TestExtendWithManifestHandling(t *testing.T) {
 		}
 
 		cmd := cli.NewExtendWithManifestCmd()
-		cmd.SetArgs([]string{"../scripts/attestation_policy/attestation_policy.json", manifestFile.Name()})
+		cmd.SetArgs([]string{"../scripts/attestation_policy/sev-snp/attestation_policy.json", manifestFile.Name()})
 
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)

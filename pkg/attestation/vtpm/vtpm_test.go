@@ -807,7 +807,7 @@ func prepVerifyAttReport(t *testing.T) (*sevsnp.Attestation, []byte) {
 }
 
 func setAttestationPolicy(rr *sevsnp.Attestation, policyDirectory string) error {
-	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/attestation_policy.json")
+	attestationPolicyFile, err := os.ReadFile("../../../scripts/attestation_policy/sev-snp/attestation_policy.json")
 	if err != nil {
 		return err
 	}

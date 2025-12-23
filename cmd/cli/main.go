@@ -164,6 +164,7 @@ func main() {
 	attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
 	attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
 	attestationPolicyCmd.AddCommand(cliSVC.NewAzureAttestationPolicy())
+	attestationPolicyCmd.AddCommand(cliSVC.NewTDXAttestationPolicy())
 	attestationPolicyCmd.AddCommand(cliSVC.NewExtendWithManifestCmd())
 
 	if err := rootCmd.Execute(); err != nil {
