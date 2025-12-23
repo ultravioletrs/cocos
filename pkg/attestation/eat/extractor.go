@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-sev-guest/abi"
 )
 
-// extractSNPClaims extracts AMD SEV-SNP specific claims from binary report
+// extractSNPClaims extracts AMD SEV-SNP specific claims from binary report.
 func extractSNPClaims(claims *EATClaims, report []byte) error {
 	if len(report) < int(abi.ReportSize) {
 		return fmt.Errorf("SNP report too small: got %d bytes, want at least %d", len(report), abi.ReportSize)
@@ -52,7 +52,7 @@ func extractSNPClaims(claims *EATClaims, report []byte) error {
 	return nil
 }
 
-// extractTDXClaims extracts Intel TDX specific claims from binary report
+// extractTDXClaims extracts Intel TDX specific claims from binary report.
 func extractTDXClaims(claims *EATClaims, report []byte) error {
 	// TDX Quote structure parsing
 	if len(report) < 584 { // Minimum TDX quote size
@@ -98,7 +98,7 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 	return nil
 }
 
-// extractVTPMClaims extracts vTPM specific claims from binary report
+// extractVTPMClaims extracts vTPM specific claims from binary report.
 func extractVTPMClaims(claims *EATClaims, report []byte) error {
 	// vTPM report is typically a marshaled structure containing PCRs and quote
 	// For now, store the entire report as the quote
@@ -114,7 +114,7 @@ func extractVTPMClaims(claims *EATClaims, report []byte) error {
 	return nil
 }
 
-// extractAzureClaims extracts Azure-specific claims from attestation token
+// extractAzureClaims extracts Azure-specific claims from attestation token.
 func extractAzureClaims(claims *EATClaims, report []byte) error {
 	// Azure provides JWT tokens, so the report is already in a structured format
 	// For now, just store it as raw report

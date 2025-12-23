@@ -14,19 +14,19 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-// Decoder decodes EAT tokens (auto-detects JWT vs CBOR)
+// Decoder decodes EAT tokens (auto-detects JWT vs CBOR).
 type Decoder struct {
 	verifyKey *ecdsa.PublicKey
 }
 
-// NewDecoder creates a new EAT decoder
+// NewDecoder creates a new EAT decoder.
 func NewDecoder(verifyKey *ecdsa.PublicKey) *Decoder {
 	return &Decoder{
 		verifyKey: verifyKey,
 	}
 }
 
-// Decode decodes an EAT token (auto-detects format)
+// Decode decodes an EAT token (auto-detects format).
 func (d *Decoder) Decode(token []byte) (*EATClaims, error) {
 	// Try to detect format
 	if isJWT(token) {
@@ -35,13 +35,13 @@ func (d *Decoder) Decode(token []byte) (*EATClaims, error) {
 	return d.decodeCBOR(token)
 }
 
-// isJWT checks if the token is JWT format
+// isJWT checks if the token is JWT format.
 func isJWT(token []byte) bool {
 	// JWT tokens are base64-encoded strings with dots
 	return bytes.Contains(token, []byte(".")) && !bytes.Contains(token[:10], []byte{0x00})
 }
 
-// decodeJWT decodes a JWT token
+// decodeJWT decodes a JWT token.
 func (d *Decoder) decodeJWT(tokenString string) (*EATClaims, error) {
 	claims := &jwtClaims{&EATClaims{}}
 
@@ -53,7 +53,6 @@ func (d *Decoder) decodeJWT(tokenString string) (*EATClaims, error) {
 		}
 		return d.verifyKey, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
@@ -65,7 +64,7 @@ func (d *Decoder) decodeJWT(tokenString string) (*EATClaims, error) {
 	return claims.EATClaims, nil
 }
 
-// decodeCBOR decodes a CBOR token with COSE signature verification
+// decodeCBOR decodes a CBOR token with COSE signature verification.
 func (d *Decoder) decodeCBOR(token []byte) (*EATClaims, error) {
 	// Try to unmarshal as COSE_Sign1 message
 	var msg cose.Sign1Message
@@ -99,25 +98,25 @@ func (d *Decoder) decodeCBOR(token []byte) (*EATClaims, error) {
 	return claims, nil
 }
 
-// DecodeJWT is a convenience function to decode JWT EAT token
+// DecodeJWT is a convenience function to decode JWT EAT token.
 func DecodeJWT(tokenString string, verifyKey *ecdsa.PublicKey) (*EATClaims, error) {
 	decoder := NewDecoder(verifyKey)
 	return decoder.decodeJWT(tokenString)
 }
 
-// DecodeCBOR is a convenience function to decode CBOR EAT token
+// DecodeCBOR is a convenience function to decode CBOR EAT token.
 func DecodeCBOR(token []byte, verifyKey *ecdsa.PublicKey) (*EATClaims, error) {
 	decoder := NewDecoder(verifyKey)
 	return decoder.decodeCBOR(token)
 }
 
-// Decode is a convenience function that auto-detects format
+// Decode is a convenience function that auto-detects format.
 func Decode(token []byte, verifyKey *ecdsa.PublicKey) (*EATClaims, error) {
 	decoder := NewDecoder(verifyKey)
 	return decoder.Decode(token)
 }
 
-// MarshalJSON implements json.Marshaler for pretty printing
+// MarshalJSON implements json.Marshaler for pretty printing.
 func (c *EATClaims) MarshalJSON() ([]byte, error) {
 	type Alias EATClaims
 	return json.Marshal(&struct {

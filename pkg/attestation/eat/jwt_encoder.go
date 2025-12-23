@@ -13,13 +13,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTEncoder encodes EAT claims to JWT format
+// JWTEncoder encodes EAT claims to JWT format.
 type JWTEncoder struct {
 	signingKey *ecdsa.PrivateKey
 	issuer     string
 }
 
-// NewJWTEncoder creates a new JWT encoder
+// NewJWTEncoder creates a new JWT encoder.
 func NewJWTEncoder(signingKey *ecdsa.PrivateKey, issuer string) *JWTEncoder {
 	return &JWTEncoder{
 		signingKey: signingKey,
@@ -27,7 +27,7 @@ func NewJWTEncoder(signingKey *ecdsa.PrivateKey, issuer string) *JWTEncoder {
 	}
 }
 
-// Encode encodes EAT claims to JWT string
+// Encode encodes EAT claims to JWT string.
 func (e *JWTEncoder) Encode(claims *EATClaims) (string, error) {
 	// Set standard JWT claims
 	now := time.Now()
@@ -47,12 +47,12 @@ func (e *JWTEncoder) Encode(claims *EATClaims) (string, error) {
 	return tokenString, nil
 }
 
-// jwtClaims wraps EATClaims for JWT encoding
+// jwtClaims wraps EATClaims for JWT encoding.
 type jwtClaims struct {
 	*EATClaims
 }
 
-// GetExpirationTime implements jwt.Claims interface
+// GetExpirationTime implements jwt.Claims interface.
 func (c *jwtClaims) GetExpirationTime() (*jwt.NumericDate, error) {
 	if c.ExpiresAt == 0 {
 		return nil, nil
@@ -60,7 +60,7 @@ func (c *jwtClaims) GetExpirationTime() (*jwt.NumericDate, error) {
 	return jwt.NewNumericDate(time.Unix(c.ExpiresAt, 0)), nil
 }
 
-// GetIssuedAt implements jwt.Claims interface
+// GetIssuedAt implements jwt.Claims interface.
 func (c *jwtClaims) GetIssuedAt() (*jwt.NumericDate, error) {
 	if c.IssuedAt == 0 {
 		return nil, nil
@@ -68,33 +68,33 @@ func (c *jwtClaims) GetIssuedAt() (*jwt.NumericDate, error) {
 	return jwt.NewNumericDate(time.Unix(c.IssuedAt, 0)), nil
 }
 
-// GetNotBefore implements jwt.Claims interface
+// GetNotBefore implements jwt.Claims interface.
 func (c *jwtClaims) GetNotBefore() (*jwt.NumericDate, error) {
 	return nil, nil
 }
 
-// GetIssuer implements jwt.Claims interface
+// GetIssuer implements jwt.Claims interface.
 func (c *jwtClaims) GetIssuer() (string, error) {
 	return c.Issuer, nil
 }
 
-// GetSubject implements jwt.Claims interface
+// GetSubject implements jwt.Claims interface.
 func (c *jwtClaims) GetSubject() (string, error) {
 	return c.Subject, nil
 }
 
-// GetAudience implements jwt.Claims interface
+// GetAudience implements jwt.Claims interface.
 func (c *jwtClaims) GetAudience() (jwt.ClaimStrings, error) {
 	return nil, nil
 }
 
-// EncodeToJWT is a convenience function to encode EAT claims to JWT
+// EncodeToJWT is a convenience function to encode EAT claims to JWT.
 func EncodeToJWT(claims *EATClaims, signingKey *ecdsa.PrivateKey, issuer string) (string, error) {
 	encoder := NewJWTEncoder(signingKey, issuer)
 	return encoder.Encode(claims)
 }
 
-// GenerateSigningKey generates a new ECDSA signing key
+// GenerateSigningKey generates a new ECDSA signing key.
 func GenerateSigningKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }

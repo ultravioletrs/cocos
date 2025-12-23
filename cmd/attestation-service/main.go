@@ -240,12 +240,12 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 		return nil, fmt.Errorf("unsupported EAT format: %s", s.eatFormat)
 	}
 
-	s.logger.Debug(fmt.Sprintf("generated EAT token (%s format) for platform %s", s.eatFormat, platformType))
+	s.logger.Debug(fmt.Sprintf("generated EAT token (%s format) for platform %v", s.eatFormat, platformType))
 
 	return &attestationpb.AttestationResponse{EatToken: eatToken}, nil
 }
 
-// convertPlatformType converts protobuf platform type to internal platform type
+// convertPlatformType converts protobuf platform type to internal platform type.
 func convertPlatformType(pt attestationpb.PlatformType) attestation.PlatformType {
 	switch pt {
 	case attestationpb.PlatformType_PLATFORM_TYPE_SNP:
