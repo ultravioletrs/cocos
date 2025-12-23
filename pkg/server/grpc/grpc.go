@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -111,10 +112,26 @@ func (s *Server) Start() error {
 
 	grpcServerOptions = append(grpcServerOptions, creds)
 
-	// Create listener
-	listener, err := net.Listen("tcp", s.Address)
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+	// Create listener - detect Unix socket vs TCP
+	var listener net.Listener
+	baseConfig := s.Config.GetBaseConfig()
+
+	// Check if this is a Unix socket path (starts with /)
+	if len(baseConfig.Host) > 0 && baseConfig.Host[0] == '/' {
+		// Unix socket
+		// Remove existing socket file if it exists
+		_ = os.Remove(baseConfig.Host)
+
+		listener, err = net.Listen("unix", baseConfig.Host)
+		if err != nil {
+			return fmt.Errorf("failed to listen on Unix socket %s: %w", baseConfig.Host, err)
+		}
+	} else {
+		// TCP socket
+		listener, err = net.Listen("tcp", s.Address)
+		if err != nil {
+			return fmt.Errorf("failed to listen on port %s: %w", s.Address, err)
+		}
 	}
 
 	// Create and configure server
@@ -160,7 +177,12 @@ func (s *Server) configureCredentials() (grpc.ServerOption, error) {
 	}
 
 	// Use insecure credentials
-	s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, s.Address))
+	// Determine address for logging
+	addr := s.Address
+	if len(baseConfig.Host) > 0 && baseConfig.Host[0] == '/' {
+		addr = baseConfig.Host
+	}
+	s.Logger.Info(fmt.Sprintf("%s service gRPC server listening at %s without TLS", s.Name, addr))
 	return grpc.Creds(insecure.NewCredentials()), nil
 }
 

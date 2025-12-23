@@ -68,7 +68,7 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 		return nil, err
 	}
 
-	return resp.Quote, nil
+	return resp.EatToken, nil
 }
 
 func (c *client) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error) {
