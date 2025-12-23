@@ -138,7 +138,6 @@ func main() {
 		}
 	})
 
-	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
 
 	azureConfig := azure.NewEnvConfigFromAgent(
@@ -217,7 +216,7 @@ func main() {
 				CertsURL: cfg.CAUrl,
 			})
 		}
-		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
 			exitCode = 1

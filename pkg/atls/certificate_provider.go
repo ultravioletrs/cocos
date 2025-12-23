@@ -19,6 +19,7 @@ import (
 	"github.com/absmach/certs"
 	sdk "github.com/absmach/certs/sdk"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 )
 
 // CertificateProvider defines the interface for providing TLS certificates.
@@ -173,8 +174,8 @@ func (p *attestedCertificateProvider) generateCASignedCertificate(ctx context.Co
 	return block.Bytes, nil
 }
 
-func NewProvider(provider attestation.Provider, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {
-	attestationProvider, err := NewAttestationProvider(provider, platformType)
+func NewProvider(attClient attestation_client.Client, platformType attestation.PlatformType, agentToken, cvmID string, certsSDK sdk.SDK) (CertificateProvider, error) {
+	attestationProvider, err := NewAttestationProvider(attClient, platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attestation provider: %w", err)
 	}

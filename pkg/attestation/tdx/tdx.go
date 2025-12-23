@@ -18,6 +18,7 @@ import (
 	verifytdx "github.com/google/go-tdx-guest/verify"
 	trusttdx "github.com/google/go-tdx-guest/verify/trust"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -139,6 +140,18 @@ func (v verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 
 func (v verifier) JSONToPolicy(path string) error {
 	return ReadTDXAttestationPolicy(path, v.Policy)
+}
+
+// VerifyEAT verifies an EAT token and extracts the binary report for verification
+func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
+	// Decode EAT token
+	claims, err := eat.Decode(eatToken, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode EAT token: %w", err)
+	}
+
+	// Verify the embedded binary report
+	return v.VerifyAttestation(claims.RawReport, teeNonce, vTpmNonce)
 }
 
 func ReadTDXAttestationPolicy(policyPath string, policy *checkconfig.Config) error {
