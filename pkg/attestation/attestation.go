@@ -49,7 +49,7 @@ type Config struct {
 	*EATValidation
 }
 
-// EATValidation contains EAT token validation settings
+// EATValidation contains EAT token validation settings.
 type EATValidation struct {
 	RequireEATFormat   bool     `json:"require_eat_format"`
 	AllowedFormats     []string `json:"allowed_formats"`

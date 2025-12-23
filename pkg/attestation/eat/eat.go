@@ -7,7 +7,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
-// EATClaims represents the Entity Attestation Token claims following RFC 9711
+// EATClaims represents the Entity Attestation Token claims following RFC 9711.
 type EATClaims struct {
 	// Standard JWT/CWT claims
 	Issuer    string `json:"iss,omitempty" cbor:"1,keyasint,omitempty"`
@@ -41,7 +41,7 @@ type EATClaims struct {
 	RawReport []byte `json:"raw_report,omitempty"`
 }
 
-// SNPExtensions contains AMD SEV-SNP specific claims
+// SNPExtensions contains AMD SEV-SNP specific claims.
 type SNPExtensions struct {
 	Measurement   []byte `json:"measurement"`              // SNP MEASUREMENT field
 	TCB           string `json:"tcb"`                      // TCB version info
@@ -58,7 +58,7 @@ type SNPExtensions struct {
 	LaunchTCB     uint64 `json:"launch_tcb,omitempty"`     // Launch TCB
 }
 
-// TDXExtensions contains Intel TDX specific claims
+// TDXExtensions contains Intel TDX specific claims.
 type TDXExtensions struct {
 	MRTD          []byte         `json:"mrtd"`                      // MRTD measurement
 	RTMR          [][]byte       `json:"rtmr"`                      // Runtime measurement registers
@@ -71,7 +71,7 @@ type TDXExtensions struct {
 	TDXModule     *TDXModuleInfo `json:"tdx_module,omitempty"`      // TDX module info
 }
 
-// TDXModuleInfo contains TDX module version information
+// TDXModuleInfo contains TDX module version information.
 type TDXModuleInfo struct {
 	Major     uint8  `json:"major"`
 	Minor     uint8  `json:"minor"`
@@ -79,14 +79,14 @@ type TDXModuleInfo struct {
 	BuildDate uint32 `json:"build_date"`
 }
 
-// VTPMExtensions contains vTPM specific claims
+// VTPMExtensions contains vTPM specific claims.
 type VTPMExtensions struct {
 	PCRs     map[string]string `json:"pcrs"`                // PCR values (SHA256/SHA384)
 	EventLog []byte            `json:"event_log,omitempty"` // Event log
 	Quote    []byte            `json:"quote,omitempty"`     // TPM quote
 }
 
-// DebugStatus constants (RFC 9711 Section 4.2.6)
+// DebugStatus constants (RFC 9711 Section 4.2.6).
 const (
 	DebugEnabled              = 0 // Debug is enabled
 	DebugDisabled             = 1 // Debug is disabled
@@ -95,7 +95,7 @@ const (
 	DebugFullPermanentDisable = 4 // Debug is fully and permanently disabled
 )
 
-// NewEATClaims creates EAT claims from binary attestation report
+// NewEATClaims creates EAT claims from binary attestation report.
 func NewEATClaims(report []byte, nonce []byte, platformType attestation.PlatformType) (*EATClaims, error) {
 	claims := &EATClaims{
 		Nonce:        nonce,
@@ -112,7 +112,7 @@ func NewEATClaims(report []byte, nonce []byte, platformType attestation.Platform
 	return claims, nil
 }
 
-// extractPlatformClaims extracts platform-specific claims from binary report
+// extractPlatformClaims extracts platform-specific claims from binary report.
 func extractPlatformClaims(claims *EATClaims, report []byte, platformType attestation.PlatformType) error {
 	switch platformType {
 	case attestation.SNP, attestation.SNPvTPM:
@@ -129,7 +129,7 @@ func extractPlatformClaims(claims *EATClaims, report []byte, platformType attest
 	}
 }
 
-// getPlatformTypeName converts platform type to string name
+// getPlatformTypeName converts platform type to string name.
 func getPlatformTypeName(platformType attestation.PlatformType) string {
 	switch platformType {
 	case attestation.SNP:

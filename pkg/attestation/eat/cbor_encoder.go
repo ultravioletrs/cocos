@@ -13,13 +13,13 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-// CBOREncoder encodes EAT claims to CBOR format (CWT - CBOR Web Token)
+// CBOREncoder encodes EAT claims to CBOR format (CWT - CBOR Web Token).
 type CBOREncoder struct {
 	signingKey *ecdsa.PrivateKey
 	issuer     string
 }
 
-// NewCBOREncoder creates a new CBOR encoder
+// NewCBOREncoder creates a new CBOR encoder.
 func NewCBOREncoder(signingKey *ecdsa.PrivateKey, issuer string) *CBOREncoder {
 	return &CBOREncoder{
 		signingKey: signingKey,
@@ -27,7 +27,7 @@ func NewCBOREncoder(signingKey *ecdsa.PrivateKey, issuer string) *CBOREncoder {
 	}
 }
 
-// Encode encodes EAT claims to CBOR bytes with COSE_Sign1 signature
+// Encode encodes EAT claims to CBOR bytes with COSE_Sign1 signature.
 func (e *CBOREncoder) Encode(claims *EATClaims) ([]byte, error) {
 	// Set standard CWT claims
 	now := time.Now()
@@ -67,7 +67,7 @@ func (e *CBOREncoder) Encode(claims *EATClaims) ([]byte, error) {
 	return signed, nil
 }
 
-// EncodeToCBOR is a convenience function to encode EAT claims to CBOR
+// EncodeToCBOR is a convenience function to encode EAT claims to CBOR.
 func EncodeToCBOR(claims *EATClaims, signingKey *ecdsa.PrivateKey, issuer string) ([]byte, error) {
 	encoder := NewCBOREncoder(signingKey, issuer)
 	return encoder.Encode(claims)

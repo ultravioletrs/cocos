@@ -142,7 +142,7 @@ func (v verifier) JSONToPolicy(path string) error {
 	return ReadTDXAttestationPolicy(path, v.Policy)
 }
 
-// VerifyEAT verifies an EAT token and extracts the binary report for verification
+// VerifyEAT verifies an EAT token and extracts the binary report for verification.
 func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
 	// Decode EAT token
 	claims, err := eat.Decode(eatToken, nil)

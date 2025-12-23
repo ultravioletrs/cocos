@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// ValidateEATClaims validates EAT claims against policy
+// ValidateEATClaims validates EAT claims against policy.
 func ValidateEATClaims(claims *EATClaims, policy *EATValidationPolicy) error {
 	if policy == nil {
 		return nil // No policy, skip validation
@@ -54,7 +54,7 @@ func ValidateEATClaims(claims *EATClaims, policy *EATValidationPolicy) error {
 	return nil
 }
 
-// EATValidationPolicy contains validation rules for EAT tokens
+// EATValidationPolicy contains validation rules for EAT tokens.
 type EATValidationPolicy struct {
 	RequireEATFormat   bool
 	AllowedFormats     []string

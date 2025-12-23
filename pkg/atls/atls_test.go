@@ -44,7 +44,7 @@ const (
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
 
-// mockAttestationClient is a simple mock for testing
+// mockAttestationClient is a simple mock for testing.
 type mockAttestationClient struct {
 	mock.Mock
 }
