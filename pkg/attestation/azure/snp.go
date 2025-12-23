@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/proto"
@@ -152,6 +153,18 @@ func (a verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	}
 
 	return nil
+}
+
+// VerifyEAT verifies an EAT token and extracts the binary report for verification
+func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
+	// Decode EAT token
+	claims, err := eat.Decode(eatToken, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode EAT token: %w", err)
+	}
+
+	// Verify the embedded binary report
+	return v.VerifyAttestation(claims.RawReport, teeNonce, vTpmNonce)
 }
 
 func (a verifier) JSONToPolicy(path string) error {

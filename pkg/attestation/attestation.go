@@ -42,9 +42,20 @@ type PcrConfig struct {
 	PCRValues PcrValues `json:"pcr_values"`
 }
 
+// Config represents attestation configuration.
 type Config struct {
 	*check.Config
 	*PcrConfig
+	*EATValidation
+}
+
+// EATValidation contains EAT token validation settings
+type EATValidation struct {
+	RequireEATFormat   bool     `json:"require_eat_format"`
+	AllowedFormats     []string `json:"allowed_formats"`
+	MaxTokenAgeSeconds int      `json:"max_token_age_seconds"`
+	RequireClaims      []string `json:"require_claims"`
+	VerifySignature    bool     `json:"verify_signature"`
 }
 
 type ccCheck struct {
@@ -61,6 +72,7 @@ type Provider interface {
 
 type Verifier interface {
 	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
+	VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error
 	VerifTeeAttestation(report []byte, teeNonce []byte) error
 	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
 	JSONToPolicy(path string) error

@@ -3,10 +3,12 @@
 package atls
 
 import (
+	"context"
 	"encoding/asn1"
 	"fmt"
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -19,20 +21,20 @@ type AttestationProvider interface {
 
 // PlatformAttestationProvider handles platform attestation operations.
 type platformAttestationProvider struct {
-	provider     attestation.Provider
+	attClient    attestation_client.Client
 	oid          asn1.ObjectIdentifier
 	platformType attestation.PlatformType
 }
 
 // NewAttestationProvider creates a new attestation provider for the given platform type.
-func NewAttestationProvider(provider attestation.Provider, platformType attestation.PlatformType) (AttestationProvider, error) {
+func NewAttestationProvider(attClient attestation_client.Client, platformType attestation.PlatformType) (AttestationProvider, error) {
 	oid, err := OID(platformType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OID: %w", err)
 	}
 
 	return &platformAttestationProvider{
-		provider:     provider,
+		attClient:    attClient,
 		oid:          oid,
 		platformType: platformType,
 	}, nil
@@ -41,7 +43,21 @@ func NewAttestationProvider(provider attestation.Provider, platformType attestat
 func (p *platformAttestationProvider) Attest(pubKey []byte, nonce []byte) ([]byte, error) {
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
-	return p.provider.Attestation(hashNonce[:], hashNonce[:32])
+
+	var reportData [64]byte
+	copy(reportData[:], hashNonce[:])
+
+	var nonceArray [32]byte
+	copy(nonceArray[:], hashNonce[:32])
+
+	// Get signed EAT token from attestation service
+	// The attestation service maintains a persistent signing key and returns a pre-signed token
+	eatToken, err := p.attClient.GetAttestation(context.Background(), reportData, nonceArray, p.platformType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation from service: %w", err)
+	}
+
+	return eatToken, nil
 }
 
 func (p *platformAttestationProvider) OID() asn1.ObjectIdentifier {
