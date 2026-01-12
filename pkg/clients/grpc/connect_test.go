@@ -22,6 +22,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/clients"
+	"github.com/ultravioletrs/cocos/pkg/tls"
 )
 
 func TestNewClient(t *testing.T) {
@@ -119,7 +120,7 @@ func TestNewClient(t *testing.T) {
 				ServerCAFile: "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     clients.ErrFailedToLoadRootCA,
+			err:     tls.ErrFailedToLoadRootCA,
 		},
 		{
 			name: "Fail with invalid ClientCert",
@@ -130,7 +131,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    clientKeyFile,
 			},
 			wantErr: true,
-			err:     clients.ErrFailedToLoadClientCertKey,
+			err:     tls.ErrFailedToLoadClientCertKey,
 		},
 		{
 			name: "Fail with invalid ClientKey",
@@ -141,7 +142,7 @@ func TestNewClient(t *testing.T) {
 				ClientKey:    "nonexistent.pem",
 			},
 			wantErr: true,
-			err:     clients.ErrFailedToLoadClientCertKey,
+			err:     tls.ErrFailedToLoadClientCertKey,
 		},
 	}
 
@@ -169,32 +170,32 @@ func TestNewClient(t *testing.T) {
 func TestClientSecure(t *testing.T) {
 	tests := []struct {
 		name     string
-		secure   clients.Security
+		secure   tls.Security
 		expected string
 	}{
 		{
 			name:     "Without TLS",
-			secure:   clients.WithoutTLS,
+			secure:   tls.WithoutTLS,
 			expected: "without TLS",
 		},
 		{
 			name:     "With TLS",
-			secure:   clients.WithTLS,
+			secure:   tls.WithTLS,
 			expected: "with TLS",
 		},
 		{
 			name:     "With mTLS",
-			secure:   clients.WithMTLS,
+			secure:   tls.WithMTLS,
 			expected: "with mTLS",
 		},
 		{
 			name:     "With aTLS",
-			secure:   clients.WithATLS,
+			secure:   tls.WithATLS,
 			expected: "with aTLS",
 		},
 		{
 			name:     "With maTLS",
-			secure:   clients.WithMATLS,
+			secure:   tls.WithMATLS,
 			expected: "with maTLS",
 		},
 	}
