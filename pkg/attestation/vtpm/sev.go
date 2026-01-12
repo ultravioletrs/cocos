@@ -3,7 +3,7 @@
 
 //go:build !embed
 
-package quoteprovider
+package vtpm
 
 import (
 	"crypto/rand"
@@ -32,7 +32,7 @@ const (
 	cocosDirectory     = "/cocos"
 	arkAskBundleName   = "ask_ark.pem"
 	vcekName           = "vcek.pem"
-	Nonce              = 64
+	SEVNonce           = 64
 	sevSnpProductMilan = "Milan"
 	sevSnpProductGenoa = "Genoa"
 )
@@ -43,9 +43,9 @@ var (
 )
 
 var (
-	ErrProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevSnpProductMilan, sevSnpProductGenoa))
-	ErrAttVerification = errors.New("attestation verification failed")
-	errAttValidation   = errors.New("attestation validation failed")
+	ErrSEVProductLine     = errors.New(fmt.Sprintf("product name must be %s or %s", sevSnpProductMilan, sevSnpProductGenoa))
+	ErrSEVAttVerification = errors.New("attestation verification failed")
+	errSEVAttValidation   = errors.New("attestation validation failed")
 )
 
 func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) error {
@@ -77,16 +77,17 @@ func fillInAttestationLocal(attestation *sevsnp.Attestation, cfg *check.Config) 
 	return nil
 }
 
+// verifyReport verifies the SEV-SNP attestation report.
 func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	sopts, err := verify.RootOfTrustToOptions(cfg.RootOfTrust)
 	if err != nil {
-		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(ErrAttVerification, err))
+		return fmt.Errorf("failed to get root of trust options: %v", errors.Wrap(ErrSEVAttVerification, err))
 	}
 
 	if cfg.Policy.Product == nil {
-		productName := GetProductName(cfg.RootOfTrust.ProductLine)
+		productName := GetSEVProductName(cfg.RootOfTrust.ProductLine)
 		if productName == sevsnp.SevProduct_SEV_PRODUCT_UNKNOWN {
-			return ErrProductLine
+			return ErrSEVProductLine
 		}
 
 		sopts.Product = &sevsnp.SevProduct{
@@ -107,30 +108,33 @@ func verifyReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	}
 
 	if err := verify.SnpAttestation(attestationPB, sopts); err != nil {
-		return errors.Wrap(ErrAttVerification, err)
+		return errors.Wrap(ErrSEVAttVerification, err)
 	}
 
 	return nil
 }
 
+// validateReport validates the SEV-SNP attestation report against policy.
 func validateReport(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	opts, err := validate.PolicyToOptions(cfg.Policy)
 	if err != nil {
-		return fmt.Errorf("failed to get policy for validation: %v", errors.Wrap(ErrAttVerification, err))
+		return fmt.Errorf("failed to get policy for validation: %v", errors.Wrap(ErrSEVAttVerification, err))
 	}
 
 	if err = validate.SnpAttestation(attestationPB, opts); err != nil {
-		return errors.Wrap(errAttValidation, err)
+		return errors.Wrap(errSEVAttValidation, err)
 	}
 
 	return nil
 }
 
-func GetLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
+// getLeveledQuoteProvider returns a leveled quote provider for SEV-SNP.
+func getLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return client.GetLeveledQuoteProvider()
 }
 
-func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte, policy *attestation.Config) error {
+// VerifySEVAttestationReportTLS verifies a SEV-SNP attestation report for TLS (exported for azure package).
+func VerifySEVAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []byte, policy *attestation.Config) error {
 	config := policy.Config
 
 	// Certificate chain is populated based on the extra data that is appended to the SEV-SNP attestation report.
@@ -141,10 +145,11 @@ func VerifyAttestationReportTLS(attestationPB *sevsnp.Attestation, reportData []
 		config.Policy.ReportData = reportData[:]
 	}
 
-	return VerifyAndValidate(attestationPB, config)
+	return verifySEVAndValidate(attestationPB, config)
 }
 
-func VerifyAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
+// verifySEVAndValidate performs both verification and validation of a SEV-SNP attestation.
+func verifySEVAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) error {
 	logger.Init("", false, false, io.Discard)
 
 	if err := verifyReport(attestationPB, cfg); err != nil {
@@ -158,15 +163,16 @@ func VerifyAndValidate(attestationPB *sevsnp.Attestation, cfg *check.Config) err
 	return nil
 }
 
-func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
-	var reportData [Nonce]byte
+// fetchSEVAttestation fetches a SEV-SNP attestation report.
+func fetchSEVAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
+	var reportData [SEVNonce]byte
 
-	qp, err := GetLeveledQuoteProvider()
+	qp, err := getLeveledQuoteProvider()
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not get quote provider")
 	}
 
-	if len(reportData) > Nonce {
+	if len(reportData) > SEVNonce {
 		return []byte{}, fmt.Errorf("attestation report size mismatch")
 	}
 	copy(reportData[:], reportDataSlice)
@@ -206,7 +212,8 @@ func FetchAttestation(reportDataSlice []byte, vmpl uint) ([]byte, error) {
 	return result, nil
 }
 
-func GetProductName(product string) sevsnp.SevProduct_SevProductName {
+// GetSEVProductName maps a product string to a SEV product name.
+func GetSEVProductName(product string) sevsnp.SevProduct_SevProductName {
 	switch product {
 	case sevSnpProductMilan:
 		return sevsnp.SevProduct_SEV_PRODUCT_MILAN
@@ -217,6 +224,7 @@ func GetProductName(product string) sevsnp.SevProduct_SevProductName {
 	}
 }
 
+// derToPem converts DER-encoded certificate to PEM format.
 func derToPem(der []byte) []byte {
 	// Try to parse to make sure it's a certificate
 	if _, err := x509.ParseCertificate(der); err != nil {
@@ -226,15 +234,16 @@ func derToPem(der []byte) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
 
-func FetchCertificates(vmpl uint) error {
-	var reportData [Nonce]byte
+// FetchSEVCertificates fetches SEV-SNP certificates from KDS.
+func FetchSEVCertificates(vmpl uint) error {
+	var reportData [SEVNonce]byte
 
-	qp, err := GetLeveledQuoteProvider()
+	qp, err := getLeveledQuoteProvider()
 	if err != nil {
 		return fmt.Errorf("could not get quote provider")
 	}
 
-	if len(reportData) > Nonce {
+	if len(reportData) > SEVNonce {
 		return fmt.Errorf("attestation report size mismatch")
 	}
 

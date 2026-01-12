@@ -14,7 +14,6 @@ import (
 	"github.com/go-kit/kit/transport/grpc"
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -134,7 +133,7 @@ func encodeResultResponse(_ context.Context, response any) (any, error) {
 func validateNonce(nonce []byte, maxLen int, target any) error {
 	if len(nonce) > maxLen {
 		switch maxLen {
-		case quoteprovider.Nonce:
+		case vtpm.SEVNonce:
 			return ErrTEENonceLength
 		case vtpm.Nonce:
 			return ErrVTPMNonceLength
@@ -144,7 +143,7 @@ func validateNonce(nonce []byte, maxLen int, target any) error {
 	}
 
 	switch t := target.(type) {
-	case *[quoteprovider.Nonce]byte:
+	case *[vtpm.SEVNonce]byte:
 		copy(t[:], nonce)
 	case *[vtpm.Nonce]byte:
 		copy(t[:], nonce)
@@ -156,10 +155,10 @@ func validateNonce(nonce []byte, maxLen int, target any) error {
 
 func decodeAttestationRequest(_ context.Context, grpcReq any) (any, error) {
 	req := grpcReq.(*agent.AttestationRequest)
-	var reportData [quoteprovider.Nonce]byte
+	var reportData [vtpm.SEVNonce]byte
 	var nonce [vtpm.Nonce]byte
 
-	if err := validateNonce(req.TeeNonce, quoteprovider.Nonce, &reportData); err != nil {
+	if err := validateNonce(req.TeeNonce, vtpm.SEVNonce, &reportData); err != nil {
 		return nil, err
 	}
 
