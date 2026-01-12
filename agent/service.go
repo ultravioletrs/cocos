@@ -21,7 +21,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
@@ -120,7 +119,7 @@ type Service interface {
 	Algo(ctx context.Context, algorithm Algorithm) error
 	Data(ctx context.Context, dataset Dataset) error
 	Result(ctx context.Context) ([]byte, error)
-	Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
+	Attestation(ctx context.Context, reportData [vtpm.SEVNonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error)
 	IMAMeasurements(ctx context.Context) ([]byte, []byte, error)
 	AzureAttestationToken(ctx context.Context, nonce [vtpm.Nonce]byte) ([]byte, error)
 	State() string
@@ -418,7 +417,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 	return as.result, as.runError
 }
 
-func (as *agentService) Attestation(ctx context.Context, reportData [quoteprovider.Nonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
+func (as *agentService) Attestation(ctx context.Context, reportData [vtpm.SEVNonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
 	rawQuote, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attType)
 	if err != nil {
 		return []byte{}, errors.Wrap(ErrAttestationFailed, err)

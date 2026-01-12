@@ -18,7 +18,6 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/sync/errgroup"
@@ -89,7 +88,7 @@ func main() {
 	}
 
 	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
-		if err := quoteprovider.FetchCertificates(uint(cfg.Vmpl)); err != nil {
+		if err := vtpm.FetchSEVCertificates(uint(cfg.Vmpl)); err != nil {
 			logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
 			exitCode = 1
 			return
