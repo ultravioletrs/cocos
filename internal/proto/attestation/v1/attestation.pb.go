@@ -144,7 +144,7 @@ func (x *AttestationRequest) GetPlatformType() PlatformType {
 
 type AttestationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Quote         []byte                 `protobuf:"bytes,1,opt,name=quote,proto3" json:"quote,omitempty"`
+	EatToken      []byte                 `protobuf:"bytes,1,opt,name=eat_token,json=eatToken,proto3" json:"eat_token,omitempty"` // EAT token (JWT or CBOR format)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -179,9 +179,9 @@ func (*AttestationResponse) Descriptor() ([]byte, []int) {
 	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *AttestationResponse) GetQuote() []byte {
+func (x *AttestationResponse) GetEatToken() []byte {
 	if x != nil {
-		return x.Quote
+		return x.EatToken
 	}
 	return nil
 }
@@ -283,9 +283,9 @@ const file_internal_proto_attestation_v1_attestation_proto_rawDesc = "" +
 	"\vreport_data\x18\x01 \x01(\fR\n" +
 	"reportData\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12A\n" +
-	"\rplatform_type\x18\x03 \x01(\x0e2\x1c.attestation.v1.PlatformTypeR\fplatformType\"+\n" +
-	"\x13AttestationResponse\x12\x14\n" +
-	"\x05quote\x18\x01 \x01(\fR\x05quote\")\n" +
+	"\rplatform_type\x18\x03 \x01(\x0e2\x1c.attestation.v1.PlatformTypeR\fplatformType\"2\n" +
+	"\x13AttestationResponse\x12\x1b\n" +
+	"\teat_token\x18\x01 \x01(\fR\beatToken\")\n" +
 	"\x11AzureTokenRequest\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\"*\n" +
 	"\x12AzureTokenResponse\x12\x14\n" +

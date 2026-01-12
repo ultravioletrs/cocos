@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/clients"
+	"github.com/ultravioletrs/cocos/pkg/tls"
 )
 
 func TestConfig_Configuration(t *testing.T) {
@@ -144,7 +145,7 @@ func TestClient_Secure(t *testing.T) {
 				URL:     "http://localhost:8080",
 				Timeout: 30 * time.Second,
 			},
-			expected: clients.WithoutTLS.String(),
+			expected: tls.WithoutTLS.String(),
 		},
 	}
 
@@ -183,7 +184,7 @@ func TestCreateTransport_DefaultSettings(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, transport)
-	assert.Equal(t, clients.WithoutTLS, security)
+	assert.Equal(t, tls.WithoutTLS, security)
 	assert.Equal(t, 100, transport.MaxIdleConns)
 	assert.Equal(t, 90*time.Second, transport.IdleConnTimeout)
 	assert.Equal(t, 10*time.Second, transport.TLSHandshakeTimeout)
@@ -205,7 +206,7 @@ func TestCreateTransport_ATLSError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, transport)
-	assert.Equal(t, clients.WithoutTLS, security)
+	assert.Equal(t, tls.WithoutTLS, security)
 	assert.Contains(t, err.Error(), "failed to stat attestation policy")
 }
 
@@ -220,7 +221,7 @@ func TestCreateTransport_BasicTLSError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, transport)
-	assert.Equal(t, clients.WithoutTLS, security)
+	assert.Equal(t, tls.WithoutTLS, security)
 	assert.Contains(t, err.Error(), "failed to load root ca file")
 }
 

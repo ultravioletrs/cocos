@@ -22,11 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"google.golang.org/protobuf/encoding/protojson"
 )
-
-const sevSnpProductMilan = "Milan"
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
 
@@ -679,13 +676,13 @@ func TestVerifyAttestationReportMalformedSignature(t *testing.T) {
 			name:              "Valid attestation, distorted signature",
 			attestationReport: attestationPB,
 			reportData:        reportData,
-			err:               quoteprovider.ErrAttVerification,
+			err:               ErrSEVAttVerification,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := quoteprovider.VerifyAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
+			err := VerifySEVAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
@@ -713,13 +710,13 @@ func TestVerifyAttestationReportUnknownProduct(t *testing.T) {
 			name:              "Valid attestation, unknown product",
 			attestationReport: attestationPB,
 			reportData:        reportData,
-			err:               quoteprovider.ErrProductLine,
+			err:               ErrSEVProductLine,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := quoteprovider.VerifyAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
+			err := VerifySEVAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
@@ -752,7 +749,7 @@ func TestVerifyAttestationReportSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := quoteprovider.VerifyAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
+			err := VerifySEVAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}
@@ -780,13 +777,13 @@ func TestVerifyAttestationReportMalformedPolicy(t *testing.T) {
 			name:              "Valid attestation, malformed policy (measurement)",
 			attestationReport: attestationPB,
 			reportData:        reportData,
-			err:               quoteprovider.ErrAttVerification,
+			err:               ErrSEVAttVerification,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := quoteprovider.VerifyAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
+			err := VerifySEVAttestationReportTLS(tt.attestationReport, tt.reportData, &policy)
 			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
 		})
 	}

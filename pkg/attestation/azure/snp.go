@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/proto"
 )
@@ -129,7 +129,7 @@ func (a verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
 	}
 
-	return quoteprovider.VerifyAttestationReportTLS(attestationReport, teeNonce, a.Policy)
+	return vtpm.VerifySEVAttestationReportTLS(attestationReport, teeNonce, a.Policy)
 }
 
 func (a verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
@@ -147,11 +147,23 @@ func (a verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	}
 
 	snpReport := quote.GetSevSnpAttestation()
-	if err = quoteprovider.VerifyAttestationReportTLS(snpReport, nil, a.Policy); err != nil {
+	if err = vtpm.VerifySEVAttestationReportTLS(snpReport, nil, a.Policy); err != nil {
 		return fmt.Errorf("failed to verify vTPM attestation report: %w", err)
 	}
 
 	return nil
+}
+
+// VerifyEAT verifies an EAT token and extracts the binary report for verification.
+func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
+	// Decode EAT token
+	claims, err := eat.Decode(eatToken, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode EAT token: %w", err)
+	}
+
+	// Verify the embedded binary report
+	return v.VerifyAttestation(claims.RawReport, teeNonce, vTpmNonce)
 }
 
 func (a verifier) JSONToPolicy(path string) error {
@@ -253,7 +265,7 @@ func GenerateAttestationPolicy(token, product string, policy uint64) (*attestati
 		return nil, fmt.Errorf("failed to decode reportID: %w", err)
 	}
 
-	sevSnpProduct := quoteprovider.GetProductName(product)
+	sevSnpProduct := vtpm.GetSEVProductName(product)
 
 	return &attestation.Config{
 		Config: &check.Config{

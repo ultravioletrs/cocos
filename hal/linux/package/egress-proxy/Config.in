@@ -1,0 +1,6 @@
+config BR2_PACKAGE_EGRESS_PROXY
+	bool "egress-proxy"
+	help
+	  Cocos AI Egress Proxy Service.
+
+	  https://github.com/ultravioletrs/cocos

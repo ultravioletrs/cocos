@@ -16,7 +16,7 @@ message AttestationRequest {
 }
 
 message AttestationResponse {
-  bytes quote = 1;
+  bytes eat_token = 1; // EAT token (JWT or CBOR format)
 }
 
 message AzureTokenRequest {
