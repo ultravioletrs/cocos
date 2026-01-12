@@ -1,24 +1,16 @@
-CARGO = cargo
-TARGET = target
-BUILD_DIR = $(TARGET)/release
-BIN_NAME = attestation_policy
-OUTPUT_DIR ?= $(BUILD_DIR)
+OUTPUT_DIR ?= ../../build
+PLATFORMS = sev-snp tdx
+# Convert OUTPUT_DIR to absolute path
+ABS_OUTPUT_DIR := $(shell cd $(OUTPUT_DIR) 2>/dev/null && pwd || mkdir -p $(OUTPUT_DIR) && cd $(OUTPUT_DIR) && pwd)
 
-all: build
+.PHONY: all build clean $(PLATFORMS)
 
-build:
-	$(CARGO) build --release
-	@if [ "$(OUTPUT_DIR)" != "$(BUILD_DIR)" ]; then \
-		mkdir -p $(OUTPUT_DIR) && \
-		cp $(BUILD_DIR)/$(BIN_NAME) $(OUTPUT_DIR)/$(BIN_NAME) && \
-		echo "Copied $(BIN_NAME) to $(OUTPUT_DIR)/"; \
-	fi
+all: $(PLATFORMS)
+
+$(PLATFORMS):
+	$(MAKE) -C $@ OUTPUT_DIR=$(ABS_OUTPUT_DIR)
 
 clean:
-	$(CARGO) clean
-	@if [ "$(OUTPUT_DIR)" != "$(BUILD_DIR)" ] && [ -f "$(OUTPUT_DIR)/$(BIN_NAME)" ]; then \
-		rm -f $(OUTPUT_DIR)/$(BIN_NAME) && \
-		echo "Removed $(BIN_NAME) from $(OUTPUT_DIR)/"; \
-	fi
-
-.PHONY: all build clean
+	@for platform in $(PLATFORMS); do \
+		$(MAKE) -C $$platform OUTPUT_DIR=$(ABS_OUTPUT_DIR) clean; \
+	done

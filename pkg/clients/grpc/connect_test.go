@@ -92,7 +92,7 @@ func TestNewClient(t *testing.T) {
 					ClientKey:    clientKeyFile,
 				},
 				AttestedTLS:       true,
-				AttestationPolicy: "../../../scripts/attestation_policy/attestation_policy.json",
+				AttestationPolicy: "../../../scripts/attestation_policy/sev-snp/attestation_policy.json",
 			},
 			wantErr: false,
 			err:     nil,

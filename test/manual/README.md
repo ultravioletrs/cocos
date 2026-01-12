@@ -64,7 +64,7 @@ cd ../..
 ./build/cocos-cli policy hostdata '<host-data>' '<attestation_policy.json>'
 
 # For attested TLS, also define the path to the attestation_policy.json that contains reference values for the fields of the attestation report
-export AGENT_GRPC_ATTESTATION_POLICY=./scripts/attestation_policy/attestation_policy.json
+export AGENT_GRPC_ATTESTATION_POLICY=./scripts/attestation_policy/sev-snp/attestation_policy.json
 export AGENT_GRPC_ATTESTED_TLS=true
 
 # Retrieve Attestation

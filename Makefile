@@ -50,6 +50,7 @@ install: $(SERVICES) $(ATTESTATION_POLICY)
 	install $(BUILD_DIR)/cocos-cli $(INSTALL_DIR)/cocos-cli
 	install $(BUILD_DIR)/cocos-manager $(INSTALL_DIR)/cocos-manager
 	install $(BUILD_DIR)/attestation_policy $(INSTALL_DIR)/attestation_policy
+	install $(BUILD_DIR)/attestation_policy_tdx $(INSTALL_DIR)/attestation_policy_tdx
 	install -d $(CONFIG_DIR)
 	install cocos-manager.env $(CONFIG_DIR)/cocos-manager.env
 
