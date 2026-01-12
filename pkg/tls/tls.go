@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package clients
+package tls
 
 import (
 	"crypto/rand"
@@ -53,20 +53,20 @@ var (
 	errAttestationPolicyIrregular = errors.New("attestation policy file is not a regular file")
 )
 
-// TLSResult contains the result of TLS configuration.
-type TLSResult struct {
+// Result contains the result of TLS configuration.
+type Result struct {
 	Config   *tls.Config
 	Security Security
 }
 
-// LoadBasicTLSConfig loads standard TLS configuration (TLS/mTLS).
-func LoadBasicTLSConfig(serverCAFile, clientCert, clientKey string) (*TLSResult, error) {
+// LoadBasicConfig loads standard TLS configuration (TLS/mTLS).
+func LoadBasicConfig(serverCAFile, clientCert, clientKey string) (*Result, error) {
 	tlsConfig := &tls.Config{}
 	security := WithoutTLS
 
 	// If no TLS configuration is provided, return nil config (no TLS)
 	if serverCAFile == "" && clientCert == "" && clientKey == "" {
-		return &TLSResult{Config: nil, Security: security}, nil
+		return &Result{Config: nil, Security: security}, nil
 	}
 
 	if serverCAFile != "" {
@@ -96,14 +96,15 @@ func LoadBasicTLSConfig(serverCAFile, clientCert, clientKey string) (*TLSResult,
 		security = WithMTLS
 	}
 
-	return &TLSResult{Config: tlsConfig, Security: security}, nil
+	return &Result{Config: tlsConfig, Security: security}, nil
 }
 
 // LoadATLSConfig configures Attested TLS.
-func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
+// Parameters are passed individually to avoid circular dependencies with the clients package.
+func LoadATLSConfig(attestationPolicy, serverCAFile, clientCert, clientKey string) (*Result, error) {
 	security := WithATLS
 
-	info, err := os.Stat(cfg.AttestationPolicy)
+	info, err := os.Stat(attestationPolicy)
 	if err != nil {
 		return nil, errors.Wrap(errors.New("failed to stat attestation policy file"), err)
 	}
@@ -112,12 +113,12 @@ func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
 		return nil, errAttestationPolicyIrregular
 	}
 
-	attestation.AttestationPolicyPath = cfg.AttestationPolicy
+	attestation.AttestationPolicyPath = attestationPolicy
 
 	var rootCAs *x509.CertPool
 
-	if cfg.ServerCAFile != "" {
-		rootCAs, err = loadRootCAs(cfg.ServerCAFile)
+	if serverCAFile != "" {
+		rootCAs, err = loadRootCAs(serverCAFile)
 		if err != nil {
 			return nil, err
 		}
@@ -141,8 +142,8 @@ func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
 		},
 	}
 
-	if cfg.ClientCert != "" || cfg.ClientKey != "" {
-		certificate, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
+	if clientCert != "" || clientKey != "" {
+		certificate, err := tls.LoadX509KeyPair(clientCert, clientKey)
 		if err != nil {
 			return nil, errors.Wrap(ErrFailedToLoadClientCertKey, err)
 		}
@@ -150,7 +151,7 @@ func LoadATLSConfig(cfg AttestedClientConfig) (*TLSResult, error) {
 		tlsConfig.Certificates = []tls.Certificate{certificate}
 	}
 
-	return &TLSResult{Config: tlsConfig, Security: security}, nil
+	return &Result{Config: tlsConfig, Security: security}, nil
 }
 
 // loadRootCAs loads root CA certificates from a file.
