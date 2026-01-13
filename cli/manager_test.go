@@ -102,7 +102,7 @@ func TestCLI_NewCreateVMCmd(t *testing.T) {
 		{
 			name: "manager client initialization failure",
 			setupMock: func(m *mocks.ManagerServiceClient) {
-				// No expectations set as initialization fails
+				// No expectations set as initialization fails before calling any methods
 			},
 			setupCLI: func(cli *CLI) {
 				cli.connectErr = errors.New("connection failed")
@@ -113,7 +113,7 @@ func TestCLI_NewCreateVMCmd(t *testing.T) {
 			flags: map[string]string{
 				"server-url": "https://server.com",
 			},
-			expectedError: "failed to exit idle mode: dns resolver: missing address ❌",
+			expectedError: "Failed to connect to manager: connection failed ❌",
 			expectError:   true,
 		},
 		{
@@ -246,13 +246,13 @@ func TestCLI_NewRemoveVMCmd(t *testing.T) {
 		{
 			name: "manager client initialization failure",
 			setupMock: func(m *mocks.ManagerServiceClient) {
-				// No expectations set as initialization fails
+				// No expectations set as initialization fails before calling any methods
 			},
 			setupCLI: func(cli *CLI) {
 				cli.connectErr = errors.New("connection failed")
 			},
 			args:          []string{"vm-123"},
-			expectedError: "failed to exit idle mode: dns resolver: missing address ❌",
+			expectedError: "Failed to connect to manager: connection failed ❌",
 			expectError:   true,
 		},
 		{
