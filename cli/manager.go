@@ -38,9 +38,13 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 		Example: `create-vm`,
 		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			if c.managerClient == nil || c.connectErr != nil {
+			if c.connectErr != nil {
+				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+				return
+			}
+			if c.managerClient == nil {
 				if err := c.InitializeManagerClient(cmd); err != nil {
-					printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+					printError(cmd, "Failed to connect to manager: %v ❌ ", err)
 					return
 				}
 			}
@@ -94,7 +98,11 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 		Example: `remove-vm <cvm_id>`,
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if c.managerClient == nil || c.connectErr != nil {
+			if c.connectErr != nil {
+				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+				return
+			}
+			if c.managerClient == nil {
 				if err := c.InitializeManagerClient(cmd); err != nil {
 					printError(cmd, "Failed to connect to manager: %v ❌ ", err)
 					return
