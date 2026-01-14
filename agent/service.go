@@ -16,17 +16,15 @@ import (
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
-	"github.com/ultravioletrs/cocos/agent/algorithm/binary"
-	"github.com/ultravioletrs/cocos/agent/algorithm/docker"
-	"github.com/ultravioletrs/cocos/agent/algorithm/python"
-	"github.com/ultravioletrs/cocos/agent/algorithm/wasm"
 	"github.com/ultravioletrs/cocos/agent/events"
+	runnerpb "github.com/ultravioletrs/cocos/agent/runner"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	"github.com/ultravioletrs/cocos/internal"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
+	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -130,8 +128,12 @@ type Service interface {
 
 type agentService struct {
 	mu                sync.Mutex
-	computation       Computation               // Holds the current computation request details.
-	algorithm         algorithm.Algorithm       // Filepath to the algorithm received for the computation.
+	computation       Computation // Holds the current computation request details.
+	runnerClient      runner_client.Client
+	algoType          string
+	algoArgs          []string
+	algoRequirements  []byte
+	algoReceived      bool
 	result            []byte                    // Stores the result of the computation.
 	sm                statemachine.StateMachine // Manages the state transitions of the agent service.
 	runError          error                     // Stores any error encountered during the computation run.
@@ -146,13 +148,14 @@ type agentService struct {
 var _ Service = (*agentService)(nil)
 
 // New instantiates the agent service implementation.
-func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attestationClient attestation_client.Client, vmlp int) Service {
+func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, attestationClient attestation_client.Client, runnerClient runner_client.Client, vmlp int) Service {
 	sm := statemachine.NewStateMachine(Idle)
 	ctx, cancel := context.WithCancel(ctx)
 	svc := &agentService{
 		sm:                sm,
 		eventSvc:          eventSvc,
 		attestationClient: attestationClient,
+		runnerClient:      runnerClient,
 		logger:            logger,
 		cancel:            cancel,
 		vmpl:              vmlp,
@@ -233,10 +236,9 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 
 	as.cancel()
 
-	if as.algorithm != nil {
-		if err := as.algorithm.Stop(); err != nil {
-			return fmt.Errorf("error stopping computation: %v", err)
-		}
+	if _, err := as.runnerClient.Stop(ctx, &runnerpb.StopRequest{ComputationId: as.computation.ID}); err != nil {
+		as.logger.Warn("failed to stop runner", "error", err)
+		// proceed to cleanup
 	}
 
 	if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
@@ -250,7 +252,10 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 	as.sm.Reset(Idle)
 
 	as.computation = Computation{}
-	as.algorithm = nil
+	as.algoReceived = false
+	as.algoType = ""
+	as.algoArgs = nil
+	as.algoRequirements = nil
 	as.result = nil
 	as.runError = nil
 	as.resultsConsumed = false
@@ -278,7 +283,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	}
 	as.mu.Lock()
 	defer as.mu.Unlock()
-	if as.algorithm != nil {
+	if as.algoReceived {
 		return ErrAllManifestItemsReceived
 	}
 
@@ -317,38 +322,16 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	args := algorithm.AlgorithmArgsFromContext(ctx)
 
-	switch algoType {
-	case string(algorithm.AlgoTypeBin):
-		as.algorithm = binary.NewAlgorithm(as.logger, as.eventSvc, f.Name(), args, as.computation.ID)
-	case string(algorithm.AlgoTypePython):
-		var requirementsFile string
-		if len(algo.Requirements) > 0 {
-			fr, err := os.CreateTemp("", "requirements.txt")
-			if err != nil {
-				return fmt.Errorf("error creating requirments file: %v", err)
-			}
-
-			if _, err := fr.Write(algo.Requirements); err != nil {
-				return fmt.Errorf("error writing requirements to file: %v", err)
-			}
-			if err := fr.Close(); err != nil {
-				return fmt.Errorf("error closing file: %v", err)
-			}
-			requirementsFile = fr.Name()
-		}
-		runtime := python.PythonRunTimeFromContext(ctx)
-		as.algorithm = python.NewAlgorithm(as.logger, as.eventSvc, runtime, requirementsFile, f.Name(), args, as.computation.ID)
-	case string(algorithm.AlgoTypeWasm):
-		as.algorithm = wasm.NewAlgorithm(as.logger, as.eventSvc, args, f.Name(), as.computation.ID)
-	case string(algorithm.AlgoTypeDocker):
-		as.algorithm = docker.NewAlgorithm(as.logger, as.eventSvc, f.Name(), as.computation.ID)
-	}
+	as.algoType = algoType
+	as.algoArgs = args
+	as.algoRequirements = algo.Requirements
+	as.algoReceived = true
 
 	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
 		return fmt.Errorf("error creating datasets directory: %v", err)
 	}
 
-	if as.algorithm != nil {
+	if as.algoReceived {
 		as.sm.SendEvent(AlgorithmReceived)
 	}
 
@@ -478,10 +461,38 @@ func (as *agentService) runComputation(state statemachine.State) {
 		}
 	}()
 
+	// Read algo file
+	currentDir, _ := os.Getwd()
+	algoFile := filepath.Join(currentDir, "algo")
+	algoBytes, err := os.ReadFile(algoFile)
+	if err != nil {
+		as.runError = fmt.Errorf("failed to read algo file: %w", err)
+		as.logger.Warn(as.runError.Error())
+		as.publishEvent(Failed.String())(state)
+		return
+	}
+
 	as.publishEvent(InProgress.String())(state)
-	if err := as.algorithm.Run(); err != nil {
+
+	// Call Runner
+	resp, err := as.runnerClient.Run(context.Background(), &runnerpb.RunRequest{
+		ComputationId: as.computation.ID,
+		AlgoType:      as.algoType,
+		Algorithm:     algoBytes,
+		Requirements:  as.algoRequirements,
+		Args:          as.algoArgs,
+		// Datasets implicit on shared FS
+	})
+	if err != nil {
 		as.runError = err
 		as.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
+		as.publishEvent(Failed.String())(state)
+		return
+	}
+
+	if resp.Error != "" {
+		as.runError = errors.New(resp.Error)
+		as.logger.Warn(fmt.Sprintf("failed to run computation: %s", resp.Error))
 		as.publishEvent(Failed.String())(state)
 		return
 	}

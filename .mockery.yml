@@ -146,3 +146,10 @@ packages:
           dir: '{{.InterfaceDir}}/mocks'
           structname: '{{.InterfaceName}}'
           filename: "{{.InterfaceName | lower}}.go"
+  github.com/ultravioletrs/cocos/pkg/clients/grpc/runner:
+    interfaces:
+      Client:
+        config:
+          dir: '{{.InterfaceDir}}/mocks'
+          structname: '{{.InterfaceName}}'
+          filename: "{{.InterfaceName | lower}}.go"

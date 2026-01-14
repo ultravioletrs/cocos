@@ -97,7 +97,6 @@ func TestAgentServer_Start(t *testing.T) {
 		{
 			name: "successful start with default port",
 			cfg: agent.AgentConfig{
-				Port:         "",
 				CertFile:     "cert.pem",
 				KeyFile:      "key.pem",
 				ServerCAFile: "server-ca.pem",
@@ -131,7 +130,6 @@ func TestAgentServer_Start(t *testing.T) {
 		{
 			name: "successful start with custom port",
 			cfg: agent.AgentConfig{
-				Port:         "8080",
 				CertFile:     "cert.pem",
 				KeyFile:      "key.pem",
 				ServerCAFile: "server-ca.pem",
@@ -165,7 +163,6 @@ func TestAgentServer_Start(t *testing.T) {
 		{
 			name: "start with minimal config",
 			cfg: agent.AgentConfig{
-				Port:        "9090",
 				AttestedTls: false,
 			},
 			cmp: agent.Computation{
@@ -243,9 +240,7 @@ func TestAgentServer_Stop(t *testing.T) {
 		{
 			name: "stop started server",
 			setupServer: func(server AgentServer) error {
-				cfg := agent.AgentConfig{
-					Port: "7004",
-				}
+				cfg := agent.AgentConfig{}
 				cmp := agent.Computation{
 					ID:   "test-stop-computation",
 					Name: "Stop Test",
@@ -304,7 +299,7 @@ func TestAgentServer_StopMultipleTimes(t *testing.T) {
 	server := NewServer(logger, svc, host, nil)
 
 	// Start the server
-	cfg := agent.AgentConfig{Port: "7005"}
+	cfg := agent.AgentConfig{}
 	cmp := agent.Computation{
 		ID:   "test-multiple-stop",
 		Name: "Multiple Stop Test",
@@ -347,7 +342,7 @@ func TestAgentServer_StartAfterStop(t *testing.T) {
 	logger, svc, host, pubKey := setupTest(t)
 	server := NewServer(logger, svc, host, nil)
 
-	cfg := agent.AgentConfig{Port: "7006"}
+	cfg := agent.AgentConfig{}
 	cmp := agent.Computation{
 		ID:   "test-restart",
 		Name: "Restart Test",
@@ -378,7 +373,7 @@ func TestAgentServer_StartAfterStop(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Start again with different config
-	cfg2 := agent.AgentConfig{Port: "7007"}
+	cfg2 := agent.AgentConfig{}
 	cmp2 := agent.Computation{
 		ID:   "test-restart-2",
 		Name: "Restart Test 2",
@@ -422,7 +417,6 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 		{
 			name: "valid config with all fields",
 			config: agent.AgentConfig{
-				Port:         "8080",
 				CertFile:     "cert.pem",
 				KeyFile:      "key.pem",
 				ServerCAFile: "server-ca.pem",
@@ -451,10 +445,8 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "valid config with minimal fields",
-			config: agent.AgentConfig{
-				Port: "9090",
-			},
+			name:   "valid config with minimal fields",
+			config: agent.AgentConfig{},
 			cmp: agent.Computation{
 				ID:   "minimal-config-test",
 				Name: "Minimal Config Test",
@@ -477,10 +469,8 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "config with empty port uses default",
-			config: agent.AgentConfig{
-				Port: "",
-			},
+			name:   "config with empty port uses default",
+			config: agent.AgentConfig{},
 			cmp: agent.Computation{
 				ID:        "default-port-test",
 				Name:      "Default Port Test",
@@ -505,11 +495,9 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			if tt.valid {
 				assert.NoError(t, err)
 
-				// Verify default port is used when empty
-				if tt.config.Port == "" {
-					agentSrv := server.(*agentServer)
-					assert.NotNil(t, agentSrv.gs)
-				}
+				// Verify server started successfully
+				agentSrv := server.(*agentServer)
+				assert.NotNil(t, agentSrv.gs)
 
 				time.Sleep(10 * time.Millisecond)
 				if err := server.Stop(); err != nil {
@@ -526,5 +514,5 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 
 func TestConstants(t *testing.T) {
 	assert.Equal(t, "agent", svcName)
-	assert.Equal(t, "7002", defSvcGRPCPort)
+	assert.Equal(t, "/run/cocos/agent.sock", defSvcGRPCSocket)
 }

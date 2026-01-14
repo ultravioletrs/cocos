@@ -44,6 +44,7 @@ func (h *handler) Enabled(_ context.Context, l slog.Level) bool {
 }
 
 func (h *handler) Handle(_ context.Context, r slog.Record) error {
+	slog.Info("logging message", "message", r.Message)
 	message := r.Message
 	timestamp := timestamppb.New(r.Time)
 	level := r.Level.String()

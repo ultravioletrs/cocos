@@ -1,0 +1,5 @@
+config BR2_PACKAGE_COMPUTATION_RUNNER
+	bool "computation-runner"
+	select BR2_PACKAGE_LOG_FORWARDER
+	help
+	  Cocos AI Computation Runner service.
