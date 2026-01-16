@@ -1,6 +1,42 @@
-config BR2_PACKAGE_ATTESTATION_SERVICE
-	bool "attestation-service"
+choice
+	prompt "Attestation Backend"
+	default BR2_PACKAGE_ATTESTATION_BACKEND_COCOS
 	help
-	  Attestation Service for confidential computing attestation.
+	  Select the attestation backend to use for confidential computing.
+	  
+	  The Cocos AI attestation service is the native implementation
+	  that generates EAT (Entity Attestation Token) tokens locally.
+	  
+	  The Confidential Containers attestation-agent is an alternative
+	  implementation that supports the KBS (Key Broker Service) protocol
+	  for optional remote attestation and secret provisioning.
 
+config BR2_PACKAGE_ATTESTATION_BACKEND_COCOS
+	bool "Cocos AI Attestation Service"
+	help
+	  Native Cocos AI attestation service that generates EAT tokens
+	  locally for TEE attestation (SNP, TDX, vTPM, Azure).
+	  
+	  This is the default and recommended option for most use cases.
+	  
 	  https://github.com/ultravioletrs/cocos
+
+config BR2_PACKAGE_ATTESTATION_BACKEND_CC
+	bool "Confidential Containers Attestation Agent"
+	depends on BR2_PACKAGE_HOST_RUSTC
+	help
+	  Confidential Containers attestation-agent with optional KBS
+	  protocol support for remote attestation and secret provisioning.
+	  
+	  Can operate in local mode (without KBS) or with KBS endpoint
+	  configured per-computation for encrypted data retrieval.
+	  
+	  Requires Rust toolchain for building.
+	  
+	  https://github.com/confidential-containers/guest-components
+
+endchoice
+
+config BR2_PACKAGE_ATTESTATION_SERVICE
+	bool
+	default y if BR2_PACKAGE_ATTESTATION_BACKEND_COCOS

@@ -1,6 +1,7 @@
 [Unit]
 Description=Cocos Attestation Service
 After=network.target
+Wants=attestation-agent.service
 
 [Service]
 Type=simple
@@ -10,6 +11,10 @@ RestartSec=5
 Environment=ATTESTATION_LOG_LEVEL=debug
 Environment=ATTESTATION_SERVICE_SOCKET=/run/cocos/attestation.sock
 Environment=ATTESTATION_VMPL=2
+Environment=ATTESTATION_EAT_FORMAT=CBOR
+# Enable CC Attestation-Agent backend
+Environment=USE_CC_ATTESTATION_AGENT=true
+Environment=CC_AGENT_ADDRESS=127.0.0.1:50002
 ExecStartPre=/cocos_init/attestation_setup.sh
 
 [Install]
