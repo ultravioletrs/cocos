@@ -102,7 +102,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-configfs-tsm v0.3.3-0.20240919001351-b4b5b84fdcbc // indirect
-	github.com/google/go-tpm v0.9.6
+	github.com/google/go-tpm v0.9.8
 	github.com/google/go-tpm-tools v0.4.7
 	github.com/google/logger v1.1.1
 	github.com/google/uuid v1.6.0
