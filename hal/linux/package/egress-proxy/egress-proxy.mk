@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-EGRESS_PROXY_VERSION = main
-EGRESS_PROXY_SITE = $(call github,ultravioletrs,cocos,$(EGRESS_PROXY_VERSION))
+EGRESS_PROXY_VERSION = pull-mode
+EGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(EGRESS_PROXY_VERSION))
 
 define EGRESS_PROXY_BUILD_CMDS
 	$(MAKE) -C $(@D) egress-proxy

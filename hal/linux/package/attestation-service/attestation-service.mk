@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-ATTESTATION_SERVICE_VERSION = main
-ATTESTATION_SERVICE_SITE = $(call github,ultravioletrs,cocos,$(ATTESTATION_SERVICE_VERSION))
+ATTESTATION_SERVICE_VERSION = pull-mode
+ATTESTATION_SERVICE_SITE = $(call github,sammyoina,cocos-ai,$(ATTESTATION_SERVICE_VERSION))
 
 define ATTESTATION_SERVICE_BUILD_CMDS
 	$(MAKE) -C $(@D) attestation-service
@@ -18,6 +18,14 @@ endef
 define ATTESTATION_SERVICE_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0640 $(@D)/init/systemd/attestation-service.service $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/attestation_setup.sh $(TARGET_DIR)/cocos_init/attestation_setup.sh
+ifeq ($(BR2_PACKAGE_CC_ATTESTATION_AGENT),y)
+	# Enable CC attestation agent backend
+	sed -i 's/USE_CC_ATTESTATION_AGENT=false/USE_CC_ATTESTATION_AGENT=true/' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
+else
+	# Disable CC attestation agent backend
+	sed -i 's/USE_CC_ATTESTATION_AGENT=true/USE_CC_ATTESTATION_AGENT=false/' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
+	sed -i '/Wants=attestation-agent.service/d' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
+endif
 endef
 
 $(eval $(generic-package))

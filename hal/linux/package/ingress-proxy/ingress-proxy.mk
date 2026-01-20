@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-INGRESS_PROXY_VERSION = main
-INGRESS_PROXY_SITE = $(call github,ultravioletrs,cocos,$(INGRESS_PROXY_VERSION))
+INGRESS_PROXY_VERSION = pull-mode
+INGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(INGRESS_PROXY_VERSION))
 
 define INGRESS_PROXY_BUILD_CMDS
 	$(MAKE) -C $(@D) ingress-proxy

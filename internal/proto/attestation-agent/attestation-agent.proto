@@ -71,3 +71,4 @@ service AttestationAgentService {
     rpc BindInitData(BindInitDataRequest) returns (BindInitDataResponse) {};
     rpc GetTeeType(GetTeeTypeRequest) returns (GetTeeTypeResponse) {};
 }
+

@@ -5,12 +5,15 @@ package agent
 
 import (
 	"context"
+	"crypto/ecdh"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	sync "sync"
 	"time"
 
@@ -24,6 +27,9 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
+	"github.com/ultravioletrs/cocos/pkg/crypto"
+	"github.com/ultravioletrs/cocos/pkg/kbs"
+	"github.com/ultravioletrs/cocos/pkg/registry"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -276,6 +282,111 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 	return nil
 }
 
+// downloadAndDecryptResource downloads an encrypted resource from a registry and decrypts it using KBS.
+func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *ResourceSource) ([]byte, error) {
+	// 1. Download encrypted resource from registry
+	as.logger.Info("downloading encrypted resource", "url", source.URL)
+
+	var encData []byte
+	var err error
+
+	if strings.HasPrefix(source.URL, "s3://") {
+		// S3 registry
+		s3Config := registry.S3Config{
+			Region:          os.Getenv("AWS_REGION"),
+			AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+			Endpoint:        os.Getenv("AWS_ENDPOINT_URL"),
+		}
+
+		s3Reg, err := registry.NewS3Registry(ctx, registry.DefaultConfig(), s3Config)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S3 registry: %w", err)
+		}
+
+		encData, err = s3Reg.Download(ctx, source.URL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download from S3: %w", err)
+		}
+	} else {
+		// HTTP/HTTPS registry
+		httpReg := registry.NewHTTPRegistry(registry.DefaultConfig())
+		encData, err = httpReg.Download(ctx, source.URL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download from HTTP: %w", err)
+		}
+	}
+
+	as.logger.Info("resource downloaded", "size", len(encData))
+
+	// 2. Get TEE evidence from attestation-agent
+	as.logger.Info("getting TEE evidence for attestation")
+
+	var reportData [64]byte
+	var nonce [32]byte
+
+	// Use computation ID as report data
+	copy(reportData[:], []byte(as.computation.ID))
+
+	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attestation.SNP)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
+	}
+
+	// 3. Attest with KBS and get token
+	as.logger.Info("attesting with KBS", "kbs_url", as.computation.KBS.URL)
+
+	kbsClient := kbs.NewClient(kbs.Config{
+		URL:     as.computation.KBS.URL,
+		Timeout: 30 * time.Second,
+	})
+
+	runtimeData := kbs.RuntimeData{
+		Nonce: base64.StdEncoding.EncodeToString(nonce[:]),
+	}
+
+	token, err := kbsClient.Attest(ctx, evidence, runtimeData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to attest with KBS: %w", err)
+	}
+
+	as.logger.Info("attestation successful, token received")
+
+	// 4. Get decryption key from KBS
+	as.logger.Info("retrieving decryption key", "resource_path", source.KBSResourcePath)
+
+	keyData, err := kbsClient.GetResource(ctx, token, source.KBSResourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource from KBS: %w", err)
+	}
+
+	as.logger.Info("decryption key retrieved", "key_size", len(keyData))
+
+	// 5. Parse encrypted resource and decrypt
+	as.logger.Info("decrypting resource")
+
+	encResource, err := crypto.ParseEncryptedResource(encData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse encrypted resource: %w", err)
+	}
+
+	// Generate ephemeral private key for ECDH
+	curve := ecdh.P256()
+	privateKey, err := curve.GenerateKey(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	plaintext, err := crypto.DecryptWithWrappedKey(*encResource, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt resource: %w", err)
+	}
+
+	as.logger.Info("resource decrypted successfully", "plaintext_size", len(plaintext))
+
+	return plaintext, nil
+}
+
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
 		return ErrStateNotReady
@@ -286,7 +397,24 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return ErrAllManifestItemsReceived
 	}
 
-	hash := sha3.Sum256(algo.Algorithm)
+	var algoData []byte
+
+	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
+		as.logger.Info("downloading algorithm from remote source")
+
+		downloadedData, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source)
+		if err != nil {
+			return fmt.Errorf("failed to download and decrypt algorithm: %w", err)
+		}
+
+		algoData = downloadedData
+	} else {
+		// Use directly uploaded algorithm
+		algoData = algo.Algorithm
+	}
+
+	hash := sha3.Sum256(algoData)
 
 	if hash != as.computation.Algorithm.Hash {
 		return ErrHashMismatch
@@ -302,7 +430,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
 
-	if _, err := f.Write(algo.Algorithm); err != nil {
+	if _, err := f.Write(algoData); err != nil {
 		return fmt.Errorf("error writing algorithm to file: %v", err)
 	}
 
@@ -347,28 +475,55 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		return ErrAllManifestItemsReceived
 	}
 
-	hash := sha3.Sum256(dataset.Dataset)
+	var datasetData []byte
+	var datasetFilename string
+
+	// Check if any dataset should be downloaded from remote source
+	var matchedIndex = -1
+	for i, d := range as.computation.Datasets {
+		if d.Source != nil && as.computation.KBS.Enabled {
+			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
+
+			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source)
+			if err != nil {
+				return fmt.Errorf("failed to download and decrypt dataset: %w", err)
+			}
+
+			datasetData = downloadedData
+			datasetFilename = d.Filename
+			matchedIndex = i
+			break
+		}
+	}
+
+	// If no remote dataset, use uploaded dataset
+	if matchedIndex == -1 {
+		datasetData = dataset.Dataset
+		datasetFilename = dataset.Filename
+	}
+
+	hash := sha3.Sum256(datasetData)
 
 	matched := false
 	for i, d := range as.computation.Datasets {
 		if hash == d.Hash {
-			if d.Filename != "" && d.Filename != dataset.Filename {
+			if d.Filename != "" && d.Filename != datasetFilename {
 				return ErrFileNameMismatch
 			}
 
 			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
 
 			if DecompressFromContext(ctx) {
-				if err := internal.UnzipFromMemory(dataset.Dataset, algorithm.DatasetsDir); err != nil {
+				if err := internal.UnzipFromMemory(datasetData, algorithm.DatasetsDir); err != nil {
 					return fmt.Errorf("error decompressing dataset: %v", err)
 				}
 			} else {
-				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
+				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, datasetFilename))
 				if err != nil {
 					return fmt.Errorf("error creating dataset file: %v", err)
 				}
 
-				if _, err := f.Write(dataset.Dataset); err != nil {
+				if _, err := f.Write(datasetData); err != nil {
 					return fmt.Errorf("error writing dataset to file: %v", err)
 				}
 				if err := f.Close(); err != nil {
