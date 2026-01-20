@@ -41,6 +41,12 @@ var (
 	attestedTLS       bool
 	pubKeyFile        string
 	clientCAFile      string
+	// Remote resource configuration
+	kbsURL              string
+	algoSourceURL       string
+	algoKBSResourcePath string
+	datasetSourceURLs   string
+	datasetKBSPaths     string
 )
 
 type svc struct {
@@ -57,25 +63,94 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	}
 	pubPem, _ := pem.Decode(pubKey)
 
+	// Build datasets
 	var datasets []*cvms.Dataset
-	for _, dataPath := range dataPaths {
-		if _, err := os.Stat(dataPath); os.IsNotExist(err) {
-			s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
+
+	// Check if using remote datasets
+	var datasetURLs []string
+	var datasetKBSPathsList []string
+	if datasetSourceURLs != "" {
+		datasetURLs = strings.Split(datasetSourceURLs, ",")
+	}
+	if datasetKBSPaths != "" {
+		datasetKBSPathsList = strings.Split(datasetKBSPaths, ",")
+	}
+
+	if len(datasetURLs) > 0 && len(datasetKBSPathsList) > 0 {
+		// Remote datasets mode
+		if len(datasetURLs) != len(datasetKBSPathsList) {
+			s.logger.Error("dataset source URLs and KBS paths must have the same count")
 			return
 		}
-		dataHash, err := internal.Checksum(dataPath)
+
+		for i := 0; i < len(datasetURLs); i++ {
+			// For remote datasets, hash should be of the decrypted data
+			// Using placeholder for now - in production, provide actual hash
+			var dataHash [32]byte
+
+			datasets = append(datasets, &cvms.Dataset{
+				Hash:     dataHash[:],
+				UserKey:  pubPem.Bytes,
+				Filename: fmt.Sprintf("dataset_%d.csv", i),
+				Source: &cvms.Source{
+					Url:             datasetURLs[i],
+					KbsResourcePath: datasetKBSPathsList[i],
+				},
+			})
+		}
+	} else {
+		// Direct upload mode - use local files
+		for _, dataPath := range dataPaths {
+			if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+				s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
+				return
+			}
+			dataHash, err := internal.Checksum(dataPath)
+			if err != nil {
+				s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
+				return
+			}
+
+			datasets = append(datasets, &cvms.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+		}
+	}
+
+	// Build algorithm
+	var algorithm *cvms.Algorithm
+	if algoSourceURL != "" && algoKBSResourcePath != "" {
+		// Remote algorithm mode
+		var algoHash [32]byte
+		// For remote algorithm, hash should be of the decrypted data
+		// Using placeholder for now - in production, provide actual hash
+		algorithm = &cvms.Algorithm{
+			Hash:    algoHash[:],
+			UserKey: pubPem.Bytes,
+			Source: &cvms.Source{
+				Url:             algoSourceURL,
+				KbsResourcePath: algoKBSResourcePath,
+			},
+		}
+	} else {
+		// Direct upload mode - use local file
+		if algoPath == "" {
+			s.logger.Error("algorithm path is required when not using remote source")
+			return
+		}
+		algoHash, err := internal.Checksum(algoPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
 			return
 		}
-
-		datasets = append(datasets, &cvms.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+		algorithm = &cvms.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes}
 	}
 
-	algoHash, err := internal.Checksum(algoPath)
-	if err != nil {
-		s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
-		return
+	// Build KBS config
+	var kbsConfig *cvms.KBSConfig
+	if kbsURL != "" {
+		kbsConfig = &cvms.KBSConfig{
+			Url:     kbsURL,
+			Enabled: true,
+		}
 	}
 
 	s.logger.Debug("sending computation run request")
@@ -86,13 +161,14 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				Name:            "sample computation",
 				Description:     "sample descrption",
 				Datasets:        datasets,
-				Algorithm:       &cvms.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes},
+				Algorithm:       algorithm,
 				ResultConsumers: []*cvms.ResultConsumer{{UserKey: pubPem.Bytes}},
 				AgentConfig: &cvms.AgentConfig{
 					Port:         "7002",
 					AttestedTls:  attestedTLS,
 					ClientCaFile: clientCAFile,
 				},
+				Kbs: kbsConfig,
 			},
 		},
 	}); err != nil {
@@ -108,11 +184,17 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 
 func main() {
 	flagSet := flag.NewFlagSet("tests/cvms/main.go", flag.ContinueOnError)
-	flagSet.StringVar(&algoPath, "algo-path", "", "Path to the algorithm")
+	flagSet.StringVar(&algoPath, "algo-path", "", "Path to the algorithm (for direct upload mode)")
 	flagSet.StringVar(&pubKeyFile, "public-key-path", "", "Path to the public key file")
 	flagSet.StringVar(&attestedTLSString, "attested-tls-bool", "", "Should aTLS be used, must be 'true' or 'false'")
-	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas")
+	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas (for direct upload mode)")
 	flagSet.StringVar(&clientCAFile, "client-ca-file", "", "Client CA root certificate file path")
+	// Remote resource flags
+	flagSet.StringVar(&kbsURL, "kbs-url", "", "KBS endpoint URL (e.g., 'http://localhost:8080')")
+	flagSet.StringVar(&algoSourceURL, "algo-source-url", "", "Algorithm source URL (s3://bucket/key or https://...)")
+	flagSet.StringVar(&algoKBSResourcePath, "algo-kbs-path", "", "Algorithm KBS resource path (e.g., 'default/key/algo-key')")
+	flagSet.StringVar(&datasetSourceURLs, "dataset-source-urls", "", "Dataset source URLs, comma-separated")
+	flagSet.StringVar(&datasetKBSPaths, "dataset-kbs-paths", "", "Dataset KBS resource paths, comma-separated")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
 	if flagSetParseError != nil {
@@ -124,8 +206,9 @@ func main() {
 
 	parsingErrorString.WriteString("\n")
 
-	if algoPath == "" {
-		parsingErrorString.WriteString("Algorithm path is required\n")
+	// Validate that either algo-path OR (algo-source-url AND algo-kbs-path) is provided
+	if algoPath == "" && (algoSourceURL == "" || algoKBSResourcePath == "") {
+		parsingErrorString.WriteString("Either algo-path OR (algo-source-url AND algo-kbs-path) is required\n")
 		parsingError = true
 	}
 

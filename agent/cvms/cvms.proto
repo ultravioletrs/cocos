@@ -92,6 +92,7 @@ message ComputationRunReq {
   Algorithm algorithm = 5;
   repeated ResultConsumer result_consumers = 6;
   AgentConfig agent_config = 7;
+  KBSConfig kbs = 8; // Optional KBS configuration for remote resources
 }
 
 message ResultConsumer {
@@ -102,11 +103,23 @@ message Dataset {
   bytes hash = 1; // should be sha3.Sum256, 32 byte length.
   bytes userKey = 2;
   string filename = 3;
+  Source source = 4; // Optional remote source for encrypted dataset
 }
 
 message Algorithm {
   bytes hash = 1; // should be sha3.Sum256, 32 byte length.
   bytes userKey = 2;
+  Source source = 3; // Optional remote source for encrypted algorithm
+}
+
+message Source {
+  string url = 1; // URL of the encrypted resource (s3://bucket/key or https://...)
+  string kbs_resource_path = 2; // Path to decryption key in KBS (e.g., "default/key/my-key")
+}
+
+message KBSConfig {
+  string url = 1; // KBS endpoint URL (e.g., "https://kbs.example.com")
+  bool enabled = 2; // Whether to use KBS for key retrieval
 }
 
 message AgentConfig {

@@ -826,6 +826,7 @@ type ComputationRunReq struct {
 	Algorithm       *Algorithm             `protobuf:"bytes,5,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	ResultConsumers []*ResultConsumer      `protobuf:"bytes,6,rep,name=result_consumers,json=resultConsumers,proto3" json:"result_consumers,omitempty"`
 	AgentConfig     *AgentConfig           `protobuf:"bytes,7,opt,name=agent_config,json=agentConfig,proto3" json:"agent_config,omitempty"`
+	Kbs             *KBSConfig             `protobuf:"bytes,8,opt,name=kbs,proto3" json:"kbs,omitempty"` // Optional KBS configuration for remote resources
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -909,6 +910,13 @@ func (x *ComputationRunReq) GetAgentConfig() *AgentConfig {
 	return nil
 }
 
+func (x *ComputationRunReq) GetKbs() *KBSConfig {
+	if x != nil {
+		return x.Kbs
+	}
+	return nil
+}
+
 type ResultConsumer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserKey       []byte                 `protobuf:"bytes,1,opt,name=userKey,proto3" json:"userKey,omitempty"`
@@ -958,6 +966,7 @@ type Dataset struct {
 	Hash          []byte                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"` // should be sha3.Sum256, 32 byte length.
 	UserKey       []byte                 `protobuf:"bytes,2,opt,name=userKey,proto3" json:"userKey,omitempty"`
 	Filename      string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
+	Source        *Source                `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted dataset
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1013,10 +1022,18 @@ func (x *Dataset) GetFilename() string {
 	return ""
 }
 
+func (x *Dataset) GetSource() *Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 type Algorithm struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hash          []byte                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"` // should be sha3.Sum256, 32 byte length.
 	UserKey       []byte                 `protobuf:"bytes,2,opt,name=userKey,proto3" json:"userKey,omitempty"`
+	Source        *Source                `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted algorithm
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1065,6 +1082,117 @@ func (x *Algorithm) GetUserKey() []byte {
 	return nil
 }
 
+func (x *Algorithm) GetSource() *Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+type Source struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Url             string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`                                                  // URL of the encrypted resource (s3://bucket/key or https://...)
+	KbsResourcePath string                 `protobuf:"bytes,2,opt,name=kbs_resource_path,json=kbsResourcePath,proto3" json:"kbs_resource_path,omitempty"` // Path to decryption key in KBS (e.g., "default/key/my-key")
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Source) Reset() {
+	*x = Source{}
+	mi := &file_agent_cvms_cvms_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Source) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Source) ProtoMessage() {}
+
+func (x *Source) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_cvms_cvms_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Source.ProtoReflect.Descriptor instead.
+func (*Source) Descriptor() ([]byte, []int) {
+	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *Source) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Source) GetKbsResourcePath() string {
+	if x != nil {
+		return x.KbsResourcePath
+	}
+	return ""
+}
+
+type KBSConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`          // KBS endpoint URL (e.g., "https://kbs.example.com")
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"` // Whether to use KBS for key retrieval
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KBSConfig) Reset() {
+	*x = KBSConfig{}
+	mi := &file_agent_cvms_cvms_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KBSConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KBSConfig) ProtoMessage() {}
+
+func (x *KBSConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_cvms_cvms_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KBSConfig.ProtoReflect.Descriptor instead.
+func (*KBSConfig) Descriptor() ([]byte, []int) {
+	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *KBSConfig) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *KBSConfig) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
 type AgentConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Port          string                 `protobuf:"bytes,1,opt,name=port,proto3" json:"port,omitempty"`
@@ -1080,7 +1208,7 @@ type AgentConfig struct {
 
 func (x *AgentConfig) Reset() {
 	*x = AgentConfig{}
-	mi := &file_agent_cvms_cvms_proto_msgTypes[15]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +1220,7 @@ func (x *AgentConfig) String() string {
 func (*AgentConfig) ProtoMessage() {}
 
 func (x *AgentConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_cvms_cvms_proto_msgTypes[15]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1233,7 @@ func (x *AgentConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentConfig.ProtoReflect.Descriptor instead.
 func (*AgentConfig) Descriptor() ([]byte, []int) {
-	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{15}
+	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AgentConfig) GetPort() string {
@@ -1167,7 +1295,7 @@ type AttestationResponse struct {
 
 func (x *AttestationResponse) Reset() {
 	*x = AttestationResponse{}
-	mi := &file_agent_cvms_cvms_proto_msgTypes[16]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1307,7 @@ func (x *AttestationResponse) String() string {
 func (*AttestationResponse) ProtoMessage() {}
 
 func (x *AttestationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_cvms_cvms_proto_msgTypes[16]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +1320,7 @@ func (x *AttestationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttestationResponse.ProtoReflect.Descriptor instead.
 func (*AttestationResponse) Descriptor() ([]byte, []int) {
-	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{16}
+	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AttestationResponse) GetFile() []byte {
@@ -1219,7 +1347,7 @@ type AzureAttestationToken struct {
 
 func (x *AzureAttestationToken) Reset() {
 	*x = AzureAttestationToken{}
-	mi := &file_agent_cvms_cvms_proto_msgTypes[17]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +1359,7 @@ func (x *AzureAttestationToken) String() string {
 func (*AzureAttestationToken) ProtoMessage() {}
 
 func (x *AzureAttestationToken) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_cvms_cvms_proto_msgTypes[17]
+	mi := &file_agent_cvms_cvms_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +1372,7 @@ func (x *AzureAttestationToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AzureAttestationToken.ProtoReflect.Descriptor instead.
 func (*AzureAttestationToken) Descriptor() ([]byte, []int) {
-	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{17}
+	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AzureAttestationToken) GetFile() []byte {
@@ -1317,7 +1445,7 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\fRunReqChunks\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x17\n" +
-	"\ais_last\x18\x03 \x01(\bR\x06isLast\"\xaa\x02\n" +
+	"\ais_last\x18\x03 \x01(\bR\x06isLast\"\xcd\x02\n" +
 	"\x11ComputationRunReq\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1325,16 +1453,25 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\bdatasets\x18\x04 \x03(\v2\r.cvms.DatasetR\bdatasets\x12-\n" +
 	"\talgorithm\x18\x05 \x01(\v2\x0f.cvms.AlgorithmR\talgorithm\x12?\n" +
 	"\x10result_consumers\x18\x06 \x03(\v2\x14.cvms.ResultConsumerR\x0fresultConsumers\x124\n" +
-	"\fagent_config\x18\a \x01(\v2\x11.cvms.AgentConfigR\vagentConfig\"*\n" +
+	"\fagent_config\x18\a \x01(\v2\x11.cvms.AgentConfigR\vagentConfig\x12!\n" +
+	"\x03kbs\x18\b \x01(\v2\x0f.cvms.KBSConfigR\x03kbs\"*\n" +
 	"\x0eResultConsumer\x12\x18\n" +
-	"\auserKey\x18\x01 \x01(\fR\auserKey\"S\n" +
+	"\auserKey\x18\x01 \x01(\fR\auserKey\"y\n" +
 	"\aDataset\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12\x1a\n" +
-	"\bfilename\x18\x03 \x01(\tR\bfilename\"9\n" +
+	"\bfilename\x18\x03 \x01(\tR\bfilename\x12$\n" +
+	"\x06source\x18\x04 \x01(\v2\f.cvms.SourceR\x06source\"_\n" +
 	"\tAlgorithm\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
-	"\auserKey\x18\x02 \x01(\fR\auserKey\"\xe5\x01\n" +
+	"\auserKey\x18\x02 \x01(\fR\auserKey\x12$\n" +
+	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\"F\n" +
+	"\x06Source\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12*\n" +
+	"\x11kbs_resource_path\x18\x02 \x01(\tR\x0fkbsResourcePath\"7\n" +
+	"\tKBSConfig\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\"\xe5\x01\n" +
 	"\vAgentConfig\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\tR\x04port\x12\x1b\n" +
 	"\tcert_file\x18\x02 \x01(\tR\bcertFile\x12\x19\n" +
@@ -1364,7 +1501,7 @@ func file_agent_cvms_cvms_proto_rawDescGZIP() []byte {
 	return file_agent_cvms_cvms_proto_rawDescData
 }
 
-var file_agent_cvms_cvms_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_agent_cvms_cvms_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_agent_cvms_cvms_proto_goTypes = []any{
 	(*AgentStateReq)(nil),           // 0: cvms.AgentStateReq
 	(*AgentStateRes)(nil),           // 1: cvms.AgentStateRes
@@ -1381,21 +1518,23 @@ var file_agent_cvms_cvms_proto_goTypes = []any{
 	(*ResultConsumer)(nil),          // 12: cvms.ResultConsumer
 	(*Dataset)(nil),                 // 13: cvms.Dataset
 	(*Algorithm)(nil),               // 14: cvms.Algorithm
-	(*AgentConfig)(nil),             // 15: cvms.AgentConfig
-	(*AttestationResponse)(nil),     // 16: cvms.AttestationResponse
-	(*AzureAttestationToken)(nil),   // 17: cvms.azureAttestationToken
-	(*timestamppb.Timestamp)(nil),   // 18: google.protobuf.Timestamp
+	(*Source)(nil),                  // 15: cvms.Source
+	(*KBSConfig)(nil),               // 16: cvms.KBSConfig
+	(*AgentConfig)(nil),             // 17: cvms.AgentConfig
+	(*AttestationResponse)(nil),     // 18: cvms.AttestationResponse
+	(*AzureAttestationToken)(nil),   // 19: cvms.azureAttestationToken
+	(*timestamppb.Timestamp)(nil),   // 20: google.protobuf.Timestamp
 }
 var file_agent_cvms_cvms_proto_depIdxs = []int32{
-	18, // 0: cvms.AgentEvent.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 1: cvms.AgentLog.timestamp:type_name -> google.protobuf.Timestamp
+	20, // 0: cvms.AgentEvent.timestamp:type_name -> google.protobuf.Timestamp
+	20, // 1: cvms.AgentLog.timestamp:type_name -> google.protobuf.Timestamp
 	6,  // 2: cvms.ClientStreamMessage.agent_log:type_name -> cvms.AgentLog
 	5,  // 3: cvms.ClientStreamMessage.agent_event:type_name -> cvms.AgentEvent
 	4,  // 4: cvms.ClientStreamMessage.run_res:type_name -> cvms.RunResponse
 	3,  // 5: cvms.ClientStreamMessage.stopComputationRes:type_name -> cvms.StopComputationResponse
 	1,  // 6: cvms.ClientStreamMessage.agentStateRes:type_name -> cvms.AgentStateRes
-	16, // 7: cvms.ClientStreamMessage.vTPMattestationReport:type_name -> cvms.AttestationResponse
-	17, // 8: cvms.ClientStreamMessage.azureAttestationToken:type_name -> cvms.azureAttestationToken
+	18, // 7: cvms.ClientStreamMessage.vTPMattestationReport:type_name -> cvms.AttestationResponse
+	19, // 8: cvms.ClientStreamMessage.azureAttestationToken:type_name -> cvms.azureAttestationToken
 	10, // 9: cvms.ServerStreamMessage.runReqChunks:type_name -> cvms.RunReqChunks
 	11, // 10: cvms.ServerStreamMessage.runReq:type_name -> cvms.ComputationRunReq
 	2,  // 11: cvms.ServerStreamMessage.stopComputation:type_name -> cvms.StopComputation
@@ -1404,14 +1543,17 @@ var file_agent_cvms_cvms_proto_depIdxs = []int32{
 	13, // 14: cvms.ComputationRunReq.datasets:type_name -> cvms.Dataset
 	14, // 15: cvms.ComputationRunReq.algorithm:type_name -> cvms.Algorithm
 	12, // 16: cvms.ComputationRunReq.result_consumers:type_name -> cvms.ResultConsumer
-	15, // 17: cvms.ComputationRunReq.agent_config:type_name -> cvms.AgentConfig
-	7,  // 18: cvms.Service.Process:input_type -> cvms.ClientStreamMessage
-	8,  // 19: cvms.Service.Process:output_type -> cvms.ServerStreamMessage
-	19, // [19:20] is the sub-list for method output_type
-	18, // [18:19] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	17, // 17: cvms.ComputationRunReq.agent_config:type_name -> cvms.AgentConfig
+	16, // 18: cvms.ComputationRunReq.kbs:type_name -> cvms.KBSConfig
+	15, // 19: cvms.Dataset.source:type_name -> cvms.Source
+	15, // 20: cvms.Algorithm.source:type_name -> cvms.Source
+	7,  // 21: cvms.Service.Process:input_type -> cvms.ClientStreamMessage
+	8,  // 22: cvms.Service.Process:output_type -> cvms.ServerStreamMessage
+	22, // [22:23] is the sub-list for method output_type
+	21, // [21:22] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_agent_cvms_cvms_proto_init() }
@@ -1441,7 +1583,7 @@ func file_agent_cvms_cvms_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_cvms_cvms_proto_rawDesc), len(file_agent_cvms_cvms_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

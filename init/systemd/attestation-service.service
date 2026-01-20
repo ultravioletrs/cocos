@@ -12,8 +12,8 @@ Environment=ATTESTATION_LOG_LEVEL=debug
 Environment=ATTESTATION_SERVICE_SOCKET=/run/cocos/attestation.sock
 Environment=ATTESTATION_VMPL=2
 Environment=ATTESTATION_EAT_FORMAT=CBOR
-# Enable CC Attestation-Agent backend
-Environment=USE_CC_ATTESTATION_AGENT=true
+# CC Attestation-Agent backend (conditionally enabled by buildroot)
+Environment=USE_CC_ATTESTATION_AGENT=false
 Environment=CC_AGENT_ADDRESS=127.0.0.1:50002
 ExecStartPre=/cocos_init/attestation_setup.sh
 
