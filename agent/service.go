@@ -218,7 +218,7 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 	as.computation = cmp
 
 	// Debug: Log manifest details
-	as.logger.Debug("received computation manifest",
+	as.logger.Info("received computation manifest",
 		"computation_id", cmp.ID,
 		"kbs_enabled", cmp.KBS.Enabled,
 		"kbs_url", cmp.KBS.URL,
@@ -226,14 +226,22 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 		"dataset_count", len(cmp.Datasets))
 
 	if cmp.Algorithm.Source != nil {
-		as.logger.Debug("algorithm remote source configured",
+		as.logger.Info("algorithm remote source configured",
 			"url", cmp.Algorithm.Source.URL,
 			"kbs_resource_path", cmp.Algorithm.Source.KBSResourcePath)
+	} else {
+		as.logger.Info("algorithm remote source NOT configured - will wait for direct upload")
+	}
+
+	if cmp.KBS.Enabled {
+		as.logger.Info("KBS is ENABLED", "url", cmp.KBS.URL)
+	} else {
+		as.logger.Info("KBS is NOT ENABLED")
 	}
 
 	for i, d := range cmp.Datasets {
 		if d.Source != nil {
-			as.logger.Debug("dataset remote source configured",
+			as.logger.Info("dataset remote source configured",
 				"index", i,
 				"filename", d.Filename,
 				"url", d.Source.URL,
@@ -315,7 +323,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 	defer as.mu.Unlock()
 
 	// Debug: Log decision point
-	as.logger.Debug("checking if algorithm should be downloaded automatically",
+	as.logger.Info("checking if algorithm should be downloaded automatically",
 		"algo_has_source", as.computation.Algorithm.Source != nil,
 		"kbs_enabled", as.computation.KBS.Enabled)
 
@@ -391,7 +399,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		as.sm.SendEvent(AlgorithmReceived)
 	} else {
 		// If no remote source, do nothing - wait for direct upload via Algo() RPC call
-		as.logger.Debug("algorithm automatic download not triggered, waiting for direct upload",
+		as.logger.Info("algorithm automatic download not triggered, waiting for direct upload",
 			"reason", "no remote source or KBS not enabled")
 	}
 }
