@@ -22,13 +22,17 @@ const (
 )
 
 var (
-	agentCVMServerUrl string
-	agentCVMServerCA  string
-	agentCVMClientKey string
-	agentCVMClientCrt string
-	agentCVMCaUrl     string
-	agentLogLevel     string
-	ttl               time.Duration
+	agentCVMServerUrl  string
+	agentCVMServerCA   string
+	agentCVMClientKey  string
+	agentCVMClientCrt  string
+	agentCVMCaUrl      string
+	agentLogLevel      string
+	ttl                time.Duration
+	awsAccessKeyId     string
+	awsSecretAccessKey string
+	awsEndpointUrl     string
+	awsRegion          string
 )
 
 func (c *CLI) NewCreateVMCmd() *cobra.Command {
@@ -55,6 +59,10 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 			createReq.AgentCvmServerUrl = agentCVMServerUrl
 			createReq.AgentLogLevel = agentLogLevel
 			createReq.AgentCvmCaUrl = agentCVMCaUrl
+			createReq.AwsAccessKeyId = awsAccessKeyId
+			createReq.AwsSecretAccessKey = awsSecretAccessKey
+			createReq.AwsEndpointUrl = awsEndpointUrl
+			createReq.AwsRegion = awsRegion
 
 			if ttl > 0 {
 				createReq.Ttl = ttl.String()
@@ -79,6 +87,10 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().StringVar(&agentCVMCaUrl, caUrl, "", "CVM CA service URL")
 	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
 	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
+	cmd.Flags().StringVar(&awsAccessKeyId, "aws-access-key-id", "", "AWS Access Key ID for S3/MinIO")
+	cmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key for S3/MinIO")
+	cmd.Flags().StringVar(&awsEndpointUrl, "aws-endpoint-url", "", "AWS Endpoint URL (for MinIO or custom S3)")
+	cmd.Flags().StringVar(&awsRegion, "aws-region", "", "AWS Region")
 	if err := cmd.MarkFlagRequired(serverURL); err != nil {
 		printError(cmd, "Error marking flag as required: %v ❌ ", err)
 		return cmd

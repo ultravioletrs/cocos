@@ -2,6 +2,7 @@ config BR2_PACKAGE_CC_ATTESTATION_AGENT
 	bool "cc-attestation-agent"
 	select BR2_PACKAGE_PROTOBUF
 	select BR2_PACKAGE_OPENSSL
+	select BR2_PACKAGE_TPM2_TSS
 	help
 	  Confidential Containers attestation-agent for TEE attestation.
 	  

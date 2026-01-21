@@ -36,6 +36,10 @@ const (
 	agentCvmId              = "AGENT_CVM_ID"
 	agentCaToken            = "AGENT_CERTS_TOKEN"
 	agentCvmCaUrl           = "AGENT_CVM_CA_URL"
+	awsAccessKeyIdKey       = "AWS_ACCESS_KEY_ID"
+	awsSecretAccessKeyKey   = "AWS_SECRET_ACCESS_KEY"
+	awsEndpointUrlKey       = "AWS_ENDPOINT_URL"
+	awsRegionKey            = "AWS_REGION"
 	defClientCertPath       = "/etc/certs/cert.pem"
 	defClientKeyPath        = "/etc/certs/key.pem"
 	defServerCaCertPath     = "/etc/certs/ca.pem"
@@ -458,6 +462,20 @@ func tmpEnvironment(id string, req *CreateReq) (string, error) {
 	}
 	if req.AgentCvmServerCaCert != nil {
 		envMap[agentCvmServerCaCertKey] = defServerCaCertPath
+	}
+
+	// Add AWS credentials if provided
+	if req.AwsAccessKeyId != "" {
+		envMap[awsAccessKeyIdKey] = req.AwsAccessKeyId
+	}
+	if req.AwsSecretAccessKey != "" {
+		envMap[awsSecretAccessKeyKey] = req.AwsSecretAccessKey
+	}
+	if req.AwsEndpointUrl != "" {
+		envMap[awsEndpointUrlKey] = req.AwsEndpointUrl
+	}
+	if req.AwsRegion != "" {
+		envMap[awsRegionKey] = req.AwsRegion
 	}
 
 	envFile, err := os.OpenFile(fmt.Sprintf("%s/%s", dir, cvmEnvironmentFile), os.O_CREATE|os.O_WRONLY, 0o644)

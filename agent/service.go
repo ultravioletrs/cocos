@@ -181,8 +181,8 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, atte
 		sm.AddTransition(t)
 	}
 
-	sm.SetAction(ReceivingAlgorithm, svc.publishEvent(InProgress.String()))
-	sm.SetAction(ReceivingData, svc.publishEvent(InProgress.String()))
+	sm.SetAction(ReceivingAlgorithm, svc.downloadAlgorithmIfRemote)
+	sm.SetAction(ReceivingData, svc.downloadDatasetsIfRemote)
 	sm.SetAction(Running, svc.runComputation)
 	sm.SetAction(ConsumingResults, svc.publishEvent(Ready.String()))
 	sm.SetAction(Complete, svc.publishEvent(Completed.String()))
@@ -280,6 +280,165 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 	time.Sleep(100 * time.Millisecond)
 
 	return nil
+}
+
+// downloadAlgorithmIfRemote automatically downloads the algorithm if it has a remote source.
+// This is called as an action when entering the ReceivingAlgorithm state.
+func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
+	as.publishEvent(InProgress.String())(state)
+
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
+		as.logger.Info("downloading algorithm from remote source")
+
+		// Use background context for download operation
+		ctx := context.Background()
+
+		downloadedData, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source)
+		if err != nil {
+			as.logger.Error("failed to download and decrypt algorithm", "error", err)
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		// Verify hash
+		hash := sha3.Sum256(downloadedData)
+		if hash != as.computation.Algorithm.Hash {
+			as.logger.Error("algorithm hash mismatch")
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		// Write algorithm to file
+		currentDir, err := os.Getwd()
+		if err != nil {
+			as.logger.Error("error getting current directory", "error", err)
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		f, err := os.Create(filepath.Join(currentDir, "algo"))
+		if err != nil {
+			as.logger.Error("error creating algorithm file", "error", err)
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if _, err := f.Write(downloadedData); err != nil {
+			as.logger.Error("error writing algorithm to file", "error", err)
+			f.Close()
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
+			as.logger.Error("error changing file permissions", "error", err)
+			f.Close()
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if err := f.Close(); err != nil {
+			as.logger.Error("error closing file", "error", err)
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		as.algoReceived = true
+
+		// Create datasets directory
+		if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+			as.logger.Error("error creating datasets directory", "error", err)
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		as.logger.Info("algorithm downloaded and saved successfully")
+		as.sm.SendEvent(AlgorithmReceived)
+	}
+	// If no remote source, do nothing - wait for direct upload via Algo() RPC call
+}
+
+// downloadDatasetsIfRemote automatically downloads datasets that have remote sources.
+// This is called as an action when entering the ReceivingData state.
+func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
+	as.publishEvent(InProgress.String())(state)
+
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	// Check if any datasets should be downloaded from remote sources
+	hasRemoteDatasets := false
+	for _, d := range as.computation.Datasets {
+		if d.Source != nil && as.computation.KBS.Enabled {
+			hasRemoteDatasets = true
+			break
+		}
+	}
+
+	if !hasRemoteDatasets {
+		// No remote datasets, wait for direct uploads via Data() RPC calls
+		return
+	}
+
+	// Download all remote datasets
+	ctx := context.Background()
+	for i := len(as.computation.Datasets) - 1; i >= 0; i-- {
+		d := as.computation.Datasets[i]
+		if d.Source != nil && as.computation.KBS.Enabled {
+			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
+
+			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source)
+			if err != nil {
+				as.logger.Error("failed to download and decrypt dataset", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Verify hash
+			hash := sha3.Sum256(downloadedData)
+			if hash != d.Hash {
+				as.logger.Error("dataset hash mismatch", "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Write dataset to file
+			f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, d.Filename))
+			if err != nil {
+				as.logger.Error("error creating dataset file", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			if _, err := f.Write(downloadedData); err != nil {
+				as.logger.Error("error writing dataset to file", "error", err, "filename", d.Filename)
+				f.Close()
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			if err := f.Close(); err != nil {
+				as.logger.Error("error closing file", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Remove from pending datasets
+			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
+			as.logger.Info("dataset downloaded and saved successfully", "filename", d.Filename)
+		}
+	}
+
+	// If all datasets are downloaded, send DataReceived event
+	if len(as.computation.Datasets) == 0 {
+		as.logger.Info("all datasets downloaded successfully")
+		as.sm.SendEvent(DataReceived)
+	}
+	// Otherwise, wait for remaining datasets to be uploaded via Data() RPC calls
 }
 
 // downloadAndDecryptResource downloads an encrypted resource from a registry and decrypts it using KBS.

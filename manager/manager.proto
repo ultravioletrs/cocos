@@ -25,6 +25,10 @@ message CreateReq{
   string agent_cvm_ca_url = 6;
   string ttl = 7;
   string agent_certs_token = 8;
+  string aws_access_key_id = 9;
+  string aws_secret_access_key = 10;
+  string aws_endpoint_url = 11;
+  string aws_region = 12;
 }
 
 message CreateRes{
