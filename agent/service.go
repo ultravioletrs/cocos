@@ -217,6 +217,30 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 
 	as.computation = cmp
 
+	// Debug: Log manifest details
+	as.logger.Debug("received computation manifest",
+		"computation_id", cmp.ID,
+		"kbs_enabled", cmp.KBS.Enabled,
+		"kbs_url", cmp.KBS.URL,
+		"algo_has_source", cmp.Algorithm.Source != nil,
+		"dataset_count", len(cmp.Datasets))
+
+	if cmp.Algorithm.Source != nil {
+		as.logger.Debug("algorithm remote source configured",
+			"url", cmp.Algorithm.Source.URL,
+			"kbs_resource_path", cmp.Algorithm.Source.KBSResourcePath)
+	}
+
+	for i, d := range cmp.Datasets {
+		if d.Source != nil {
+			as.logger.Debug("dataset remote source configured",
+				"index", i,
+				"filename", d.Filename,
+				"url", d.Source.URL,
+				"kbs_resource_path", d.Source.KBSResourcePath)
+		}
+	}
+
 	transitions := []statemachine.Transition{}
 
 	if len(cmp.Datasets) == 0 {
@@ -290,9 +314,16 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 	as.mu.Lock()
 	defer as.mu.Unlock()
 
+	// Debug: Log decision point
+	as.logger.Debug("checking if algorithm should be downloaded automatically",
+		"algo_has_source", as.computation.Algorithm.Source != nil,
+		"kbs_enabled", as.computation.KBS.Enabled)
+
 	// Check if algorithm should be downloaded from remote source
 	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
-		as.logger.Info("downloading algorithm from remote source")
+		as.logger.Info("downloading algorithm from remote source",
+			"url", as.computation.Algorithm.Source.URL,
+			"kbs_resource_path", as.computation.Algorithm.Source.KBSResourcePath)
 
 		// Use background context for download operation
 		ctx := context.Background()
@@ -358,8 +389,11 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 
 		as.logger.Info("algorithm downloaded and saved successfully")
 		as.sm.SendEvent(AlgorithmReceived)
+	} else {
+		// If no remote source, do nothing - wait for direct upload via Algo() RPC call
+		as.logger.Debug("algorithm automatic download not triggered, waiting for direct upload",
+			"reason", "no remote source or KBS not enabled")
 	}
-	// If no remote source, do nothing - wait for direct upload via Algo() RPC call
 }
 
 // downloadDatasetsIfRemote automatically downloads datasets that have remote sources.
