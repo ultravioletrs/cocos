@@ -9,7 +9,7 @@ CC_ATTESTATION_AGENT_SITE = $(call github,confidential-containers,guest-componen
 CC_ATTESTATION_AGENT_LICENSE = Apache-2.0
 CC_ATTESTATION_AGENT_LICENSE_FILES = LICENSE
 
-CC_ATTESTATION_AGENT_DEPENDENCIES = host-rustc openssl protobuf
+CC_ATTESTATION_AGENT_DEPENDENCIES = host-rustc openssl protobuf tpm2-tss
 
 # Build the attestation-agent from the guest-components repository with gRPC support
 define CC_ATTESTATION_AGENT_BUILD_CMDS

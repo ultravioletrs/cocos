@@ -132,7 +132,7 @@ cp /usr/share/OVMF/OVMF_VARS.fd .
 mkdir env
 mkdir certs
 
-# Enter the env directory and create the environemnt file.
+# Enter the env directory and create the environment file.
 cd env
 touch environment
 
@@ -141,6 +141,16 @@ touch environment
 echo AGENT_CVM_GRPC_URL=localhost:7001 >> ./environment
 # Define log level for the agent.
 echo AGENT_LOG_LEVEL=debug >> ./environment
+
+# Optional: Add AWS/S3 credentials for remote resource access
+# NOTE: AWS credentials can also be passed via the CreateVM API using CLI flags
+# (--aws-access-key-id, --aws-secret-access-key, --aws-endpoint-url, --aws-region)
+# If using the API approach, you don't need to add them to this file.
+# Replace HOST_IP with your host machine IP address (not localhost)
+echo AWS_ACCESS_KEY_ID=minioadmin >> ./environment
+echo AWS_SECRET_ACCESS_KEY=minioadmin >> ./environment
+echo AWS_ENDPOINT_URL=http://HOST_IP:9000 >> ./environment
+echo AWS_REGION=us-east-1 >> ./environment
 
 # Return to cmd/manager
 cd ..
