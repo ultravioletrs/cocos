@@ -340,7 +340,8 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 
 		downloadedData, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source)
 		if err != nil {
-			as.logger.Error("failed to download and decrypt algorithm", "error", err)
+			as.runError = fmt.Errorf("failed to download and decrypt algorithm: %w", err)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
@@ -348,7 +349,8 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		// Verify hash
 		hash := sha3.Sum256(downloadedData)
 		if hash != as.computation.Algorithm.Hash {
-			as.logger.Error("algorithm hash mismatch")
+			as.runError = fmt.Errorf("algorithm hash mismatch: expected %x, got %x", as.computation.Algorithm.Hash, hash)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
@@ -356,34 +358,39 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		// Write algorithm to file
 		currentDir, err := os.Getwd()
 		if err != nil {
-			as.logger.Error("error getting current directory", "error", err)
+			as.runError = fmt.Errorf("error getting current directory: %w", err)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
 
 		f, err := os.Create(filepath.Join(currentDir, "algo"))
 		if err != nil {
-			as.logger.Error("error creating algorithm file", "error", err)
+			as.runError = fmt.Errorf("error creating algorithm file: %w", err)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
 
 		if _, err := f.Write(downloadedData); err != nil {
-			as.logger.Error("error writing algorithm to file", "error", err)
+			as.runError = fmt.Errorf("error writing algorithm to file: %w", err)
+			as.logger.Error(as.runError.Error())
 			f.Close()
 			as.sm.SendEvent(RunFailed)
 			return
 		}
 
 		if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
-			as.logger.Error("error changing file permissions", "error", err)
+			as.runError = fmt.Errorf("error changing file permissions: %w", err)
+			as.logger.Error(as.runError.Error())
 			f.Close()
 			as.sm.SendEvent(RunFailed)
 			return
 		}
 
 		if err := f.Close(); err != nil {
-			as.logger.Error("error closing file", "error", err)
+			as.runError = fmt.Errorf("error closing file: %w", err)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
@@ -392,7 +399,8 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 
 		// Create datasets directory
 		if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
-			as.logger.Error("error creating datasets directory", "error", err)
+			as.runError = fmt.Errorf("error creating datasets directory: %w", err)
+			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
 		}
@@ -525,15 +533,26 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// 2. Get TEE evidence from attestation-agent
 	as.logger.Info("getting TEE evidence for attestation")
 
+	// Auto-detect the platform type
+	platform := attestation.CCPlatform()
+	as.logger.Info("detected platform type", "platform", platform)
+
 	var reportData [64]byte
 	var nonce [32]byte
 
 	// Use computation ID as report data
 	copy(reportData[:], []byte(as.computation.ID))
 
-	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attestation.SNP)
+	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, platform)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
+		return nil, fmt.Errorf("failed to get attestation evidence (platform: %v): %w", platform, err)
+	}
+
+	// Check if running in non-TEE environment
+	if platform == attestation.NoCC {
+		as.logger.Warn("running in non-TEE environment - KBS may reject attestation",
+			"platform", "NoCC",
+			"recommendation", "use real TEE (SNP/TDX) or configure KBS to accept sample attestations for testing")
 	}
 
 	// 3. Attest with KBS and get token
