@@ -172,6 +172,8 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, atte
 	}
 
 	transitions = append(transitions, []statemachine.Transition{
+		{From: ReceivingAlgorithm, Event: RunFailed, To: Failed},
+		{From: ReceivingData, Event: RunFailed, To: Failed},
 		{From: Running, Event: RunComplete, To: ConsumingResults},
 		{From: Running, Event: RunFailed, To: Failed},
 		{From: ConsumingResults, Event: ResultsConsumed, To: Complete},
