@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -38,16 +40,26 @@ func (s *service) FetchRawEvidence(ctx context.Context, req *attestationpb.Attes
 		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Generating sample attestation: reportData_len=%d, nonce_len=%d",
 			len(req.ReportData), len(req.Nonce)))
 
-		// Create a simple sample report that includes the nonce/report data
 		var reportData [64]byte
 		copy(reportData[:], req.ReportData)
-		var nonce [32]byte
-		copy(nonce[:], req.Nonce)
 
-		// Combine report data and nonce into a simple binary report
-		binaryReport = make([]byte, 0, 96)
-		binaryReport = append(binaryReport, reportData[:]...)
-		binaryReport = append(binaryReport, nonce[:]...)
+		// Create Sample Quote structure expected by KBS Sample Verifier
+		// Must be JSON with "svn" and "report_data" (base64)
+		type SampleQuote struct {
+			Svn        string `json:"svn"`
+			ReportData string `json:"report_data"`
+		}
+
+		quote := SampleQuote{
+			Svn:        "1",
+			ReportData: base64.StdEncoding.EncodeToString(reportData[:]),
+		}
+
+		binaryReport, err = json.Marshal(quote)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal sample quote: %w", err)
+		}
+
 		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Sample attestation generated: binaryReport_len=%d",
 			len(binaryReport)))
 	default:
