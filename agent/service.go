@@ -533,6 +533,26 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// 2. Get TEE evidence for KBS attestation
 	as.logger.Info("getting TEE evidence for KBS attestation")
 
+	// Initialize KBS client first to get the challenge (nonce)
+	as.logger.Info("initiating KBS attestation handshake", "kbs_url", as.computation.KBS.URL)
+	kbsClient := kbs.NewClient(kbs.Config{
+		URL:     as.computation.KBS.URL,
+		Timeout: 30 * time.Second,
+	})
+
+	// Start RCAR handshake - get nonce and establish session cookie
+	nonceStr, err := kbsClient.GetChallenge(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KBS challenge: %w", err)
+	}
+	as.logger.Info("received KBS challenge nonce")
+
+	// Decode nonce for Attestation Service
+	nonceBytes, err := base64.StdEncoding.DecodeString(nonceStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode KBS nonce: %w", err)
+	}
+
 	// Auto-detect the platform type
 	platform := attestation.CCPlatform()
 	as.logger.Info("detected platform type", "platform", platform)
@@ -542,6 +562,8 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	// Use computation ID as report data
 	copy(reportData[:], []byte(as.computation.ID))
+	// Use KBS provided nonce
+	copy(nonce[:], nonceBytes)
 
 	var kbsEvidence []byte
 
@@ -574,15 +596,10 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	as.logger.Info("evidence prepared for KBS", "kbs_evidence_len", len(kbsEvidence))
 
 	// 3. Attest with KBS and get token
-	as.logger.Info("attesting with KBS", "kbs_url", as.computation.KBS.URL)
-
-	kbsClient := kbs.NewClient(kbs.Config{
-		URL:     as.computation.KBS.URL,
-		Timeout: 30 * time.Second,
-	})
+	as.logger.Info("attesting with KBS")
 
 	runtimeData := kbs.RuntimeData{
-		Nonce: base64.StdEncoding.EncodeToString(nonce[:]),
+		Nonce: nonceStr,
 	}
 
 	token, err := kbsClient.Attest(ctx, kbsEvidence, runtimeData)
