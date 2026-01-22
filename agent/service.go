@@ -545,16 +545,33 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	var kbsEvidence []byte
 
-	if platform == attestation.NoCC {
-		as.logger.Info("creating JSON sample evidence for KBS (NoCC platform)")
-	}
-	var evidence []byte
-	evidence, err = as.attestationClient.GetRawEvidence(ctx, reportData, nonce, platform)
+	// Get raw binary evidence from attestation service
+	evidence, err := as.attestationClient.GetRawEvidence(ctx, reportData, nonce, platform)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
 	}
-	kbsEvidence = evidence
-	as.logger.Info("attestation evidence received from service", "evidence_len", len(evidence))
+	as.logger.Info("raw binary evidence received from service", "evidence_len", len(evidence))
+
+	// KBS expects tee_evidence as JSON, so we need to wrap the binary evidence
+	// For NoCC/sample attestation, create a JSON structure
+	if platform == attestation.NoCC {
+		as.logger.Info("wrapping binary evidence in JSON for KBS (NoCC platform)")
+		evidenceJSON := map[string]interface{}{
+			"tee":      "sample",
+			"evidence": base64.StdEncoding.EncodeToString(evidence),
+			"platform": "NoCC",
+		}
+		kbsEvidence, err = json.Marshal(evidenceJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal evidence to JSON: %w", err)
+		}
+	} else {
+		// For real TEE platforms, the evidence might already be in the correct format
+		// or may need different handling - for now just use it as-is
+		kbsEvidence = evidence
+	}
+
+	as.logger.Info("evidence prepared for KBS", "kbs_evidence_len", len(kbsEvidence))
 
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS", "kbs_url", as.computation.KBS.URL)
