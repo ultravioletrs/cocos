@@ -50,27 +50,27 @@ type RuntimeData struct {
 	// Nonce from KBS challenge
 	Nonce string `json:"nonce"`
 	// TEEPubKey is the TEE public key
-	TEEPubKey string `json:"tee_pubkey,omitempty"`
+	TEEPubKey string `json:"tee-pubkey,omitempty"`
 }
 
 // AuthRequest is the request to initiate attestation.
 type AuthRequest struct {
-	Version     string `json:"version"`
-	TEE         string `json:"tee"`
-	ExtraParams string `json:"extra_params"`
+	Version     string      `json:"version"`
+	TEE         string      `json:"tee"`
+	ExtraParams interface{} `json:"extra-params"`
 }
 
 // AuthResponse is the response from KBS auth endpoint.
 type AuthResponse struct {
-	Nonce       string `json:"nonce"`
-	ExtraParams string `json:"extra_params,omitempty"`
+	Nonce       string      `json:"nonce"`
+	ExtraParams interface{} `json:"extra-params,omitempty"`
 }
 
 // AttestRequest is the request to submit evidence.
 type AttestRequest struct {
-	TEEEvidence json.RawMessage `json:"tee_evidence"`
-	RuntimeData RuntimeData     `json:"runtime_data"`
-	InitData    *string         `json:"init_data,omitempty"`
+	TEEEvidence json.RawMessage `json:"tee-evidence"`
+	RuntimeData RuntimeData     `json:"runtime-data"`
+	InitData    *string         `json:"init-data,omitempty"`
 }
 
 // AttestResponse is the response from KBS attest endpoint.
@@ -106,8 +106,9 @@ func (c *kbsClient) GetChallenge(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/kbs/v0/auth", c.config.URL)
 
 	authReq := AuthRequest{
-		Version: "0.1.0",
-		TEE:     "sample", // Initial handshake can be generic or specific
+		Version:     "0.1.0",
+		TEE:         "sample",
+		ExtraParams: map[string]interface{}{}, // KBS expects an object
 	}
 
 	reqBody, err := json.Marshal(authReq)
