@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-INGRESS_PROXY_VERSION = pull-mode
+INGRESS_PROXY_VERSION = c28cefae0a5b51024a1c08e50e460e21866edcf6
 INGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(INGRESS_PROXY_VERSION))
 
 define INGRESS_PROXY_BUILD_CMDS

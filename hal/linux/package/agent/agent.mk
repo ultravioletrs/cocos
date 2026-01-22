@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-AGENT_VERSION = pull-mode
+AGENT_VERSION = c28cefae0a5b51024a1c08e50e460e21866edcf6
 AGENT_SITE = $(call github,sammyoina,cocos-ai,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS

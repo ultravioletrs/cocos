@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-COMPUTATION_RUNNER_VERSION = pull-mode
+COMPUTATION_RUNNER_VERSION = c28cefae0a5b51024a1c08e50e460e21866edcf6
 COMPUTATION_RUNNER_SITE = $(call github,sammyoina,cocos-ai,$(COMPUTATION_RUNNER_VERSION))
 
 define COMPUTATION_RUNNER_BUILD_CMDS
