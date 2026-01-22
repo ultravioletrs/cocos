@@ -587,12 +587,20 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 		"evidence_string_preview", string(evidence[:previewLen]))
 
 	// KBS expects tee_evidence as JSON, so we need to wrap the binary evidence
-	// For NoCC/sample attestation, create a JSON structure
+	// For NoCC/sample attestation, the evidence is already JSON from the AA sample attester
 	if platform == attestation.NoCC {
 		as.logger.Info("wrapping binary evidence in JSON for KBS (NoCC platform)")
+
+		// Parse the JSON evidence from the attestation service
+		// It should be: {"svn":"1","report_data":"base64..."}
+		var sampleQuote map[string]interface{}
+		if err := json.Unmarshal(evidence, &sampleQuote); err != nil {
+			return nil, fmt.Errorf("failed to parse sample evidence JSON: %w", err)
+		}
+
 		primaryEvidence := map[string]interface{}{
 			"tee":      "sample",
-			"evidence": base64.StdEncoding.EncodeToString(evidence),
+			"evidence": sampleQuote, // Use the parsed JSON directly, not base64-encoded
 			"platform": "NoCC",
 		}
 		teeEvidenceMap := map[string]interface{}{
