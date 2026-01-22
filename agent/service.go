@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"crypto/ecdh"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -25,7 +26,6 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
-	attestation_agent "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation-agent"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
 	"github.com/ultravioletrs/cocos/pkg/crypto"
 	"github.com/ultravioletrs/cocos/pkg/kbs"
@@ -530,34 +530,52 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	as.logger.Info("resource downloaded", "size", len(encData))
 
-	// 2. Get KBS token from attestation-agent
-	// The CC attestation-agent handles the entire flow: evidence generation, KBS attestation, and token retrieval
-	as.logger.Info("getting KBS token from attestation-agent", "kbs_url", as.computation.KBS.URL)
+	// 2. Get TEE evidence from our attestation service
+	as.logger.Info("getting TEE evidence for KBS attestation")
 
-	// Note: The attestation-agent needs to be configured with KBS URL via environment variable or config
-	// For now, we'll use the GetToken API which handles everything internally
-	aaClient, err := attestation_agent.NewClient("/run/confidential-containers/attestation-agent/attestation-agent.sock")
+	// Auto-detect the platform type
+	platform := attestation.CCPlatform()
+	as.logger.Info("detected platform type", "platform", platform)
+
+	var reportData [64]byte
+	var nonce [32]byte
+
+	// Use computation ID as report data
+	copy(reportData[:], []byte(as.computation.ID))
+
+	// Get attestation evidence from our attestation service
+	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, platform)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to attestation-agent: %w", err)
-	}
-	defer aaClient.Close()
-
-	token, err := aaClient.GetToken(ctx, "kbs")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get KBS token from attestation-agent: %w", err)
+		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
 	}
 
-	as.logger.Info("KBS token received from attestation-agent", "token_len", len(token))
+	as.logger.Info("attestation evidence received", "evidence_len", len(evidence))
 
-	// 3. Get decryption key from KBS using the token
-	as.logger.Info("retrieving decryption key", "resource_path", source.KBSResourcePath)
+	// 3. Attest with KBS and get token
+	as.logger.Info("attesting with KBS", "kbs_url", as.computation.KBS.URL)
 
 	kbsClient := kbs.NewClient(kbs.Config{
 		URL:     as.computation.KBS.URL,
 		Timeout: 30 * time.Second,
 	})
 
-	keyData, err := kbsClient.GetResource(ctx, string(token), source.KBSResourcePath)
+	// KBS expects the evidence as JSON in the tee_evidence field
+	// Our attestation service returns evidence that needs to be wrapped
+	runtimeData := kbs.RuntimeData{
+		Nonce: base64.StdEncoding.EncodeToString(nonce[:]),
+	}
+
+	token, err := kbsClient.Attest(ctx, evidence, runtimeData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to attest with KBS: %w", err)
+	}
+
+	as.logger.Info("KBS attestation successful, token received")
+
+	// 4. Get decryption key from KBS using the token
+	as.logger.Info("retrieving decryption key", "resource_path", source.KBSResourcePath)
+
+	keyData, err := kbsClient.GetResource(ctx, token, source.KBSResourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource from KBS: %w", err)
 	}
