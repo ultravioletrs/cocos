@@ -543,16 +543,19 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// Use computation ID as report data
 	copy(reportData[:], []byte(as.computation.ID))
 
-	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, platform)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attestation evidence (platform: %v): %w", platform, err)
+	var evidence []byte
+
+	// Warn if running in non-TEE environment
+	if platform == attestation.NoCC {
+		as.logger.Warn("running in non-TEE environment - will use sample attester",
+			"platform", "NoCC",
+			"recommendation", "configure KBS to accept sample attestations for testing, or use real TEE (SNP/TDX) for production")
 	}
 
-	// Check if running in non-TEE environment
-	if platform == attestation.NoCC {
-		as.logger.Warn("running in non-TEE environment - KBS may reject attestation",
-			"platform", "NoCC",
-			"recommendation", "use real TEE (SNP/TDX) or configure KBS to accept sample attestations for testing")
+	// Call attestation-agent (will use sample attester for NoCC/UNSPECIFIED platform)
+	evidence, err = as.attestationClient.GetAttestation(ctx, reportData, nonce, platform)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation evidence (platform: %v): %w", platform, err)
 	}
 
 	// 3. Attest with KBS and get token
