@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -575,7 +576,15 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
 	}
-	as.logger.Info("raw binary evidence received from service", "evidence_len", len(evidence))
+	// Debug: Show raw evidence details
+	previewLen := len(evidence)
+	if previewLen > 200 {
+		previewLen = 200
+	}
+	as.logger.Info("raw binary evidence received from service",
+		"evidence_len", len(evidence),
+		"evidence_hex_preview", hex.EncodeToString(evidence[:previewLen]),
+		"evidence_string_preview", string(evidence[:previewLen]))
 
 	// KBS expects tee_evidence as JSON, so we need to wrap the binary evidence
 	// For NoCC/sample attestation, create a JSON structure
@@ -611,7 +620,14 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 		}
 	}
 
-	as.logger.Info("evidence prepared for KBS", "kbs_evidence_len", len(kbsEvidence))
+	// Debug: Show KBS evidence details
+	previewLen = len(kbsEvidence)
+	if previewLen > 500 {
+		previewLen = 500
+	}
+	as.logger.Info("evidence prepared for KBS",
+		"kbs_evidence_len", len(kbsEvidence),
+		"kbs_evidence_preview", string(kbsEvidence[:previewLen]))
 
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS")
