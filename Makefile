@@ -21,7 +21,7 @@ define compile_service
 	-X 'github.com/absmach/supermq.Version=$(VERSION)' \
 	-X 'github.com/absmach/supermq.Commit=$(COMMIT)'" \
 	$(if $(filter 1,$(EMBED_ENABLED)),-tags "embed",) \
-	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
+	-o ${BUILD_DIR}/cocos-$(1) ./cmd/$(1)
 endef
 
 .PHONY: all $(SERVICES) $(ATTESTATION_POLICY) install clean
