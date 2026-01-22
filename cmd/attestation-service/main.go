@@ -130,6 +130,7 @@ func main() {
 	azure.InitializeDefaultMAAVars(azureConfig)
 
 	// Try to use CC attestation-agent if configured
+	logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] CC AA configuration: enabled=%v, address=%s", cfg.UseCCAttestationAgent, cfg.CCAgentAddress))
 	if cfg.UseCCAttestationAgent {
 		logger.Info(fmt.Sprintf("attempting to use CC attestation-agent at %s", cfg.CCAgentAddress))
 		ccProvider, err := ccaa.NewProvider(cfg.CCAgentAddress)
@@ -155,8 +156,16 @@ func main() {
 			provider = tdx.NewProvider()
 		case attestation.NoCC:
 			logger.Info("TEE device not found")
+			logger.Warn("[ATTESTATION-SERVICE] Falling back to EmptyProvider - CC AA should be used instead!")
 			provider = &attestation.EmptyProvider{}
 		}
+	}
+
+	// Log which provider is being used
+	if provider != nil {
+		logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Final provider selected: %T", provider))
+	} else {
+		logger.Error("[ATTESTATION-SERVICE] No provider configured!")
 	}
 
 	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
