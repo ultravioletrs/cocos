@@ -208,6 +208,10 @@ type service struct {
 }
 
 func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
+	// Debug: log incoming request
+	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Received attestation request with platform type: %v (%d)",
+		req.PlatformType, req.PlatformType))
+
 	var binaryReport []byte
 	var err error
 	var platformType attestation.PlatformType
@@ -231,6 +235,25 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 		copy(nonce[:], req.Nonce)
 		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
 		platformType = attestation.SNPvTPM
+	case attestationpb.PlatformType_PLATFORM_TYPE_UNSPECIFIED:
+		// Generate sample attestation for testing in non-TEE environments
+		s.logger.Warn("generating sample attestation for PLATFORM_TYPE_UNSPECIFIED - this should only be used for testing")
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Generating sample attestation: reportData_len=%d, nonce_len=%d",
+			len(req.ReportData), len(req.Nonce)))
+
+		// Create a simple sample report that includes the nonce/report data
+		var reportData [64]byte
+		copy(reportData[:], req.ReportData)
+		var nonce [32]byte
+		copy(nonce[:], req.Nonce)
+
+		// Combine report data and nonce into a simple binary report
+		binaryReport = make([]byte, 0, 96)
+		binaryReport = append(binaryReport, reportData[:]...)
+		binaryReport = append(binaryReport, nonce[:]...)
+		platformType = attestation.NoCC
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Sample attestation generated: binaryReport_len=%d, platformType=%v (%d)",
+			len(binaryReport), platformType, platformType))
 	default:
 		return nil, fmt.Errorf("unsupported platform type")
 	}

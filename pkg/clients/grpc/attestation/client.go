@@ -4,6 +4,7 @@ package attestation
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	attestation_v1 "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -56,6 +57,10 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 	default:
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_UNSPECIFIED
 	}
+
+	// Debug: log platform type conversion
+	fmt.Printf("[ATTESTATION-CLIENT] Platform type conversion: agent=%v (%d) -> proto=%v (%d)\n",
+		attType, attType, platformType, platformType)
 
 	req := &attestation_v1.AttestationRequest{
 		ReportData:   reportData[:],
