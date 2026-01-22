@@ -40,25 +40,63 @@ func (c *client) Close() error {
 }
 
 func (c *client) SendLog(ctx context.Context, entry *log.LogEntry) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
 	if entry.Timestamp == nil {
 		entry.Timestamp = timestamppb.Now()
 	}
 
+	// Retry with exponential backoff for concurrent request handling
+	maxRetries := 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, err := c.client.SendLog(ctx, entry)
+		cancel()
+
+		if err == nil {
+			return nil
+		}
+
+		// Don't retry on last attempt
+		if attempt < maxRetries-1 {
+			// Exponential backoff: 10ms, 20ms, 40ms
+			backoff := time.Duration(10*(1<<uint(attempt))) * time.Millisecond
+			time.Sleep(backoff)
+		}
+	}
+
+	// Return error after all retries exhausted
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	_, err := c.client.SendLog(ctx, entry)
 	return err
 }
 
 func (c *client) SendEvent(ctx context.Context, entry *log.EventEntry) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
 	if entry.Timestamp == nil {
 		entry.Timestamp = timestamppb.Now()
 	}
 
+	// Retry with exponential backoff for concurrent request handling
+	maxRetries := 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, err := c.client.SendEvent(ctx, entry)
+		cancel()
+
+		if err == nil {
+			return nil
+		}
+
+		// Don't retry on last attempt
+		if attempt < maxRetries-1 {
+			// Exponential backoff: 10ms, 20ms, 40ms
+			backoff := time.Duration(10*(1<<uint(attempt))) * time.Millisecond
+			time.Sleep(backoff)
+		}
+	}
+
+	// Return error after all retries exhausted
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	_, err := c.client.SendEvent(ctx, entry)
 	return err
 }
