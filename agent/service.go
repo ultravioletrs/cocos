@@ -530,7 +530,7 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	as.logger.Info("resource downloaded", "size", len(encData))
 
-	// 2. Get TEE evidence from our attestation service
+	// 2. Get TEE evidence for KBS attestation
 	as.logger.Info("getting TEE evidence for KBS attestation")
 
 	// Auto-detect the platform type
@@ -543,13 +543,18 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// Use computation ID as report data
 	copy(reportData[:], []byte(as.computation.ID))
 
-	// Get attestation evidence from our attestation service
-	evidence, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, platform)
+	var kbsEvidence []byte
+
+	if platform == attestation.NoCC {
+		as.logger.Info("creating JSON sample evidence for KBS (NoCC platform)")
+	}
+	var evidence []byte
+	evidence, err = as.attestationClient.GetRawEvidence(ctx, reportData, nonce, platform)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
 	}
-
-	as.logger.Info("attestation evidence received", "evidence_len", len(evidence))
+	kbsEvidence = evidence
+	as.logger.Info("attestation evidence received from service", "evidence_len", len(evidence))
 
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS", "kbs_url", as.computation.KBS.URL)
@@ -559,13 +564,11 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 		Timeout: 30 * time.Second,
 	})
 
-	// KBS expects the evidence as JSON in the tee_evidence field
-	// Our attestation service returns evidence that needs to be wrapped
 	runtimeData := kbs.RuntimeData{
 		Nonce: base64.StdEncoding.EncodeToString(nonce[:]),
 	}
 
-	token, err := kbsClient.Attest(ctx, evidence, runtimeData)
+	token, err := kbsClient.Attest(ctx, kbsEvidence, runtimeData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to attest with KBS: %w", err)
 	}
