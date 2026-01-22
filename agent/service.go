@@ -6,6 +6,9 @@ package agent
 import (
 	"context"
 	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -613,8 +616,28 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS")
 
+	// Generate ephemeral TEE key (EC P-256) for KBS RuntimeData
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate ephemeral key: %w", err)
+	}
+
+	xBuf := make([]byte, 32)
+	yBuf := make([]byte, 32)
+	key.X.FillBytes(xBuf)
+	key.Y.FillBytes(yBuf)
+
+	jwk := map[string]interface{}{
+		"kty": "EC",
+		"crv": "P-256",
+		"alg": "ES256",
+		"x":   base64.RawURLEncoding.EncodeToString(xBuf),
+		"y":   base64.RawURLEncoding.EncodeToString(yBuf),
+	}
+
 	runtimeData := kbs.RuntimeData{
-		Nonce: nonceStr,
+		Nonce:     nonceStr,
+		TEEPubKey: jwk,
 	}
 
 	token, err := kbsClient.Attest(ctx, kbsEvidence, runtimeData)
