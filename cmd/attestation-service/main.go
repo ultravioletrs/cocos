@@ -84,11 +84,14 @@ func main() {
 	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
 	logger := slog.New(handler)
 
+	logger.Info("[ATTESTATION-SERVICE] Starting up - log forwarding enabled")
+
 	// Connect to log client for gRPC forwarding
 	logClient, err := logclient.NewClient("/run/cocos/log.sock")
 	if err != nil {
 		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
 	} else {
+		logger.Info("[ATTESTATION-SERVICE] Successfully connected to log client")
 		defer logClient.Close()
 	}
 
