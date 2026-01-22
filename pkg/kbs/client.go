@@ -106,7 +106,7 @@ func (c *kbsClient) GetChallenge(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/kbs/v0/auth", c.config.URL)
 
 	authReq := AuthRequest{
-		Version:     "0.1.0",
+		Version:     "0.4.0",
 		TEE:         "sample",
 		ExtraParams: map[string]interface{}{}, // KBS expects an object
 	}
