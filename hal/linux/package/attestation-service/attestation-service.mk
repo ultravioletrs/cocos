@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-ATTESTATION_SERVICE_VERSION = f6981ac59edfe1abb9885089a0e0b00d7c87a422
+ATTESTATION_SERVICE_VERSION = 6035d951cf28ed6b5a2a876c0f5ab12f1b6fd1d1
 ATTESTATION_SERVICE_SITE = $(call github,sammyoina,cocos-ai,$(ATTESTATION_SERVICE_VERSION))
 
 define ATTESTATION_SERVICE_BUILD_CMDS
@@ -19,14 +19,13 @@ ifeq ($(BR2_PACKAGE_CC_ATTESTATION_AGENT),y)
 define ATTESTATION_SERVICE_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0640 $(@D)/init/systemd/attestation-service.service $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/attestation_setup.sh $(TARGET_DIR)/cocos_init/attestation_setup.sh
-	# Enable CC attestation agent backend
-	sed -i 's/USE_CC_ATTESTATION_AGENT=false/USE_CC_ATTESTATION_AGENT=true/' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
+	# CC attestation agent is already enabled by default
 endef
 else
 define ATTESTATION_SERVICE_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0640 $(@D)/init/systemd/attestation-service.service $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/attestation_setup.sh $(TARGET_DIR)/cocos_init/attestation_setup.sh
-	# Disable CC attestation agent backend
+	# Disable CC attestation agent backend if not selected
 	sed -i 's/USE_CC_ATTESTATION_AGENT=true/USE_CC_ATTESTATION_AGENT=false/' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
 	sed -i '/Wants=attestation-agent.service/d' $(TARGET_DIR)/usr/lib/systemd/system/attestation-service.service
 endef
