@@ -49,8 +49,8 @@ type Config struct {
 type RuntimeData struct {
 	// Nonce from KBS challenge
 	Nonce string `json:"nonce"`
-	// TEEPubKey is the TEE public key
-	TEEPubKey string `json:"tee-pubkey,omitempty"`
+	// TEEPubKey is the TEE public key (JWK)
+	TEEPubKey interface{} `json:"tee-pubkey,omitempty"`
 }
 
 // AuthRequest is the request to initiate attestation.
