@@ -3,18 +3,35 @@
 
 package attestation
 
-import cocosai "github.com/ultravioletrs/cocos"
+import (
+	"encoding/base64"
+	"encoding/json"
+
+	cocosai "github.com/ultravioletrs/cocos"
+)
 
 var _ Provider = (*EmptyProvider)(nil)
 
 type EmptyProvider struct{}
 
 func (e *EmptyProvider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
-	return cocosai.EmbeddedAttestation, nil
+	// For Sample/Empty provider, we treat the teeNonce as reportData
+	return e.TeeAttestation(teeNonce)
 }
 
 func (e *EmptyProvider) TeeAttestation(teeNonce []byte) ([]byte, error) {
-	return cocosai.EmbeddedAttestation, nil
+	// Generate dynamic JSON quote for Sample TEE (KBS compliant)
+	type SampleQuote struct {
+		Svn        string `json:"svn"`
+		ReportData string `json:"report_data"`
+	}
+
+	quote := SampleQuote{
+		Svn:        "1",
+		ReportData: base64.StdEncoding.EncodeToString(teeNonce),
+	}
+
+	return json.Marshal(quote)
 }
 
 func (e *EmptyProvider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {

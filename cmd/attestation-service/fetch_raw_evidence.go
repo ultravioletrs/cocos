@@ -4,8 +4,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -36,31 +34,21 @@ func (s *service) FetchRawEvidence(ctx context.Context, req *attestationpb.Attes
 		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
 	case attestationpb.PlatformType_PLATFORM_TYPE_UNSPECIFIED:
 		// Generate sample attestation for testing in non-TEE environments
-		s.logger.Warn("generating sample attestation for PLATFORM_TYPE_UNSPECIFIED - this should only be used for testing")
-		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Generating sample attestation: reportData_len=%d, nonce_len=%d",
-			len(req.ReportData), len(req.Nonce)))
+		// This uses the underlying provider (EmptyProvider or CC Attestation Agent)
+		s.logger.Warn("fetching sample attestation for PLATFORM_TYPE_UNSPECIFIED")
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Fetching sample/unspecified attestation: reportData_len=%d",
+			len(req.ReportData)))
 
+		// Use TeeAttestation interface - for EmptyProvider this generates dynamic JSON sample quote
+		// For CC AA, this calls the agent to get a real quote (if supported)
 		var reportData [64]byte
 		copy(reportData[:], req.ReportData)
-
-		// Create Sample Quote structure expected by KBS Sample Verifier
-		// Must be JSON with "svn" and "report_data" (base64)
-		type SampleQuote struct {
-			Svn        string `json:"svn"`
-			ReportData string `json:"report_data"`
-		}
-
-		quote := SampleQuote{
-			Svn:        "1",
-			ReportData: base64.StdEncoding.EncodeToString(reportData[:]),
-		}
-
-		binaryReport, err = json.Marshal(quote)
+		binaryReport, err = s.provider.TeeAttestation(reportData[:])
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal sample quote: %w", err)
+			return nil, fmt.Errorf("failed to fetch sample attestation: %w", err)
 		}
 
-		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Sample attestation generated: binaryReport_len=%d",
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Sample attestation fetched: binaryReport_len=%d",
 			len(binaryReport)))
 	default:
 		return nil, fmt.Errorf("unsupported platform type")
