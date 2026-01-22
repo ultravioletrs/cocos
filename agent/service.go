@@ -630,12 +630,12 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	// Debug: Show KBS evidence details
 	previewLen = len(kbsEvidence)
-	if previewLen > 500 {
-		previewLen = 500
+	if previewLen > 1000 {
+		previewLen = 1000
 	}
 	as.logger.Info("evidence prepared for KBS",
 		"kbs_evidence_len", len(kbsEvidence),
-		"kbs_evidence_preview", string(kbsEvidence[:previewLen]))
+		"kbs_evidence_json", string(kbsEvidence[:previewLen]))
 
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS")
