@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
@@ -26,6 +27,9 @@ var (
 
 // Client defines the interface for KBS (Key Broker Service) communication.
 type Client interface {
+	// GetChallenge initiates the attestation handshake and returns the nonce.
+	GetChallenge(ctx context.Context) (string, error)
+
 	// Attest performs attestation with KBS and returns a token.
 	Attest(ctx context.Context, evidence []byte, runtimeData RuntimeData) (string, error)
 
@@ -86,12 +90,55 @@ func NewClient(config Config) Client {
 		config.Timeout = 30 * time.Second
 	}
 
+	jar, _ := cookiejar.New(nil)
+
 	return &kbsClient{
 		config: config,
 		client: &http.Client{
 			Timeout: config.Timeout,
+			Jar:     jar,
 		},
 	}
+}
+
+// GetChallenge initiates the RCAR handshake calling /kbs/v0/auth
+func (c *kbsClient) GetChallenge(ctx context.Context) (string, error) {
+	url := fmt.Sprintf("%s/kbs/v0/auth", c.config.URL)
+
+	authReq := AuthRequest{
+		Version: "0.1.0",
+		TEE:     "sample", // Initial handshake can be generic or specific
+	}
+
+	reqBody, err := json.Marshal(authReq)
+	if err != nil {
+		return "", errors.Wrap(ErrAttestationFailed, err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return "", errors.Wrap(ErrAttestationFailed, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", errors.Wrap(ErrAttestationFailed, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", errors.Wrap(ErrAttestationFailed,
+			fmt.Errorf("auth HTTP %d: %s", resp.StatusCode, string(body)))
+	}
+
+	var authResp AuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		return "", errors.Wrap(ErrInvalidResponse, err)
+	}
+
+	return authResp.Nonce, nil
 }
 
 // Attest performs attestation with KBS and returns a token.
@@ -115,6 +162,7 @@ func (c *kbsClient) Attest(ctx context.Context, evidence []byte, runtimeData Run
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	// Cookie jar handles the session cookie automatically
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", errors.Wrap(ErrAttestationFailed, err)
@@ -123,6 +171,7 @@ func (c *kbsClient) Attest(ctx context.Context, evidence []byte, runtimeData Run
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		// Try to parse error details if JSON
 		return "", errors.Wrap(ErrAttestationFailed,
 			fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body)))
 	}
