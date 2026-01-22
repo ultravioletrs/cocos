@@ -12,6 +12,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	logpb "github.com/ultravioletrs/cocos/agent/log"
+	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
+
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -74,7 +79,44 @@ func main() {
 		return
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	// Setup log forwarding to CVMS (same pattern as agent)
+	logQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
+	logger := slog.New(handler)
+
+	// Connect to log client for gRPC forwarding
+	logClient, err := logclient.NewClient("/run/cocos/log.sock")
+	if err != nil {
+		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
+	} else {
+		defer logClient.Close()
+	}
+
+	// Start log forwarding goroutine
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case msg := <-logQueue:
+				if logClient == nil {
+					continue
+				}
+				switch m := msg.Message.(type) {
+				case *cvms.ClientStreamMessage_AgentLog:
+					err := logClient.SendLog(ctx, &logpb.LogEntry{
+						Message:       m.AgentLog.Message,
+						ComputationId: m.AgentLog.ComputationId,
+						Level:         m.AgentLog.Level,
+						Timestamp:     m.AgentLog.Timestamp,
+					})
+					if err != nil {
+						logger.Error("failed to send log", "error", err)
+					}
+				}
+			}
+		}
+	})
 
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
