@@ -15,6 +15,7 @@ import (
 
 type Client interface {
 	GetAttestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error)
+	GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error)
 	GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error)
 	Close() error
 }
@@ -74,6 +75,42 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 	}
 
 	return resp.EatToken, nil
+}
+
+// GetRawEvidence gets raw binary evidence (for KBS) instead of EAT token
+func (c *client) GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	var platformType attestation_v1.PlatformType
+	switch attType {
+	case attestation.SNP:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_SNP
+	case attestation.TDX:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_TDX
+	case attestation.VTPM:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_VTPM
+	case attestation.SNPvTPM:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_SNP_VTPM
+	default:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_UNSPECIFIED
+	}
+
+	fmt.Printf("[ATTESTATION-CLIENT] Getting raw evidence: platform=%v (%d)\n",
+		attType, platformType)
+
+	req := &attestation_v1.AttestationRequest{
+		ReportData:   reportData[:],
+		Nonce:        nonce[:],
+		PlatformType: platformType,
+	}
+
+	resp, err := c.client.FetchRawEvidence(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Evidence, nil
 }
 
 func (c *client) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error) {
