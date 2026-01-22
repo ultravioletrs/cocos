@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -58,7 +59,14 @@ func (s *service) FetchRawEvidence(ctx context.Context, req *attestationpb.Attes
 		return nil, err
 	}
 
-	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Returning raw evidence: len=%d", len(binaryReport)))
+	// Debug logging: show evidence details
+	previewLen := len(binaryReport)
+	if previewLen > 200 {
+		previewLen = 200
+	}
+	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Returning raw evidence: total_len=%d, preview_hex=%s",
+		len(binaryReport), hex.EncodeToString(binaryReport[:previewLen])))
+	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Evidence as string preview: %s", string(binaryReport[:previewLen])))
 
 	return &attestationpb.RawEvidenceResponse{Evidence: binaryReport}, nil
 }
