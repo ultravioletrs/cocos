@@ -5,6 +5,7 @@ package attestation_agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	aa "github.com/ultravioletrs/cocos/internal/proto/attestation-agent"
@@ -25,8 +26,17 @@ type client struct {
 }
 
 // NewClient creates a new attestation-agent client.
-func NewClient(socketPath string) (Client, error) {
-	conn, err := grpc.NewClient("unix://"+socketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
+// address can be either a TCP address (e.g., "127.0.0.1:50002") or Unix socket path (e.g., "/run/aa.sock")
+func NewClient(address string) (Client, error) {
+	var target string
+	// If address contains ":", it's a TCP address, otherwise it's a Unix socket
+	if strings.Contains(address, ":") {
+		target = address
+	} else {
+		target = "unix://" + address
+	}
+
+	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to attestation-agent: %w", err)
 	}
