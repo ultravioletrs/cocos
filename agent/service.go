@@ -578,19 +578,34 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	// For NoCC/sample attestation, create a JSON structure
 	if platform == attestation.NoCC {
 		as.logger.Info("wrapping binary evidence in JSON for KBS (NoCC platform)")
-		evidenceJSON := map[string]interface{}{
+		primaryEvidence := map[string]interface{}{
 			"tee":      "sample",
 			"evidence": base64.StdEncoding.EncodeToString(evidence),
 			"platform": "NoCC",
 		}
-		kbsEvidence, err = json.Marshal(evidenceJSON)
+		teeEvidenceMap := map[string]interface{}{
+			"primary_evidence":    primaryEvidence,
+			"additional_evidence": "{}", // Empty map as JSON string
+		}
+		kbsEvidence, err = json.Marshal(teeEvidenceMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal evidence to JSON: %w", err)
 		}
 	} else {
-		// For real TEE platforms, the evidence might already be in the correct format
-		// or may need different handling - for now just use it as-is
-		kbsEvidence = evidence
+		// For real TEE platforms, the evidence must also be wrapped in the correct JSON structure
+		// For now, assume it mirrors the structure but with real platform data
+		// TODO: verify exact primary_evidence structure for TDX/SNP
+		primaryEvidence := map[string]interface{}{
+			"quote": base64.StdEncoding.EncodeToString(evidence),
+		}
+		teeEvidenceMap := map[string]interface{}{
+			"primary_evidence":    primaryEvidence,
+			"additional_evidence": "{}",
+		}
+		kbsEvidence, err = json.Marshal(teeEvidenceMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal real TEE evidence to JSON: %w", err)
+		}
 	}
 
 	as.logger.Info("evidence prepared for KBS", "kbs_evidence_len", len(kbsEvidence))
