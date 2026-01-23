@@ -1,0 +1,11 @@
+config BR2_PACKAGE_COCO_KEYPROVIDER
+	bool "coco-keyprovider"
+	depends on BR2_PACKAGE_HOST_RUSTC_ARCH_SUPPORTS
+	select BR2_PACKAGE_HOST_RUSTC
+	help
+	  CoCo Keyprovider is a keyprovider tool for generating and
+	  decrypting CoCo-compatible encrypted images. It implements
+	  the ocicrypt keyprovider protocol to decrypt OCI image layers
+	  using the Key Broker Service (KBS).
+
+	  https://github.com/confidential-containers/guest-components
