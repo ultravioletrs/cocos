@@ -138,6 +138,13 @@ func main() {
 		logger.Info(fmt.Sprintf("attempting to use CC attestation-agent at %s", cfg.CCAgentAddress))
 		ccProvider, err := ccaa.NewProvider(cfg.CCAgentAddress)
 		if err != nil {
+			// For NoCC/sample platform, AA is REQUIRED when configured
+			// Don't fall back to EmptyProvider - AA generates correct KBS format
+			if ccPlatform == attestation.NoCC {
+				logger.Error(fmt.Sprintf("CC AA is required for sample attestation but connection failed: %s", err))
+				exitCode = 1
+				return
+			}
 			logger.Warn(fmt.Sprintf("failed to connect to CC attestation-agent: %s, falling back to direct providers", err))
 		} else {
 			logger.Info("successfully connected to CC attestation-agent")
@@ -159,7 +166,14 @@ func main() {
 			provider = tdx.NewProvider()
 		case attestation.NoCC:
 			logger.Info("TEE device not found")
-			logger.Warn("[ATTESTATION-SERVICE] Falling back to EmptyProvider - CC AA should be used instead!")
+			if cfg.UseCCAttestationAgent {
+				// AA was configured but connection failed - already handled above
+				logger.Error("[ATTESTATION-SERVICE] AA required for sample attestation but not available")
+				exitCode = 1
+				return
+			}
+			// Only use EmptyProvider if AA is explicitly NOT configured
+			logger.Warn("[ATTESTATION-SERVICE] Using EmptyProvider for sample attestation (AA not configured)")
 			provider = &attestation.EmptyProvider{}
 		}
 	}
