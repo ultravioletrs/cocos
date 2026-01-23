@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-AGENT_VERSION = 4bb8e587315cebd5cc8efdb9335a8ef4f6a0c04f
+AGENT_VERSION = 174f62524d3a956569ede1e0acf4a506943c51cf
 AGENT_SITE = $(call github,sammyoina,cocos-ai,$(AGENT_VERSION))
 
 define AGENT_BUILD_CMDS
