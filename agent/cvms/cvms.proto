@@ -113,8 +113,10 @@ message Algorithm {
 }
 
 message Source {
-  string url = 1; // URL of the encrypted resource (s3://bucket/key or https://...)
-  string kbs_resource_path = 2; // Path to decryption key in KBS (e.g., "default/key/my-key")
+  string type = 1; // Type of source: "oci-image", "s3", "https" (default: infer from URL)
+  string url = 2; // URL of the resource (docker://registry/repo:tag, s3://bucket/key, https://...)
+  string kbs_resource_path = 3; // Path to decryption key in KBS (e.g., "default/key/my-key")
+  bool encrypted = 4; // Whether the resource is encrypted (requires KBS)
 }
 
 message KBSConfig {
