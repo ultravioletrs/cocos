@@ -1,0 +1,26 @@
+[Unit]
+Description=CoCo Keyprovider for Confidential Containers
+Documentation=https://github.com/confidential-containers/guest-components
+After=network-online.target attestation-agent.service
+Wants=network-online.target
+Requires=attestation-agent.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/coco-keyprovider
+ExecStartPre=/bin/mkdir -p /run/coco-keyprovider
+ExecStart=/usr/local/bin/coco_keyprovider --socket ${COCO_KP_SOCKET}
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/coco-keyprovider
+
+[Install]
+WantedBy=multi-user.target

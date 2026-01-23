@@ -1,0 +1,3 @@
+# CoCo Keyprovider Environment Variables
+COCO_KP_SOCKET=127.0.0.1:50011
+RUST_LOG=info
