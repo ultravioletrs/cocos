@@ -1091,8 +1091,10 @@ func (x *Algorithm) GetSource() *Source {
 
 type Source struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Url             string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`                                                  // URL of the encrypted resource (s3://bucket/key or https://...)
-	KbsResourcePath string                 `protobuf:"bytes,2,opt,name=kbs_resource_path,json=kbsResourcePath,proto3" json:"kbs_resource_path,omitempty"` // Path to decryption key in KBS (e.g., "default/key/my-key")
+	Type            string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`                                                // Type of source: "oci-image", "s3", "https" (default: infer from URL)
+	Url             string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`                                                  // URL of the resource (docker://registry/repo:tag, s3://bucket/key, https://...)
+	KbsResourcePath string                 `protobuf:"bytes,3,opt,name=kbs_resource_path,json=kbsResourcePath,proto3" json:"kbs_resource_path,omitempty"` // Path to decryption key in KBS (e.g., "default/key/my-key")
+	Encrypted       bool                   `protobuf:"varint,4,opt,name=encrypted,proto3" json:"encrypted,omitempty"`                                     // Whether the resource is encrypted (requires KBS)
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1127,6 +1129,13 @@ func (*Source) Descriptor() ([]byte, []int) {
 	return file_agent_cvms_cvms_proto_rawDescGZIP(), []int{15}
 }
 
+func (x *Source) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
 func (x *Source) GetUrl() string {
 	if x != nil {
 		return x.Url
@@ -1139,6 +1148,13 @@ func (x *Source) GetKbsResourcePath() string {
 		return x.KbsResourcePath
 	}
 	return ""
+}
+
+func (x *Source) GetEncrypted() bool {
+	if x != nil {
+		return x.Encrypted
+	}
+	return false
 }
 
 type KBSConfig struct {
@@ -1465,10 +1481,12 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\tAlgorithm\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12$\n" +
-	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\"F\n" +
-	"\x06Source\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12*\n" +
-	"\x11kbs_resource_path\x18\x02 \x01(\tR\x0fkbsResourcePath\"7\n" +
+	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\"x\n" +
+	"\x06Source\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\x12*\n" +
+	"\x11kbs_resource_path\x18\x03 \x01(\tR\x0fkbsResourcePath\x12\x1c\n" +
+	"\tencrypted\x18\x04 \x01(\bR\tencrypted\"7\n" +
 	"\tKBSConfig\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\"\xe5\x01\n" +
