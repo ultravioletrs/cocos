@@ -499,234 +499,79 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 	// Otherwise, wait for remaining datasets to be uploaded via Data() RPC calls
 }
 
-// downloadAndDecryptResource downloads an encrypted resource from a registry and decrypts it using KBS.
+// downloadAndDecryptResource downloads and decrypts a resource using OCI images and CoCo Keyprovider.
+// For OCI images, Skopeo handles download and CoCo Keyprovider handles decryption automatically.
 func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *ResourceSource) ([]byte, error) {
-	// 1. Download encrypted resource from registry
-	as.logger.Info("downloading encrypted resource", "url", source.URL)
-
-	var encData []byte
-	var err error
-
-	if strings.HasPrefix(source.URL, "s3://") {
-		// S3 registry
-		s3Config := registry.S3Config{
-			Region:          os.Getenv("AWS_REGION"),
-			AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
-			SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-			Endpoint:        os.Getenv("AWS_ENDPOINT_URL"),
-		}
-
-		s3Reg, err := registry.NewS3Registry(ctx, registry.DefaultConfig(), s3Config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create S3 registry: %w", err)
-		}
-
-		encData, err = s3Reg.Download(ctx, source.URL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to download from S3: %w", err)
-		}
-	} else {
-		// HTTP/HTTPS registry
-		httpReg := registry.NewHTTPRegistry(registry.DefaultConfig())
-		encData, err = httpReg.Download(ctx, source.URL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to download from HTTP: %w", err)
+	// Determine source type
+	sourceType := source.Type
+	if sourceType == "" {
+		// Infer from URL
+		if strings.HasPrefix(source.URL, "docker://") || strings.HasPrefix(source.URL, "oci:") {
+			sourceType = "oci-image"
+		} else {
+			return nil, fmt.Errorf("unsupported source URL format: %s (use oci-image type)", source.URL)
 		}
 	}
 
-	as.logger.Info("resource downloaded", "size", len(encData))
-
-	// 2. Get TEE evidence for KBS attestation
-	as.logger.Info("getting TEE evidence for KBS attestation")
-
-	// Initialize KBS client first to get the challenge (nonce)
-	as.logger.Info("initiating KBS attestation handshake", "kbs_url", as.computation.KBS.URL)
-	kbsClient := kbs.NewClient(kbs.Config{
-		URL:     as.computation.KBS.URL,
-		Timeout: 30 * time.Second,
-	})
-
-	// Start RCAR handshake - get nonce and establish session cookie
-	nonceStr, err := kbsClient.GetChallenge(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get KBS challenge: %w", err)
+	switch sourceType {
+	case "oci-image":
+		return as.downloadAndDecryptOCIImage(ctx, source)
+	default:
+		return nil, fmt.Errorf("unsupported source type: %s", sourceType)
 	}
-	as.logger.Info("received KBS challenge nonce")
-
-	// Decode nonce for runtime-data
-	nonceBytes, err := base64.StdEncoding.DecodeString(nonceStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode KBS nonce: %w", err)
-	}
-
-	// Auto-detect the platform type
-	platform := attestation.CCPlatform()
-	as.logger.Info("detected platform type", "platform", platform)
-
-	// RCAR Protocol Step 1: Generate ephemeral TEE key (EC P-256) for runtime-data
-	as.logger.Info("generating ephemeral key pair for RCAR protocol")
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ephemeral key: %w", err)
-	}
-
-	xBuf := make([]byte, 32)
-	yBuf := make([]byte, 32)
-	key.X.FillBytes(xBuf)
-	key.Y.FillBytes(yBuf)
-
-	jwk := map[string]interface{}{
-		"kty": "EC",
-		"crv": "P-256",
-		"alg": "ES256",
-		"x":   base64.RawURLEncoding.EncodeToString(xBuf),
-		"y":   base64.RawURLEncoding.EncodeToString(yBuf),
-	}
-
-	// RCAR Protocol Step 2: Create runtime-data with nonce and tee-pubkey
-	runtimeData := kbs.RuntimeData{
-		Nonce:     nonceStr,
-		TEEPubKey: jwk,
-	}
-
-	// RCAR Protocol Step 3: Hash runtime-data to use as report_data
-	// This binds the tee-pubkey to the TEE evidence.
-	// IMPORTANT: Use RFC 8785 Canonical JSON serialization as expected by KBS.
-	runtimeDataJSON, err := json.Marshal(runtimeData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal runtime-data: %w", err)
-	}
-
-	// Canonicalize the JSON
-	canonicalRuntimeDataJSON, err := jcs.Transform(runtimeDataJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to canonicalize runtime-data JSON: %w", err)
-	}
-
-	runtimeDataHash := sha256.Sum256(canonicalRuntimeDataJSON)
-	as.logger.Info("runtime-data hash computed for report_data",
-		"runtime_data_json", string(runtimeDataJSON),
-		"canonical_runtime_data_json", string(canonicalRuntimeDataJSON),
-		"hash_hex", hex.EncodeToString(runtimeDataHash[:]))
-
-	var reportData [64]byte
-	var nonce [32]byte
-
-	// Use hash of canonical runtime-data as report_data (binds tee-pubkey to evidence)
-	copy(reportData[:], runtimeDataHash[:])
-
-	// Use KBS provided nonce
-	copy(nonce[:], nonceBytes)
-
-	var kbsEvidence []byte
-
-	// Get raw binary evidence from attestation service
-	evidence, err := as.attestationClient.GetRawEvidence(ctx, reportData, nonce, platform)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attestation evidence: %w", err)
-	}
-	// Debug: Show raw evidence details
-	previewLen := len(evidence)
-	if previewLen > 200 {
-		previewLen = 200
-	}
-	as.logger.Info("raw binary evidence received from service",
-		"evidence_len", len(evidence),
-		"evidence_hex_preview", hex.EncodeToString(evidence[:previewLen]),
-		"evidence_string_preview", string(evidence[:previewLen]))
-
-	// KBS expects tee_evidence as JSON, so we need to wrap the binary evidence
-	// For NoCC/sample attestation, the evidence is already JSON from the AA sample attester
-	if platform == attestation.NoCC {
-		as.logger.Info("wrapping binary evidence in JSON for KBS (NoCC platform)")
-
-		// Parse the JSON evidence from the attestation service
-		// It should be: {"svn":"1","report_data":"base64..."}
-		var sampleQuote map[string]interface{}
-		if err := json.Unmarshal(evidence, &sampleQuote); err != nil {
-			return nil, fmt.Errorf("failed to parse sample evidence JSON: %w", err)
-		}
-
-		// For sample TEE, primary_evidence IS the sample quote directly
-		// The 'tee' field is already in the Request payload sent during RCAR handshake
-		teeEvidenceMap := map[string]interface{}{
-			"primary_evidence":    sampleQuote, // Just {"svn": "1", "report_data": "..."}
-			"additional_evidence": "{}",        // Empty map as JSON string
-		}
-		kbsEvidence, err = json.Marshal(teeEvidenceMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal evidence to JSON: %w", err)
-		}
-	} else {
-		// For real TEE platforms, the evidence must also be wrapped in the correct JSON structure
-		// For now, assume it mirrors the structure but with real platform data
-		// TODO: verify exact primary_evidence structure for TDX/SNP
-		primaryEvidence := map[string]interface{}{
-			"quote": base64.StdEncoding.EncodeToString(evidence),
-		}
-		teeEvidenceMap := map[string]interface{}{
-			"primary_evidence":    primaryEvidence,
-			"additional_evidence": "{}",
-		}
-		kbsEvidence, err = json.Marshal(teeEvidenceMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal real TEE evidence to JSON: %w", err)
-		}
-	}
-
-	// Debug: Show KBS evidence details
-	previewLen = len(kbsEvidence)
-	if previewLen > 1000 {
-		previewLen = 1000
-	}
-	as.logger.Info("evidence prepared for KBS",
-		"kbs_evidence_len", len(kbsEvidence),
-		"kbs_evidence_json", string(kbsEvidence[:previewLen]))
-
-	// 3. Attest with KBS and get token
-	as.logger.Info("attesting with KBS")
-
-	token, err := kbsClient.Attest(ctx, kbsEvidence, runtimeData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to attest with KBS: %w", err)
-	}
-
-	as.logger.Info("KBS attestation successful, token received")
-
-	// 4. Get decryption key from KBS using the token
-	as.logger.Info("retrieving decryption key", "resource_path", source.KBSResourcePath)
-
-	keyData, err := kbsClient.GetResource(ctx, token, source.KBSResourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource from KBS: %w", err)
-	}
-
-	as.logger.Info("decryption key retrieved", "key_size", len(keyData))
-
-	// 5. Parse encrypted resource and decrypt
-	as.logger.Info("decrypting resource")
-
-	encResource, err := crypto.ParseEncryptedResource(encData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse encrypted resource: %w", err)
-	}
-
-	// Generate ephemeral private key for ECDH
-	curve := ecdh.P256()
-	privateKey, err := curve.GenerateKey(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	plaintext, err := crypto.DecryptWithWrappedKey(*encResource, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt resource: %w", err)
-	}
-
-	as.logger.Info("resource decrypted successfully", "plaintext_size", len(plaintext))
-
-	return plaintext, nil
 }
+
+// downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
+func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource) ([]byte, error) {
+	as.logger.Info("downloading OCI image", 
+		"url", source.URL, 
+		"encrypted", source.Encrypted,
+		"kbs_resource_path", source.KBSResourcePath)
+
+	// Create Skopeo client
+	workDir := filepath.Join(os.TempDir(), "cocos-oci")
+	skopeoClient, err := oci.NewSkopeoClient(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Skopeo client: %w", err)
+	}
+
+	// Create OCI resource source
+	ociSource := oci.ResourceSource{
+		Type:            oci.ResourceTypeOCIImage,
+		URI:             source.URL,
+		Encrypted:       source.Encrypted,
+		KBSResourcePath: source.KBSResourcePath,
+	}
+
+	// Pull and decrypt image
+	// CoCo Keyprovider will automatically handle decryption via ocicrypt
+	destDir := filepath.Join(workDir, "images", filepath.Base(source.URL))
+	if err := skopeoClient.PullAndDecrypt(ctx, ociSource, destDir); err != nil {
+		return nil, fmt.Errorf("failed to pull and decrypt OCI image: %w", err)
+	}
+
+	as.logger.Info("OCI image downloaded and decrypted", "dest", destDir)
+
+	// Extract algorithm file from OCI layers
+	extractDir := filepath.Join(workDir, "extracted", filepath.Base(source.URL))
+	algorithmPath, err := oci.ExtractAlgorithm(destDir, extractDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
+	}
+
+	as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
+
+	// Read algorithm file
+	algorithmData, err := os.ReadFile(algorithmPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read algorithm file: %w", err)
+	}
+
+	as.logger.Info("algorithm loaded", "size", len(algorithmData))
+
+	return algorithmData, nil
+}
+
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
