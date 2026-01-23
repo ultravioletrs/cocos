@@ -588,23 +588,32 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 		TEEPubKey: jwk,
 	}
 
-	// RCAR Protocol Step 3: Hash runtime-data to use as report_data
-	// This binds the tee-pubkey to the TEE evidence
-	runtimeDataJSON, err := json.Marshal(runtimeData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal runtime-data: %w", err)
-	}
-
-	runtimeDataHash := sha256.Sum256(runtimeDataJSON)
-	as.logger.Info("runtime-data hash computed for report_data",
-		"runtime_data_json", string(runtimeDataJSON),
-		"hash_hex", hex.EncodeToString(runtimeDataHash[:]))
-
 	var reportData [64]byte
 	var nonce [32]byte
 
-	// Use hash of runtime-data as report_data (binds tee-pubkey to evidence)
-	copy(reportData[:], runtimeDataHash[:])
+	// RCAR Protocol Step 3: Prepare report_data based on platform
+	// For Sample/NoCC: Use simple nonce as report_data (no cryptographic binding)
+	// For real TEEs (TDX/SNP): Use hash of runtime-data to bind tee-pubkey to evidence
+	if platform == attestation.NoCC {
+		// Sample attestation: Use raw nonce as report_data to avoid JSON serialization issues
+		// The Sample verifier doesn't support the same runtime-data binding as real TEEs
+		copy(reportData[:], nonceBytes)
+		as.logger.Info("using simple nonce as report_data for Sample attestation",
+			"nonce_hex", hex.EncodeToString(nonceBytes))
+	} else {
+		// Real TEE: Hash runtime-data to cryptographically bind tee-pubkey to evidence
+		runtimeDataJSON, err := json.Marshal(runtimeData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal runtime-data: %w", err)
+		}
+
+		runtimeDataHash := sha256.Sum256(runtimeDataJSON)
+		copy(reportData[:], runtimeDataHash[:])
+		as.logger.Info("runtime-data hash computed for report_data",
+			"runtime_data_json", string(runtimeDataJSON),
+			"hash_hex", hex.EncodeToString(runtimeDataHash[:]))
+	}
+
 	// Use KBS provided nonce
 	copy(nonce[:], nonceBytes)
 
