@@ -5,13 +5,6 @@ package agent
 
 import (
 	"context"
-	"crypto/ecdh"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -23,7 +16,6 @@ import (
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
-	"github.com/gowebpki/jcs"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/events"
 	runnerpb "github.com/ultravioletrs/cocos/agent/runner"
@@ -33,9 +25,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
-	"github.com/ultravioletrs/cocos/pkg/crypto"
-	"github.com/ultravioletrs/cocos/pkg/kbs"
-	"github.com/ultravioletrs/cocos/pkg/registry"
+	"github.com/ultravioletrs/cocos/pkg/oci"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -523,8 +513,8 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 // downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
 func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource) ([]byte, error) {
-	as.logger.Info("downloading OCI image", 
-		"url", source.URL, 
+	as.logger.Info("downloading OCI image",
+		"url", source.URL,
 		"encrypted", source.Encrypted,
 		"kbs_resource_path", source.KBSResourcePath)
 
@@ -571,7 +561,6 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 
 	return algorithmData, nil
 }
-
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
