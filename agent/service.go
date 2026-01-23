@@ -9,6 +9,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -551,7 +552,7 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	}
 	as.logger.Info("received KBS challenge nonce")
 
-	// Decode nonce for Attestation Service
+	// Decode nonce for runtime-data
 	nonceBytes, err := base64.StdEncoding.DecodeString(nonceStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode KBS nonce: %w", err)
@@ -561,11 +562,49 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	platform := attestation.CCPlatform()
 	as.logger.Info("detected platform type", "platform", platform)
 
+	// RCAR Protocol Step 1: Generate ephemeral TEE key (EC P-256) for runtime-data
+	as.logger.Info("generating ephemeral key pair for RCAR protocol")
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate ephemeral key: %w", err)
+	}
+
+	xBuf := make([]byte, 32)
+	yBuf := make([]byte, 32)
+	key.X.FillBytes(xBuf)
+	key.Y.FillBytes(yBuf)
+
+	jwk := map[string]interface{}{
+		"kty": "EC",
+		"crv": "P-256",
+		"alg": "ES256",
+		"x":   base64.RawURLEncoding.EncodeToString(xBuf),
+		"y":   base64.RawURLEncoding.EncodeToString(yBuf),
+	}
+
+	// RCAR Protocol Step 2: Create runtime-data with nonce and tee-pubkey
+	runtimeData := kbs.RuntimeData{
+		Nonce:     nonceStr,
+		TEEPubKey: jwk,
+	}
+
+	// RCAR Protocol Step 3: Hash runtime-data to use as report_data
+	// This binds the tee-pubkey to the TEE evidence
+	runtimeDataJSON, err := json.Marshal(runtimeData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal runtime-data: %w", err)
+	}
+
+	runtimeDataHash := sha256.Sum256(runtimeDataJSON)
+	as.logger.Info("runtime-data hash computed for report_data",
+		"runtime_data_json", string(runtimeDataJSON),
+		"hash_hex", hex.EncodeToString(runtimeDataHash[:]))
+
 	var reportData [64]byte
 	var nonce [32]byte
 
-	// Use computation ID as report data
-	copy(reportData[:], []byte(as.computation.ID))
+	// Use hash of runtime-data as report_data (binds tee-pubkey to evidence)
+	copy(reportData[:], runtimeDataHash[:])
 	// Use KBS provided nonce
 	copy(nonce[:], nonceBytes)
 
@@ -636,30 +675,6 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	// 3. Attest with KBS and get token
 	as.logger.Info("attesting with KBS")
-
-	// Generate ephemeral TEE key (EC P-256) for KBS RuntimeData
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ephemeral key: %w", err)
-	}
-
-	xBuf := make([]byte, 32)
-	yBuf := make([]byte, 32)
-	key.X.FillBytes(xBuf)
-	key.Y.FillBytes(yBuf)
-
-	jwk := map[string]interface{}{
-		"kty": "EC",
-		"crv": "P-256",
-		"alg": "ES256",
-		"x":   base64.RawURLEncoding.EncodeToString(xBuf),
-		"y":   base64.RawURLEncoding.EncodeToString(yBuf),
-	}
-
-	runtimeData := kbs.RuntimeData{
-		Nonce:     nonceStr,
-		TEEPubKey: jwk,
-	}
 
 	token, err := kbsClient.Attest(ctx, kbsEvidence, runtimeData)
 	if err != nil {
