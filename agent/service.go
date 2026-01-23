@@ -598,19 +598,11 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 			return nil, fmt.Errorf("failed to parse sample evidence JSON: %w", err)
 		}
 
-		// KBS Sample Verifier expects svn and report_data at the top level of primary_evidence
-		// Merge the sample quote fields directly into primary_evidence
-		primaryEvidence := map[string]interface{}{
-			"tee":      "sample",
-			"platform": "NoCC",
-		}
-		// Add all fields from sampleQuote (svn, report_data) to primaryEvidence
-		for k, v := range sampleQuote {
-			primaryEvidence[k] = v
-		}
+		// For sample TEE, primary_evidence IS the sample quote directly
+		// The 'tee' field is already in the Request payload sent during RCAR handshake
 		teeEvidenceMap := map[string]interface{}{
-			"primary_evidence":    primaryEvidence,
-			"additional_evidence": "{}", // Empty map as JSON string
+			"primary_evidence":    sampleQuote, // Just {"svn": "1", "report_data": "..."}
+			"additional_evidence": "{}",        // Empty map as JSON string
 		}
 		kbsEvidence, err = json.Marshal(teeEvidenceMap)
 		if err != nil {
