@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-INGRESS_PROXY_VERSION = 4bb8e587315cebd5cc8efdb9335a8ef4f6a0c04f
+INGRESS_PROXY_VERSION = 174f62524d3a956569ede1e0acf4a506943c51cf
 INGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(INGRESS_PROXY_VERSION))
 
 define INGRESS_PROXY_BUILD_CMDS
