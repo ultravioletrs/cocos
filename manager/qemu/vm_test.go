@@ -3,9 +3,12 @@
 package qemu
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -180,4 +183,114 @@ func TestSEVSNPEnabledOnHost(t *testing.T) {
 
 func TestTDXEnabledOnHost(t *testing.T) {
 	assert.False(t, TDXEnabledOnHost())
+}
+
+func TestGetVirtualSizeBytes_Success(t *testing.T) {
+	cleanup := writeFakeQemuImg(t, `{"virtual-size":2147483648}`, 0) // 2 GiB
+	defer cleanup()
+
+	got, err := GetVirtualSizeBytes("whatever.qcow2")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if got != 2147483648 {
+		t.Fatalf("expected 2147483648, got %d", got)
+	}
+}
+
+func TestGetVirtualSizeBytes_CommandFailure(t *testing.T) {
+	cleanup := writeFakeQemuImg(t, `{"virtual-size":2147483648}`, 1) // non-zero exit
+	defer cleanup()
+
+	_, err := GetVirtualSizeBytes("whatever.qcow2")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "qemu-img info failed") {
+		t.Fatalf("expected wrapped error to contain %q, got %q", "qemu-img info failed", err.Error())
+	}
+}
+
+func TestGetVirtualSizeBytes_InvalidJSON(t *testing.T) {
+	cleanup := writeFakeQemuImg(t, `not-json`, 0)
+	defer cleanup()
+
+	_, err := GetVirtualSizeBytes("whatever.qcow2")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to parse qemu-img JSON") {
+		t.Fatalf("expected error to contain %q, got %q", "failed to parse qemu-img JSON", err.Error())
+	}
+}
+
+func TestGetVirtualSizeBytes_InvalidVirtualSize(t *testing.T) {
+	cleanup := writeFakeQemuImg(t, `{"virtual-size":0}`, 0)
+	defer cleanup()
+
+	_, err := GetVirtualSizeBytes("whatever.qcow2")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid virtual size") {
+		t.Fatalf("expected error to contain %q, got %q", "invalid virtual size", err.Error())
+	}
+}
+
+func TestGetVirtualSizeGB_RoundsUp(t *testing.T) {
+	tests := []struct {
+		name      string
+		virtualSz int64
+		wantGB    int
+	}{
+		{"exact_1GiB", 1 << 30, 1},
+		{"one_byte_over", (1 << 30) + 1, 2},
+		{"just_under_2GiB", (2 << 30) - 1, 2},
+		{"exact_2GiB", 2 << 30, 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cleanup := writeFakeQemuImg(t, fmt.Sprintf(`{"virtual-size":%d}`, tc.virtualSz), 0)
+			defer cleanup()
+
+			got, err := GetVirtualSizeGB("whatever.qcow2")
+			if err != nil {
+				t.Fatalf("expected nil error, got %v", err)
+			}
+			if got != tc.wantGB {
+				t.Fatalf("expected %d, got %d", tc.wantGB, got)
+			}
+		})
+	}
+}
+
+func writeFakeQemuImg(t *testing.T, stdout string, exitCode int) func() {
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "qemu-img")
+
+	script := fmt.Sprintf(`#!/bin/sh
+# Minimal fake for: qemu-img info --output=json <path>
+if [ "$1" != "info" ]; then
+  echo "unexpected subcommand: $1" >&2
+  exit 2
+fi
+
+# always print provided stdout, even if empty
+printf '%s' %q
+exit %d
+`, stdout, stdout, exitCode)
+
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake qemu-img: %v", err)
+	}
+
+	oldPath := os.Getenv("PATH")
+	if err := os.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath); err != nil {
+		t.Fatalf("failed to set PATH: %v", err)
+	}
+
+	return func() {
+		_ = os.Setenv("PATH", oldPath)
+	}
 }

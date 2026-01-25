@@ -10,7 +10,7 @@ if [ -e ${TARGET_DIR}/etc/inittab ]; then
 tty1::respawn:/sbin/getty -L  tty1 0 vt100 # QEMU graphical window' ${TARGET_DIR}/etc/inittab
 fi
 
-# Ensure /etc/fstab does not exists
+# Ensure /etc/fstab does not exist
 if [ -f "${TARGET_DIR}/etc/fstab" ]; then
     rm "${TARGET_DIR}/etc/fstab"
 fi

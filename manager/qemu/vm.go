@@ -133,6 +133,14 @@ func (v *qemuVM) Stop() error {
 		}
 	}
 
+	if v.vmi.Config.EnableDisk {
+		if v.vmi.Config.DstFile != "" {
+			if err := os.RemoveAll(v.vmi.Config.DstFile); err != nil {
+				return fmt.Errorf("failed to remove disk file: %v", err)
+			}
+		}
+	}
+
 	done := make(chan error, 1)
 	go func() {
 		_, err := v.cmd.Process.Wait()

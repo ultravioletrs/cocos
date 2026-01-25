@@ -7,7 +7,7 @@ It is used as the **trusted source image** for an SEV-SNP/TDX CVM initramfs, whe
 2. Creates a fresh encrypted LUKS2 disk  
 3. Copies the qcow2 contents into the encrypted disk  
 4. Hashes the content  
-5. Extends a vTPM PCR with that hash (onyl for vTPM with SEV-SNP)
+5. Extends a vTPM PCR with that hash (only for vTPM with SEV-SNP)
 6. Boots into the newly-cloned encrypted disk  
 
 This script runs **outside** the VM and simply starts the qcow2 → NBD export.
