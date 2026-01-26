@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-COMPUTATION_RUNNER_VERSION = 2c7652e7877463d8d4df3dd428ccf3bc97c0e4c5
+COMPUTATION_RUNNER_VERSION = 937f911b1c387c9e49116c15650c43c1a5d9328d
 COMPUTATION_RUNNER_SITE = $(call github,sammyoina,cocos-ai,$(COMPUTATION_RUNNER_VERSION))
 
 define COMPUTATION_RUNNER_BUILD_CMDS
