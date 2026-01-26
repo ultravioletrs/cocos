@@ -6,9 +6,11 @@ package oci
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +32,7 @@ type OCIIndex struct {
 }
 
 // ExtractAlgorithm extracts the algorithm file from an OCI image directory
-func ExtractAlgorithm(ociDir, destPath string) (string, error) {
+func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath string) (string, error) {
 	// Read index.json to find manifest
 	indexPath := filepath.Join(ociDir, "index.json")
 	indexData, err := os.ReadFile(indexPath)
@@ -67,19 +69,25 @@ func ExtractAlgorithm(ociDir, destPath string) (string, error) {
 	}
 
 	// Extract layers to find algorithm files
-	fmt.Printf("found %d layers in manifest\n", len(manifest.Layers))
+	logger.Debug("found layers in manifest", "count", len(manifest.Layers))
 	var allSeenFiles []string
 
 	for _, layer := range manifest.Layers {
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		// Try to extract and find algorithm file
-		algoPath, seenFiles, err := extractLayerAndFindAlgorithm(layerPath, destPath)
-		if err == nil && algoPath != "" {
-			return algoPath, nil
-		}
+		algoPath, seenFiles, err := extractLayerAndFindAlgorithm(logger, layerPath, destPath)
 		if len(seenFiles) > 0 {
 			allSeenFiles = append(allSeenFiles, seenFiles...)
+		}
+
+		if err != nil {
+			logger.Warn("error extracting layer", "digest", layer.Digest, "error", err)
+			continue
+		}
+
+		if algoPath != "" {
+			return algoPath, nil
 		}
 	}
 
@@ -87,18 +95,18 @@ func ExtractAlgorithm(ociDir, destPath string) (string, error) {
 }
 
 // extractLayerAndFindAlgorithm extracts a layer and searches for algorithm files
-func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, []string, error) {
+func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath string) (string, []string, error) {
 	// Open layer file
 	layerFile, err := os.Open(layerPath)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to open layer: %w", err)
 	}
 	defer layerFile.Close()
 
 	// Decompress gzip
 	gzReader, err := gzip.NewReader(layerFile)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 	defer gzReader.Close()
 
@@ -114,10 +122,10 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, []string,
 			break
 		}
 		if err != nil {
-			return "", nil, err
+			return "", seenFiles, fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		fmt.Printf("inspecting file in layer: %s (type: %c)\n", header.Name, header.Typeflag)
+		logger.Debug("inspecting file in layer", "name", header.Name, "type", header.Typeflag)
 
 		// Skip directories
 		if header.Typeflag == tar.TypeDir {
@@ -132,17 +140,17 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, []string,
 			targetPath := filepath.Join(destPath, filepath.Base(header.Name))
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-				return "", nil, err
+				return "", seenFiles, fmt.Errorf("failed to create dir: %w", err)
 			}
 
 			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
-				return "", nil, err
+				return "", seenFiles, fmt.Errorf("failed to create file: %w", err)
 			}
 
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				outFile.Close()
-				return "", nil, err
+				return "", seenFiles, fmt.Errorf("failed to write file: %w", err)
 			}
 			outFile.Close()
 
