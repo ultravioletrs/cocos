@@ -535,7 +535,9 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 
 	// Pull and decrypt image
 	// CoCo Keyprovider will automatically handle decryption via ocicrypt
-	destDir := filepath.Join(workDir, "images", filepath.Base(source.URL))
+	// Sanitize directory name to avoid Skopeo interpreting ':' as tag separator
+	sanitizedName := strings.ReplaceAll(filepath.Base(source.URL), ":", "_")
+	destDir := filepath.Join(workDir, "images", sanitizedName)
 	if err := skopeoClient.PullAndDecrypt(ctx, ociSource, destDir); err != nil {
 		return nil, fmt.Errorf("failed to pull and decrypt OCI image: %w", err)
 	}
@@ -543,7 +545,7 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 	as.logger.Info("OCI image downloaded and decrypted", "dest", destDir)
 
 	// Extract algorithm file from OCI layers
-	extractDir := filepath.Join(workDir, "extracted", filepath.Base(source.URL))
+	extractDir := filepath.Join(workDir, "extracted", sanitizedName)
 	algorithmPath, err := oci.ExtractAlgorithm(destDir, extractDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)

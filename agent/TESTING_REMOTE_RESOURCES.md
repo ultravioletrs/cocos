@@ -143,10 +143,9 @@ EOF
 docker build -t localhost:5000/lin-reg-algo:v1.0 .
 docker push localhost:5000/lin-reg-algo:v1.0
 
-# 4. Generate encryption key
-openssl rand -base64 32 > algo.key
+# 4. Generate and store key
+openssl rand -out algo.key 32
 
-# 5. Store key in KBS
 # 5. Store key in KBS using kbs-client
 ../target/release/kbs-client --url http://localhost:8080 config \
   --auth-private-key kbs-admin.key \
@@ -154,15 +153,35 @@ openssl rand -base64 32 > algo.key
   --path default/key/algo-key \
   --resource-file algo.key
 
-# 6. Encrypt the image using Docker (CoCo Keyprovider)
-docker run --rm --network host \
+# 6. Encrypt the image using Host Skopeo + Docker Keyprovider
+# Start Keyprovider in background
+docker run -d --rm --name keyprovider --network host \
   -v "$PWD:/work" -w /work \
   ghcr.io/confidential-containers/staged-images/coco-keyprovider:latest \
-  /encrypt.sh \
-  -k "$(base64 -w0 < algo.key)" \
-  -i kbs:///default/key/algo-key \
-  -s docker://localhost:5000/lin-reg-algo:v1.0 \
-  -d docker://localhost:5000/encrypted-lin-reg:v1.0
+  coco_keyprovider --socket 127.0.0.1:50000
+
+# Configure Ocicrypt to use local Keyprovider
+cat <<EOF > ocicrypt.conf
+{
+  "key-providers": {
+    "attestation-agent": {
+      "grpc": "127.0.0.1:50000"
+    }
+  }
+}
+EOF
+export OCICRYPT_KEYPROVIDER_CONFIG=$(pwd)/ocicrypt.conf
+
+# Encrypt Algo
+skopeo copy \
+  --src-tls-verify=false \
+  --dest-tls-verify=false \
+  --encryption-key "provider:attestation-agent:keypath=/work/algo.key::keyid=kbs:///default/key/algo-key::algorithm=A256GCM" \
+  docker://localhost:5000/lin-reg-algo:v1.0 \
+  docker://localhost:5000/encrypted-lin-reg:v1.0
+
+# Stop Keyprovider
+docker stop keyprovider
 ```
 
 ### Encrypt a Dataset (CSV in OCI Image)
@@ -189,22 +208,33 @@ docker push localhost:5000/iris-dataset:v1.0
 
 # 4. Generate and store key
 # 4. Generate and store key
-openssl rand -base64 32 > dataset.key
+openssl rand -out dataset.key 32
 ../target/release/kbs-client --url http://localhost:8080 config \
   --auth-private-key kbs-admin.key \
   set-resource \
   --path default/key/dataset-key \
   --resource-file dataset.key
 
-# 5. Encrypt dataset image using Docker (CoCo Keyprovider)
-docker run --rm --network host \
+# 5. Encrypt dataset image using Host Skopeo + Docker Keyprovider
+# Start Keyprovider in background
+docker run -d --rm --name keyprovider --network host \
   -v "$PWD:/work" -w /work \
   ghcr.io/confidential-containers/staged-images/coco-keyprovider:latest \
-  /encrypt.sh \
-  -k "$(base64 -w0 < dataset.key)" \
-  -i kbs:///default/key/dataset-key \
-  -s docker://localhost:5000/iris-dataset:v1.0 \
-  -d docker://localhost:5000/encrypted-iris:v1.0
+  coco_keyprovider --socket 127.0.0.1:50000
+
+# Configure Ocicrypt (if not already done)
+export OCICRYPT_KEYPROVIDER_CONFIG=$(pwd)/ocicrypt.conf
+
+# Encrypt Dataset
+skopeo copy \
+  --src-tls-verify=false \
+  --dest-tls-verify=false \
+  --encryption-key "provider:attestation-agent:keypath=/work/dataset.key::keyid=kbs:///default/key/dataset-key::algorithm=A256GCM" \
+  docker://localhost:5000/iris-dataset:v1.0 \
+  docker://localhost:5000/encrypted-iris:v1.0
+
+# Stop Keyprovider
+docker stop keyprovider
 ```
 
 ## Running a Computation
