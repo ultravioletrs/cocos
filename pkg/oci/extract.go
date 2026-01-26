@@ -68,32 +68,37 @@ func ExtractAlgorithm(ociDir, destPath string) (string, error) {
 
 	// Extract layers to find algorithm files
 	fmt.Printf("found %d layers in manifest\n", len(manifest.Layers))
+	var allSeenFiles []string
+
 	for _, layer := range manifest.Layers {
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		// Try to extract and find algorithm file
-		algoPath, err := extractLayerAndFindAlgorithm(layerPath, destPath)
+		algoPath, seenFiles, err := extractLayerAndFindAlgorithm(layerPath, destPath)
 		if err == nil && algoPath != "" {
 			return algoPath, nil
 		}
+		if len(seenFiles) > 0 {
+			allSeenFiles = append(allSeenFiles, seenFiles...)
+		}
 	}
 
-	return "", fmt.Errorf("no algorithm file found in OCI image layers")
+	return "", fmt.Errorf("no algorithm file found in OCI image layers (seen: %v)", allSeenFiles)
 }
 
 // extractLayerAndFindAlgorithm extracts a layer and searches for algorithm files
-func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
+func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, []string, error) {
 	// Open layer file
 	layerFile, err := os.Open(layerPath)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer layerFile.Close()
 
 	// Decompress gzip
 	gzReader, err := gzip.NewReader(layerFile)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer gzReader.Close()
 
@@ -109,7 +114,7 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 			break
 		}
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		fmt.Printf("inspecting file in layer: %s (type: %c)\n", header.Name, header.Typeflag)
@@ -127,17 +132,17 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 			targetPath := filepath.Join(destPath, filepath.Base(header.Name))
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-				return "", err
+				return "", nil, err
 			}
 
 			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				outFile.Close()
-				return "", err
+				return "", nil, err
 			}
 			outFile.Close()
 
@@ -146,11 +151,7 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 		}
 	}
 
-	if algorithmPath == "" && len(seenFiles) > 0 {
-		return "", fmt.Errorf("algorithm file not found (seen: %v)", seenFiles)
-	}
-
-	return algorithmPath, nil
+	return algorithmPath, seenFiles, nil
 }
 
 // isAlgorithmFile checks if a file is likely an algorithm file
