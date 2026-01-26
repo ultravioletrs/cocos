@@ -101,6 +101,7 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 	tarReader := tar.NewReader(gzReader)
 
 	var algorithmPath string
+	var seenFiles []string
 
 	for {
 		header, err := tarReader.Next()
@@ -117,6 +118,8 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 		if header.Typeflag == tar.TypeDir {
 			continue
 		}
+
+		seenFiles = append(seenFiles, header.Name)
 
 		// Check if this is an algorithm file
 		if isAlgorithmFile(header.Name) {
@@ -141,6 +144,10 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 			algorithmPath = targetPath
 			// Continue to extract all algorithm files, but return the first one found
 		}
+	}
+
+	if algorithmPath == "" && len(seenFiles) > 0 {
+		return "", fmt.Errorf("algorithm file not found (seen: %v)", seenFiles)
 	}
 
 	return algorithmPath, nil
