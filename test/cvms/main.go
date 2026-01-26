@@ -79,10 +79,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	if datasetKBSPaths != "" {
 		datasetKBSPathsList = strings.Split(datasetKBSPaths, ",")
 	}
-	var datasetTypes []string
-	if datasetTypeString != "" {
-		datasetTypes = strings.Split(datasetTypeString, ",")
-	}
+
 	var datasetDecompressList []bool
 	if datasetDecompress != "" {
 		parts := strings.Split(datasetDecompress, ",")
