@@ -47,6 +47,8 @@ var (
 	algoKBSResourcePath string
 	datasetSourceURLs   string
 	datasetKBSPaths     string
+	algoType            string
+	datasetTypeString   string
 )
 
 type svc struct {
@@ -75,6 +77,10 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	if datasetKBSPaths != "" {
 		datasetKBSPathsList = strings.Split(datasetKBSPaths, ",")
 	}
+	var datasetTypes []string
+	if datasetTypeString != "" {
+		datasetTypes = strings.Split(datasetTypeString, ",")
+	}
 
 	if len(datasetURLs) > 0 && len(datasetKBSPathsList) > 0 {
 		// Remote datasets mode
@@ -93,6 +99,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				UserKey:  pubPem.Bytes,
 				Filename: fmt.Sprintf("dataset_%d.csv", i),
 				Source: &cvms.Source{
+					Type:            datasetTypes[i],
 					Url:             datasetURLs[i],
 					KbsResourcePath: datasetKBSPathsList[i],
 				},
@@ -126,6 +133,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 			Hash:    algoHash[:],
 			UserKey: pubPem.Bytes,
 			Source: &cvms.Source{
+				Type:            algoType,
 				Url:             algoSourceURL,
 				KbsResourcePath: algoKBSResourcePath,
 			},
@@ -195,6 +203,8 @@ func main() {
 	flagSet.StringVar(&algoKBSResourcePath, "algo-kbs-path", "", "Algorithm KBS resource path (e.g., 'default/key/algo-key')")
 	flagSet.StringVar(&datasetSourceURLs, "dataset-source-urls", "", "Dataset source URLs, comma-separated")
 	flagSet.StringVar(&datasetKBSPaths, "dataset-kbs-paths", "", "Dataset KBS resource paths, comma-separated")
+	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm source type (e.g. oci-image)")
+	flagSet.StringVar(&datasetTypeString, "dataset-type", "", "Dataset source type, comma-separated")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
 	if flagSetParseError != nil {

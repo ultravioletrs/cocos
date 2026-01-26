@@ -49,17 +49,50 @@ sudo make install
 # Clone and build KBS
 git clone https://github.com/confidential-containers/trustee
 cd trustee/kbs
-cargo build --release --features sample_only
+# Patch Cargo.toml to disable SGX requirement (for testing only)
+sed -i 's/"all-verifier",//g' Cargo.toml
+
+make
+make cli
 
 # Generate admin keys
 openssl genpkey -algorithm ed25519 -out kbs-admin.key
 openssl pkey -in kbs-admin.key -pubout -out kbs-admin.pub
 
+# Create KBS configuration file
+cat > kbs-config.toml << 'EOF'
+[http_server]
+sockets = ["0.0.0.0:8080"]
+insecure_http = true
+
+[admin]
+type = "Simple"
+[[admin.personas]]
+id = "admin"
+public_key_path = "kbs-admin.pub"
+
+[attestation_service]
+type = "coco_as_builtin"
+work_dir = "kbs-data/as"
+
+[attestation_service.rvps_config]
+type = "BuiltIn"
+
+[attestation_service.rvps_config.storage]
+type = "LocalFs"
+file_path = "kbs-data/rvps-values"
+
+[[plugins]]
+name = "resource"
+type = "LocalFs"
+dir_path = "kbs-data/repository"
+EOF
+
+# Create configuration directories
+mkdir -p kbs-data/as kbs-data/rvps kbs-data/repository
+
 # Start KBS
-./target/release/kbs \
-  --insecure-http \
-  --auth-public-key kbs-admin.pub \
-  --attestation-token-type CoCo
+../target/release/kbs --config-file kbs-config.toml
 ```
 
 KBS will listen on `http://localhost:8080`
@@ -114,17 +147,22 @@ docker push localhost:5000/lin-reg-algo:v1.0
 openssl rand -base64 32 > algo.key
 
 # 5. Store key in KBS
-KEY_BASE64=$(cat algo.key | base64 -w0)
-curl -X POST http://localhost:8080/kbs/v0/resource/default/key/algo-key \
-  -H "Authorization: Bearer $(echo -n '{}' | base64)" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary "@algo.key"
+# 5. Store key in KBS using kbs-client
+../target/release/kbs-client --url http://localhost:8080 config \
+  --auth-private-key kbs-admin.key \
+  set-resource \
+  --path default/key/algo-key \
+  --resource-file algo.key
 
-# 6. Encrypt the image using Skopeo
-skopeo copy \
-  --encryption-key provider:attestation-agent:cc_kbc::kbs:///default/key/algo-key \
-  docker://localhost:5000/lin-reg-algo:v1.0 \
-  docker://localhost:5000/encrypted-lin-reg:v1.0
+# 6. Encrypt the image using Docker (CoCo Keyprovider)
+docker run --rm --network host \
+  -v "$PWD:/work" -w /work \
+  ghcr.io/confidential-containers/staged-images/coco-keyprovider:latest \
+  /encrypt.sh \
+  -k "$(base64 -w0 < algo.key)" \
+  -i kbs:///default/key/algo-key \
+  -s docker://localhost:5000/lin-reg-algo:v1.0 \
+  -d docker://localhost:5000/encrypted-lin-reg:v1.0
 ```
 
 ### Encrypt a Dataset (CSV in OCI Image)
@@ -150,17 +188,23 @@ docker build -f Dockerfile.dataset -t localhost:5000/iris-dataset:v1.0 .
 docker push localhost:5000/iris-dataset:v1.0
 
 # 4. Generate and store key
+# 4. Generate and store key
 openssl rand -base64 32 > dataset.key
-curl -X POST http://localhost:8080/kbs/v0/resource/default/key/dataset-key \
-  -H "Authorization: Bearer $(echo -n '{}' | base64)" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary "@dataset.key"
+../target/release/kbs-client --url http://localhost:8080 config \
+  --auth-private-key kbs-admin.key \
+  set-resource \
+  --path default/key/dataset-key \
+  --resource-file dataset.key
 
-# 5. Encrypt dataset image
-skopeo copy \
-  --encryption-key provider:attestation-agent:cc_kbc::kbs:///default/key/dataset-key \
-  docker://localhost:5000/iris-dataset:v1.0 \
-  docker://localhost:5000/encrypted-iris:v1.0
+# 5. Encrypt dataset image using Docker (CoCo Keyprovider)
+docker run --rm --network host \
+  -v "$PWD:/work" -w /work \
+  ghcr.io/confidential-containers/staged-images/coco-keyprovider:latest \
+  /encrypt.sh \
+  -k "$(base64 -w0 < dataset.key)" \
+  -i kbs:///default/key/dataset-key \
+  -s docker://localhost:5000/iris-dataset:v1.0 \
+  -d docker://localhost:5000/encrypted-iris:v1.0
 ```
 
 ## Running a Computation
@@ -181,24 +225,26 @@ HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.
 
 Start CVMS server:
 ```bash
+go build -o build/cvms-test ./test/cvms/main.go
 HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -public-key-path ./public.pem \
   -attested-tls-bool false \
   -kbs-url http://$HOST_IP:8080 \
   -algo-type oci-image \
-  -algo-source-url docker://localhost:5000/encrypted-lin-reg:v1.0 \
+  -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
   -dataset-type oci-image \
-  -dataset-source-url docker://localhost:5000/encrypted-iris:v1.0 \
-  -dataset-kbs-path default/key/dataset-key
+  -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
+  -dataset-kbs-paths default/key/dataset-key
 ```
 
 ### 3. Create VM via CLI (Host)
 
 ```bash
-./build/cocos-cli agent create \
-  --manager-url http://localhost:7020 \
-  --cvms-url http://$HOST_IP:7001
+export MANAGER_GRPC_URL=localhost:7002
+./build/cocos-cli create-vm \
+  --server-url $HOST_IP:7001 \
+  --log-level debug
 ```
 
 The agent will:
@@ -235,6 +281,8 @@ journalctl -u attestation-agent -f
 export OCICRYPT_KEYPROVIDER_CONFIG=/etc/ocicrypt_keyprovider.conf
 
 skopeo copy \
+  --src-tls-verify=false \
+  --dest-tls-verify=false \
   --decryption-key provider:attestation-agent:cc_kbc::null \
   docker://localhost:5000/encrypted-lin-reg:v1.0 \
   oci:/tmp/decrypted-algo
