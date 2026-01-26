@@ -62,7 +62,7 @@ func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource
 	}
 
 	// Add insecure policy for testing (TODO: use proper policy in production)
-	args = append(args, "--insecure-policy")
+	args = append(args, "--insecure-policy", "--src-tls-verify=false", "--dest-tls-verify=false")
 
 	// Source and destination
 	args = append(args, source.URI, "oci:"+destDir)
@@ -87,7 +87,7 @@ func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource
 
 // Inspect inspects an OCI image and returns basic manifest information
 func (s *SkopeoClient) Inspect(ctx context.Context, imageRef string) (*ImageManifest, error) {
-	args := []string{"inspect", "--insecure-policy", imageRef}
+	args := []string{"inspect", "--insecure-policy", "--tls-verify=false", imageRef}
 
 	cmd := exec.CommandContext(ctx, s.skopeoPath, args...)
 	cmd.Env = append(os.Environ(),
