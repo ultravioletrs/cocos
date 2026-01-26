@@ -243,6 +243,7 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 			ac.Algorithm.Source = &agent.ResourceSource{
 				URL:             runReq.Algorithm.Source.Url,
 				KBSResourcePath: runReq.Algorithm.Source.KbsResourcePath,
+				Encrypted:       runReq.Algorithm.Source.Encrypted,
 			}
 		}
 		ac.Algorithm.AlgoType = runReq.Algorithm.AlgoType
@@ -260,6 +261,7 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 			dataset.Source = &agent.ResourceSource{
 				URL:             ds.Source.Url,
 				KBSResourcePath: ds.Source.KbsResourcePath,
+				Encrypted:       ds.Source.Encrypted,
 			}
 		}
 		dataset.Decompress = ds.Decompress
