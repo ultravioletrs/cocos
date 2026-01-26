@@ -77,6 +77,10 @@ func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource
 	cmd.Dir = s.workDir
 
 	// Capture output
+	// Debug: Print full command
+	fmt.Printf("executing skopeo command: %s %v\n", s.skopeoPath, args)
+	fmt.Printf("skopeo environment: %s\n", OCICryptKeyproviderConfig+"="+DefaultOCICryptConfig)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("skopeo copy failed: %w\nOutput: %s", err, string(output))

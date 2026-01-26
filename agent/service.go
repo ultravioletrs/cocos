@@ -527,10 +527,8 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 // downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
 func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource) ([]byte, error) {
-	as.logger.Info("downloading OCI image",
-		"url", source.URL,
-		"encrypted", source.Encrypted,
-		"kbs_resource_path", source.KBSResourcePath)
+	as.logger.Info(fmt.Sprintf("downloading OCI image (url=%s encrypted=%t kbs_path=%s)",
+		source.URL, source.Encrypted, source.KBSResourcePath))
 
 	// Create Skopeo client
 	workDir := filepath.Join(os.TempDir(), "cocos-oci")
