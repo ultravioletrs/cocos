@@ -48,7 +48,9 @@ var (
 	datasetSourceURLs   string
 	datasetKBSPaths     string
 	algoType            string
+	algoArgsString      string
 	datasetTypeString   string
+	datasetDecompress   string
 )
 
 type svc struct {
@@ -81,6 +83,14 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	if datasetTypeString != "" {
 		datasetTypes = strings.Split(datasetTypeString, ",")
 	}
+	var datasetDecompressList []bool
+	if datasetDecompress != "" {
+		parts := strings.Split(datasetDecompress, ",")
+		for _, p := range parts {
+			val, _ := strconv.ParseBool(p)
+			datasetDecompressList = append(datasetDecompressList, val)
+		}
+	}
 
 	if len(datasetURLs) > 0 && len(datasetKBSPathsList) > 0 {
 		// Remote datasets mode
@@ -99,11 +109,14 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				UserKey:  pubPem.Bytes,
 				Filename: fmt.Sprintf("dataset_%d.csv", i),
 				Source: &cvms.Source{
-					Type:            datasetTypes[i],
+					Type:            "oci-image",
 					Url:             datasetURLs[i],
 					KbsResourcePath: datasetKBSPathsList[i],
 				},
 			})
+			if len(datasetDecompressList) > i {
+				datasets[len(datasets)-1].Decompress = datasetDecompressList[i]
+			}
 		}
 	} else {
 		// Direct upload mode - use local files
@@ -130,10 +143,12 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		// For remote algorithm, hash should be of the decrypted data
 		// Using placeholder for now - in production, provide actual hash
 		algorithm = &cvms.Algorithm{
-			Hash:    algoHash[:],
-			UserKey: pubPem.Bytes,
+			Hash:     algoHash[:],
+			UserKey:  pubPem.Bytes,
+			AlgoType: algoType,
+			AlgoArgs: strings.Split(algoArgsString, ","),
 			Source: &cvms.Source{
-				Type:            algoType,
+				Type:            "oci-image",
 				Url:             algoSourceURL,
 				KbsResourcePath: algoKBSResourcePath,
 			},
@@ -203,8 +218,10 @@ func main() {
 	flagSet.StringVar(&algoKBSResourcePath, "algo-kbs-path", "", "Algorithm KBS resource path (e.g., 'default/key/algo-key')")
 	flagSet.StringVar(&datasetSourceURLs, "dataset-source-urls", "", "Dataset source URLs, comma-separated")
 	flagSet.StringVar(&datasetKBSPaths, "dataset-kbs-paths", "", "Dataset KBS resource paths, comma-separated")
-	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm source type (e.g. oci-image)")
-	flagSet.StringVar(&datasetTypeString, "dataset-type", "", "Dataset source type, comma-separated")
+	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm execution type (e.g. binary, python)")
+	flagSet.StringVar(&algoArgsString, "algo-args", "", "Algorithm arguments, comma-separated")
+	flagSet.StringVar(&datasetTypeString, "dataset-type", "", "Dataset source type, comma-separated (deprecated, always oci-image)")
+	flagSet.StringVar(&datasetDecompress, "dataset-decompress", "", "Dataset decompression bools, comma-separated (e.g. true,false)")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])
 	if flagSetParseError != nil {

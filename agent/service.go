@@ -401,7 +401,13 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 			return
 		}
 
-		as.logger.Info("algorithm downloaded and saved successfully")
+		as.algoType = as.computation.Algorithm.AlgoType
+		if as.algoType == "" {
+			as.algoType = string(algorithm.AlgoTypeBin)
+		}
+		as.algoArgs = as.computation.Algorithm.AlgoArgs
+
+		as.logger.Info("algorithm downloaded and saved successfully", "type", as.algoType)
 		as.sm.SendEvent(AlgorithmReceived)
 	} else {
 		// If no remote source, do nothing - wait for direct upload via Algo() RPC call
@@ -462,11 +468,19 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 				return
 			}
 
-			if _, err := f.Write(downloadedData); err != nil {
-				as.logger.Error("error writing dataset to file", "error", err, "filename", d.Filename)
-				f.Close()
-				as.sm.SendEvent(RunFailed)
-				return
+			if d.Decompress {
+				if err := internal.UnzipFromMemory(downloadedData, algorithm.DatasetsDir); err != nil {
+					as.logger.Error("error decompressing dataset", "error", err, "filename", d.Filename)
+					as.sm.SendEvent(RunFailed)
+					return
+				}
+			} else {
+				if _, err := f.Write(downloadedData); err != nil {
+					as.logger.Error("error writing dataset to file", "error", err, "filename", d.Filename)
+					f.Close()
+					as.sm.SendEvent(RunFailed)
+					return
+				}
 			}
 
 			if err := f.Close(); err != nil {
