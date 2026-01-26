@@ -8,7 +8,7 @@ Requires=attestation-agent.service
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/coco-keyprovider
-ExecStartPre=/bin/mkdir -p /run/coco-keyprovider
+RuntimeDirectory=coco-keyprovider
 ExecStart=/usr/local/bin/coco_keyprovider --socket ${COCO_KP_SOCKET}
 Restart=on-failure
 RestartSec=5s
@@ -20,7 +20,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/run/coco-keyprovider
 
 [Install]
 WantedBy=multi-user.target

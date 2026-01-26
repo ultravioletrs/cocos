@@ -25,6 +25,8 @@ define COCO_KEYPROVIDER_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/systemd/system/coco-keyprovider.service
 	$(INSTALL) -D -m 0644 $(BR2_EXTERNAL_COCOS_PATH)/package/coco-keyprovider/coco-keyprovider.default \
 		$(TARGET_DIR)/etc/default/coco-keyprovider
+	mkdir -p $(TARGET_DIR)/etc
+	echo '{"key-providers": {"attestation-agent": {"grpc": "127.0.0.1:50011"}}}' > $(TARGET_DIR)/etc/ocicrypt_keyprovider.conf
 endef
 
 $(eval $(generic-package))
