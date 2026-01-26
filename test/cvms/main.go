@@ -109,6 +109,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 					Type:            "oci-image",
 					Url:             datasetURLs[i],
 					KbsResourcePath: datasetKBSPathsList[i],
+					Encrypted:       datasetKBSPathsList[i] != "",
 				},
 			})
 			if len(datasetDecompressList) > i {
@@ -148,6 +149,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				Type:            "oci-image",
 				Url:             algoSourceURL,
 				KbsResourcePath: algoKBSResourcePath,
+				Encrypted:       algoKBSResourcePath != "",
 			},
 		}
 	} else {

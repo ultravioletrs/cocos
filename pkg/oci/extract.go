@@ -82,7 +82,7 @@ func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath
 		}
 
 		if err != nil {
-			logger.Warn("error extracting layer", "digest", layer.Digest, "error", err)
+			logger.Warn(fmt.Sprintf("error extracting layer %s: %v", layer.Digest, err))
 			continue
 		}
 
