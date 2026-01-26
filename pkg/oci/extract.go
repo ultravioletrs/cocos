@@ -67,6 +67,7 @@ func ExtractAlgorithm(ociDir, destPath string) (string, error) {
 	}
 
 	// Extract layers to find algorithm files
+	fmt.Printf("found %d layers in manifest\n", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
@@ -109,6 +110,8 @@ func extractLayerAndFindAlgorithm(layerPath, destPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
+		fmt.Printf("inspecting file in layer: %s (type: %c)\n", header.Name, header.Typeflag)
 
 		// Skip directories
 		if header.Typeflag == tar.TypeDir {

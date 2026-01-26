@@ -245,6 +245,8 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 				KBSResourcePath: runReq.Algorithm.Source.KbsResourcePath,
 			}
 		}
+		ac.Algorithm.AlgoType = runReq.Algorithm.AlgoType
+		ac.Algorithm.AlgoArgs = runReq.Algorithm.AlgoArgs
 	}
 
 	for _, ds := range runReq.Datasets {
@@ -260,6 +262,7 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 				KBSResourcePath: ds.Source.KbsResourcePath,
 			}
 		}
+		dataset.Decompress = ds.Decompress
 		ac.Datasets = append(ac.Datasets, dataset)
 	}
 

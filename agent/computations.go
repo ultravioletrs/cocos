@@ -63,11 +63,12 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte          `json:"-"`
-	Hash     [32]byte        `json:"hash,omitempty"`
-	UserKey  []byte          `json:"user_key,omitempty"`
-	Filename string          `json:"filename,omitempty"`
-	Source   *ResourceSource `json:"source,omitempty"` // Optional remote source
+	Dataset    []byte          `json:"-"`
+	Hash       [32]byte        `json:"hash,omitempty"`
+	UserKey    []byte          `json:"user_key,omitempty"`
+	Filename   string          `json:"filename,omitempty"`
+	Source     *ResourceSource `json:"source,omitempty"` // Optional remote source
+	Decompress bool            `json:"decompress,omitempty"`
 }
 
 type Datasets []Dataset
@@ -78,6 +79,8 @@ type Algorithm struct {
 	UserKey      []byte          `json:"user_key,omitempty"`
 	Requirements []byte          `json:"-"`
 	Source       *ResourceSource `json:"source,omitempty"` // Optional remote source
+	AlgoType     string          `json:"algo_type,omitempty"`
+	AlgoArgs     []string        `json:"algo_args,omitempty"`
 }
 
 type ManifestIndexKey struct{}

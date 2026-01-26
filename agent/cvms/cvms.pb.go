@@ -967,6 +967,7 @@ type Dataset struct {
 	UserKey       []byte                 `protobuf:"bytes,2,opt,name=userKey,proto3" json:"userKey,omitempty"`
 	Filename      string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
 	Source        *Source                `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted dataset
+	Decompress    bool                   `protobuf:"varint,5,opt,name=decompress,proto3" json:"decompress,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1029,11 +1030,20 @@ func (x *Dataset) GetSource() *Source {
 	return nil
 }
 
+func (x *Dataset) GetDecompress() bool {
+	if x != nil {
+		return x.Decompress
+	}
+	return false
+}
+
 type Algorithm struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hash          []byte                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"` // should be sha3.Sum256, 32 byte length.
 	UserKey       []byte                 `protobuf:"bytes,2,opt,name=userKey,proto3" json:"userKey,omitempty"`
 	Source        *Source                `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted algorithm
+	AlgoType      string                 `protobuf:"bytes,4,opt,name=algo_type,json=algoType,proto3" json:"algo_type,omitempty"`
+	AlgoArgs      []string               `protobuf:"bytes,5,rep,name=algo_args,json=algoArgs,proto3" json:"algo_args,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1089,10 +1099,24 @@ func (x *Algorithm) GetSource() *Source {
 	return nil
 }
 
+func (x *Algorithm) GetAlgoType() string {
+	if x != nil {
+		return x.AlgoType
+	}
+	return ""
+}
+
+func (x *Algorithm) GetAlgoArgs() []string {
+	if x != nil {
+		return x.AlgoArgs
+	}
+	return nil
+}
+
 type Source struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Type            string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`                                                // Type of source: "oci-image", "s3", "https" (default: infer from URL)
-	Url             string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`                                                  // URL of the resource (docker://registry/repo:tag, s3://bucket/key, https://...)
+	Type            string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`                                                // Type of source: "oci-image" (only OCI images supported for CoCo)
+	Url             string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`                                                  // URL of the OCI image (e.g., docker://registry/repo:tag)
 	KbsResourcePath string                 `protobuf:"bytes,3,opt,name=kbs_resource_path,json=kbsResourcePath,proto3" json:"kbs_resource_path,omitempty"` // Path to decryption key in KBS (e.g., "default/key/my-key")
 	Encrypted       bool                   `protobuf:"varint,4,opt,name=encrypted,proto3" json:"encrypted,omitempty"`                                     // Whether the resource is encrypted (requires KBS)
 	unknownFields   protoimpl.UnknownFields
@@ -1472,16 +1496,21 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\fagent_config\x18\a \x01(\v2\x11.cvms.AgentConfigR\vagentConfig\x12!\n" +
 	"\x03kbs\x18\b \x01(\v2\x0f.cvms.KBSConfigR\x03kbs\"*\n" +
 	"\x0eResultConsumer\x12\x18\n" +
-	"\auserKey\x18\x01 \x01(\fR\auserKey\"y\n" +
+	"\auserKey\x18\x01 \x01(\fR\auserKey\"\x99\x01\n" +
 	"\aDataset\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12\x1a\n" +
 	"\bfilename\x18\x03 \x01(\tR\bfilename\x12$\n" +
-	"\x06source\x18\x04 \x01(\v2\f.cvms.SourceR\x06source\"_\n" +
+	"\x06source\x18\x04 \x01(\v2\f.cvms.SourceR\x06source\x12\x1e\n" +
+	"\n" +
+	"decompress\x18\x05 \x01(\bR\n" +
+	"decompress\"\x99\x01\n" +
 	"\tAlgorithm\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12$\n" +
-	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\"x\n" +
+	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\x12\x1b\n" +
+	"\talgo_type\x18\x04 \x01(\tR\balgoType\x12\x1b\n" +
+	"\talgo_args\x18\x05 \x03(\tR\balgoArgs\"x\n" +
 	"\x06Source\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12*\n" +
