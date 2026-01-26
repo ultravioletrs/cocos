@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-LOG_FORWARDER_VERSION = e9e28c5d35a454221b3c1403d821db8552d1ba3f
+LOG_FORWARDER_VERSION = 7c7af68dcec4ce8907b1af440b22f8f5500977f4
 LOG_FORWARDER_SITE = $(call github,sammyoina,cocos-ai,$(LOG_FORWARDER_VERSION))
 
 define LOG_FORWARDER_BUILD_CMDS

@@ -560,7 +560,7 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 
 	// Extract algorithm file from OCI layers
 	extractDir := filepath.Join(workDir, "extracted", sanitizedName)
-	algorithmPath, err := oci.ExtractAlgorithm(destDir, extractDir)
+	algorithmPath, err := oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
 	}
