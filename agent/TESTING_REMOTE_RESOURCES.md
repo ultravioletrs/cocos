@@ -255,6 +255,10 @@ HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.
 
 Start CVMS server:
 ```bash
+# Calculate SHA256 of decrypted files (must match what Agent sees)
+ALGO_HASH=$(sha256sum lin_reg.py | awk '{print $1}')
+DATASET_HASH=$(sha256sum iris.csv | awk '{print $1}')
+
 go build -o build/cvms-test ./test/cvms/main.go
 HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -public-key-path ./public.pem \
@@ -263,9 +267,11 @@ HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -algo-type oci-image \
   -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
+  -algo-hash $ALGO_HASH \
   -dataset-type oci-image \
   -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
-  -dataset-kbs-paths default/key/dataset-key
+  -dataset-kbs-paths default/key/dataset-key \
+  -dataset-hash $DATASET_HASH
 ```
 
 ### 3. Create VM via CLI (Host)

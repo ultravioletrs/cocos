@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -49,7 +50,9 @@ var (
 	datasetKBSPaths     string
 	algoType            string
 	algoArgsString      string
+	algoHash            string
 	datasetTypeString   string
+	datasetHash         string
 	datasetDecompress   string
 )
 
@@ -89,6 +92,24 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 	}
 
+	// Parse dataset hash if provided
+	var dataHashBytes []byte
+	if datasetHash != "" {
+		var err error
+		dataHashBytes, err = hex.DecodeString(datasetHash)
+		if err != nil {
+			s.logger.Error(fmt.Sprintf("failed to decode dataset hash: %s", err))
+			return
+		}
+		if len(dataHashBytes) != 32 {
+			s.logger.Error(fmt.Sprintf("dataset hash must be 32 bytes (SHA256), got %d", len(dataHashBytes)))
+			return
+		}
+	} else {
+		// Default to empty/zero hash
+		dataHashBytes = make([]byte, 32)
+	}
+
 	if len(datasetURLs) > 0 && len(datasetKBSPathsList) > 0 {
 		// Remote datasets mode
 		if len(datasetURLs) != len(datasetKBSPathsList) {
@@ -97,12 +118,8 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 
 		for i := 0; i < len(datasetURLs); i++ {
-			// For remote datasets, hash should be of the decrypted data
-			// Using placeholder for now - in production, provide actual hash
-			var dataHash [32]byte
-
 			datasets = append(datasets, &cvms.Dataset{
-				Hash:     dataHash[:],
+				Hash:     dataHashBytes,
 				UserKey:  pubPem.Bytes,
 				Filename: fmt.Sprintf("dataset_%d.csv", i),
 				Source: &cvms.Source{
@@ -137,11 +154,24 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	var algorithm *cvms.Algorithm
 	if algoSourceURL != "" && algoKBSResourcePath != "" {
 		// Remote algorithm mode
-		var algoHash [32]byte
-		// For remote algorithm, hash should be of the decrypted data
-		// Using placeholder for now - in production, provide actual hash
+		var algoHashBytes []byte
+		if algoHash != "" {
+			var err error
+			algoHashBytes, err = hex.DecodeString(algoHash)
+			if err != nil {
+				s.logger.Error(fmt.Sprintf("failed to decode algo hash: %s", err))
+				return
+			}
+			if len(algoHashBytes) != 32 {
+				s.logger.Error(fmt.Sprintf("algo hash must be 32 bytes (SHA256), got %d", len(algoHashBytes)))
+				return
+			}
+		} else {
+			algoHashBytes = make([]byte, 32)
+		}
+
 		algorithm = &cvms.Algorithm{
-			Hash:     algoHash[:],
+			Hash:     algoHashBytes,
 			UserKey:  pubPem.Bytes,
 			AlgoType: algoType,
 			AlgoArgs: strings.Split(algoArgsString, ","),
@@ -219,7 +249,9 @@ func main() {
 	flagSet.StringVar(&datasetKBSPaths, "dataset-kbs-paths", "", "Dataset KBS resource paths, comma-separated")
 	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm execution type (e.g. binary, python)")
 	flagSet.StringVar(&algoArgsString, "algo-args", "", "Algorithm arguments, comma-separated")
+	flagSet.StringVar(&algoHash, "algo-hash", "", "Algorithm SHA256 hash (hex string)")
 	flagSet.StringVar(&datasetTypeString, "dataset-type", "", "Dataset source type, comma-separated (deprecated, always oci-image)")
+	flagSet.StringVar(&datasetHash, "dataset-hash", "", "Dataset SHA256 hash (hex string)")
 	flagSet.StringVar(&datasetDecompress, "dataset-decompress", "", "Dataset decompression bools, comma-separated (e.g. true,false)")
 
 	flagSetParseError := flagSet.Parse(os.Args[1:])

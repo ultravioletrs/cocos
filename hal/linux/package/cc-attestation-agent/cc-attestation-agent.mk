@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-CC_ATTESTATION_AGENT_VERSION = v0.16.0
-CC_ATTESTATION_AGENT_SITE = $(call github,confidential-containers,guest-components,$(CC_ATTESTATION_AGENT_VERSION))
+CC_ATTESTATION_AGENT_VERSION = mvp-runner
+CC_ATTESTATION_AGENT_SITE = $(call github,rodneyosodo,guest-components,$(CC_ATTESTATION_AGENT_VERSION))
 CC_ATTESTATION_AGENT_LICENSE = Apache-2.0
 CC_ATTESTATION_AGENT_LICENSE_FILES = LICENSE
 

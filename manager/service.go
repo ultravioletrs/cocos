@@ -160,6 +160,9 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 		Config:    ms.qemuCfg,
 		LaunchTCB: 0,
 	}
+	if req.AaKbsParams != "" {
+		cfg.Config.KernelCommandLine = fmt.Sprintf("%s agent.aa_kbc_params=%s", cfg.Config.KernelCommandLine, req.AaKbsParams)
+	}
 	ms.mu.Unlock()
 
 	tmpCertsDir, err := tempCertMount(id, req)

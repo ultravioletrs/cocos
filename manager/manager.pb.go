@@ -39,6 +39,7 @@ type CreateReq struct {
 	AwsSecretAccessKey   string                 `protobuf:"bytes,10,opt,name=aws_secret_access_key,json=awsSecretAccessKey,proto3" json:"aws_secret_access_key,omitempty"`
 	AwsEndpointUrl       string                 `protobuf:"bytes,11,opt,name=aws_endpoint_url,json=awsEndpointUrl,proto3" json:"aws_endpoint_url,omitempty"`
 	AwsRegion            string                 `protobuf:"bytes,12,opt,name=aws_region,json=awsRegion,proto3" json:"aws_region,omitempty"`
+	AaKbsParams          string                 `protobuf:"bytes,13,opt,name=aa_kbs_params,json=aaKbsParams,proto3" json:"aa_kbs_params,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -153,6 +154,13 @@ func (x *CreateReq) GetAwsEndpointUrl() string {
 func (x *CreateReq) GetAwsRegion() string {
 	if x != nil {
 		return x.AwsRegion
+	}
+	return ""
+}
+
+func (x *CreateReq) GetAaKbsParams() string {
+	if x != nil {
+		return x.AaKbsParams
 	}
 	return ""
 }
@@ -481,7 +489,7 @@ var File_manager_manager_proto protoreflect.FileDescriptor
 
 const file_manager_manager_proto_rawDesc = "" +
 	"\n" +
-	"\x15manager/manager.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"\x8e\x04\n" +
+	"\x15manager/manager.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"\xb2\x04\n" +
 	"\tCreateReq\x12&\n" +
 	"\x0fagent_log_level\x18\x01 \x01(\tR\ragentLogLevel\x126\n" +
 	"\x18agent_cvm_server_ca_cert\x18\x02 \x01(\fR\x14agentCvmServerCaCert\x12/\n" +
@@ -496,7 +504,8 @@ const file_manager_manager_proto_rawDesc = "" +
 	" \x01(\tR\x12awsSecretAccessKey\x12(\n" +
 	"\x10aws_endpoint_url\x18\v \x01(\tR\x0eawsEndpointUrl\x12\x1d\n" +
 	"\n" +
-	"aws_region\x18\f \x01(\tR\tawsRegion\"I\n" +
+	"aws_region\x18\f \x01(\tR\tawsRegion\x12\"\n" +
+	"\raa_kbs_params\x18\r \x01(\tR\vaaKbsParams\"I\n" +
 	"\tCreateRes\x12%\n" +
 	"\x0eforwarded_port\x18\x01 \x01(\tR\rforwardedPort\x12\x15\n" +
 	"\x06cvm_id\x18\x02 \x01(\tR\x05cvmId\"\"\n" +
