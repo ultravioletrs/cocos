@@ -10,6 +10,13 @@ import (
 	"github.com/google/go-sev-guest/abi"
 )
 
+// OEMID constants (Private Enterprise Numbers)
+const (
+	OEMID_AMD       = 3704 // https://www.iana.org/assignments/enterprise-numbers/?q=Advanced+Micro+Devices
+	OEMID_INTEL     = 343  // https://www.iana.org/assignments/enterprise-numbers/?q=Intel+Corporation
+	OEMID_MICROSOFT = 311  // https://www.iana.org/assignments/enterprise-numbers/?q=Microsoft+Corporation
+)
+
 // extractSNPClaims extracts AMD SEV-SNP specific claims from binary report.
 func extractSNPClaims(claims *EATClaims, report []byte) error {
 	if len(report) < int(abi.ReportSize) {
@@ -44,7 +51,7 @@ func extractSNPClaims(claims *EATClaims, report []byte) error {
 	// Set core EAT claims from SNP report
 	claims.Measurements = snpReport.Measurement
 	claims.UEID = snpReport.ChipId // Use ChipID as UEID
-	claims.OEMID = 1022            // AMD's PEN (Private Enterprise Number)
+	claims.OEMID = OEMID_AMD       // AMD's PEN (Private Enterprise Number)
 
 	// Set hardware model (hash of product name)
 	claims.HWModel = []byte(fmt.Sprintf("SEV-SNP-%d", snpReport.Version))
@@ -90,7 +97,7 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 	// Set core EAT claims
 	claims.Measurements = mrtd
 	claims.UEID = mrtd[:32] // Use first 32 bytes of MRTD as UEID
-	claims.OEMID = 343      // Intel's PEN
+	claims.OEMID = OEMID_INTEL     // Intel's PEN
 
 	// Set hardware model
 	claims.HWModel = []byte("Intel-TDX")
@@ -120,7 +127,7 @@ func extractAzureClaims(claims *EATClaims, report []byte) error {
 	// For now, just store it as raw report
 	claims.Measurements = report[:32] // Use first 32 bytes as measurement
 	claims.UEID = report[:16]         // Use first 16 bytes as UEID
-	claims.OEMID = 311                // Microsoft's PEN
+	claims.OEMID = OEMID_MICROSOFT // Microsoft's PEN
 
 	return nil
 }
