@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/google/go-sev-guest/abi"
+	tdxabi "github.com/google/go-tdx-guest/abi"
+	tdxpb "github.com/google/go-tdx-guest/proto/tdx"
 )
 
 // OEMID constants (Private Enterprise Numbers)
@@ -52,6 +54,7 @@ func extractSNPClaims(claims *EATClaims, report []byte) error {
 	claims.Measurements = snpReport.Measurement
 	claims.UEID = snpReport.ChipId // Use ChipID as UEID
 	claims.OEMID = OEMID_AMD       // AMD's PEN (Private Enterprise Number)
+	claims.SNPExtensions.Signature = snpReport.Signature
 
 	// Set hardware model (hash of product name)
 	claims.HWModel = []byte(fmt.Sprintf("SEV-SNP-%d", snpReport.Version))
@@ -61,43 +64,39 @@ func extractSNPClaims(claims *EATClaims, report []byte) error {
 
 // extractTDXClaims extracts Intel TDX specific claims from binary report.
 func extractTDXClaims(claims *EATClaims, report []byte) error {
-	// TDX Quote structure parsing
-	if len(report) < 584 { // Minimum TDX quote size
-		return fmt.Errorf("TDX report too small: got %d bytes", len(report))
+	// Parse TDX quote using go-tdx-guest ABI
+	decodedQuote, err := tdxabi.QuoteToProto(report)
+	if err != nil {
+		return fmt.Errorf("failed to parse TDX quote: %w", err)
 	}
 
-	// Parse TDX quote header (simplified - actual parsing would use go-tdx-guest)
-	// For now, extract key fields from known offsets
-
-	// MRTD is at offset 112, 48 bytes
-	mrtd := make([]byte, 48)
-	copy(mrtd, report[112:160])
-
-	// RTMRs are at offset 160, 4 registers of 48 bytes each
-	rtmrs := make([][]byte, 4)
-	for i := 0; i < 4; i++ {
-		rtmr := make([]byte, 48)
-		copy(rtmr, report[160+i*48:160+(i+1)*48])
-		rtmrs[i] = rtmr
+	quoteV4, ok := decodedQuote.(*tdxpb.QuoteV4)
+	if !ok {
+		return fmt.Errorf("unsupported TDX quote format")
 	}
 
-	// XFAM at offset 352, 8 bytes
-	xfam := binary.LittleEndian.Uint64(report[352:360])
-
-	// TD Attributes at offset 344, 8 bytes
-	tdAttributes := binary.LittleEndian.Uint64(report[344:352])
+	tdReport := quoteV4.GetTdQuoteBody()
+	signedData := quoteV4.GetSignedData()
 
 	claims.TDXExtensions = &TDXExtensions{
-		MRTD:         mrtd,
-		RTMR:         rtmrs,
-		XFAM:         xfam,
-		TDAttributes: tdAttributes,
+		MRTD:          tdReport.GetMrTd(),
+		RTMR:          tdReport.GetRtmrs(),
+		XFAM:          binary.LittleEndian.Uint64(tdReport.GetXfam()),
+		TDAttributes:  binary.LittleEndian.Uint64(tdReport.GetTdAttributes()),
+		MRConfigID:    tdReport.GetMrConfigId(),
+		MROwner:       tdReport.GetMrOwner(),
+		MROwnerConfig: tdReport.GetMrOwnerConfig(),
+		MRSEAM:        tdReport.GetMrSeam(),
+		Signature:     signedData.GetSignature(),
 	}
 
 	// Set core EAT claims
-	claims.Measurements = mrtd
-	claims.UEID = mrtd[:32] // Use first 32 bytes of MRTD as UEID
-	claims.OEMID = OEMID_INTEL     // Intel's PEN
+	claims.Measurements = tdReport.GetMrTd()
+	// Use first 32 bytes of MRTD as UEID, similar to other extractors
+	if len(claims.Measurements) >= 32 {
+		claims.UEID = claims.Measurements[:32]
+	}
+	claims.OEMID = OEMID_INTEL // Intel's PEN
 
 	// Set hardware model
 	claims.HWModel = []byte("Intel-TDX")
@@ -127,7 +126,7 @@ func extractAzureClaims(claims *EATClaims, report []byte) error {
 	// For now, just store it as raw report
 	claims.Measurements = report[:32] // Use first 32 bytes as measurement
 	claims.UEID = report[:16]         // Use first 16 bytes as UEID
-	claims.OEMID = OEMID_MICROSOFT // Microsoft's PEN
+	claims.OEMID = OEMID_MICROSOFT    // Microsoft's PEN
 
 	return nil
 }

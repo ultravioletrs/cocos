@@ -58,6 +58,7 @@ type SNPExtensions struct {
 	ChipID        []byte `json:"chip_id,omitempty"`        // Chip ID
 	CommittedTCB  uint64 `json:"committed_tcb,omitempty"`  // Committed TCB
 	LaunchTCB     uint64 `json:"launch_tcb,omitempty"`     // Launch TCB
+	Signature     []byte `json:"signature,omitempty"`      // Signature
 }
 
 // TDXExtensions contains Intel TDX specific claims.
@@ -71,6 +72,7 @@ type TDXExtensions struct {
 	MROwnerConfig []byte         `json:"mr_owner_config,omitempty"` // MR Owner Config
 	MRSEAM        []byte         `json:"mr_seam,omitempty"`         // MR SEAM
 	TDXModule     *TDXModuleInfo `json:"tdx_module,omitempty"`      // TDX module info
+	Signature     []byte         `json:"signature,omitempty"`       // Quote Signature
 }
 
 // TDXModuleInfo contains TDX module version information.
