@@ -156,3 +156,19 @@ func getPlatformTypeName(platformType attestation.PlatformType) string {
 		return "Unknown"
 	}
 }
+
+// Sanitize enforces dependency rules for claims.
+// HWModel requires OEMID.
+// HWVersion requires HWModel.
+func (c *EATClaims) Sanitize() {
+	if c.OEMID == 0 {
+		c.HWModel = nil
+		c.HWVersion = ""
+	}
+	if len(c.HWModel) == 0 {
+		c.HWVersion = ""
+	}
+	if c.SWName == "" {
+		c.SWVersion = ""
+	}
+}

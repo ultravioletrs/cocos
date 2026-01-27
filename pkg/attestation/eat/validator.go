@@ -14,6 +14,9 @@ func ValidateEATClaims(claims *EATClaims, policy *EATValidationPolicy) error {
 		return nil // No policy, skip validation
 	}
 
+	// Sanitize claims to enforce dependency rules
+	claims.Sanitize()
+
 	// Check required claims
 	for _, requiredClaim := range policy.RequireClaims {
 		switch requiredClaim {
