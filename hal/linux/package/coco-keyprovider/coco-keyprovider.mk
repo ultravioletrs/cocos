@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-COCO_KEYPROVIDER_VERSION = v0.16.0
-COCO_KEYPROVIDER_SITE = $(call github,confidential-containers,guest-components,$(COCO_KEYPROVIDER_VERSION))
+COCO_KEYPROVIDER_VERSION = mvp-runner
+COCO_KEYPROVIDER_SITE = $(call github,rodneyosodo,guest-components,$(COCO_KEYPROVIDER_VERSION))
 COCO_KEYPROVIDER_LICENSE = Apache-2.0
 COCO_KEYPROVIDER_LICENSE_FILES = LICENSE
 
@@ -21,6 +21,8 @@ endef
 define COCO_KEYPROVIDER_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/target/$(RUSTC_TARGET_NAME)/release/coco_keyprovider \
 		$(TARGET_DIR)/usr/local/bin/coco_keyprovider
+	$(INSTALL) -D -m 0755 $(BR2_EXTERNAL_COCOS_PATH)/package/coco-keyprovider/coco-keyprovider-setup.sh \
+		$(TARGET_DIR)/usr/local/bin/coco-keyprovider-setup.sh
 	$(INSTALL) -D -m 0644 $(BR2_EXTERNAL_COCOS_PATH)/package/coco-keyprovider/coco-keyprovider.service \
 		$(TARGET_DIR)/etc/systemd/system/coco-keyprovider.service
 	$(INSTALL) -D -m 0644 $(BR2_EXTERNAL_COCOS_PATH)/package/coco-keyprovider/coco-keyprovider.default \
