@@ -4,6 +4,8 @@
 package eat
 
 import (
+	"errors"
+
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
@@ -95,8 +97,14 @@ const (
 	DebugFullPermanentDisable = 4 // Debug is fully and permanently disabled
 )
 
+// MinNonceLength defines the minimum length for EAT nonce in bytes.
+const MinNonceLength = 8
+
 // NewEATClaims creates EAT claims from binary attestation report.
 func NewEATClaims(report []byte, nonce []byte, platformType attestation.PlatformType) (*EATClaims, error) {
+	if len(nonce) < MinNonceLength {
+		return nil, errors.New("eat_nonce must be at least 8 bytes long")
+	}
 	claims := &EATClaims{
 		Nonce:        nonce,
 		PlatformType: getPlatformTypeName(platformType),
