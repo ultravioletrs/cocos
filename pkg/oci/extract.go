@@ -72,7 +72,9 @@ func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath
 	logger.Debug("found layers in manifest", "count", len(manifest.Layers))
 	var allSeenFiles []string
 
-	for _, layer := range manifest.Layers {
+	// Iterate layers in reverse order to find user code first (usually in top layers)
+	for i := len(manifest.Layers) - 1; i >= 0; i-- {
+		layer := manifest.Layers[i]
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		// Try to extract and find algorithm file
@@ -134,10 +136,19 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 
 		seenFiles = append(seenFiles, header.Name)
 
-		// Check if this is an algorithm file
-		if isAlgorithmFile(header.Name) {
-			// Extract to destination
-			targetPath := filepath.Join(destPath, filepath.Base(header.Name))
+		// Check if this is an algorithm file or requirements.txt
+		isAlgo := isAlgorithmFile(header.Name)
+		isReq := filepath.Base(header.Name) == "requirements.txt"
+
+		if isAlgo || isReq {
+			// Extract to destination, preserving directory structure
+			// Clean the name to prevent path traversal
+			cleanName := filepath.Clean(header.Name)
+			if strings.HasPrefix(cleanName, "..") || strings.HasPrefix(cleanName, "/") {
+				continue
+			}
+
+			targetPath := filepath.Join(destPath, cleanName)
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 				return "", seenFiles, fmt.Errorf("failed to create dir: %w", err)
@@ -154,8 +165,10 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 			}
 			outFile.Close()
 
-			algorithmPath = targetPath
-			// Continue to extract all algorithm files, but return the first one found
+			if isAlgo {
+				algorithmPath = targetPath
+			}
+			// Continue scanning to extract other files (like requirements.txt)
 		}
 	}
 
@@ -231,7 +244,9 @@ func ExtractDataset(ociDir, destPath string) ([]string, error) {
 	var datasetFiles []string
 
 	// Extract all layers and collect dataset files
-	for _, layer := range manifest.Layers {
+	// Iterate layers in reverse order to find user data first (usually in top layers)
+	for i := len(manifest.Layers) - 1; i >= 0; i-- {
+		layer := manifest.Layers[i]
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		files, err := extractLayerDataFiles(layerPath, destPath)
@@ -279,7 +294,13 @@ func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 
 		// Check if this is a data file
 		if isDataFile(header.Name) {
-			targetPath := filepath.Join(destPath, filepath.Base(header.Name))
+			// Extract to destination, preserving directory structure
+			cleanName := filepath.Clean(header.Name)
+			if strings.HasPrefix(cleanName, "..") || strings.HasPrefix(cleanName, "/") {
+				continue
+			}
+
+			targetPath := filepath.Join(destPath, cleanName)
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 				return nil, err

@@ -255,9 +255,11 @@ HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.
 
 Start CVMS server:
 ```bash
-# Calculate SHA256 of decrypted files (must match what Agent sees)
-ALGO_HASH=$(sha256sum lin_reg.py | awk '{print $1}')
-DATASET_HASH=$(sha256sum iris.csv | awk '{print $1}')
+# Calculate SHA3-256 of decrypted files using cocos-cli
+# NOTE: We use the hash of the original plaintext files, as the Agent validates the decrypted content.
+# Redirect stderr to stdout (2>&1) because cocos-cli prints to stderr
+ALGO_HASH=$(./build/cocos-cli checksum lin_reg.py 2>&1 | awk '{print $NF}')
+DATASET_HASH=$(./build/cocos-cli checksum iris.csv 2>&1 | awk '{print $NF}')
 
 go build -o build/cvms-test ./test/cvms/main.go
 HOST=$HOST_IP PORT=7001 ./build/cvms-test \
