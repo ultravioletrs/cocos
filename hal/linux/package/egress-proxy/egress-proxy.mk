@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-EGRESS_PROXY_VERSION = 991610f870bb6f6738db823c7957481a933809c6
+EGRESS_PROXY_VERSION = 913bbccf3a22053e1979da004c732007336fc890
 EGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(EGRESS_PROXY_VERSION))
 
 define EGRESS_PROXY_BUILD_CMDS

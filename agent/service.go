@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -334,7 +335,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		// Use background context for download operation
 		ctx := context.Background()
 
-		downloadedData, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source)
+		res, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source, "algorithm")
 		if err != nil {
 			as.runError = fmt.Errorf("failed to download and decrypt algorithm: %w", err)
 			as.logger.Error(as.runError.Error())
@@ -343,7 +344,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		}
 
 		// Verify hash
-		hash := sha3.Sum256(downloadedData)
+		hash := sha3.Sum256(res.Data)
 		if hash != as.computation.Algorithm.Hash {
 			as.runError = fmt.Errorf("algorithm hash mismatch: expected %x, got %x", as.computation.Algorithm.Hash, hash)
 			as.logger.Error(as.runError.Error())
@@ -360,6 +361,22 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 			return
 		}
 
+		// If a source directory is available (e.g. from OCI extraction), copy all files
+		if res.SourceDir != "" {
+			as.logger.Info("copying extracted algorithm directory", "src", res.SourceDir, "dst", currentDir)
+			// Simple recursive copy (using shell cp for simplicity and reliability on Linux)
+			// Ensure we copy contents of SourceDir into currentDir
+			// Simple recursive copy (using shell cp for simplicity and reliability on Linux)
+			// Ensure we copy contents of SourceDir into currentDir
+			cmd := exec.Command("cp", "-r", res.SourceDir+"/.", currentDir)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				as.runError = fmt.Errorf("error copying algorithm directory: %v, output: %s", err, out)
+				as.logger.Error(as.runError.Error())
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+		}
+
 		f, err := os.Create(filepath.Join(currentDir, "algo"))
 		if err != nil {
 			as.runError = fmt.Errorf("error creating algorithm file: %w", err)
@@ -368,7 +385,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 			return
 		}
 
-		if _, err := f.Write(downloadedData); err != nil {
+		if _, err := f.Write(res.Data); err != nil {
 			as.runError = fmt.Errorf("error writing algorithm to file: %w", err)
 			as.logger.Error(as.runError.Error())
 			f.Close()
@@ -392,6 +409,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		}
 
 		as.algoReceived = true
+		as.algoRequirements = res.Requirements // Store requirements for installation
 
 		// Create datasets directory
 		if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
@@ -407,7 +425,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		}
 		as.algoArgs = as.computation.Algorithm.AlgoArgs
 
-		as.logger.Info("algorithm downloaded and saved successfully", "type", as.algoType)
+		as.logger.Info("algorithm downloaded and saved successfully", "type", as.algoType, "has_requirements", len(res.Requirements) > 0)
 		as.sm.SendEvent(AlgorithmReceived)
 	} else {
 		// If no remote source, do nothing - wait for direct upload via Algo() RPC call
@@ -445,7 +463,7 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 		if d.Source != nil && as.computation.KBS.Enabled {
 			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
 
-			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source)
+			res, err := as.downloadAndDecryptResource(ctx, d.Source, "dataset")
 			if err != nil {
 				as.logger.Error("failed to download and decrypt dataset", "error", err, "filename", d.Filename)
 				as.sm.SendEvent(RunFailed)
@@ -453,7 +471,7 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 			}
 
 			// Verify hash
-			hash := sha3.Sum256(downloadedData)
+			hash := sha3.Sum256(res.Data)
 			if hash != d.Hash {
 				as.logger.Error("dataset hash mismatch", "filename", d.Filename)
 				as.sm.SendEvent(RunFailed)
@@ -469,13 +487,13 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 			}
 
 			if d.Decompress {
-				if err := internal.UnzipFromMemory(downloadedData, algorithm.DatasetsDir); err != nil {
+				if err := internal.UnzipFromMemory(res.Data, algorithm.DatasetsDir); err != nil {
 					as.logger.Error("error decompressing dataset", "error", err, "filename", d.Filename)
 					as.sm.SendEvent(RunFailed)
 					return
 				}
 			} else {
-				if _, err := f.Write(downloadedData); err != nil {
+				if _, err := f.Write(res.Data); err != nil {
 					as.logger.Error("error writing dataset to file", "error", err, "filename", d.Filename)
 					f.Close()
 					as.sm.SendEvent(RunFailed)
@@ -503,9 +521,16 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 	// Otherwise, wait for remaining datasets to be uploaded via Data() RPC calls
 }
 
+// DecryptedResource holds the data and metadata of a downloaded and decrypted resource
+type DecryptedResource struct {
+	Data         []byte
+	Requirements []byte
+	SourceDir    string
+}
+
 // downloadAndDecryptResource downloads and decrypts a resource using OCI images and CoCo Keyprovider.
 // For OCI images, Skopeo handles download and CoCo Keyprovider handles decryption automatically.
-func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *ResourceSource) ([]byte, error) {
+func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *ResourceSource, resourceType string) (*DecryptedResource, error) {
 	// Determine source type
 	sourceType := source.Type
 	if sourceType == "" {
@@ -519,14 +544,14 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 
 	switch sourceType {
 	case "oci-image":
-		return as.downloadAndDecryptOCIImage(ctx, source)
+		return as.downloadAndDecryptOCIImage(ctx, source, resourceType)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", sourceType)
 	}
 }
 
 // downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
-func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource) ([]byte, error) {
+func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource, resourceType string) (*DecryptedResource, error) {
 	as.logger.Info(fmt.Sprintf("downloading OCI image (url=%s encrypted=%t kbs_path=%s)",
 		source.URL, source.Encrypted, source.KBSResourcePath))
 
@@ -558,12 +583,25 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 
 	// Extract algorithm file from OCI layers
 	extractDir := filepath.Join(workDir, "extracted", sanitizedName)
-	algorithmPath, err := oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
-	}
+	var algorithmPath string
 
-	as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
+	if resourceType == "algorithm" {
+		algorithmPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
+		}
+		as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
+	} else {
+		// Assume dataset
+		files, err := oci.ExtractDataset(destDir, extractDir)
+		if err != nil || len(files) == 0 {
+			return nil, fmt.Errorf("failed to extract dataset from OCI image: %w", err)
+		}
+		// For now, take the first file found.
+		// TODO: Handle multiple files / directory structure if needed.
+		algorithmPath = files[0]
+		as.logger.Info("dataset extracted from OCI image", "path", algorithmPath)
+	}
 
 	// Read algorithm file
 	algorithmData, err := os.ReadFile(algorithmPath)
@@ -571,9 +609,23 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 		return nil, fmt.Errorf("failed to read algorithm file: %w", err)
 	}
 
+	// Check for requirements.txt if algorithm
+	var reqData []byte
+	if resourceType == "algorithm" {
+		reqPath := filepath.Join(filepath.Dir(algorithmPath), "requirements.txt")
+		if data, err := os.ReadFile(reqPath); err == nil {
+			reqData = data
+			as.logger.Info("found requirements.txt", "size", len(data))
+		}
+	}
+
 	as.logger.Info("algorithm loaded", "size", len(algorithmData))
 
-	return algorithmData, nil
+	return &DecryptedResource{
+		Data:         algorithmData,
+		Requirements: reqData,
+		SourceDir:    filepath.Dir(algorithmPath),
+	}, nil
 }
 
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
@@ -592,12 +644,13 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
 		as.logger.Info("downloading algorithm from remote source")
 
-		downloadedData, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source)
+		res, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source, "algorithm")
 		if err != nil {
 			return fmt.Errorf("failed to download and decrypt algorithm: %w", err)
 		}
 
-		algoData = downloadedData
+		algoData = res.Data
+		as.algoRequirements = res.Requirements
 	} else {
 		// Use directly uploaded algorithm
 		algoData = algo.Algorithm
@@ -673,12 +726,12 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		if d.Source != nil && as.computation.KBS.Enabled {
 			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
 
-			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source)
+			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source, "dataset")
 			if err != nil {
 				return fmt.Errorf("failed to download and decrypt dataset: %w", err)
 			}
 
-			datasetData = downloadedData
+			datasetData = downloadedData.Data
 			datasetFilename = d.Filename
 			matchedIndex = i
 			break
