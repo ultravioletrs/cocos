@@ -13,12 +13,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/go-sev-guest/proto/check"
-	"github.com/google/go-sev-guest/proto/sevsnp"
-	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -187,145 +183,6 @@ func TestNewVerifier(t *testing.T) {
 			verifier, ok := v.(verifier)
 			assert.True(t, ok)
 			assert.Equal(t, tt.writer, verifier.writer)
-			assert.NotNil(t, verifier.Policy)
-			assert.NotNil(t, verifier.Policy.Config)
-			assert.NotNil(t, verifier.Policy.PcrConfig)
-		})
-	}
-}
-
-func TestNewVerifierWithPolicy(t *testing.T) {
-	tests := []struct {
-		name   string
-		writer io.Writer
-		policy *attestation.Config
-	}{
-		{
-			name:   "creates verifier with custom policy",
-			writer: &bytes.Buffer{},
-			policy: &attestation.Config{
-				Config: &check.Config{
-					Policy:      &check.Policy{},
-					RootOfTrust: &check.RootOfTrust{},
-				},
-				PcrConfig: &attestation.PcrConfig{},
-			},
-		},
-		{
-			name:   "creates verifier with nil policy",
-			writer: &bytes.Buffer{},
-			policy: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v := NewVerifierWithPolicy(tt.writer, tt.policy)
-
-			verifier, ok := v.(verifier)
-			assert.True(t, ok)
-			assert.Equal(t, tt.writer, verifier.writer)
-			assert.NotNil(t, verifier.Policy)
-		})
-	}
-}
-
-func TestVerifier_VerifTeeAttestation(t *testing.T) {
-	tests := []struct {
-		name         string
-		report       []byte
-		teeNonce     []byte
-		wantErr      bool
-		errorMessage string
-	}{
-		{
-			name:     "empty report",
-			report:   []byte{},
-			teeNonce: testNonce,
-			wantErr:  true,
-		},
-		{
-			name:     "invalid report format",
-			report:   []byte("invalid-report"),
-			teeNonce: testNonce,
-			wantErr:  true,
-		},
-		{
-			name:     "nil nonce",
-			report:   testReport,
-			teeNonce: nil,
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v := NewVerifier(&bytes.Buffer{})
-
-			err := v.VerifTeeAttestation(tt.report, tt.teeNonce)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errorMessage != "" {
-					assert.Contains(t, err.Error(), tt.errorMessage)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestVerifier_VerifyAttestation(t *testing.T) {
-	validQuote := &attest.Attestation{
-		TeeAttestation: &attest.Attestation_SevSnpAttestation{
-			SevSnpAttestation: &sevsnp.Attestation{
-				Report: &sevsnp.Report{
-					HostData: []byte("test-data"),
-				},
-				Product: &sevsnp.SevProduct{
-					Name: sevsnp.SevProduct_SEV_PRODUCT_GENOA,
-				},
-				CertificateChain: &sevsnp.CertificateChain{
-					Extras: make(map[string][]byte),
-				},
-			},
-		},
-	}
-	validReport, _ := proto.Marshal(validQuote)
-
-	tests := []struct {
-		name         string
-		report       []byte
-		teeNonce     []byte
-		vTpmNonce    []byte
-		wantErr      bool
-		errorMessage string
-	}{
-		{
-			name:         "successful verification",
-			report:       validReport,
-			teeNonce:     testNonce,
-			vTpmNonce:    testNonce,
-			wantErr:      true,
-			errorMessage: "failed to verify vTPM attestation report",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v := NewVerifier(&bytes.Buffer{})
-
-			err := v.VerifyAttestation(tt.report, tt.teeNonce, tt.vTpmNonce)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errorMessage != "" {
-					assert.Contains(t, err.Error(), tt.errorMessage)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
 		})
 	}
 }
@@ -543,9 +400,6 @@ func TestIntegration_ErrorPropagation(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to fetch Azure token")
 
-		_, err = GenerateAttestationPolicy("invalid-token", "test-product", 1)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to validate token")
 	})
 }
 

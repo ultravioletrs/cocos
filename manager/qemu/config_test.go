@@ -55,8 +55,9 @@ func TestConstructQemuArgs(t *testing.T) {
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
-				NoGraphic: true,
-				Monitor:   "pty",
+				NoGraphic:         true,
+				Monitor:           "pty",
+				KernelCommandLine: "quiet console=null",
 			},
 			expected: []string{
 				"-enable-kvm",
@@ -127,8 +128,9 @@ func TestConstructQemuArgs(t *testing.T) {
 					ID:   "igvm0",
 					File: "/test/path/cocos-igvm.igvm",
 				},
-				NoGraphic: true,
-				Monitor:   "pty",
+				NoGraphic:         true,
+				Monitor:           "pty",
+				KernelCommandLine: "quiet console=null",
 			},
 			expected: []string{
 				"-enable-kvm",

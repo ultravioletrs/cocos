@@ -9,6 +9,7 @@ package mocks
 
 import (
 	mock "github.com/stretchr/testify/mock"
+	"github.com/veraison/corim/corim"
 )
 
 // NewVerifier creates a new instance of Verifier. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -38,95 +39,44 @@ func (_m *Verifier) EXPECT() *Verifier_Expecter {
 	return &Verifier_Expecter{mock: &_m.Mock}
 }
 
-// JSONToPolicy provides a mock function for the type Verifier
-func (_mock *Verifier) JSONToPolicy(path string) error {
-	ret := _mock.Called(path)
+// VerifyWithCoRIM provides a mock function for the type Verifier
+func (_mock *Verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error {
+	ret := _mock.Called(report, manifest)
 
 	if len(ret) == 0 {
-		panic("no return value specified for JSONToPolicy")
+		panic("no return value specified for VerifyWithCoRIM")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
-		r0 = returnFunc(path)
+	if returnFunc, ok := ret.Get(0).(func([]byte, *corim.UnsignedCorim) error); ok {
+		r0 = returnFunc(report, manifest)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// Verifier_JSONToPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JSONToPolicy'
-type Verifier_JSONToPolicy_Call struct {
+// Verifier_VerifyWithCoRIM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyWithCoRIM'
+type Verifier_VerifyWithCoRIM_Call struct {
 	*mock.Call
 }
 
-// JSONToPolicy is a helper method to define mock.On call
-//   - path string
-func (_e *Verifier_Expecter) JSONToPolicy(path interface{}) *Verifier_JSONToPolicy_Call {
-	return &Verifier_JSONToPolicy_Call{Call: _e.mock.On("JSONToPolicy", path)}
-}
-
-func (_c *Verifier_JSONToPolicy_Call) Run(run func(path string)) *Verifier_JSONToPolicy_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Verifier_JSONToPolicy_Call) Return(err error) *Verifier_JSONToPolicy_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Verifier_JSONToPolicy_Call) RunAndReturn(run func(path string) error) *Verifier_JSONToPolicy_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VerifTeeAttestation provides a mock function for the type Verifier
-func (_mock *Verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
-	ret := _mock.Called(report, teeNonce)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VerifTeeAttestation")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func([]byte, []byte) error); ok {
-		r0 = returnFunc(report, teeNonce)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Verifier_VerifTeeAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifTeeAttestation'
-type Verifier_VerifTeeAttestation_Call struct {
-	*mock.Call
-}
-
-// VerifTeeAttestation is a helper method to define mock.On call
+// VerifyWithCoRIM is a helper method to define mock.On call
 //   - report []byte
-//   - teeNonce []byte
-func (_e *Verifier_Expecter) VerifTeeAttestation(report interface{}, teeNonce interface{}) *Verifier_VerifTeeAttestation_Call {
-	return &Verifier_VerifTeeAttestation_Call{Call: _e.mock.On("VerifTeeAttestation", report, teeNonce)}
+//   - manifest *corim.UnsignedCorim
+func (_e *Verifier_Expecter) VerifyWithCoRIM(report interface{}, manifest interface{}) *Verifier_VerifyWithCoRIM_Call {
+	return &Verifier_VerifyWithCoRIM_Call{Call: _e.mock.On("VerifyWithCoRIM", report, manifest)}
 }
 
-func (_c *Verifier_VerifTeeAttestation_Call) Run(run func(report []byte, teeNonce []byte)) *Verifier_VerifTeeAttestation_Call {
+func (_c *Verifier_VerifyWithCoRIM_Call) Run(run func(report []byte, manifest *corim.UnsignedCorim)) *Verifier_VerifyWithCoRIM_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 []byte
 		if args[0] != nil {
 			arg0 = args[0].([]byte)
 		}
-		var arg1 []byte
+		var arg1 *corim.UnsignedCorim
 		if args[1] != nil {
-			arg1 = args[1].([]byte)
+			arg1 = args[1].(*corim.UnsignedCorim)
 		}
 		run(
 			arg0,
@@ -136,195 +86,12 @@ func (_c *Verifier_VerifTeeAttestation_Call) Run(run func(report []byte, teeNonc
 	return _c
 }
 
-func (_c *Verifier_VerifTeeAttestation_Call) Return(err error) *Verifier_VerifTeeAttestation_Call {
+func (_c *Verifier_VerifyWithCoRIM_Call) Return(err error) *Verifier_VerifyWithCoRIM_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Verifier_VerifTeeAttestation_Call) RunAndReturn(run func(report []byte, teeNonce []byte) error) *Verifier_VerifTeeAttestation_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VerifVTpmAttestation provides a mock function for the type Verifier
-func (_mock *Verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	ret := _mock.Called(report, vTpmNonce)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VerifVTpmAttestation")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func([]byte, []byte) error); ok {
-		r0 = returnFunc(report, vTpmNonce)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Verifier_VerifVTpmAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifVTpmAttestation'
-type Verifier_VerifVTpmAttestation_Call struct {
-	*mock.Call
-}
-
-// VerifVTpmAttestation is a helper method to define mock.On call
-//   - report []byte
-//   - vTpmNonce []byte
-func (_e *Verifier_Expecter) VerifVTpmAttestation(report interface{}, vTpmNonce interface{}) *Verifier_VerifVTpmAttestation_Call {
-	return &Verifier_VerifVTpmAttestation_Call{Call: _e.mock.On("VerifVTpmAttestation", report, vTpmNonce)}
-}
-
-func (_c *Verifier_VerifVTpmAttestation_Call) Run(run func(report []byte, vTpmNonce []byte)) *Verifier_VerifVTpmAttestation_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []byte
-		if args[0] != nil {
-			arg0 = args[0].([]byte)
-		}
-		var arg1 []byte
-		if args[1] != nil {
-			arg1 = args[1].([]byte)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Verifier_VerifVTpmAttestation_Call) Return(err error) *Verifier_VerifVTpmAttestation_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Verifier_VerifVTpmAttestation_Call) RunAndReturn(run func(report []byte, vTpmNonce []byte) error) *Verifier_VerifVTpmAttestation_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VerifyAttestation provides a mock function for the type Verifier
-func (_mock *Verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	ret := _mock.Called(report, teeNonce, vTpmNonce)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VerifyAttestation")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func([]byte, []byte, []byte) error); ok {
-		r0 = returnFunc(report, teeNonce, vTpmNonce)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Verifier_VerifyAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyAttestation'
-type Verifier_VerifyAttestation_Call struct {
-	*mock.Call
-}
-
-// VerifyAttestation is a helper method to define mock.On call
-//   - report []byte
-//   - teeNonce []byte
-//   - vTpmNonce []byte
-func (_e *Verifier_Expecter) VerifyAttestation(report interface{}, teeNonce interface{}, vTpmNonce interface{}) *Verifier_VerifyAttestation_Call {
-	return &Verifier_VerifyAttestation_Call{Call: _e.mock.On("VerifyAttestation", report, teeNonce, vTpmNonce)}
-}
-
-func (_c *Verifier_VerifyAttestation_Call) Run(run func(report []byte, teeNonce []byte, vTpmNonce []byte)) *Verifier_VerifyAttestation_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []byte
-		if args[0] != nil {
-			arg0 = args[0].([]byte)
-		}
-		var arg1 []byte
-		if args[1] != nil {
-			arg1 = args[1].([]byte)
-		}
-		var arg2 []byte
-		if args[2] != nil {
-			arg2 = args[2].([]byte)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *Verifier_VerifyAttestation_Call) Return(err error) *Verifier_VerifyAttestation_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Verifier_VerifyAttestation_Call) RunAndReturn(run func(report []byte, teeNonce []byte, vTpmNonce []byte) error) *Verifier_VerifyAttestation_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VerifyEAT provides a mock function for the type Verifier
-func (_mock *Verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
-	ret := _mock.Called(eatToken, teeNonce, vTpmNonce)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VerifyEAT")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func([]byte, []byte, []byte) error); ok {
-		r0 = returnFunc(eatToken, teeNonce, vTpmNonce)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Verifier_VerifyEAT_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyEAT'
-type Verifier_VerifyEAT_Call struct {
-	*mock.Call
-}
-
-// VerifyEAT is a helper method to define mock.On call
-//   - eatToken []byte
-//   - teeNonce []byte
-//   - vTpmNonce []byte
-func (_e *Verifier_Expecter) VerifyEAT(eatToken interface{}, teeNonce interface{}, vTpmNonce interface{}) *Verifier_VerifyEAT_Call {
-	return &Verifier_VerifyEAT_Call{Call: _e.mock.On("VerifyEAT", eatToken, teeNonce, vTpmNonce)}
-}
-
-func (_c *Verifier_VerifyEAT_Call) Run(run func(eatToken []byte, teeNonce []byte, vTpmNonce []byte)) *Verifier_VerifyEAT_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []byte
-		if args[0] != nil {
-			arg0 = args[0].([]byte)
-		}
-		var arg1 []byte
-		if args[1] != nil {
-			arg1 = args[1].([]byte)
-		}
-		var arg2 []byte
-		if args[2] != nil {
-			arg2 = args[2].([]byte)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *Verifier_VerifyEAT_Call) Return(err error) *Verifier_VerifyEAT_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Verifier_VerifyEAT_Call) RunAndReturn(run func(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error) *Verifier_VerifyEAT_Call {
+func (_c *Verifier_VerifyWithCoRIM_Call) RunAndReturn(run func(report []byte, manifest *corim.UnsignedCorim) error) *Verifier_VerifyWithCoRIM_Call {
 	_c.Call.Return(run)
 	return _c
 }

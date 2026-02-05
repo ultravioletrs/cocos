@@ -4,6 +4,7 @@ package manager
 
 import (
 	"context"
+	"crypto"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -16,12 +17,10 @@ import (
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/attestation/corimgen"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -97,8 +96,8 @@ type managerService struct {
 	ap                          sync.Mutex
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
-	igvmMeasurementBinaryPath   string
 	pcrValuesFilePath           string
+	signingKey                  crypto.Signer
 	logger                      *slog.Logger
 	vms                         map[string]vm.VM
 	vmFactory                   vm.Provider
@@ -113,7 +112,7 @@ type managerService struct {
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string, maxVMs int) (Service, error) {
+func New(cfg qemu.Config, attestationPolicyBinaryPath string, pcrValuesFilePath string, signingKeyPath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string, maxVMs int) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -124,14 +123,23 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinary
 		return nil, err
 	}
 
+	var signingKey crypto.Signer
+	if signingKeyPath != "" {
+		key, err := corimgen.LoadSigningKey(signingKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load signing key: %w", err)
+		}
+		signingKey = key
+	}
+
 	ms := &managerService{
 		qemuCfg:                     cfg,
 		logger:                      logger,
 		vms:                         make(map[string]vm.VM),
 		vmFactory:                   vmFactory,
-		attestationPolicyBinaryPath: attestationPolicyBinPath,
-		igvmMeasurementBinaryPath:   igvmMeasurementBinaryPath,
+		attestationPolicyBinaryPath: attestationPolicyBinaryPath,
 		pcrValuesFilePath:           pcrValuesFilePath,
+		signingKey:                  signingKey,
 		portRangeMin:                start,
 		portRangeMax:                end,
 		persistence:                 persistence,
@@ -178,29 +186,8 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.CertsMount = tmpCertsDir
 	cfg.Config.EnvMount = tmpEnvDir
 
-	if ms.qemuCfg.EnableSEVSNP {
-		attestPolicyCmd, err := fetchSNPAttestationPolicy(ms)
-		if err != nil {
-			return "", id, err
-		}
-
-		var stdOutByte []byte
-		ms.ap.Lock()
-		stdOutByte, err = attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
-		ms.ap.Unlock()
-		if err != nil {
-			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
-		}
-
-		attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
-
-		if err = vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
-			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
-		}
-
-		// Define the TCB that was present at launch of the VM.
-		cfg.LaunchTCB = attestationPolicy.Config.Policy.MinimumLaunchTcb
-	}
+	// LaunchTCB will be set to 0 by default in qemu.VMInfo
+	// It's used for attestation verification, not VM creation
 
 	agentPort, err := getFreePort(ms.portRangeMin, ms.portRangeMax)
 	if err != nil {

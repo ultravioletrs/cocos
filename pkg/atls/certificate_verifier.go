@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
@@ -13,6 +14,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/veraison/corim/corim"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -111,9 +113,38 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 		return fmt.Errorf("failed to get platform verifier: %w", err)
 	}
 
-	// Verify the binary attestation report embedded in EAT token
-	if err = verifier.VerifyAttestation(claims.RawReport, hashNonce[:], hashNonce[:32]); err != nil {
-		return fmt.Errorf("failed to verify attestation: %w", err)
+	// Load and parse CoRIM
+	if attestation.AttestationPolicyPath == "" {
+		return fmt.Errorf("attestation policy path is not set")
+	}
+
+	corimBytes, err := os.ReadFile(attestation.AttestationPolicyPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CoRIM file: %w", err)
+	}
+
+	// Try extracting from COSE Sign1 first
+	var unsignedCorim *corim.UnsignedCorim
+
+	var sc corim.SignedCorim
+	if err := sc.FromCOSE(corimBytes); err == nil {
+		// It's a COSE Sign1 message
+		unsignedCorim = &sc.UnsignedCorim
+	} else {
+		// Try parsing as unsigned CoRIM directly
+		var uc corim.UnsignedCorim
+		if err := uc.FromCBOR(corimBytes); err != nil {
+			return fmt.Errorf("failed to parse CoRIM (tried both signed and unsigned): %w", err)
+		}
+		unsignedCorim = &uc
+	}
+
+	// Re-wrap in Corim struct expected by Verifiers
+	// Since verifiers expect the struct from the removed internal package,
+	// we need to update verifiers to accept veraison/corim types
+	// For now, we pass the unsignedCorim directly
+	if err = verifier.VerifyWithCoRIM(claims.RawReport, unsignedCorim); err != nil {
+		return fmt.Errorf("failed to verify attestation with CoRIM: %w", err)
 	}
 
 	return nil
@@ -146,9 +177,5 @@ func platformVerifier(platformType attestation.PlatformType) (attestation.Verifi
 		return nil, fmt.Errorf("unsupported platform type: %d", platformType)
 	}
 
-	err := verifier.JSONToPolicy(attestation.AttestationPolicyPath)
-	if err != nil {
-		return nil, err
-	}
 	return verifier, nil
 }

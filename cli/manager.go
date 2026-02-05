@@ -63,7 +63,6 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 			createReq.AwsAccessKeyId = awsAccessKeyId
 			createReq.AwsSecretAccessKey = awsSecretAccessKey
 			createReq.AwsEndpointUrl = awsEndpointUrl
-			createReq.AwsEndpointUrl = awsEndpointUrl
 			createReq.AwsRegion = awsRegion
 			createReq.AaKbsParams = aaKbsParams
 
@@ -92,7 +91,6 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
 	cmd.Flags().StringVar(&awsAccessKeyId, "aws-access-key-id", "", "AWS Access Key ID for S3/MinIO")
 	cmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key for S3/MinIO")
-	cmd.Flags().StringVar(&awsEndpointUrl, "aws-endpoint-url", "", "AWS Endpoint URL (for MinIO or custom S3)")
 	cmd.Flags().StringVar(&awsEndpointUrl, "aws-endpoint-url", "", "AWS Endpoint URL (for MinIO or custom S3)")
 	cmd.Flags().StringVar(&awsRegion, "aws-region", "", "AWS Region")
 	cmd.Flags().StringVar(&aaKbsParams, "aa-kbs-params", "", "Attestation Agent KBS Parameters (e.g. protocol=http,type=kbs,url=http://... or just type=sample)")

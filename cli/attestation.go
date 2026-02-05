@@ -6,22 +6,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
-	"github.com/google/go-sev-guest/proto/sevsnp"
-	"github.com/google/go-sev-guest/tools/lib/report"
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -36,6 +30,7 @@ const (
 	attestationFilePath       = "attestation.bin"
 	azureAttestResultFilePath = "azure_attest_result.json"
 	azureAttestTokenFilePath  = "azure_attest_token.jwt"
+	attestationReportJson     = "attestation.json"
 	TEE                       = "tee"
 	SNP                       = "snp"
 	VTPM                      = "vtpm"
@@ -48,37 +43,16 @@ const (
 )
 
 var (
-	mode                          string
-	cfgString                     string
-	timeout                       time.Duration
-	maxRetryDelay                 time.Duration
-	platformInfo                  string
-	stepping                      string
-	trustedAuthorKeys             []string
-	trustedAuthorHashes           []string
-	trustedIdKeys                 []string
-	trustedIdKeyHashes            []string
-	attestationFile               string
-	attestationRaw                []byte
-	empty16                       = [size16]byte{}
-	empty32                       = [size32]byte{}
-	empty64                       = [size64]byte{}
-	defaultReportIdMa             = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	errReportSize                 = errors.New("attestation contents too small")
-	ErrBadAttestation             = errors.New("attestation file is corrupted or in wrong format")
 	output                        string
 	nonce                         []byte
 	format                        string
+	attestationFile               string
 	teeNonce                      []byte
 	tokenNonce                    []byte
 	getTextProtoAttestationReport bool
 	getAzureTokenJWT              bool
-	cloud                         string
-	reportData                    []byte
-	checkCrl                      bool
 )
-
-var errEmptyFile = errors.New("input file is empty")
 
 func (cli *CLI) NewAttestationCmd() *cobra.Command {
 	return &cobra.Command{
@@ -302,186 +276,14 @@ func attestationToJSON(report []byte) ([]byte, error) {
 	return json.MarshalIndent(attestationPB, "", "	")
 }
 
-func attestationFromJSON(reportFile []byte) ([]byte, error) {
-	var attestationPB sevsnp.Attestation
-	if err := json.Unmarshal(reportFile, &attestationPB); err != nil {
-		return nil, err
-	}
-
-	return report.Transform(&attestationPB, "bin")
-}
-
-func isFileJSON(filename string) bool {
-	return strings.HasSuffix(filename, ".json")
-}
-
 func (cli *CLI) NewValidateAttestationValidationCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "validate",
-		Short: fmt.Sprintf("Validate and verify attestation information. You can define the confidential computing cloud provider (%s, %s, %s; %s is the default) and can choose from 4 modes: %s, %s, %s, and %s. Default mode is %s.", CCNone, CCAzure, CCGCP, CCNone, SNP, VTPM, SNPvTPM, TDX, SNP),
-		Example: `Based on mode:
-		validate <attestationreportfilepath> --report_data <reportdata> --product <product data> --platform <cc platform> //default
-		validate --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
-		validate --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
-		validate --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
-		validate --mode tdx <attestationreportfilepath> --report_data <reportdata>
-		validate --cloud none --mode snp <attestationreportfilepath> --report_data <reportdata> --product <product data>
-		validate --cloud azure --mode vtpm <attestationreportfilepath> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>
-		validate --cloud gcp --mode snp-vtpm <attestationreportfilepath> --report_data <reportdata> --product <product data> --nonce <noncevalue> --format <formatvalue>  --output <outputvalue>`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			mode, _ := cmd.Flags().GetString("mode")
-			if len(args) != 1 {
-				return fmt.Errorf("please pass the attestation report file path")
-			}
-
-			// Validate flags based on the mode
-			switch mode {
-			case SNP:
-				if err := cmd.MarkFlagRequired("report_data"); err != nil {
-					return fmt.Errorf("failed to mark 'report_data' as required for SEV-%s mode: %v", SNP, err)
-				}
-				if err := cmd.MarkFlagRequired("product"); err != nil {
-					return fmt.Errorf("failed to mark flag as required: %v ❌ ", err)
-				}
-			case SNPvTPM:
-				if err := cmd.MarkFlagRequired("nonce"); err != nil {
-					return fmt.Errorf("failed to mark 'nonce' as required for %s mode: %v", VTPM, err)
-				}
-				if err := cmd.MarkFlagRequired("report_data"); err != nil {
-					return fmt.Errorf("failed to mark 'report_data' as required for SEV-%s mode: %v", SNP, err)
-				}
-				if err := cmd.MarkFlagRequired("product"); err != nil {
-					return fmt.Errorf("failed to mark flag as required: %v ❌ ", err)
-				}
-				if err := cmd.MarkFlagRequired("format"); err != nil {
-					return fmt.Errorf("failed to mark 'format' as required for %s mode: %v", VTPM, err)
-				}
-				if err := cmd.MarkFlagRequired("output"); err != nil {
-					return fmt.Errorf("failed to mark 'output' as required for %s mode: %v", VTPM, err)
-				}
-			case VTPM:
-				if err := cmd.MarkFlagRequired("nonce"); err != nil {
-					return fmt.Errorf("failed to mark 'nonce' as required for %s mode: %v", VTPM, err)
-				}
-				if err := cmd.MarkFlagRequired("format"); err != nil {
-					return fmt.Errorf("failed to mark 'format' as required for %s mode: %v", VTPM, err)
-				}
-				if err := cmd.MarkFlagRequired("output"); err != nil {
-					return fmt.Errorf("failed to mark 'output' as required for %s mode: %v", VTPM, err)
-				}
-			case TDX:
-				if err := cmd.MarkFlagRequired("report_data"); err != nil {
-					return fmt.Errorf("failed to mark 'report_data' as required for %s mode: %v", TDX, err)
-				}
-			default:
-				return fmt.Errorf("unknown mode: %s", mode)
-			}
-			return nil
+		Short: "Validate and verify attestation information (Deprecated)",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println("Validation via CLI using legacy policies is deprecated. Please use CoRIM tools.")
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mode, _ := cmd.Flags().GetString("mode")
-			cloud, _ := cmd.Flags().GetString("cloud")
-
-			output, err := createOutputFile()
-			if err != nil {
-				return fmt.Errorf("failed to create output file: %v ❌ ", err)
-			}
-			if closer, ok := output.(*os.File); ok {
-				defer closer.Close()
-			}
-
-			var verifier attestation.Verifier
-			switch cloud {
-			case CCNone:
-				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
-			case CCAzure:
-				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				verifier = azure.NewVerifierWithPolicy(output, &policy)
-			case CCGCP:
-				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
-			default:
-				policy := attestation.Config{Config: &cfg, PcrConfig: &attestation.PcrConfig{}}
-				verifier = vtpm.NewVerifierWithPolicy(nil, output, &policy)
-			}
-
-			switch mode {
-			case SNP:
-				cfg.Policy.ReportData = reportData
-				return sevsnpverify(cmd, verifier, args)
-			case SNPvTPM:
-				cfg.Policy.ReportData = reportData
-				return vtpmSevSnpverify(args, verifier)
-			case VTPM:
-				cfg.Policy.ReportData = reportData
-				return vtpmverify(args, verifier)
-			case TDX:
-				if err := validateTDXFlags(); err != nil {
-					return fmt.Errorf("failed to verify TDX validation flags: %v ❌ ", err)
-				}
-				verifier = tdx.NewVerifierWithPolicy(cfgTDX)
-				return tdxVerify(args[0], verifier)
-			default:
-				return fmt.Errorf("unknown mode: %s", mode)
-			}
-		},
-		SilenceUsage:  true,
-		SilenceErrors: true,
 	}
-	cmd.Flags().StringVar(
-		&cloud,
-		"cloud",
-		"none", // default CC provider
-		"The confidential computing cloud provider. Example: azure",
-	)
-
-	cmd.Flags().StringVar(
-		&mode,
-		"mode",
-		"snp", // default mode
-		"The attestation validation mode. Example: snp",
-	)
-
-	// VTPM FLAGS
-	cmd.Flags().BytesHexVar(
-		&nonce,
-		"nonce",
-		[]byte{},
-		"hex encoded nonce for vTPM attestation, cannot be empty",
-	)
-
-	cmd.Flags().StringVar(
-		&format,
-		"format",
-		"binarypb", // default value
-		"type of output file where attestation report stored <binarypb|textproto>",
-	)
-
-	cmd.Flags().StringVar(
-		&output,
-		"output",
-		"",
-		"output file",
-	)
-
-	cmd.Flags().StringVar(
-		&cfgString,
-		"config",
-		"",
-		"Path to the serialized json check.Config protobuf file. This will overwrite individual flags. Unmarshalled as json. Example: "+exampleJSONConfig,
-	)
-	cmd.Flags().BytesHexVar(
-		&reportData,
-		"report_data",
-		empty64[:],
-		"The expected REPORT_DATA field as a hex string. Must encode 64 bytes. Must be set.",
-	)
-
-	cmd = addSEVSNPVerificationOptions(cmd)
-	cmd = addTDXVerificationOptions(cmd)
-
-	return cmd
 }
 
 func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
@@ -520,27 +322,6 @@ func (cli *CLI) NewMeasureCmd(igvmBinaryPath string) *cobra.Command {
 	}
 
 	return igvmmeasureCmd
-}
-
-func openInputFile() (io.Reader, error) {
-	if attestationFile == "" {
-		return nil, errEmptyFile
-	}
-	return os.Open(attestationFile)
-}
-
-func createOutputFile() (io.Writer, error) {
-	if output == "" {
-		return os.Stdout, nil
-	}
-	return os.Create(output)
-}
-
-func validateFieldLength(fieldName string, field []byte, expectedLength int) error {
-	if field != nil && len(field) != expectedLength {
-		return fmt.Errorf("%s length should be at least %d bytes long", fieldName, expectedLength)
-	}
-	return nil
 }
 
 func decodeJWTToJSON(tokenBytes []byte) ([]byte, error) {

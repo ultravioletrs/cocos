@@ -3,10 +3,9 @@
 package manager
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -14,116 +13,67 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/corim"
 )
 
-func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
-	var content []byte
-	switch behavior {
-	case "success":
-		content = []byte(`#!/bin/sh
-echo '{"pcr_values": {"sha256": null, "sha384": null}, "policy": {"measurement": null, "host_data": null}}'
-`)
-	case "fail":
-		content = []byte(`#!/bin/sh
-echo "Error: Failed to execute attestation policy" >&2
-exit 1
-`)
-	case "no_json":
-		content = []byte(`#!/bin/sh
-echo 'No JSON file created'
-`)
-	default:
-		t.Fatalf("Unknown behavior: %s", behavior)
-	}
-
+func CreateDummyCoRIMFile(t *testing.T, content []byte) string {
 	tempDir := t.TempDir()
-	binaryPath := filepath.Join(tempDir, "attestation_policy")
-	err := os.WriteFile(binaryPath, content, 0o755)
+	filePath := filepath.Join(tempDir, "policy.corim")
+	err := os.WriteFile(filePath, content, 0o644)
 	assert.NoError(t, err)
 	return tempDir
 }
 
 func TestFetchAttestationPolicy(t *testing.T) {
 	testCases := []struct {
-		name           string
-		computationId  string
-		vmConfig       any
-		binaryBehavior string
-		expectedError  string
-		expectedResult map[string]any
+		name             string
+		computationId    string
+		enableSEVSNP     bool
+		expectedPlatform string
+		expectedError    string
 	}{
 		{
-			name:           "Valid SEV-SNP configuration",
-			computationId:  "sev-snp-computation",
-			binaryBehavior: "success",
-			vmConfig: qemu.VMInfo{
-				Config: qemu.Config{
-					EnableSEVSNP: true,
-					SMPCount:     2,
-					CPU:          "EPYC",
-				},
-				LaunchTCB: 0,
-			},
-			expectedError: "pathToBinary cannot be empty",
+			name:             "Valid CoRIM Generation (TDX Default)",
+			computationId:    "valid-computation",
+			enableSEVSNP:     false,
+			expectedPlatform: "tdx-corim",
 		},
 		{
-			name:           "Invalid computation ID",
-			computationId:  "non-existent",
-			binaryBehavior: "success",
-			vmConfig:       qemu.VMInfo{Config: qemu.Config{}, LaunchTCB: 0},
-			expectedError:  "computationId non-existent not found",
+			name:             "Valid CoRIM Generation (SNP)",
+			computationId:    "valid-computation-snp",
+			enableSEVSNP:     true,
+			expectedPlatform: "snp-corim",
 		},
 		{
-			name:           "Invalid config type",
-			computationId:  "invalid-config",
-			binaryBehavior: "success",
-			vmConfig:       struct{}{},
-			expectedError:  "failed to cast config to qemu.VMInfo",
-		},
-		{
-			name:           "Binary execution failure",
-			computationId:  "binary-fail",
-			binaryBehavior: "fail",
-			vmConfig: qemu.VMInfo{
-				Config: qemu.Config{
-					EnableSEVSNP: true,
-				},
-				LaunchTCB: 0,
-			},
-			expectedError: "exit status 1",
-		},
-		{
-			name:           "JSON file not created",
-			computationId:  "no-json",
-			binaryBehavior: "no_json",
-			vmConfig: qemu.VMInfo{
-				Config: qemu.Config{
-					EnableSEVSNP: true,
-				},
-				LaunchTCB: 0,
-			},
-			expectedError: "failed to decode Attestation Policy file",
+			name:          "Invalid computation ID",
+			computationId: "non-existent",
+			enableSEVSNP:  false,
+			expectedError: "computationId non-existent not found",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := CreateDummyAttestationPolicyBinary(t, tc.binaryBehavior)
-			defer os.RemoveAll(tempDir)
-
 			ms := &managerService{
-				vms:                         make(map[string]vm.VM),
-				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
-				pcrValuesFilePath:           tempDir,
+				vms: make(map[string]vm.VM),
 				qemuCfg: qemu.Config{
-					CPU: "EPYC",
+					EnableSEVSNP: tc.enableSEVSNP,
+					CPU:          "EPYC",
 				},
+				attestationPolicyBinaryPath: "/tmp/test",
 			}
 
 			mockVM := new(mocks.VM)
-			mockVM.On("GetConfig").Return(tc.vmConfig)
-
 			if tc.computationId != "non-existent" {
+				// Mock GetConfig to return VMInfo with appropriate config
+				vmInfo := qemu.VMInfo{
+					Config: qemu.Config{
+						EnableSEVSNP: tc.enableSEVSNP,
+						CPU:          "EPYC",
+					},
+					LaunchTCB: 0,
+				}
+				mockVM.On("GetConfig").Return(vmInfo)
 				ms.vms[tc.computationId] = mockVM
 			}
 
@@ -136,15 +86,14 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 
-				var attestationPolicy map[string]any
-				err = json.Unmarshal(result, &attestationPolicy)
-				assert.NoError(t, err)
+				// Verify generated content is valid CoRIM
+				manifest, err := corim.ParseCorim(result)
+				assert.NoError(t, err, "Result should be valid CoRIM CBOR")
 
-				assert.Equal(t, tc.expectedResult, attestationPolicy)
-			}
-
-			if tc.binaryBehavior == "success" {
-				os.Remove("attestation_policy.json")
+				// Verify Platform ID matches
+				// Corim ID is usually the first byte array in Corim struct (ID)
+				// Corim.ID is []byte
+				assert.True(t, bytes.Equal(manifest.ID, []byte(tc.expectedPlatform)), "CoRIM ID should match platform tag")
 			}
 		})
 	}

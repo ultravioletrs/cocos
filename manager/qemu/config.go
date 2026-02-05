@@ -235,9 +235,7 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
 	args = append(args, "-append", strconv.Quote(config.KernelCommandLine))
-	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// display

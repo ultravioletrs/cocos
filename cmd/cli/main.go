@@ -159,12 +159,13 @@ func main() {
 	)
 
 	// Attestation Policy commands
-	attestationPolicyCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
-	attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
-	attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
-	attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
-	attestationPolicyCmd.AddCommand(cliSVC.NewAzureAttestationPolicy())
-	attestationPolicyCmd.AddCommand(cliSVC.NewExtendWithManifestCmd())
+	// Legacy JSON policy commands removed in favor of CoRIM.
+	// attestationPolicyCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
+	// attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
+	// attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
+	// attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
+	// attestationPolicyCmd.AddCommand(cliSVC.NewAzureAttestationPolicy())
+	// attestationPolicyCmd.AddCommand(cliSVC.NewExtendWithManifestCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logErrorCmd(*rootCmd, err)

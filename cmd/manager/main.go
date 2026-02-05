@@ -43,15 +43,15 @@ const (
 )
 
 type config struct {
-	LogLevel                string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
-	JaegerURL               url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
-	TraceRatio              float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
-	InstanceID              string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
-	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build/attestation_policy"`
-	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build/igvmmeasure"`
-	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
-	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
-	MaxVMs                  int     `env:"MANAGER_MAX_VMS"                    envDefault:"10"`
+	LogLevel                    string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
+	JaegerURL                   url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
+	TraceRatio                  float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
+	InstanceID                  string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
+	AttestationPolicyBinaryPath string  `env:"MANAGER_ATTESTATION_POLICY_BINARY_PATH" envDefault:"../../build"`
+	PcrValues                   string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
+	EosVersion                  string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
+	MaxVMs                      int     `env:"MANAGER_MAX_VMS"                    envDefault:"10"`
+	SigningKeyPath              string  `env:"MANAGER_CORIM_SIGNING_KEY"          envDefault:""`
 }
 
 func main() {
@@ -125,7 +125,7 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
 	}
 
-	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion, cfg.MaxVMs)
+	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinaryPath, cfg.PcrValues, cfg.SigningKeyPath, cfg.EosVersion, cfg.MaxVMs)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -166,8 +166,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string, maxVMs int) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion, maxVMs)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyBinaryPath string, pcrValuesFilePath string, signingKeyPath string, eosVersion string, maxVMs int) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, attestationPolicyBinaryPath, pcrValuesFilePath, signingKeyPath, logger, qemu.NewVM, eosVersion, maxVMs)
 	if err != nil {
 		return nil, err
 	}

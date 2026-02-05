@@ -9,11 +9,11 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"testing"
 
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/absmach/supermq/pkg/errors"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,6 +21,7 @@ import (
 	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/corim"
 )
 
 func TestNew(t *testing.T) {
@@ -42,47 +43,50 @@ func TestRun(t *testing.T) {
 	vmMock := new(mocks.VM)
 	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
+	validCorim := corim.Corim{ID: []byte("test-corim")}
+	validCorimBytes, _ := cbor.Marshal(validCorim)
+
 	tests := []struct {
-		name           string
-		binaryBehavior string
-		vmStartError   error
-		expectedError  error
-		ttl            string
+		name          string
+		corimContent  []byte
+		vmStartError  error
+		expectedError error
+		ttl           string
 	}{
 		{
-			name:           "Successful run",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "",
+			name:          "Successful run",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "",
 		},
 		{
-			name:           "VM start failure",
-			binaryBehavior: "success",
-			vmStartError:   assert.AnError,
-			expectedError:  assert.AnError,
-			ttl:            "",
+			name:          "VM start failure",
+			corimContent:  validCorimBytes,
+			vmStartError:  assert.AnError,
+			expectedError: assert.AnError,
+			ttl:           "",
 		},
 		{
-			name:           "Invalid attestation policy",
-			binaryBehavior: "fail",
-			vmStartError:   nil,
-			expectedError:  ErrFailedToCreateAttestationPolicy,
-			ttl:            "",
+			name:          "Invalid attestation policy",
+			corimContent:  []byte("invalid-cbor"),
+			vmStartError:  nil,
+			expectedError: errors.New("failed to parse CoRIM"), // Expecting parser error
+			ttl:           "",
 		},
 		{
-			name:           "With TTL",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "10s",
+			name:          "With TTL",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "10s",
 		},
 		{
-			name:           "with exceeded max vms",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  errors.New("maximum number of VMs exceeded"),
-			ttl:            "",
+			name:          "with exceeded max vms",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: errors.New("maximum number of VMs exceeded"),
+			ttl:           "",
 		},
 	}
 
@@ -105,12 +109,12 @@ func TestRun(t *testing.T) {
 			}
 			logger := slog.Default()
 
-			tempDir := CreateDummyAttestationPolicyBinary(t, tt.binaryBehavior)
+			tempDir := CreateDummyCoRIMFile(t, tt.corimContent)
 			defer os.RemoveAll(tempDir)
 
 			ms := &managerService{
 				qemuCfg:                     qemuCfg,
-				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
+				attestationPolicyBinaryPath: tempDir,
 				pcrValuesFilePath:           tempDir,
 				logger:                      logger,
 				vms:                         make(map[string]vm.VM),
