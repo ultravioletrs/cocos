@@ -9,11 +9,8 @@ import (
 
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/kds"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -25,17 +22,10 @@ func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
 	return &cobra.Command{
 		Use:     "ca-bundle",
 		Short:   "Fetch AMD SEV-SNPs CA Bundle (ASK and ARK)",
-		Example: "ca-bundle <path_to_platform_info_json>",
+		Example: "ca-bundle <product_name>",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			attestationConfiguration := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
-			err := vtpm.ReadPolicy(args[0], &attestationConfiguration)
-			if err != nil {
-				printError(cmd, "Error while reading manifest: %v ❌ ", err)
-				return
-			}
-
-			product := attestationConfiguration.Config.RootOfTrust.ProductLine
+			product := args[0]
 
 			getter := trust.DefaultHTTPSGetter()
 			caURL := kds.ProductCertChainURL(abi.VcekReportSigner, product)

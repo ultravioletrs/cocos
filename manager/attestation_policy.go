@@ -10,15 +10,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"strings"
 
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/ultravioletrs/cocos/manager/qemu"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/attestation/generator"
+	"github.com/ultravioletrs/cocos/pkg/attestation/igvmmeasure"
 )
 
 func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationId string) ([]byte, error) {
@@ -34,138 +30,59 @@ func (ms *managerService) FetchAttestationPolicy(_ context.Context, computationI
 		return nil, fmt.Errorf("failed to cast config to qemu.VMInfo")
 	}
 
-	var attestPolicyCmd *cmdconfig.CmdConfig
-	var err error
-	switch {
-	case vmi.Config.EnableSEVSNP:
-		attestPolicyCmd, err = fetchSNPAttestationPolicy(ms)
-	case vmi.Config.EnableTDX:
-		attestPolicyCmd, err = fetchTDXAttestationPolicy(ms)
-	}
+	// Determine platform
+	platform := "tdx"
+	var measurement string
+	var hostData string
+	var launchTCB uint64
 
-	if err != nil {
-		return nil, err
-	}
+	if vmi.Config.EnableSEVSNP {
+		platform = "snp"
 
-	var stdOutByte []byte
-	ms.ap.Lock()
-	switch {
-	case vmi.Config.EnableSEVSNP:
-		stdOutByte, err = attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
-	case vmi.Config.EnableTDX:
-		stdOutByte, err = attestPolicyCmd.Run("")
-	}
-	ms.ap.Unlock()
-	if err != nil {
-		return nil, err
-	}
+		// Calculate IGVM measurement
+		igvmMeasurementBinaryPath := fmt.Sprintf("%s/igvmmeasure", ms.attestationPolicyBinaryPath)
 
-	var policy []byte
-	switch {
-	case vmi.Config.EnableSEVSNP:
-		policy, err = readSEVSNPPolicy(stdOutByte, ms, vmi)
-	case vmi.Config.EnableTDX:
-		policy = stdOutByte
-		err = nil
-	}
-	if err != nil {
-		return nil, err
-	}
+		var stdoutBuffer bytes.Buffer
+		var stderrBuffer bytes.Buffer
 
-	return policy, nil
-}
-
-func fetchSNPAttestationPolicy(ms *managerService) (*cmdconfig.CmdConfig, error) {
-	var stderrBuffer bytes.Buffer
-	options := []string{"--policy", "196608"}
-
-	if ms.pcrValuesFilePath != "" {
-		pcrValues := []string{"--pcr", ms.pcrValuesFilePath}
-		options = append(options, pcrValues...)
-	}
-
-	stderr := bufio.NewWriter(&stderrBuffer)
-
-	attestPolicyCmd, err := cmdconfig.NewCmdConfig("sudo", options, stderr)
-	if err != nil {
-		return nil, err
-	}
-
-	return attestPolicyCmd, nil
-}
-
-func fetchTDXAttestationPolicy(ms *managerService) (*cmdconfig.CmdConfig, error) {
-	var stderrBuffer bytes.Buffer
-
-	stderr := bufio.NewWriter(&stderrBuffer)
-
-	attestPolicyCmd, err := cmdconfig.NewCmdConfig(ms.attestationPolicyBinaryPath, nil, stderr)
-	if err != nil {
-		return nil, err
-	}
-
-	return attestPolicyCmd, nil
-}
-
-func readSEVSNPPolicy(stdOutByte []byte, ms *managerService, vmi qemu.VMInfo) ([]byte, error) {
-	attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
-
-	if err := vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
-		return nil, err
-	}
-
-	var stderrBuffer bytes.Buffer
-	var measurement []byte
-	var err error
-	switch {
-	case vmi.Config.EnableSEVSNP:
+		stdout := bufio.NewWriter(&stdoutBuffer)
 		stderr := bufio.NewWriter(&stderrBuffer)
-		options := cmdconfig.IgvmMeasureOptions
 
-		igvmMeasurement, err := cmdconfig.NewCmdConfig(ms.igvmMeasurementBinaryPath, options, stderr)
+		igvmMeasurement, err := igvmmeasure.NewIgvmMeasurement(igvmMeasurementBinaryPath, stderr, stdout)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create IGVM measurement: %w", err)
 		}
 
-		outputByte, err := igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
+		err = igvmMeasurement.Run(ms.qemuCfg.IGVMConfig.File)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to run IGVM measurement: %w", err)
 		}
 
-		outputString := string(outputByte)
-		lines := strings.Split(strings.TrimSpace(outputString), "\n")
+		// Convert measurement bytes to hex string
+		measurement = fmt.Sprintf("%x", stdoutBuffer.Bytes())
 
-		if len(lines) == 1 {
-			outputString = strings.TrimSpace(outputString)
-			outputString = strings.ToLower(outputString)
-		} else {
-			return nil, fmt.Errorf("error: %s", outputString)
+		// Extract host data if enabled
+		if vmi.Config.SEVSNPConfig.EnableHostData {
+			hostDataBytes, err := base64.StdEncoding.DecodeString(vmi.Config.SEVSNPConfig.HostData)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode host data: %w", err)
+			}
+			hostData = fmt.Sprintf("%x", hostDataBytes)
 		}
 
-		measurement, err = hex.DecodeString(outputString)
-		if err != nil {
-			return nil, err
-		}
+		// Use launch TCB from VM info
+		launchTCB = vmi.LaunchTCB
 	}
 
-	if measurement != nil {
-		attestationPolicy.Config.Policy.Measurement = measurement
+	opts := generator.Options{
+		Platform:    platform,
+		Measurement: measurement,
+		HostData:    hostData,
+		LaunchTCB:   launchTCB,
+		Product:     ms.qemuCfg.CPU, // Use CPU as product identifier
+		SigningKey:  ms.signingKey,
 	}
 
-	if vmi.Config.SEVSNPConfig.EnableHostData {
-		hostData, err := base64.StdEncoding.DecodeString(vmi.Config.SEVSNPConfig.HostData)
-		if err != nil {
-			return nil, err
-		}
-		attestationPolicy.Config.Policy.HostData = hostData
-	}
-
-	attestationPolicy.Config.Policy.MinimumLaunchTcb = vmi.LaunchTCB
-
-	f, err := vtpm.ConvertPolicyToJSON(&attestationPolicy)
-	if err != nil {
-		return nil, err
-	}
-
-	return f, nil
+	// Generate CoRIM
+	return generator.GenerateCoRIM(opts)
 }

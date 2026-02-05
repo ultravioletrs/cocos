@@ -5,27 +5,14 @@ package vtpm
 
 import (
 	"bytes"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/absmach/supermq/pkg/errors"
-	"github.com/google/go-sev-guest/abi"
-	"github.com/google/go-sev-guest/proto/check"
-	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/proto/attest"
-	ptpm "github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"google.golang.org/protobuf/encoding/protojson"
 )
-
-var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
 
 type mockTPM struct {
 	*bytes.Buffer
@@ -143,35 +130,6 @@ func TestNewVerifier(t *testing.T) {
 	verifier := NewVerifier(writer)
 
 	assert.NotNil(t, verifier)
-}
-
-func TestNewVerifierWithPolicy(t *testing.T) {
-	writer := &mockWriter{}
-	policy := &attestation.Config{
-		Config:    &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}},
-		PcrConfig: &attestation.PcrConfig{},
-	}
-
-	tests := []struct {
-		name   string
-		policy *attestation.Config
-	}{
-		{
-			name:   "With policy",
-			policy: policy,
-		},
-		{
-			name:   "Without policy (nil)",
-			policy: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			verifier := NewVerifierWithPolicy([]byte("test-key"), writer, tt.policy)
-			assert.NotNil(t, verifier)
-		})
-	}
 }
 
 func TestMarshalQuote(t *testing.T) {

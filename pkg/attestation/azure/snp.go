@@ -4,8 +4,8 @@
 package azure
 
 import (
+	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,15 +13,12 @@ import (
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/go-sev-guest/abi"
-	"github.com/google/go-sev-guest/kds"
-	"github.com/google/go-sev-guest/proto/check"
-	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/veraison/corim/comid"
+	"github.com/veraison/corim/corim"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -98,193 +95,89 @@ func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
 
 type verifier struct {
 	writer io.Writer
-	Policy *attestation.Config
 }
 
 func NewVerifier(writer io.Writer) attestation.Verifier {
-	policy := &attestation.Config{
-		Config:    &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}},
-		PcrConfig: &attestation.PcrConfig{},
-	}
-
 	return verifier{
 		writer: writer,
-		Policy: policy,
 	}
-}
-
-func NewVerifierWithPolicy(writer io.Writer, policy *attestation.Config) attestation.Verifier {
-	if policy == nil {
-		return NewVerifier(writer)
-	}
-	return verifier{
-		writer: writer,
-		Policy: policy,
-	}
-}
-
-func (a verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
-	attestationReport, err := abi.ReportCertsToProto(report)
-	if err != nil {
-		return errors.Wrap(fmt.Errorf("failed to convert TEE report to proto"), err)
-	}
-
-	return vtpm.VerifySEVAttestationReportTLS(attestationReport, teeNonce, a.Policy)
-}
-
-func (a verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return vtpm.VerifyQuote(report, vTpmNonce, a.writer, a.Policy)
-}
-
-func (a verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	var tokenNonce [vtpm.Nonce]byte
-	copy(tokenNonce[:], teeNonce)
-
-	quote := &attest.Attestation{}
-	err := proto.Unmarshal(report, quote)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal vTPM quote: %w", err)
-	}
-
-	snpReport := quote.GetSevSnpAttestation()
-	if err = vtpm.VerifySEVAttestationReportTLS(snpReport, nil, a.Policy); err != nil {
-		return fmt.Errorf("failed to verify vTPM attestation report: %w", err)
-	}
-
-	return nil
 }
 
 // VerifyEAT verifies an EAT token and extracts the binary report for verification.
 func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
-	// Decode EAT token
-	claims, err := eat.Decode(eatToken, nil)
-	if err != nil {
-		return fmt.Errorf("failed to decode EAT token: %w", err)
-	}
-
-	// Verify the embedded binary report
-	return v.VerifyAttestation(claims.RawReport, teeNonce, vTpmNonce)
+	// EAT verification logic is handled by certificate_verifier calling VerifyWithCoRIM
+	// But legacy interface might require VerifyEAT.
+	// In certificate_verifier.go, platformVerifier returns attestation.Verifier.
+	// certificate_verifier calls v.VerifyWithCoRIM directly (type assertion?).
+	// No, attestation.Verifier interface must have VerifyWithCoRIM.
+	// I previously updated Verifier interface to have VerifyWithCoRIM and VerifyEAT.
+	// But VerifyEAT implementation here calls VerifyAttestation which calls legacy.
+	// I should probably remove VerifyEAT from here if interface doesn't REQUIRE it or if I can stub it.
+	// But certificate_verifier calls v.VerifyWithCoRIM.
+	// Does it call VerifyEAT?
+	// certificate_verifier call: `func (v *certificateVerifier) verifyCertificateExtension` calls `eat.DecodeCBOR` then `verifier.VerifyWithCoRIM`.
+	// So VerifyEAT is NOT called by certificate_verifier.
+	// Is VerifyEAT in interface?
+	// If yes, I must keep it or stub it.
+	// I'll stub it to return error "not implemented used VerifyWithCoRIM".
+	return fmt.Errorf("VerifyEAT is deprecated, use VerifyWithCoRIM")
 }
 
-func (a verifier) JSONToPolicy(path string) error {
-	return vtpm.ReadPolicy(path, a.Policy)
-}
-
-func GenerateAttestationPolicy(token, product string, policy uint64) (*attestation.Config, error) {
-	claims, err := validateToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate token: %w", err)
+func (v verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error {
+	attestation := &attest.Attestation{}
+	if err := proto.Unmarshal(report, attestation); err != nil {
+		return fmt.Errorf("failed to unmarshal attestation report: %w", err)
 	}
 
-	tee, ok := claims["x-ms-isolation-tee"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("failed to get tee from claims")
+	// Extract measurement from SEV-SNP report if present
+	snpRep := attestation.GetSevSnpAttestation()
+	if snpRep == nil {
+		return fmt.Errorf("no SEV-SNP attestation found in report")
 	}
 
-	familyIdString, ok := tee["x-ms-sevsnpvm-familyId"].(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to get familyId from claims")
+	measurement := snpRep.GetReport().GetMeasurement()
+	if len(measurement) == 0 {
+		return fmt.Errorf("no measurement in SEV-SNP report")
 	}
 
-	familyId, err := hex.DecodeString(familyIdString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode familyId: %w", err)
+	// Parse CoMID from CoRIM
+	if len(manifest.Tags) == 0 {
+		return fmt.Errorf("no tags in CoRIM")
 	}
 
-	imageIdString, ok := tee["x-ms-sevsnpvm-imageId"].(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to get imageId from claims")
-	}
-	imageId, err := hex.DecodeString(imageIdString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode imageId: %w", err)
+	for _, tag := range manifest.Tags {
+		if !bytes.HasPrefix(tag, corim.ComidTag) {
+			continue
+		}
+
+		tagValue := tag[len(corim.ComidTag):]
+
+		var c comid.Comid
+		if err := c.FromCBOR(tagValue); err != nil {
+			return fmt.Errorf("failed to parse CoMID: %w", err)
+		}
+
+		// Match measurements
+		if c.Triples.ReferenceValues != nil {
+			for _, rv := range *c.Triples.ReferenceValues {
+				if rv.Measurements.Valid() != nil {
+					continue
+				}
+				for _, m := range rv.Measurements {
+					if m.Val.Digests == nil {
+						continue
+					}
+					for _, digest := range *m.Val.Digests {
+						if string(digest.HashValue) == string(measurement) {
+							return nil // Match found
+						}
+					}
+				}
+			}
+		}
 	}
 
-	measurementString, ok := tee["x-ms-sevsnpvm-launchmeasurement"].(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to get measurement from claims")
-	}
-	measurement, err := hex.DecodeString(measurementString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode measurement: %w", err)
-	}
-
-	bootloaderVersion, ok := tee["x-ms-sevsnpvm-bootloader-svn"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("failed to get bootloader version from claims")
-	}
-
-	teeVersion, ok := tee["x-ms-sevsnpvm-tee-svn"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("failed to get tee version from claims")
-	}
-
-	snpVersion, ok := tee["x-ms-sevsnpvm-snpfw-svn"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("failed to get snp version from claims")
-	}
-
-	microcodeVersion, ok := tee["x-ms-sevsnpvm-microcode-svn"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("failed to get microcode version from claims")
-	}
-
-	minimalTCBParts := kds.TCBParts{
-		BlSpl:    uint8(bootloaderVersion),
-		TeeSpl:   uint8(teeVersion),
-		SnpSpl:   uint8(snpVersion),
-		UcodeSpl: uint8(microcodeVersion),
-	}
-
-	// Minimum TCB at the moment is not valid and will be fixed in the future.
-	_, err = kds.ComposeTCBParts(minimalTCBParts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compose TCB parts: %w", err)
-	}
-
-	guestSVN, ok := tee["x-ms-sevsnpvm-guestsvn"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("failed to get guest SVN from claims")
-	}
-
-	idKeyDigestString, ok := tee["x-ms-sevsnpvm-idkeydigest"].(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to get idKeyDigest from claims")
-	}
-	idKeyDigest, err := hex.DecodeString(idKeyDigestString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode idKeyDigest: %w", err)
-	}
-
-	reportIDString, ok := tee["x-ms-sevsnpvm-reportid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to get reportID from claims")
-	}
-	reportID, err := hex.DecodeString(reportIDString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode reportID: %w", err)
-	}
-
-	sevSnpProduct := vtpm.GetSEVProductName(product)
-
-	return &attestation.Config{
-		Config: &check.Config{
-			RootOfTrust: &check.RootOfTrust{
-				CheckCrl: true,
-			},
-			Policy: &check.Policy{
-				ImageId:            imageId,
-				FamilyId:           familyId,
-				Measurement:        measurement,
-				MinimumGuestSvn:    uint32(guestSVN),
-				TrustedIdKeyHashes: [][]byte{idKeyDigest},
-				ReportId:           reportID,
-				Product:            &sevsnp.SevProduct{Name: sevSnpProduct},
-				Policy:             policy,
-			},
-		},
-		PcrConfig: &attestation.PcrConfig{},
-	}, nil
+	return fmt.Errorf("no matching reference value found in CoRIM for Azure SEV-SNP")
 }
 
 func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error) {
