@@ -56,5 +56,12 @@ func TestTeeAttestation_InvalidNonce(t *testing.T) {
 	nonce := make([]byte, 64)
 	_, err := p.TeeAttestation(nonce)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
+	// Check for likely errors in non-TDX environment
+	errMsg := err.Error()
+	assert.True(t,
+		assert.Contains(t, errMsg, "no such file or directory") ||
+			assert.Contains(t, errMsg, "permission denied") ||
+			assert.Contains(t, errMsg, "failed to open TDX device"),
+		"unexpected error message: %s", errMsg,
+	)
 }
