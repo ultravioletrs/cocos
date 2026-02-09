@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,11 +58,12 @@ func TestTeeAttestation_InvalidNonce(t *testing.T) {
 	_, err := p.TeeAttestation(nonce)
 	assert.Error(t, err)
 	// Check for likely errors in non-TDX environment
+	// Check for likely errors in non-TDX environment
 	errMsg := err.Error()
 	assert.True(t,
-		assert.Contains(t, errMsg, "no such file or directory") ||
-			assert.Contains(t, errMsg, "permission denied") ||
-			assert.Contains(t, errMsg, "failed to open TDX device"),
+		strings.Contains(errMsg, "no such file or directory") ||
+			strings.Contains(errMsg, "permission denied") ||
+			strings.Contains(errMsg, "failed to open TDX device"),
 		"unexpected error message: %s", errMsg,
 	)
 }
