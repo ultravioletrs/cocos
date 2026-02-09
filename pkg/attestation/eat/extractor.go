@@ -12,7 +12,7 @@ import (
 	tdxpb "github.com/google/go-tdx-guest/proto/tdx"
 )
 
-// OEMID constants (Private Enterprise Numbers)
+// OEMID constants (Private Enterprise Numbers).
 const (
 	OEMID_AMD       = 3704 // https://www.iana.org/assignments/enterprise-numbers/?q=Advanced+Micro+Devices
 	OEMID_INTEL     = 343  // https://www.iana.org/assignments/enterprise-numbers/?q=Intel+Corporation
