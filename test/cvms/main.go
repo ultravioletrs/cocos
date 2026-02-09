@@ -78,6 +78,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		return
 	}
 
+	s.logger.Debug("sending computation run request")
 	if err := sendMessage(&cvms.ServerStreamMessage{
 		Message: &cvms.ServerStreamMessage_RunReq{
 			RunReq: &cvms.ComputationRunReq{
@@ -98,6 +99,11 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		s.logger.Error(fmt.Sprintf("failed to send run request: %s", err))
 		return
 	}
+	s.logger.Info("computation run request sent successfully")
+
+	// Keep the connection alive
+	<-ctx.Done()
+	s.logger.Info("connection closed")
 }
 
 func main() {

@@ -1,0 +1,15 @@
+[Unit]
+Description=Cocos Egress Proxy Service
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/cocos/environment
+Environment="COCOS_LOG_LEVEL=debug"
+ExecStart=/usr/bin/egress-proxy --port=3128
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

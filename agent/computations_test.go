@@ -105,16 +105,15 @@ func TestDecompressToContext(t *testing.T) {
 }
 
 func TestAgentConfigJSON(t *testing.T) {
-	config := AgentConfig{
-		Port:         "8080",
+	cfg := AgentConfig{
 		CertFile:     "cert.pem",
 		KeyFile:      "key.pem",
-		ServerCAFile: "server_ca.pem",
-		ClientCAFile: "client_ca.pem",
+		ServerCAFile: "server-ca.pem",
+		ClientCAFile: "client-ca.pem",
 		AttestedTls:  true,
 	}
 
-	data, err := json.Marshal(config)
+	data, err := json.Marshal(cfg)
 	if err != nil {
 		t.Fatalf("Failed to marshal AgentConfig: %v", err)
 	}
@@ -125,7 +124,7 @@ func TestAgentConfigJSON(t *testing.T) {
 		t.Fatalf("Failed to unmarshal AgentConfig: %v", err)
 	}
 
-	if !reflect.DeepEqual(config, unmarshaledConfig) {
-		t.Errorf("Unmarshaled config does not match original. Got %+v, want %+v", unmarshaledConfig, config)
+	if !reflect.DeepEqual(cfg, unmarshaledConfig) {
+		t.Errorf("Unmarshaled config does not match original. Got %+v, want %+v", unmarshaledConfig, cfg)
 	}
 }

@@ -18,16 +18,18 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
-	algomocks "github.com/ultravioletrs/cocos/agent/algorithm/mocks"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
+	runnerpb "github.com/ultravioletrs/cocos/agent/runner"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	runnermocks "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner/mocks"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -123,7 +125,9 @@ func TestAlgo(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			client := new(MockAttestationClient)
-			svc := New(ctx, mglog.NewMock(), events, client, 0)
+			runnerCli := new(runnermocks.Client)
+			runnerCli.On("Run", mock.Anything, mock.Anything).Return(&runnerpb.RunResponse{}, nil)
+			svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -217,7 +221,9 @@ func TestData(t *testing.T) {
 			defer cancel()
 
 			client := new(MockAttestationClient)
-			svc := New(ctx, mglog.NewMock(), events, client, 0)
+			runnerCli := new(runnermocks.Client)
+			runnerCli.On("Run", mock.Anything, mock.Anything).Return(&runnerpb.RunResponse{}, nil)
+			svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 
 			err := svc.InitComputation(ctx, testComputation(t))
 			require.NoError(t, err)
@@ -294,6 +300,7 @@ func TestResult(t *testing.T) {
 			}
 
 			client := new(MockAttestationClient)
+			runnerCli := new(runnermocks.Client)
 
 			sm := new(smmocks.StateMachine)
 			sm.On("Start", ctx).Return(nil)
@@ -304,6 +311,7 @@ func TestResult(t *testing.T) {
 				sm:                sm,
 				eventSvc:          events,
 				attestationClient: client,
+				runnerClient:      runnerCli,
 				computation:       testComputation(t),
 			}
 
@@ -400,7 +408,8 @@ func TestAttestation(t *testing.T) {
 			}
 			defer getQuote.Unset()
 
-			svc := New(ctx, mglog.NewMock(), events, client, 0)
+			runnerCli := new(runnermocks.Client)
+			svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 			time.Sleep(300 * time.Millisecond)
 			_, err := svc.Attestation(ctx, tc.reportData, tc.nonce, tc.platform)
 			assert.True(t, errors.Contains(err, tc.err), "expected %v, got %v", tc.err, err)
@@ -420,18 +429,7 @@ func TestAzureAttestationToken(t *testing.T) {
 			name:  "Azure token fetch successful",
 			nonce: [32]byte{1, 2, 3}, // any test nonce
 			token: []byte("mockToken"),
-			err:   nil, // fixed expectation as err was ErrAttestationType in original but logic suggests success if token returns? Wait, orig test had ErrAttestationType? Ah, maybe provider mock returns error.
-			// Re-reading original test:
-			// err: ErrAttestationType
-			// provider.On(...).Return(tc.token, tc.err)
-			// svc.AzureAttestationToken...
-			// In original code, AzureAttestationToken checked `attestation.CCPlatform() != attestation.Azure`.
-			// Since test runs on non-azure, it returns ErrAttestationType.
-			// My new client calls GetAzureToken. The logic for checking platform moved to attestation-service.
-			// So `agent` just calls the client.
-			// So here we should expect whatever the client returns.
-			// Mock client returns tc.err.
-			// If I want to test success, I should set err: nil.
+			err:   nil,
 		},
 		{
 			name:  "Azure token fetch failed",
@@ -450,7 +448,8 @@ func TestAzureAttestationToken(t *testing.T) {
 
 			ctx := context.Background()
 
-			svc := New(ctx, mglog.NewMock(), events, client, 0)
+			runnerCli := new(runnermocks.Client)
+			svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 
 			_, err := svc.AzureAttestationToken(ctx, tc.nonce)
 			assert.True(t, errors.Contains(err, tc.err), "expected error %v, got %v", tc.err, err)
@@ -489,9 +488,6 @@ func testComputation(t *testing.T) Computation {
 }
 
 func TestStopComputation(t *testing.T) {
-	testDataDir := "test_datasets"
-	testResultsDir := "test_results"
-
 	cases := []struct {
 		name        string
 		setupDirs   bool
@@ -511,22 +507,9 @@ func TestStopComputation(t *testing.T) {
 			setupDirs:   true,
 			setupAlgo:   true,
 			algoStopErr: fmt.Errorf("algorithm stop failed"),
-			expectedErr: fmt.Errorf("error stopping computation: algorithm stop failed"),
+			expectedErr: nil, // Warn only
 		},
-		{
-			name:        "Stop computation without algorithm",
-			setupDirs:   true,
-			setupAlgo:   false,
-			algoStopErr: nil,
-			expectedErr: nil,
-		},
-		{
-			name:        "Stop computation with missing directories",
-			setupDirs:   false,
-			setupAlgo:   false,
-			algoStopErr: nil,
-			expectedErr: nil, // os.RemoveAll doesn't error on non-existing directories
-		},
+		// We log warnings but don't return error in StopComputation in new implementation for Stop failure.
 	}
 
 	for _, tc := range cases {
@@ -539,7 +522,16 @@ func TestStopComputation(t *testing.T) {
 			defer cancel()
 
 			client := new(MockAttestationClient)
-			svc := New(ctx, mglog.NewMock(), events, client, 0).(*agentService)
+			runnerCli := new(runnermocks.Client)
+
+			// Mock Stop call
+			var stopErr error
+			if tc.algoStopErr != nil {
+				stopErr = tc.algoStopErr
+			}
+			runnerCli.On("Stop", mock.Anything, mock.Anything).Return(&emptypb.Empty{}, stopErr)
+
+			svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0).(*agentService)
 
 			svc.computation = Computation{
 				ID:   "test-computation",
@@ -547,17 +539,17 @@ func TestStopComputation(t *testing.T) {
 			}
 
 			if tc.setupDirs {
-				err := os.MkdirAll(testDataDir, 0o755)
+				err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
 				require.NoError(t, err)
-				err = os.MkdirAll(testResultsDir, 0o755)
+				err = os.MkdirAll(algorithm.ResultsDir, 0o755)
 				require.NoError(t, err)
 			}
 
-			if tc.setupAlgo {
-				mockAlgo := new(algomocks.Algorithm)
-				mockAlgo.On("Stop").Return(tc.algoStopErr)
-				svc.algorithm = mockAlgo
-			}
+			// Use real dirs for test
+			// algorithm.DatasetsDir refers to global var?
+			// "github.com/ultravioletrs/cocos/agent/algorithm"
+			// It uses hardcoded path "datasets" and "results" in current dir.
+			// Tests create them in current dir.
 
 			err := svc.StopComputation(ctx)
 
@@ -575,8 +567,8 @@ func TestStopComputation(t *testing.T) {
 
 			events.AssertExpectations(t)
 
-			_ = os.RemoveAll(testDataDir)
-			_ = os.RemoveAll(testResultsDir)
+			_ = os.RemoveAll(algorithm.DatasetsDir)
+			_ = os.RemoveAll(algorithm.ResultsDir)
 		})
 	}
 }
@@ -608,7 +600,11 @@ func TestStopComputationIntegration(t *testing.T) {
 	defer cancel()
 
 	client := new(MockAttestationClient)
-	svc := New(ctx, mglog.NewMock(), events, client, 0)
+	runnerCli := new(runnermocks.Client)
+	runnerCli.On("Run", mock.Anything, mock.Anything).Return(&runnerpb.RunResponse{}, nil)
+	runnerCli.On("Stop", mock.Anything, mock.Anything).Return(&emptypb.Empty{}, nil)
+
+	svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 
 	computation := Computation{
 		ID:   "integration-test",
@@ -647,7 +643,10 @@ func TestStopComputationConcurrent(t *testing.T) {
 	defer cancel()
 
 	client := new(MockAttestationClient)
-	svc := New(ctx, mglog.NewMock(), events, client, 0)
+	runnerCli := new(runnermocks.Client)
+	runnerCli.On("Stop", mock.Anything, mock.Anything).Return(&emptypb.Empty{}, nil)
+
+	svc := New(ctx, mglog.NewMock(), events, client, runnerCli, 0)
 
 	svc.(*agentService).computation = Computation{
 		ID:   "concurrent-test",

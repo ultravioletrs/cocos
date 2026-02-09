@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/ultravioletrs/cocos/agent/cvms"
@@ -52,16 +53,20 @@ func (s *grpcServer) Process(stream cvms.Service_ProcessServer) error {
 		return errors.New("failed to get peer info")
 	}
 
+	slog.Info("client connected to cvms server", "address", client.Addr.String())
+
 	eg, ctx := errgroup.WithContext(stream.Context())
 
 	eg.Go(func() error {
 		for {
 			select {
 			case <-ctx.Done():
+				slog.Info("receive goroutine context done", "address", client.Addr.String())
 				return ctx.Err()
 			default:
 				req, err := stream.Recv()
 				if err != nil {
+					slog.Error("failed to receive from stream", "address", client.Addr.String(), "error", err)
 					return err
 				}
 				s.incoming <- req
@@ -85,10 +90,13 @@ func (s *grpcServer) Process(stream cvms.Service_ProcessServer) error {
 		}
 
 		s.svc.Run(ctx, client.Addr.String(), sendMessage, client.AuthInfo)
+		slog.Info("send goroutine Run() returned", "address", client.Addr.String())
 		return nil
 	})
 
-	return eg.Wait()
+	err := eg.Wait()
+	slog.Info("stream closed", "address", client.Addr.String(), "error", err)
+	return err
 }
 
 func (s *grpcServer) sendRunReqInChunks(stream cvms.Service_ProcessServer, runReq *cvms.ComputationRunReq) error {

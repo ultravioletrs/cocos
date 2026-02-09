@@ -1,16 +1,19 @@
 [Unit]
 Description=Cocos AI agent
-After=network.target attestation-service.service
-Requires=attestation-service.service
+After=network.target attestation-service.service log-forwarder.service computation-runner.service egress-proxy.service
+Requires=log-forwarder.service computation-runner.service egress-proxy.service
 Before=docker.service
 
 [Service]
 WorkingDirectory=/cocos
+Environment="HTTP_PROXY=http://localhost:3128"
+Environment="HTTPS_PROXY=http://localhost:3128"
+Environment="NO_PROXY=localhost,127.0.0.1,.local,/run/cocos/"
+Environment="AGENT_ENABLE_ATLS=false"
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 EnvironmentFile=/etc/cocos/environment
-ExecStartPre=/cocos_init/agent_setup.sh
-ExecStart=/cocos_init/agent_start_script.sh
+ExecStart=/usr/bin/cocos-agent --config-file=/etc/cocos/cocos-agent.conf
 Restart=always
 RestartSec=5s
 

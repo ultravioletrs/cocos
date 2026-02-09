@@ -1,0 +1,20 @@
+[Unit]
+Description=Cocos AI Computation Runner
+After=network.target log-forwarder.service
+Before=cocos-agent.service
+Requires=log-forwarder.service
+
+[Service]
+WorkingDirectory=/cocos
+StandardOutput=file:/var/log/cocos/runner.stdout
+StandardError=file:/var/log/cocos/runner.stderr
+EnvironmentFile=/etc/cocos/environment
+Environment="HTTP_PROXY=http://localhost:3128"
+Environment="HTTPS_PROXY=http://localhost:3128"
+Environment="NO_PROXY=localhost,127.0.0.1,.local,/run/cocos/"
+ExecStart=/usr/bin/computation-runner --socket-path=/run/cocos/runner.sock
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
