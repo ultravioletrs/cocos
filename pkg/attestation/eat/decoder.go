@@ -38,6 +38,9 @@ func (d *Decoder) Decode(token []byte) (*EATClaims, error) {
 // isJWT checks if the token is JWT format.
 func isJWT(token []byte) bool {
 	// JWT tokens are base64-encoded strings with dots
+	if len(token) < 10 {
+		return false
+	}
 	return bytes.Contains(token, []byte(".")) && !bytes.Contains(token[:10], []byte{0x00})
 }
 
@@ -45,16 +48,24 @@ func isJWT(token []byte) bool {
 func (d *Decoder) decodeJWT(tokenString string) (*EATClaims, error) {
 	claims := &jwtClaims{&EATClaims{}}
 
-	// Parse and verify JWT
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		// Verify signing method
-		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return d.verifyKey, nil
-	})
+	var token *jwt.Token
+	var err error
+
+	if d.verifyKey == nil {
+		token, _, err = new(jwt.Parser).ParseUnverified(tokenString, claims)
+	} else {
+		// Parse and verify JWT
+		token, err = jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			// Verify signing method
+			if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return d.verifyKey, nil
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
+
 	}
 
 	if !token.Valid {
