@@ -4,17 +4,16 @@
 package azure
 
 import (
-	"math/big"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
@@ -50,7 +49,7 @@ func TestGenerateAttestationPolicy_Success(t *testing.T) {
 		jwks := jose.JSONWebKeySet{
 			Keys: []jose.JSONWebKey{jwk},
 		}
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	}))
 	defer server.Close()
 

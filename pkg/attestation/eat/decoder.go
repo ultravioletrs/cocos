@@ -65,7 +65,6 @@ func (d *Decoder) decodeJWT(tokenString string) (*EATClaims, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
-
 	}
 
 	if !token.Valid {
