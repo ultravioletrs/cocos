@@ -22,8 +22,11 @@ import (
 )
 
 var (
-	testNonce  = []byte("test-nonce-12345678901234567890123456789012")
-	testReport = []byte("test-report-data")
+	testNonce        = []byte("test-nonce-12345678901234567890123456789012")
+	testReport       = []byte("test-report-data")
+	testKID          = "test-kid"
+	openIDConfigPath = "/.well-known/openid_configuration"
+	certsPath        = "/certs"
 )
 
 func TestNewProvider(t *testing.T) {
@@ -459,19 +462,19 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 				if err := json.NewEncoder(w).Encode(response); err != nil {
 					t.Fatalf("Failed to encode response: %v", err)
 				}
-			case "/.well-known/openid_configuration":
+			case openIDConfigPath:
 				config := map[string]any{
-					"jwks_uri": "maaServer.URL" + "/certs",
+					"jwks_uri": "maaServer.URL" + certsPath,
 				}
 				w.Header().Set("Content-Type", "application/json")
 				if err := json.NewEncoder(w).Encode(config); err != nil {
 					t.Fatalf("Failed to encode OpenID configuration: %v", err)
 				}
-			case "/certs":
+			case certsPath:
 				jwks := map[string]any{
 					"keys": []map[string]any{
 						{
-							"kid": "test-kid",
+							"kid": testKID,
 							"kty": "RSA",
 							"use": "sig",
 							"n":   "test-n-value",

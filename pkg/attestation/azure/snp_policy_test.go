@@ -59,16 +59,20 @@ func TestGenerateAttestationPolicy(t *testing.T) {
 			setupServer: func(t *testing.T, key *rsa.PrivateKey, cert *x509.Certificate) *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
-					case "/.well-known/openid_configuration":
+					case openIDConfigPath:
 						config := map[string]any{
-							"jwks_uri": "http://" + r.Host + "/certs",
+							"jwks_uri": "http://" + r.Host + certsPath,
 						}
 						w.Header().Set("Content-Type", "application/json")
-						json.NewEncoder(w).Encode(config)
-					case "/certs":
+						if err := json.NewEncoder(w).Encode(config); err != nil {
+							t.Errorf("failed to encode config: %v", err)
+						}
+					case certsPath:
 						jwks := generateJWKS(&key.PublicKey, cert)
 						w.Header().Set("Content-Type", "application/json")
-						json.NewEncoder(w).Encode(jwks)
+						if err := json.NewEncoder(w).Encode(jwks); err != nil {
+							t.Errorf("failed to encode jwks: %v", err)
+						}
 					default:
 						w.WriteHeader(http.StatusNotFound)
 					}
@@ -94,16 +98,20 @@ func TestGenerateAttestationPolicy(t *testing.T) {
 			setupServer: func(t *testing.T, key *rsa.PrivateKey, cert *x509.Certificate) *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
-					case "/.well-known/openid_configuration":
+					case openIDConfigPath:
 						config := map[string]any{
-							"jwks_uri": "http://" + r.Host + "/certs",
+							"jwks_uri": "http://" + r.Host + certsPath,
 						}
 						w.Header().Set("Content-Type", "application/json")
-						json.NewEncoder(w).Encode(config)
-					case "/certs":
+						if err := json.NewEncoder(w).Encode(config); err != nil {
+							t.Errorf("failed to encode config: %v", err)
+						}
+					case certsPath:
 						jwks := generateJWKS(&key.PublicKey, cert)
 						w.Header().Set("Content-Type", "application/json")
-						json.NewEncoder(w).Encode(jwks)
+						if err := json.NewEncoder(w).Encode(jwks); err != nil {
+							t.Errorf("failed to encode jwks: %v", err)
+						}
 					}
 				}))
 			},
@@ -199,7 +207,6 @@ func TestVerifier_VerifyEAT(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errorMessage != "" {
-
 				}
 			} else {
 				assert.NoError(t, err)
@@ -234,7 +241,7 @@ func createValidClaims() jwt.MapClaims {
 
 func signToken(claims jwt.MapClaims, key *rsa.PrivateKey, jku string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = "test-kid"
+	token.Header["kid"] = testKID
 	if jku != "" {
 		token.Header["jku"] = jku
 	}
@@ -244,7 +251,7 @@ func signToken(claims jwt.MapClaims, key *rsa.PrivateKey, jku string) (string, e
 func generateJWKS(pubKey *rsa.PublicKey, cert *x509.Certificate) *jose.JSONWebKeySet {
 	key := jose.JSONWebKey{
 		Key:          pubKey,
-		KeyID:        "test-kid",
+		KeyID:        testKID,
 		Algorithm:    "RS256",
 		Use:          "sig",
 		Certificates: []*x509.Certificate{cert},

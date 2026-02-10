@@ -39,7 +39,7 @@ func TestGenerateAttestationPolicy_Success(t *testing.T) {
 
 	jwk := jose.JSONWebKey{
 		Key:          &key.PublicKey,
-		KeyID:        "test-kid",
+		KeyID:        testKID,
 		Algorithm:    "RS256",
 		Use:          "sig",
 		Certificates: []*x509.Certificate{cert},
@@ -87,7 +87,7 @@ func createTestToken(t *testing.T, key *rsa.PrivateKey, jku string) string {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["jku"] = jku
-	token.Header["kid"] = "test-kid"
+	token.Header["kid"] = testKID
 
 	signedToken, err := token.SignedString(key)
 	require.NoError(t, err)

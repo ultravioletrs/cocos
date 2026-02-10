@@ -89,7 +89,7 @@ func TestExtractAzureClaims(t *testing.T) {
 	assert.Equal(t, OEMID_MICROSOFT, claims.OEMID)
 }
 
-// Platform type helper
+// Platform type helper.
 func TestGetPlatformTypeName(t *testing.T) {
 	tests := []struct {
 		pt   attestation.PlatformType
