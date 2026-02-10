@@ -22,11 +22,15 @@ type CertificateVerifier interface {
 
 // CertificateVerifier handles certificate verification operations.
 type certificateVerifier struct {
-	rootCAs *x509.CertPool
+	rootCAs          *x509.CertPool
+	verifierProvider func(attestation.PlatformType) (attestation.Verifier, error)
 }
 
 func NewCertificateVerifier(rootCAs *x509.CertPool) CertificateVerifier {
-	return &certificateVerifier{rootCAs: rootCAs}
+	return &certificateVerifier{
+		rootCAs:          rootCAs,
+		verifierProvider: platformVerifier,
+	}
 }
 
 func (v *certificateVerifier) VerifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte) error {
@@ -106,7 +110,7 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	}
 
 	// Get platform verifier
-	verifier, err := platformVerifier(platformType)
+	verifier, err := v.verifierProvider(platformType)
 	if err != nil {
 		return fmt.Errorf("failed to get platform verifier: %w", err)
 	}
