@@ -51,7 +51,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
@@ -114,7 +114,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
@@ -190,5 +190,43 @@ func TestConstructQemuArgs_HostData(t *testing.T) {
 
 	if !found {
 		t.Errorf("ConstructQemuArgs() did not contain expected SEV-SNP configuration with host data")
+	}
+}
+
+func TestConstructQemuArgs_EnableDisk(t *testing.T) {
+	config := Config{
+		EnableDisk: true,
+		DiskConfig: DiskConfig{
+			SrcFile: "img/enc_os.qcow2",
+			DstFile: "img/enc_os_dst.qcow2",
+			ID:      "disk0",
+			Format:  "qcow2",
+			SCSIID:  "scsi0",
+		},
+	}
+
+	result := config.ConstructQemuArgs()
+
+	expected := []string{
+		"-drive", "file=img/enc_os_dst.qcow2,if=none,id=disk0,format=qcow2",
+		"-device", "virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true",
+		"-device", "scsi-hd,drive=disk0,bus=scsi0.0",
+	}
+
+	var found []bool = make([]bool, len(expected))
+	for i, arg := range result {
+		for j := 0; j < len(expected); j += 2 {
+			if arg == expected[j] && i+1 < len(result) && result[i+1] == expected[j+1] {
+				found[j] = true
+				found[j+1] = true
+				break
+			}
+		}
+	}
+
+	for j, f := range found {
+		if !f {
+			t.Errorf("ConstructQemuArgs() did not contain expected disk configuration: %s", expected[j])
+		}
 	}
 }

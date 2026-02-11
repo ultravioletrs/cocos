@@ -1,6 +1,0 @@
-config BR2_PACKAGE_ATTESTATION_SERVICE
-	bool "attestation-service"
-	help
-	  Attestation Service for confidential computing attestation.
-
-	  https://github.com/ultravioletrs/cocos
