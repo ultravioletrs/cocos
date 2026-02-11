@@ -3,6 +3,7 @@
 package atls
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -32,7 +33,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -43,6 +43,32 @@ const (
 )
 
 var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
+
+// mockAttestationClient is a simple mock for testing.
+type mockAttestationClient struct {
+	mock.Mock
+}
+
+func (m *mockAttestationClient) GetAttestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
+	args := m.Called(ctx, reportData, nonce, attType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *mockAttestationClient) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error) {
+	args := m.Called(ctx, nonce)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *mockAttestationClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
 
 func generateTestCertPEM(t *testing.T) string {
 	return generateTestCertPEMWithSubject(t, "test")
@@ -133,9 +159,8 @@ func TestUnifiedCertificateGenerator(t *testing.T) {
 
 // TestPlatformAttestationProvider tests the platform attestation provider.
 func TestPlatformAttestationProvider(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-
 	t.Run("NewAttestationProvider", func(t *testing.T) {
+		mockClient := new(mockAttestationClient)
 		cases := []struct {
 			name         string
 			platformType attestation.PlatformType
@@ -149,7 +174,7 @@ func TestPlatformAttestationProvider(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				provider, err := NewAttestationProvider(mockProvider, c.platformType)
+				provider, err := NewAttestationProvider(mockClient, c.platformType)
 
 				if c.expectError {
 					assert.Error(t, err)
@@ -164,10 +189,11 @@ func TestPlatformAttestationProvider(t *testing.T) {
 	})
 
 	t.Run("GetAttestation", func(t *testing.T) {
+		mockClient := new(mockAttestationClient)
 		expectedAttestation := []byte("test-attestation")
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(expectedAttestation, nil)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedAttestation, nil)
 
-		provider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		provider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		pubKey := []byte("test-pubkey")
@@ -177,14 +203,14 @@ func TestPlatformAttestationProvider(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedAttestation, attestation)
-		mockProvider.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
 	})
 
 	t.Run("GetAttestationError", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
 
-		provider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		provider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		_, err = provider.Attest([]byte("pubkey"), []byte("nonce"))
@@ -194,12 +220,11 @@ func TestPlatformAttestationProvider(t *testing.T) {
 
 // TestAttestedCertificateProvider tests the attested certificate provider.
 func TestAttestedCertificateProvider(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-
 	t.Run("GetCertificateSuccess", func(t *testing.T) {
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("test-attestation"), nil)
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]byte("test-attestation"), nil)
 
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		subject := DefaultCertificateSubject()
@@ -223,8 +248,8 @@ func TestAttestedCertificateProvider(t *testing.T) {
 	})
 
 	t.Run("InvalidServerName", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		mockClient := new(mockAttestationClient)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
@@ -237,10 +262,10 @@ func TestAttestedCertificateProvider(t *testing.T) {
 	})
 
 	t.Run("AttestationError", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
 
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
@@ -260,10 +285,10 @@ func TestAttestedCertificateProvider(t *testing.T) {
 
 // TestNewProvider tests the factory function.
 func TestNewProvider(t *testing.T) {
-	mockProvider := new(mocks.Provider)
+	mockClient := new(mockAttestationClient)
 
 	t.Run("SelfSignedProvider", func(t *testing.T) {
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", nil)
+		provider, err := NewProvider(mockClient, attestation.SNPvTPM, "", "", nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
@@ -271,19 +296,19 @@ func TestNewProvider(t *testing.T) {
 	t.Run("CASignedProviderWithSDK", func(t *testing.T) {
 		mockSDK := sdkmocks.NewSDK(t)
 
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
+		provider, err := NewProvider(mockClient, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
 	t.Run("SelfSignedProviderNilSDK", func(t *testing.T) {
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", nil)
+		provider, err := NewProvider(mockClient, attestation.SNPvTPM, "test-token", "test-cvm-id", nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
 	t.Run("InvalidPlatformType", func(t *testing.T) {
-		_, err := NewProvider(mockProvider, attestation.PlatformType(999), "", "", nil)
+		_, err := NewProvider(mockClient, attestation.PlatformType(999), "", "", nil)
 		assert.Error(t, err)
 	})
 }
@@ -714,8 +739,8 @@ func TestCertificateVerification(t *testing.T) {
 
 // TestAttestedCAProvider tests the CA-signed certificate provider.
 func TestAttestedCAProvider(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+	mockClient := new(mockAttestationClient)
+	attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 	require.NoError(t, err)
 
 	subject := DefaultCertificateSubject()
@@ -740,8 +765,8 @@ func TestAttestedCAProvider(t *testing.T) {
 
 // TestCASignedCertificateErrors tests error cases in CA-signed certificate generation.
 func TestCASignedCertificateErrors(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-	attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+	mockClient := new(mockAttestationClient)
+	attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 	require.NoError(t, err)
 
 	subject := DefaultCertificateSubject()
@@ -787,8 +812,8 @@ func TestCASignedCertificateErrors(t *testing.T) {
 // TestGetCertificateErrors tests error paths in certificate generation.
 func TestGetCertificateErrors(t *testing.T) {
 	t.Run("InvalidServerNameFormat", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		mockClient := new(mockAttestationClient)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
@@ -803,10 +828,10 @@ func TestGetCertificateErrors(t *testing.T) {
 	})
 
 	t.Run("AttestationProviderError", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("attestation failed"))
 
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		provider := NewAttestedProvider(attestationProvider, DefaultCertificateSubject())
@@ -824,10 +849,10 @@ func TestGetCertificateErrors(t *testing.T) {
 	})
 
 	t.Run("CASignedCertificateError", func(t *testing.T) {
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("test-attestation"), nil)
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]byte("test-attestation"), nil)
 
-		attestationProvider, err := NewAttestationProvider(mockProvider, attestation.SNPvTPM)
+		attestationProvider, err := NewAttestationProvider(mockClient, attestation.SNPvTPM)
 		require.NoError(t, err)
 
 		mockSDK := sdkmocks.NewSDK(t)
@@ -904,7 +929,8 @@ func TestCertificateVerificationEdgeCases(t *testing.T) {
 
 		err := verifier.verifyCertificateExtension([]byte("test-extension"), []byte("test-pubkey"), []byte("test-nonce"), invalidPlatformType)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported platform type")
+		// The error occurs during EAT token decoding before platform type validation
+		assert.Contains(t, err.Error(), "failed to decode EAT token")
 	})
 }
 
@@ -973,12 +999,12 @@ func TestIntegrationScenarios(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("FullSelfSignedFlow", func(t *testing.T) {
-		// Setup mock provider
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
+		// Setup mock client
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
 		// Create provider
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", nil)
+		provider, err := NewProvider(mockClient, attestation.SNPvTPM, "", "", nil)
 		require.NoError(t, err)
 
 		// Generate certificate
@@ -1017,10 +1043,10 @@ func TestIntegrationScenarios(t *testing.T) {
 		mockSDK.On("CreateCSR", mock.Anything, mock.Anything, mock.Anything).Return(expectedCSR, errors.SDKError(nil))
 		mockSDK.On("IssueFromCSRInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedCert, errors.SDKError(nil))
 
-		mockProvider := new(mocks.Provider)
-		mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
+		mockClient := new(mockAttestationClient)
+		mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
-		provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
+		provider, err := NewProvider(mockClient, attestation.SNPvTPM, "test-token", "test-cvm-id", mockSDK)
 		require.NoError(t, err)
 
 		nonce := make([]byte, 64)
@@ -1041,17 +1067,17 @@ func TestIntegrationScenarios(t *testing.T) {
 
 		assert.NotNil(t, parsedCert.Subject)
 
-		mockProvider.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
 		mockSDK.AssertExpectations(t)
 	})
 }
 
 // TestConcurrentAccess tests concurrent access scenarios.
 func TestConcurrentAccess(t *testing.T) {
-	mockProvider := new(mocks.Provider)
-	mockProvider.On("Attestation", mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
+	mockClient := new(mockAttestationClient)
+	mockClient.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]byte("mock-attestation"), nil)
 
-	provider, err := NewProvider(mockProvider, attestation.SNPvTPM, "", "", nil)
+	provider, err := NewProvider(mockClient, attestation.SNPvTPM, "", "", nil)
 	require.NoError(t, err)
 
 	const numGoroutines = 10

@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -181,8 +182,20 @@ func (v verifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []
 	return VTPMVerify(report, teeNonce, vTpmNonce, v.writer, v.Policy)
 }
 
-func (v verifier) JSONToPolicy(path string) error {
+func (v *verifier) JSONToPolicy(path string) error {
 	return ReadPolicy(path, v.Policy)
+}
+
+// VerifyEAT verifies an EAT token and extracts the binary report for verification.
+func (v *verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
+	// Decode EAT token
+	claims, err := eat.Decode(eatToken, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode EAT token: %w", err)
+	}
+
+	// Verify the embedded binary report
+	return v.VerifyAttestation(claims.RawReport, teeNonce, vTpmNonce)
 }
 
 func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([]byte, error) {

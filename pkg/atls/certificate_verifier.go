@@ -10,6 +10,7 @@ import (
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"golang.org/x/crypto/sha3"
@@ -21,11 +22,15 @@ type CertificateVerifier interface {
 
 // CertificateVerifier handles certificate verification operations.
 type certificateVerifier struct {
-	rootCAs *x509.CertPool
+	rootCAs          *x509.CertPool
+	verifierProvider func(attestation.PlatformType) (attestation.Verifier, error)
 }
 
 func NewCertificateVerifier(rootCAs *x509.CertPool) CertificateVerifier {
-	return &certificateVerifier{rootCAs: rootCAs}
+	return &certificateVerifier{
+		rootCAs:          rootCAs,
+		verifierProvider: platformVerifier,
+	}
 }
 
 func (v *certificateVerifier) VerifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte) error {
@@ -75,15 +80,43 @@ func (v *certificateVerifier) verifyAttestationExtension(cert *x509.Certificate,
 }
 
 func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKey []byte, nonce []byte, platformType attestation.PlatformType) error {
-	verifier, err := platformVerifier(platformType)
+	// Decode EAT token from certificate extension
+	// Note: We don't have the public key for verification here, so we decode without verification
+	// The signature was created by the attester, and we trust the TEE hardware verification
+	claims, err := eat.DecodeCBOR(extension, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode EAT token: %w", err)
+	}
+
+	// Verify nonce matches
+	teeNonce := append(pubKey, nonce...)
+	hashNonce := sha3.Sum512(teeNonce)
+
+	// Compare nonces (EAT nonce should match our computed nonce)
+	if len(claims.Nonce) != len(hashNonce) {
+		return fmt.Errorf("nonce length mismatch: expected %d, got %d", len(hashNonce), len(claims.Nonce))
+	}
+
+	nonceMatch := true
+	for i := range claims.Nonce {
+		if claims.Nonce[i] != hashNonce[i] {
+			nonceMatch = false
+			break
+		}
+	}
+
+	if !nonceMatch {
+		return fmt.Errorf("nonce mismatch in EAT token")
+	}
+
+	// Get platform verifier
+	verifier, err := v.verifierProvider(platformType)
 	if err != nil {
 		return fmt.Errorf("failed to get platform verifier: %w", err)
 	}
 
-	teeNonce := append(pubKey, nonce...)
-	hashNonce := sha3.Sum512(teeNonce)
-
-	if err = verifier.VerifyAttestation(extension, hashNonce[:], hashNonce[:32]); err != nil {
+	// Verify the binary attestation report embedded in EAT token
+	if err = verifier.VerifyAttestation(claims.RawReport, hashNonce[:], hashNonce[:32]); err != nil {
 		return fmt.Errorf("failed to verify attestation: %w", err)
 	}
 

@@ -18,6 +18,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,7 +77,6 @@ func run(cfg config) error {
 	}
 
 	// Initialize Certificate Provider
-	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
 
 	azureConfig := azure.NewEnvConfigFromAgent(
@@ -90,13 +90,20 @@ func run(cfg config) error {
 	var certProvider atls.CertificateProvider
 
 	if ccPlatform != attestation.NoCC {
+		// Create attestation client
+		attClient, err := attestation_client.NewClient("/run/cocos/attestation.sock")
+		if err != nil {
+			return fmt.Errorf("failed to create attestation client: %w", err)
+		}
+		defer attClient.Close()
+
 		var certsSDK sdk.SDK
 		if cfg.CAUrl != "" {
 			certsSDK = sdk.NewSDK(sdk.Config{
 				CertsURL: cfg.CAUrl,
 			})
 		}
-		certProvider, err = atls.NewProvider(provider, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate provider: %w", err)
 		}

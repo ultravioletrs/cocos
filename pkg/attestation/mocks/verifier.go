@@ -265,3 +265,66 @@ func (_c *Verifier_VerifyAttestation_Call) RunAndReturn(run func(report []byte, 
 	_c.Call.Return(run)
 	return _c
 }
+
+// VerifyEAT provides a mock function for the type Verifier
+func (_mock *Verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
+	ret := _mock.Called(eatToken, teeNonce, vTpmNonce)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyEAT")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func([]byte, []byte, []byte) error); ok {
+		r0 = returnFunc(eatToken, teeNonce, vTpmNonce)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Verifier_VerifyEAT_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyEAT'
+type Verifier_VerifyEAT_Call struct {
+	*mock.Call
+}
+
+// VerifyEAT is a helper method to define mock.On call
+//   - eatToken []byte
+//   - teeNonce []byte
+//   - vTpmNonce []byte
+func (_e *Verifier_Expecter) VerifyEAT(eatToken interface{}, teeNonce interface{}, vTpmNonce interface{}) *Verifier_VerifyEAT_Call {
+	return &Verifier_VerifyEAT_Call{Call: _e.mock.On("VerifyEAT", eatToken, teeNonce, vTpmNonce)}
+}
+
+func (_c *Verifier_VerifyEAT_Call) Run(run func(eatToken []byte, teeNonce []byte, vTpmNonce []byte)) *Verifier_VerifyEAT_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []byte
+		if args[0] != nil {
+			arg0 = args[0].([]byte)
+		}
+		var arg1 []byte
+		if args[1] != nil {
+			arg1 = args[1].([]byte)
+		}
+		var arg2 []byte
+		if args[2] != nil {
+			arg2 = args[2].([]byte)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Verifier_VerifyEAT_Call) Return(err error) *Verifier_VerifyEAT_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Verifier_VerifyEAT_Call) RunAndReturn(run func(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error) *Verifier_VerifyEAT_Call {
+	_c.Call.Return(run)
+	return _c
+}

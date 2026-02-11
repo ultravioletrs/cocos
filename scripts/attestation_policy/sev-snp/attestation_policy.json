@@ -48,5 +48,12 @@
     "disallow_network": false,
     "product": "Milan",
     "product_line": "Milan"
+  },
+  "eat_validation": {
+    "require_eat_format": true,
+    "allowed_formats": ["CBOR", "JWT"],
+    "max_token_age_seconds": 300,
+    "require_claims": ["eat_nonce", "measurements", "platform_type"],
+    "verify_signature": true
   }
 }

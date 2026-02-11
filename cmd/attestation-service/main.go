@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,6 +17,7 @@ import (
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -35,6 +37,8 @@ type config struct {
 	AgentOSBuild  string `env:"AGENT_OS_BUILD"          envDefault:"UVC"`
 	AgentOSDistro string `env:"AGENT_OS_DISTRO"         envDefault:"UVC"`
 	AgentOSType   string `env:"AGENT_OS_TYPE"           envDefault:"UVC"`
+	EATFormat     string `env:"ATTESTATION_EAT_FORMAT"  envDefault:"CBOR"` // JWT or CBOR
+	EATIssuer     string `env:"ATTESTATION_EAT_ISSUER"  envDefault:"cocos-attestation-service"`
 }
 
 func main() {
@@ -121,10 +125,21 @@ func main() {
 		return
 	}
 
+	// Generate EAT signing key
+	signingKey, err := eat.GenerateSigningKey()
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to generate EAT signing key: %s", err))
+		exitCode = 1
+		return
+	}
+
 	grpcServer := grpc.NewServer()
 	svc := &service{
-		provider: provider,
-		logger:   logger,
+		provider:   provider,
+		logger:     logger,
+		signingKey: signingKey,
+		eatFormat:  cfg.EATFormat,
+		eatIssuer:  cfg.EATIssuer,
 	}
 	attestationpb.RegisterAttestationServiceServer(grpcServer, svc)
 
@@ -156,29 +171,37 @@ func main() {
 
 type service struct {
 	attestationpb.UnimplementedAttestationServiceServer
-	provider attestation.Provider
-	logger   *slog.Logger
+	provider   attestation.Provider
+	logger     *slog.Logger
+	signingKey *ecdsa.PrivateKey
+	eatFormat  string
+	eatIssuer  string
 }
 
 func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
-	var quote []byte
+	var binaryReport []byte
 	var err error
+	var platformType attestation.PlatformType
 
+	// Get binary attestation report based on platform type
 	switch req.PlatformType {
 	case attestationpb.PlatformType_PLATFORM_TYPE_SNP, attestationpb.PlatformType_PLATFORM_TYPE_TDX:
 		var reportData [64]byte
 		copy(reportData[:], req.ReportData)
-		quote, err = s.provider.TeeAttestation(reportData[:])
+		binaryReport, err = s.provider.TeeAttestation(reportData[:])
+		platformType = convertPlatformType(req.PlatformType)
 	case attestationpb.PlatformType_PLATFORM_TYPE_VTPM:
 		var nonce [32]byte
 		copy(nonce[:], req.Nonce)
-		quote, err = s.provider.VTpmAttestation(nonce[:])
+		binaryReport, err = s.provider.VTpmAttestation(nonce[:])
+		platformType = attestation.VTPM
 	case attestationpb.PlatformType_PLATFORM_TYPE_SNP_VTPM:
 		var reportData [64]byte
 		copy(reportData[:], req.ReportData)
 		var nonce [32]byte
 		copy(nonce[:], req.Nonce)
-		quote, err = s.provider.Attestation(reportData[:], nonce[:])
+		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
+		platformType = attestation.SNPvTPM
 	default:
 		return nil, fmt.Errorf("unsupported platform type")
 	}
@@ -187,7 +210,57 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 		return nil, err
 	}
 
-	return &attestationpb.AttestationResponse{Quote: quote}, nil
+	// Create EAT claims from binary report
+	nonce := req.ReportData
+	if len(req.Nonce) > 0 {
+		nonce = req.Nonce
+	}
+
+	claims, err := eat.NewEATClaims(binaryReport, nonce, platformType)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("failed to create EAT claims: %s", err))
+		return nil, fmt.Errorf("failed to create EAT claims: %w", err)
+	}
+
+	// Encode to EAT token based on configured format
+	var eatToken []byte
+	switch s.eatFormat {
+	case "JWT":
+		tokenString, err := eat.EncodeToJWT(claims, s.signingKey, s.eatIssuer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode JWT: %w", err)
+		}
+		eatToken = []byte(tokenString)
+	case "CBOR":
+		eatToken, err = eat.EncodeToCBOR(claims, s.signingKey, s.eatIssuer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode CBOR: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported EAT format: %s", s.eatFormat)
+	}
+
+	s.logger.Debug(fmt.Sprintf("generated EAT token (%s format) for platform %v", s.eatFormat, platformType))
+
+	return &attestationpb.AttestationResponse{EatToken: eatToken}, nil
+}
+
+// convertPlatformType converts protobuf platform type to internal platform type.
+func convertPlatformType(pt attestationpb.PlatformType) attestation.PlatformType {
+	switch pt {
+	case attestationpb.PlatformType_PLATFORM_TYPE_SNP:
+		return attestation.SNP
+	case attestationpb.PlatformType_PLATFORM_TYPE_TDX:
+		return attestation.TDX
+	case attestationpb.PlatformType_PLATFORM_TYPE_VTPM:
+		return attestation.VTPM
+	case attestationpb.PlatformType_PLATFORM_TYPE_SNP_VTPM:
+		return attestation.SNPvTPM
+	case attestationpb.PlatformType_PLATFORM_TYPE_AZURE:
+		return attestation.Azure
+	default:
+		return attestation.NoCC
+	}
 }
 
 func (s *service) GetAzureToken(ctx context.Context, req *attestationpb.AzureTokenRequest) (*attestationpb.AzureTokenResponse, error) {

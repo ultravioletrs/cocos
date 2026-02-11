@@ -39,7 +39,7 @@ func (m *mockAttestationServer) FetchAttestation(ctx context.Context, req *attes
 	}
 
 	return &attestation_v1.AttestationResponse{
-		Quote: []byte("mock-attestation-quote"),
+		EatToken: []byte("mock-attestation-quote"),
 	}, nil
 }
 
