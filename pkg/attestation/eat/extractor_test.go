@@ -4,6 +4,7 @@
 package eat
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -61,6 +62,40 @@ func TestExtractTDXClaims(t *testing.T) {
 	err := extractTDXClaims(claims, report)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse TDX quote")
+}
+
+func TestTDXExtensionsJSON(t *testing.T) {
+	ext := &TDXExtensions{
+		MRTD:         []byte("mrtd_val"),
+		RTMR0:        []byte("rtmr0_val"),
+		RTMR1:        []byte("rtmr1_val"),
+		RTMR2:        []byte("rtmr2_val"),
+		RTMR3:        []byte("rtmr3_val"),
+		XFAM:         123,
+		TDAttributes: 456,
+		TDXModule: &TDXModuleInfo{
+			Major: 1,
+		},
+	}
+
+	claims := &EATClaims{
+		TDXExtensions: ext,
+	}
+
+	// Marshal to JSON
+	data, err := json.Marshal(claims)
+	assert.NoError(t, err)
+
+	// Verify JSON keys match Intel EAT profile
+	jsonStr := string(data)
+	assert.Contains(t, jsonStr, `"tdx_mrtd":"bXJ0ZF92YWw="`)
+	assert.Contains(t, jsonStr, `"tdx_rtmr0":"cnRtcjBfdmFs"`) // base64 of "rtmr0_val"
+	assert.Contains(t, jsonStr, `"tdx_rtmr1":"cnRtcjFfdmFs"`)
+	assert.Contains(t, jsonStr, `"tdx_rtmr2":"cnRtcjJfdmFs"`)
+	assert.Contains(t, jsonStr, `"tdx_rtmr3":"cnRtcjNfdmFs"`)
+	assert.Contains(t, jsonStr, `"tdx_xfam":123`)
+	assert.Contains(t, jsonStr, `"tdx_td_attributes":456`)
+	assert.Contains(t, jsonStr, `"tdx_module":{"major":1,"minor":0,"build_num":0,"build_date":0}`)
 }
 
 func TestExtractVTPMClaims(t *testing.T) {

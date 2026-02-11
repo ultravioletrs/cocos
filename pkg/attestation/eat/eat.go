@@ -26,6 +26,7 @@ type EATClaims struct {
 	SWName       string `json:"swname,omitempty" cbor:"270,keyasint,omitempty"`    // Software name
 	SWVersion    string `json:"swversion,omitempty" cbor:"271,keyasint,omitempty"` // Software version
 	DebugStatus  int    `json:"dbgstat" cbor:"263,keyasint"`                       // Debug status
+	IntUse       int    `json:"intuse,omitempty" cbor:"262,keyasint,omitempty"`    // Intended use
 	Measurements []byte `json:"measurements" cbor:"265,keyasint"`                  // Software measurements
 
 	// Platform type indicator
@@ -63,16 +64,19 @@ type SNPExtensions struct {
 
 // TDXExtensions contains Intel TDX specific claims.
 type TDXExtensions struct {
-	MRTD          []byte         `json:"mrtd"`                      // MRTD measurement
-	RTMR          [][]byte       `json:"rtmr"`                      // Runtime measurement registers
-	XFAM          uint64         `json:"xfam"`                      // Extended features available mask
-	TDAttributes  uint64         `json:"td_attributes"`             // TD attributes
-	MRConfigID    []byte         `json:"mr_config_id,omitempty"`    // MR Config ID
-	MROwner       []byte         `json:"mr_owner,omitempty"`        // MR Owner
-	MROwnerConfig []byte         `json:"mr_owner_config,omitempty"` // MR Owner Config
-	MRSEAM        []byte         `json:"mr_seam,omitempty"`         // MR SEAM
-	TDXModule     *TDXModuleInfo `json:"tdx_module,omitempty"`      // TDX module info
-	Signature     []byte         `json:"signature,omitempty"`       // Quote Signature
+	MRTD          []byte         `json:"tdx_mrtd"`                    // MRTD measurement
+	RTMR0         []byte         `json:"tdx_rtmr0"`                   // Runtime measurement register 0
+	RTMR1         []byte         `json:"tdx_rtmr1"`                   // Runtime measurement register 1
+	RTMR2         []byte         `json:"tdx_rtmr2"`                   // Runtime measurement register 2
+	RTMR3         []byte         `json:"tdx_rtmr3"`                   // Runtime measurement register 3
+	XFAM          uint64         `json:"tdx_xfam"`                    // Extended features available mask
+	TDAttributes  uint64         `json:"tdx_td_attributes"`           // TD attributes
+	MRConfigID    []byte         `json:"tdx_mrconfigid,omitempty"`    // MR Config ID
+	MROwner       []byte         `json:"tdx_mrowner,omitempty"`       // MR Owner
+	MROwnerConfig []byte         `json:"tdx_mrownerconfig,omitempty"` // MR Owner Config
+	MRSEAM        []byte         `json:"tdx_mrseam,omitempty"`        // MR SEAM
+	TDXModule     *TDXModuleInfo `json:"tdx_module,omitempty"`        // TDX module info
+	Signature     []byte         `json:"tdx_signature,omitempty"`     // Quote Signature
 }
 
 // TDXModuleInfo contains TDX module version information.
@@ -99,6 +103,11 @@ const (
 	DebugFullPermanentDisable = 4 // Debug is fully and permanently disabled
 )
 
+// IntUse constants (RFC 9711 Section 4.2.5).
+const (
+	IntUseGenericFresh = 1 // General purpose, fresh token
+)
+
 // MinNonceLength defines the minimum length for EAT nonce in bytes.
 const MinNonceLength = 8
 
@@ -112,6 +121,7 @@ func NewEATClaims(report []byte, nonce []byte, platformType attestation.Platform
 		PlatformType: getPlatformTypeName(platformType),
 		RawReport:    report,
 		DebugStatus:  DebugDisabledSinceBoot, // Default to disabled since boot
+		IntUse:       IntUseGenericFresh,     // Default to general purpose, fresh token
 	}
 
 	// Extract platform-specific claims

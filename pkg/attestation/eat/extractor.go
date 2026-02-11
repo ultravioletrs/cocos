@@ -78,9 +78,27 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 	tdReport := quoteV4.GetTdQuoteBody()
 	signedData := quoteV4.GetSignedData()
 
+	rtmrs := tdReport.GetRtmrs()
+	var rtmr0, rtmr1, rtmr2, rtmr3 []byte
+	if len(rtmrs) > 0 {
+		rtmr0 = rtmrs[0]
+	}
+	if len(rtmrs) > 1 {
+		rtmr1 = rtmrs[1]
+	}
+	if len(rtmrs) > 2 {
+		rtmr2 = rtmrs[2]
+	}
+	if len(rtmrs) > 3 {
+		rtmr3 = rtmrs[3]
+	}
+
 	claims.TDXExtensions = &TDXExtensions{
 		MRTD:          tdReport.GetMrTd(),
-		RTMR:          tdReport.GetRtmrs(),
+		RTMR0:         rtmr0,
+		RTMR1:         rtmr1,
+		RTMR2:         rtmr2,
+		RTMR3:         rtmr3,
 		XFAM:          binary.LittleEndian.Uint64(tdReport.GetXfam()),
 		TDAttributes:  binary.LittleEndian.Uint64(tdReport.GetTdAttributes()),
 		MRConfigID:    tdReport.GetMrConfigId(),
