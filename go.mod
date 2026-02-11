@@ -23,10 +23,10 @@ require (
 
 require (
 	cloud.google.com/go/storage v1.57.2
-	github.com/absmach/supermq v0.18.4
+	github.com/absmach/supermq v0.18.5
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/fxamacker/cbor/v2 v2.9.0
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/gce-tcb-verifier v0.3.1
@@ -86,7 +86,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/api v0.247.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
@@ -94,7 +94,7 @@ require (
 )
 
 require (
-	github.com/absmach/certs v0.18.2
+	github.com/absmach/certs v0.18.5
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -116,7 +116,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.4 // indirect
-	github.com/prometheus/procfs v0.17.0 // indirect
+	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
