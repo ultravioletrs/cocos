@@ -84,7 +84,7 @@ type DiskConfig struct {
 type Config struct {
 	EnableSEVSNP bool
 	EnableTDX    bool
-	EnableDisk   bool
+	EnableDisk   bool   `env:"ENABLE_DISK"    envDefault:"false"`
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
 
