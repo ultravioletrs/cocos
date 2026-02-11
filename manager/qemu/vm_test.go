@@ -108,6 +108,42 @@ func TestStop(t *testing.T) {
 		err = vm.Stop()
 		assert.NoError(t, err)
 	})
+	t.Run("disk enable", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "disk.qcow2")
+
+		f, err := os.Create(dst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		cmd := exec.Command("echo", "test")
+		err = cmd.Start()
+		assert.NoError(t, err)
+		sm := new(mocks.StateMachine)
+		sm.On("Transition", pkgmanager.StopComputationRun).Return(nil)
+
+		vm := &qemuVM{
+			vmi: VMInfo{
+				Config: Config{
+					EnableDisk: true,
+					DiskConfig: DiskConfig{
+						DstFile: dst,
+					},
+				},
+			},
+			cmd: &exec.Cmd{
+				Process: cmd.Process,
+			},
+			StateMachine: sm,
+		}
+
+		err = vm.Stop()
+		assert.NoError(t, err)
+	})
 }
 
 func TestSetProcess(t *testing.T) {
