@@ -24,7 +24,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/statemachine"
 	smmocks "github.com/ultravioletrs/cocos/agent/statemachine/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	runnermocks "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner/mocks"
 	"golang.org/x/crypto/sha3"
@@ -336,7 +335,7 @@ func TestAttestation(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		reportData [quoteprovider.Nonce]byte
+		reportData [vtpm.SEVNonce]byte
 		nonce      [vtpm.Nonce]byte
 		rawQuote   []uint8
 		platform   attestation.PlatformType
@@ -457,8 +456,8 @@ func TestAzureAttestationToken(t *testing.T) {
 	}
 }
 
-func generateReportData() [quoteprovider.Nonce]byte {
-	bytes := make([]byte, quoteprovider.Nonce)
+func generateReportData() [vtpm.SEVNonce]byte {
+	bytes := make([]byte, vtpm.SEVNonce)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		log.Fatalf("Failed to generate random bytes: %v", err)

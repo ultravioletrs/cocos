@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package clients contains the domain concept definitions needed to support
-// HTTP/gRPC Client functionality.
+// client configuration for HTTP/gRPC connections.
 package clients

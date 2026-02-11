@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-tpm/tpmutil"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -120,7 +119,7 @@ func (v provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 }
 
 func (v provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
-	return quoteprovider.FetchAttestation(teeNonce, v.vmpl)
+	return fetchSEVAttestation(teeNonce, v.vmpl)
 }
 
 func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
@@ -171,7 +170,7 @@ func (v verifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
 	}
 
 	attestationReport := sevsnp.Attestation{Report: attestReport, CertificateChain: nil}
-	return quoteprovider.VerifyAttestationReportTLS(&attestationReport, teeNonce, v.Policy)
+	return VerifySEVAttestationReportTLS(&attestationReport, teeNonce, v.Policy)
 }
 
 func (v verifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
@@ -234,7 +233,7 @@ func VTPMVerify(quote []byte, teeNonce []byte, vtpmNonce []byte, writer io.Write
 
 	attestData := sha3.Sum512(nonce)
 
-	if err := quoteprovider.VerifyAttestationReportTLS(attestation.GetSevSnpAttestation(), attestData[:], policy); err != nil {
+	if err := VerifySEVAttestationReportTLS(attestation.GetSevSnpAttestation(), attestData[:], policy); err != nil {
 		return fmt.Errorf("failed to verify TEE attestation report: %v", err)
 	}
 
@@ -336,7 +335,7 @@ func addTEEAttestation(attestation *attest.Attestation, nonce []byte, vmpl uint)
 
 	attestData := sha3.Sum512(teeNonce)
 
-	rawTeeAttestation, err := quoteprovider.FetchAttestation(attestData[:], vmpl)
+	rawTeeAttestation, err := fetchSEVAttestation(attestData[:], vmpl)
 	if err != nil {
 		return fmt.Errorf("failed to fetch TEE attestation report: %v", err)
 	}

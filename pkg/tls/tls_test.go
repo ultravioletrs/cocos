@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package clients
+package tls
 
 import (
 	"crypto/rand"
@@ -64,7 +64,7 @@ func TestSecurity_String(t *testing.T) {
 	}
 }
 
-func TestLoadBasicTLSConfig(t *testing.T) {
+func TestLoadBasicConfig(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
 
@@ -164,7 +164,7 @@ func TestLoadBasicTLSConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := LoadBasicTLSConfig(tt.serverCAFile, tt.clientCert, tt.clientKey)
+			result, err := LoadBasicConfig(tt.serverCAFile, tt.clientCert, tt.clientKey)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -201,100 +201,86 @@ func TestLoadATLSConfig(t *testing.T) {
 	require.NoError(t, os.WriteFile(policyFile, []byte(`{"policy": "test"}`), 0o644))
 
 	tests := []struct {
-		name        string
-		config      AttestedClientConfig
-		expectedSec Security
-		expectError bool
-		errorMsg    string
+		name              string
+		attestationPolicy string
+		serverCAFile      string
+		clientCert        string
+		clientKey         string
+		expectedSec       Security
+		expectError       bool
+		errorMsg          string
 	}{
 		{
-			name: "ValidATLSConfig",
-			config: AttestedClientConfig{
-				StandardClientConfig: StandardClientConfig{
-					ServerCAFile: "",
-				},
-				AttestationPolicy: policyFile,
-				ProductName:       "test-product",
-			},
-			expectedSec: WithATLS,
-			expectError: false,
+			name:              "ValidATLSConfig",
+			attestationPolicy: policyFile,
+			serverCAFile:      "",
+			clientCert:        "",
+			clientKey:         "",
+			expectedSec:       WithATLS,
+			expectError:       false,
 		},
 		{
-			name: "ValidMATLSConfig",
-			config: AttestedClientConfig{
-				StandardClientConfig: StandardClientConfig{
-					ServerCAFile: caFile,
-				},
-				AttestationPolicy: policyFile,
-				ProductName:       "test-product",
-			},
-			expectedSec: WithMATLS,
-			expectError: false,
+			name:              "ValidMATLSConfig",
+			attestationPolicy: policyFile,
+			serverCAFile:      caFile,
+			clientCert:        "",
+			clientKey:         "",
+			expectedSec:       WithMATLS,
+			expectError:       false,
 		},
 		{
-			name: "ValidATLSWithClientCert",
-			config: AttestedClientConfig{
-				StandardClientConfig: StandardClientConfig{
-					ClientCert: certFile,
-					ClientKey:  keyFile,
-				},
-				AttestationPolicy: policyFile,
-				ProductName:       "test-product",
-			},
-			expectedSec: WithATLS,
-			expectError: false,
+			name:              "ValidATLSWithClientCert",
+			attestationPolicy: policyFile,
+			serverCAFile:      "",
+			clientCert:        certFile,
+			clientKey:         keyFile,
+			expectedSec:       WithATLS,
+			expectError:       false,
 		},
 		{
-			name: "NonexistentPolicyFile",
-			config: AttestedClientConfig{
-				AttestationPolicy: filepath.Join(tmpDir, "nonexistent.json"),
-				ProductName:       "test-product",
-			},
-			expectedSec: WithoutTLS,
-			expectError: true,
-			errorMsg:    "failed to stat attestation policy file",
+			name:              "NonexistentPolicyFile",
+			attestationPolicy: filepath.Join(tmpDir, "nonexistent.json"),
+			serverCAFile:      "",
+			clientCert:        "",
+			clientKey:         "",
+			expectedSec:       WithoutTLS,
+			expectError:       true,
+			errorMsg:          "failed to stat attestation policy file",
 		},
 		{
-			name: "PolicyFileIsDirectory",
-			config: AttestedClientConfig{
-				AttestationPolicy: tmpDir, // Directory instead of file
-				ProductName:       "test-product",
-			},
-			expectedSec: WithoutTLS,
-			expectError: true,
-			errorMsg:    "attestation policy file is not a regular file",
+			name:              "PolicyFileIsDirectory",
+			attestationPolicy: tmpDir, // Directory instead of file
+			serverCAFile:      "",
+			clientCert:        "",
+			clientKey:         "",
+			expectedSec:       WithoutTLS,
+			expectError:       true,
+			errorMsg:          "attestation policy file is not a regular file",
 		},
 		{
-			name: "InvalidCAFile",
-			config: AttestedClientConfig{
-				StandardClientConfig: StandardClientConfig{
-					ServerCAFile: filepath.Join(tmpDir, "nonexistent.crt"),
-				},
-				AttestationPolicy: policyFile,
-				ProductName:       "test-product",
-			},
-			expectedSec: WithoutTLS,
-			expectError: true,
-			errorMsg:    "failed to read certificate file",
+			name:              "InvalidCAFile",
+			attestationPolicy: policyFile,
+			serverCAFile:      filepath.Join(tmpDir, "nonexistent.crt"),
+			clientCert:        "",
+			clientKey:         "",
+			expectedSec:       WithoutTLS,
+			expectError:       true,
+			errorMsg:          "failed to read certificate file",
 		},
 		{
-			name: "InvalidClientCert",
-			config: AttestedClientConfig{
-				StandardClientConfig: StandardClientConfig{
-					ClientCert: filepath.Join(tmpDir, "nonexistent.crt"),
-					ClientKey:  keyFile,
-				},
-				AttestationPolicy: policyFile,
-				ProductName:       "test-product",
-			},
-			expectedSec: WithoutTLS,
-			expectError: true,
+			name:              "InvalidClientCert",
+			attestationPolicy: policyFile,
+			serverCAFile:      "",
+			clientCert:        filepath.Join(tmpDir, "nonexistent.crt"),
+			clientKey:         keyFile,
+			expectedSec:       WithoutTLS,
+			expectError:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := LoadATLSConfig(tt.config)
+			result, err := LoadATLSConfig(tt.attestationPolicy, tt.serverCAFile, tt.clientCert, tt.clientKey)
 
 			if tt.expectError {
 				assert.Error(t, err)
