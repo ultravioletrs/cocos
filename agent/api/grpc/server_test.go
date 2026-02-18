@@ -12,7 +12,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/mocks"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -229,7 +228,7 @@ func TestAttestation(t *testing.T) {
 		return len(resp.File) > 0
 	})).Return(nil).Once()
 
-	reportData := [quoteprovider.Nonce]byte{}
+	reportData := [vtpm.SEVNonce]byte{}
 	vtpmNonce := [vtpm.Nonce]byte{}
 	attestationType := attestation.SNP
 	mockService.On("Attestation", mock.Anything, reportData, vtpmNonce, attestationType).Return(attestationData, nil)
@@ -298,8 +297,8 @@ func TestValidateNonce(t *testing.T) {
 	}{
 		{
 			name:        "valid TEE nonce",
-			nonce:       make([]byte, quoteprovider.Nonce),
-			maxLen:      quoteprovider.Nonce,
+			nonce:       make([]byte, vtpm.SEVNonce),
+			maxLen:      vtpm.SEVNonce,
 			shouldError: false,
 		},
 		{
@@ -310,8 +309,8 @@ func TestValidateNonce(t *testing.T) {
 		},
 		{
 			name:        "TEE nonce too long",
-			nonce:       make([]byte, quoteprovider.Nonce+1),
-			maxLen:      quoteprovider.Nonce,
+			nonce:       make([]byte, vtpm.SEVNonce+1),
+			maxLen:      vtpm.SEVNonce,
 			shouldError: true,
 			expectedErr: ErrTEENonceLength,
 		},
@@ -326,8 +325,8 @@ func TestValidateNonce(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.maxLen == quoteprovider.Nonce {
-				var target [quoteprovider.Nonce]byte
+			if tt.maxLen == vtpm.SEVNonce {
+				var target [vtpm.SEVNonce]byte
 				err := validateNonce(tt.nonce, tt.maxLen, &target)
 				if tt.shouldError {
 					assert.Error(t, err)
@@ -388,7 +387,7 @@ func TestEncodeResultResponse(t *testing.T) {
 }
 
 func TestDecodeAttestationRequest(t *testing.T) {
-	teeNonce := make([]byte, quoteprovider.Nonce)
+	teeNonce := make([]byte, vtpm.SEVNonce)
 	vtpmNonce := make([]byte, vtpm.Nonce)
 
 	req := &agent.AttestationRequest{
@@ -406,7 +405,7 @@ func TestDecodeAttestationRequest(t *testing.T) {
 
 func TestDecodeAttestationRequestWithInvalidNonce(t *testing.T) {
 	// Test with TEE nonce too long
-	teeNonce := make([]byte, quoteprovider.Nonce+1)
+	teeNonce := make([]byte, vtpm.SEVNonce+1)
 	req := &agent.AttestationRequest{TeeNonce: teeNonce}
 
 	_, err := decodeAttestationRequest(context.Background(), req)

@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -171,10 +170,10 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				return
 			}
 
-			var fixedReportData [quoteprovider.Nonce]byte
+			var fixedReportData [vtpm.SEVNonce]byte
 			if attType == attestation.SNP || attType == attestation.SNPvTPM {
-				if len(teeNonce) > quoteprovider.Nonce {
-					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", quoteprovider.Nonce)
+				if len(teeNonce) > vtpm.SEVNonce {
+					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.SEVNonce)
 					cmd.Println(msg)
 					return
 				}

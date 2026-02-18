@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
@@ -42,7 +41,7 @@ func (req resultReq) validate() error {
 }
 
 type attestationReq struct {
-	TeeNonce  [quoteprovider.Nonce]byte
+	TeeNonce  [vtpm.SEVNonce]byte
 	VtpmNonce [vtpm.Nonce]byte
 	AttType   attestation.PlatformType
 }

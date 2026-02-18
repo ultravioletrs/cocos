@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	mmocks "github.com/ultravioletrs/cocos/pkg/attestation/cmdconfig/mocks"
-	"github.com/ultravioletrs/cocos/pkg/attestation/quoteprovider"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/sdk/mocks"
 )
@@ -37,8 +36,8 @@ func TestNewAttestationCmd(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	reportData := bytes.Repeat([]byte{0x01}, quoteprovider.Nonce)
-	mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(reportData), mock.Anything).Return(nil)
+	reportData := bytes.Repeat([]byte{0x01}, vtpm.SEVNonce)
+	mockSDK.On("Attestation", mock.Anything, [vtpm.SEVNonce]byte(reportData), mock.Anything).Return(nil)
 
 	cmd.SetArgs([]string{hex.EncodeToString(reportData)})
 	err := cmd.Execute()
@@ -50,7 +49,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 	validattestation, err := os.ReadFile("../attestation.bin")
 	require.NoError(t, err)
 
-	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))
+	teeNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce))
 	vtpmNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
 	tokenNonce := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.Nonce))
 
@@ -184,7 +183,7 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			var buf bytes.Buffer
 			cmd.SetOut(&buf)
 
-			mockSDK.On("Attestation", mock.Anything, [quoteprovider.Nonce]byte(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
+			mockSDK.On("Attestation", mock.Anything, [vtpm.SEVNonce]byte(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce)), [vtpm.Nonce]byte(bytes.Repeat([]byte{0x00}, vtpm.Nonce)), mock.Anything, mock.Anything).Return(tc.mockError).Run(func(args mock.Arguments) {
 				_, err := args.Get(4).(*os.File).Write(tc.mockResponse)
 				require.NoError(t, err)
 			})
@@ -891,7 +890,7 @@ func TestGetAttestationCmdEdgeCases(t *testing.T) {
 		},
 		{
 			name: "TEE nonce too large",
-			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce+1))},
+			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce+1))},
 			setupMock: func(sdk *mocks.SDK) {
 			},
 			expectedErr: "nonce must be a hex encoded string of length lesser or equal 64 bytes",
@@ -912,7 +911,7 @@ func TestGetAttestationCmdEdgeCases(t *testing.T) {
 		},
 		{
 			name: "successful TDX attestation",
-			args: []string{"tdx", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))},
+			args: []string{"tdx", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce))},
 			setupMock: func(sdk *mocks.SDK) {
 				sdk.On("Attestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).Run(func(args mock.Arguments) {
@@ -925,7 +924,7 @@ func TestGetAttestationCmdEdgeCases(t *testing.T) {
 		},
 		{
 			name: "file creation error",
-			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))},
+			args: []string{"snp", "--tee", hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce))},
 			setupMock: func(sdk *mocks.SDK) {
 			},
 			expectedErr: "Error creating attestation file",
@@ -1380,7 +1379,7 @@ func TestContextCancellation(t *testing.T) {
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 
-	teeNonceHex := hex.EncodeToString(bytes.Repeat([]byte{0x00}, quoteprovider.Nonce))
+	teeNonceHex := hex.EncodeToString(bytes.Repeat([]byte{0x00}, vtpm.SEVNonce))
 	cmd.SetArgs([]string{"snp", "--tee", teeNonceHex})
 
 	err := cmd.Execute()

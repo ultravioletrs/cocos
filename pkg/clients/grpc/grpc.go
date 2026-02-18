@@ -6,6 +6,7 @@ package grpc
 import (
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/clients"
+	"github.com/ultravioletrs/cocos/pkg/tls"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -26,7 +27,7 @@ type Client interface {
 type client struct {
 	*grpc.ClientConn
 	cfg      clients.ClientConfiguration
-	security clients.Security
+	security tls.Security
 }
 
 var _ Client = (*client)(nil)
@@ -59,14 +60,19 @@ func (c *client) Connection() *grpc.ClientConn {
 	return c.ClientConn
 }
 
-func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Security, error) {
+func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, tls.Security, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
-	security := clients.WithoutTLS
+	security := tls.WithoutTLS
 
 	if agcfg, ok := cfg.(clients.AttestedClientConfig); ok && agcfg.AttestedTLS {
-		result, err := clients.LoadATLSConfig(agcfg)
+		result, err := tls.LoadATLSConfig(
+			agcfg.AttestationPolicy,
+			agcfg.ServerCAFile,
+			agcfg.ClientCert,
+			agcfg.ClientKey,
+		)
 		if err != nil {
 			return nil, security, err
 		}
@@ -90,13 +96,13 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, clients.Securit
 	return conn, security, nil
 }
 
-func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, clients.Security, error) {
-	result, err := clients.LoadBasicTLSConfig(serverCAFile, clientCert, clientKey)
+func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, tls.Security, error) {
+	result, err := tls.LoadBasicConfig(serverCAFile, clientCert, clientKey)
 	if err != nil {
-		return nil, clients.WithoutTLS, err
+		return nil, tls.WithoutTLS, err
 	}
 
-	if result.Security == clients.WithoutTLS || result.Config == nil {
+	if result.Security == tls.WithoutTLS || result.Config == nil {
 		return insecure.NewCredentials(), result.Security, nil
 	}
 
