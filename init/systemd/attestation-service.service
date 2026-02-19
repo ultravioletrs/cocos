@@ -8,11 +8,13 @@ Type=simple
 ExecStart=/usr/bin/attestation-service
 Restart=always
 RestartSec=5
+StandardOutput=file:/var/log/cocos/attestation-service.stdout
+StandardError=file:/var/log/cocos/attestation-service.stderr
 Environment=ATTESTATION_LOG_LEVEL=debug
 Environment=ATTESTATION_SERVICE_SOCKET=/run/cocos/attestation.sock
 Environment=ATTESTATION_VMPL=2
 Environment=ATTESTATION_EAT_FORMAT=CBOR
-# Enable CC Attestation-Agent backend
+# CC Attestation-Agent backend (enabled by default for sample attestation)
 Environment=USE_CC_ATTESTATION_AGENT=true
 Environment=CC_AGENT_ADDRESS=127.0.0.1:50002
 ExecStartPre=/cocos_init/attestation_setup.sh

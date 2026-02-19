@@ -12,6 +12,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	logpb "github.com/ultravioletrs/cocos/agent/log"
+	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
+
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
@@ -74,7 +79,47 @@ func main() {
 		return
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	// Setup log forwarding to CVMS (same pattern as agent)
+	logQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
+	logger := slog.New(handler)
+
+	logger.Info("[ATTESTATION-SERVICE] Starting up - log forwarding enabled")
+
+	// Connect to log client for gRPC forwarding
+	logClient, err := logclient.NewClient("/run/cocos/log.sock")
+	if err != nil {
+		logger.Warn(fmt.Sprintf("failed to create log client: %s. Logging will be local only until service is available.", err))
+	} else {
+		logger.Info("[ATTESTATION-SERVICE] Successfully connected to log client")
+		defer logClient.Close()
+	}
+
+	// Start log forwarding goroutine
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case msg := <-logQueue:
+				if logClient == nil {
+					continue
+				}
+				switch m := msg.Message.(type) {
+				case *cvms.ClientStreamMessage_AgentLog:
+					err := logClient.SendLog(ctx, &logpb.LogEntry{
+						Message:       m.AgentLog.Message,
+						ComputationId: m.AgentLog.ComputationId,
+						Level:         m.AgentLog.Level,
+						Timestamp:     m.AgentLog.Timestamp,
+					})
+					if err != nil {
+						logger.Error("failed to send log", "error", err)
+					}
+				}
+			}
+		}
+	})
 
 	var provider attestation.Provider
 	ccPlatform := attestation.CCPlatform()
@@ -88,10 +133,18 @@ func main() {
 	azure.InitializeDefaultMAAVars(azureConfig)
 
 	// Try to use CC attestation-agent if configured
+	logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] CC AA configuration: enabled=%v, address=%s", cfg.UseCCAttestationAgent, cfg.CCAgentAddress))
 	if cfg.UseCCAttestationAgent {
 		logger.Info(fmt.Sprintf("attempting to use CC attestation-agent at %s", cfg.CCAgentAddress))
 		ccProvider, err := ccaa.NewProvider(cfg.CCAgentAddress)
 		if err != nil {
+			// For NoCC/sample platform, AA is REQUIRED when configured
+			// Don't fall back to EmptyProvider - AA generates correct KBS format
+			if ccPlatform == attestation.NoCC {
+				logger.Error(fmt.Sprintf("CC AA is required for sample attestation but connection failed: %s", err))
+				exitCode = 1
+				return
+			}
 			logger.Warn(fmt.Sprintf("failed to connect to CC attestation-agent: %s, falling back to direct providers", err))
 		} else {
 			logger.Info("successfully connected to CC attestation-agent")
@@ -113,8 +166,23 @@ func main() {
 			provider = tdx.NewProvider()
 		case attestation.NoCC:
 			logger.Info("TEE device not found")
+			if cfg.UseCCAttestationAgent {
+				// AA was configured but connection failed - already handled above
+				logger.Error("[ATTESTATION-SERVICE] AA required for sample attestation but not available")
+				exitCode = 1
+				return
+			}
+			// Only use EmptyProvider if AA is explicitly NOT configured
+			logger.Warn("[ATTESTATION-SERVICE] Using EmptyProvider for sample attestation (AA not configured)")
 			provider = &attestation.EmptyProvider{}
 		}
+	}
+
+	// Log which provider is being used
+	if provider != nil {
+		logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Final provider selected: %T", provider))
+	} else {
+		logger.Error("[ATTESTATION-SERVICE] No provider configured!")
 	}
 
 	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
@@ -208,6 +276,10 @@ type service struct {
 }
 
 func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
+	// Debug: log incoming request
+	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Received attestation request with platform type: %v (%d)",
+		req.PlatformType, req.PlatformType))
+
 	var binaryReport []byte
 	var err error
 	var platformType attestation.PlatformType
@@ -231,6 +303,25 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 		copy(nonce[:], req.Nonce)
 		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
 		platformType = attestation.SNPvTPM
+	case attestationpb.PlatformType_PLATFORM_TYPE_UNSPECIFIED:
+		// Generate sample attestation for testing in non-TEE environments
+		s.logger.Warn("generating sample attestation for PLATFORM_TYPE_UNSPECIFIED - this should only be used for testing")
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Generating sample attestation: reportData_len=%d, nonce_len=%d",
+			len(req.ReportData), len(req.Nonce)))
+
+		// Create a simple sample report that includes the nonce/report data
+		var reportData [64]byte
+		copy(reportData[:], req.ReportData)
+		var nonce [32]byte
+		copy(nonce[:], req.Nonce)
+
+		// Combine report data and nonce into a simple binary report
+		binaryReport = make([]byte, 0, 96)
+		binaryReport = append(binaryReport, reportData[:]...)
+		binaryReport = append(binaryReport, nonce[:]...)
+		platformType = attestation.NoCC
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] Sample attestation generated: binaryReport_len=%d, platformType=%v (%d)",
+			len(binaryReport), platformType, platformType))
 	default:
 		return nil, fmt.Errorf("unsupported platform type")
 	}

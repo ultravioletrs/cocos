@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	sync "sync"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
+	"github.com/ultravioletrs/cocos/pkg/oci"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -166,6 +169,8 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, atte
 	}
 
 	transitions = append(transitions, []statemachine.Transition{
+		{From: ReceivingAlgorithm, Event: RunFailed, To: Failed},
+		{From: ReceivingData, Event: RunFailed, To: Failed},
 		{From: Running, Event: RunComplete, To: ConsumingResults},
 		{From: Running, Event: RunFailed, To: Failed},
 		{From: ConsumingResults, Event: ResultsConsumed, To: Complete},
@@ -175,8 +180,8 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, atte
 		sm.AddTransition(t)
 	}
 
-	sm.SetAction(ReceivingAlgorithm, svc.publishEvent(InProgress.String()))
-	sm.SetAction(ReceivingData, svc.publishEvent(InProgress.String()))
+	sm.SetAction(ReceivingAlgorithm, svc.downloadAlgorithmIfRemote)
+	sm.SetAction(ReceivingData, svc.downloadDatasetsIfRemote)
 	sm.SetAction(Running, svc.runComputation)
 	sm.SetAction(ConsumingResults, svc.publishEvent(Ready.String()))
 	sm.SetAction(Complete, svc.publishEvent(Completed.String()))
@@ -210,6 +215,38 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 	defer as.mu.Unlock()
 
 	as.computation = cmp
+
+	// Debug: Log manifest details
+	as.logger.Info("received computation manifest",
+		"computation_id", cmp.ID,
+		"kbs_enabled", cmp.KBS.Enabled,
+		"kbs_url", cmp.KBS.URL,
+		"algo_has_source", cmp.Algorithm.Source != nil,
+		"dataset_count", len(cmp.Datasets))
+
+	if cmp.Algorithm.Source != nil {
+		as.logger.Info("algorithm remote source configured",
+			"url", cmp.Algorithm.Source.URL,
+			"kbs_resource_path", cmp.Algorithm.Source.KBSResourcePath)
+	} else {
+		as.logger.Info("algorithm remote source NOT configured - will wait for direct upload")
+	}
+
+	if cmp.KBS.Enabled {
+		as.logger.Info("KBS is ENABLED", "url", cmp.KBS.URL)
+	} else {
+		as.logger.Info("KBS is NOT ENABLED")
+	}
+
+	for i, d := range cmp.Datasets {
+		if d.Source != nil {
+			as.logger.Info("dataset remote source configured",
+				"index", i,
+				"filename", d.Filename,
+				"url", d.Source.URL,
+				"kbs_resource_path", d.Source.KBSResourcePath)
+		}
+	}
 
 	transitions := []statemachine.Transition{}
 
@@ -276,6 +313,321 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 	return nil
 }
 
+// downloadAlgorithmIfRemote automatically downloads the algorithm if it has a remote source.
+// This is called as an action when entering the ReceivingAlgorithm state.
+func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
+	as.publishEvent(InProgress.String())(state)
+
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	// Debug: Log decision point
+	as.logger.Info("checking if algorithm should be downloaded automatically",
+		"algo_has_source", as.computation.Algorithm.Source != nil,
+		"kbs_enabled", as.computation.KBS.Enabled)
+
+	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
+		as.logger.Info("downloading algorithm from remote source",
+			"url", as.computation.Algorithm.Source.URL,
+			"kbs_resource_path", as.computation.Algorithm.Source.KBSResourcePath)
+
+		// Use background context for download operation
+		ctx := context.Background()
+
+		res, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source, "algorithm")
+		if err != nil {
+			as.runError = fmt.Errorf("failed to download and decrypt algorithm: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		// Verify hash
+		hash := sha3.Sum256(res.Data)
+		if hash != as.computation.Algorithm.Hash {
+			as.runError = fmt.Errorf("algorithm hash mismatch: expected %x, got %x", as.computation.Algorithm.Hash, hash)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		// Write algorithm to file
+		currentDir, err := os.Getwd()
+		if err != nil {
+			as.runError = fmt.Errorf("error getting current directory: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		// If a source directory is available (e.g. from OCI extraction), copy all files
+		if res.SourceDir != "" {
+			as.logger.Info("copying extracted algorithm directory", "src", res.SourceDir, "dst", currentDir)
+			// Simple recursive copy (using shell cp for simplicity and reliability on Linux)
+			// Ensure we copy contents of SourceDir into currentDir
+			// Simple recursive copy (using shell cp for simplicity and reliability on Linux)
+			// Ensure we copy contents of SourceDir into currentDir
+			cmd := exec.Command("cp", "-r", res.SourceDir+"/.", currentDir)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				as.runError = fmt.Errorf("error copying algorithm directory: %v, output: %s", err, out)
+				as.logger.Error(as.runError.Error())
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+		}
+
+		f, err := os.Create(filepath.Join(currentDir, "algo"))
+		if err != nil {
+			as.runError = fmt.Errorf("error creating algorithm file: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if _, err := f.Write(res.Data); err != nil {
+			as.runError = fmt.Errorf("error writing algorithm to file: %w", err)
+			as.logger.Error(as.runError.Error())
+			f.Close()
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
+			as.runError = fmt.Errorf("error changing file permissions: %w", err)
+			as.logger.Error(as.runError.Error())
+			f.Close()
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		if err := f.Close(); err != nil {
+			as.runError = fmt.Errorf("error closing file: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		as.algoReceived = true
+		as.algoRequirements = res.Requirements // Store requirements for installation
+
+		// Create datasets directory
+		if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+			as.runError = fmt.Errorf("error creating datasets directory: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
+
+		as.algoType = as.computation.Algorithm.AlgoType
+		if as.algoType == "" {
+			as.algoType = string(algorithm.AlgoTypeBin)
+		}
+		as.algoArgs = as.computation.Algorithm.AlgoArgs
+
+		as.logger.Info("algorithm downloaded and saved successfully", "type", as.algoType, "has_requirements", len(res.Requirements) > 0)
+		as.sm.SendEvent(AlgorithmReceived)
+	} else {
+		// If no remote source, do nothing - wait for direct upload via Algo() RPC call
+		as.logger.Info("algorithm automatic download not triggered, waiting for direct upload",
+			"reason", "no remote source or KBS not enabled")
+	}
+}
+
+// downloadDatasetsIfRemote automatically downloads datasets that have remote sources.
+// This is called as an action when entering the ReceivingData state.
+func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
+	as.publishEvent(InProgress.String())(state)
+
+	as.mu.Lock()
+	defer as.mu.Unlock()
+
+	// Check if any datasets should be downloaded from remote sources
+	hasRemoteDatasets := false
+	for _, d := range as.computation.Datasets {
+		if d.Source != nil && as.computation.KBS.Enabled {
+			hasRemoteDatasets = true
+			break
+		}
+	}
+
+	if !hasRemoteDatasets {
+		// No remote datasets, wait for direct uploads via Data() RPC calls
+		return
+	}
+
+	// Download all remote datasets
+	ctx := context.Background()
+	for i := len(as.computation.Datasets) - 1; i >= 0; i-- {
+		d := as.computation.Datasets[i]
+		if d.Source != nil && as.computation.KBS.Enabled {
+			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
+
+			res, err := as.downloadAndDecryptResource(ctx, d.Source, "dataset")
+			if err != nil {
+				as.logger.Error("failed to download and decrypt dataset", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Verify hash
+			hash := sha3.Sum256(res.Data)
+			if hash != d.Hash {
+				as.logger.Error("dataset hash mismatch", "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Write dataset to file
+			f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, d.Filename))
+			if err != nil {
+				as.logger.Error("error creating dataset file", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			if d.Decompress {
+				if err := internal.UnzipFromMemory(res.Data, algorithm.DatasetsDir); err != nil {
+					as.logger.Error("error decompressing dataset", "error", err, "filename", d.Filename)
+					as.sm.SendEvent(RunFailed)
+					return
+				}
+			} else {
+				if _, err := f.Write(res.Data); err != nil {
+					as.logger.Error("error writing dataset to file", "error", err, "filename", d.Filename)
+					f.Close()
+					as.sm.SendEvent(RunFailed)
+					return
+				}
+			}
+
+			if err := f.Close(); err != nil {
+				as.logger.Error("error closing file", "error", err, "filename", d.Filename)
+				as.sm.SendEvent(RunFailed)
+				return
+			}
+
+			// Remove from pending datasets
+			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
+			as.logger.Info("dataset downloaded and saved successfully", "filename", d.Filename)
+		}
+	}
+
+	// If all datasets are downloaded, send DataReceived event
+	if len(as.computation.Datasets) == 0 {
+		as.logger.Info("all datasets downloaded successfully")
+		as.sm.SendEvent(DataReceived)
+	}
+	// Otherwise, wait for remaining datasets to be uploaded via Data() RPC calls
+}
+
+// DecryptedResource holds the data and metadata of a downloaded and decrypted resource
+type DecryptedResource struct {
+	Data         []byte
+	Requirements []byte
+	SourceDir    string
+}
+
+// downloadAndDecryptResource downloads and decrypts a resource using OCI images and CoCo Keyprovider.
+// For OCI images, Skopeo handles download and CoCo Keyprovider handles decryption automatically.
+func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *ResourceSource, resourceType string) (*DecryptedResource, error) {
+	// Determine source type
+	sourceType := source.Type
+	if sourceType == "" {
+		// Infer from URL
+		if strings.HasPrefix(source.URL, "docker://") || strings.HasPrefix(source.URL, "oci:") {
+			sourceType = "oci-image"
+		} else {
+			return nil, fmt.Errorf("unsupported source URL format: %s (use oci-image type)", source.URL)
+		}
+	}
+
+	switch sourceType {
+	case "oci-image":
+		return as.downloadAndDecryptOCIImage(ctx, source, resourceType)
+	default:
+		return nil, fmt.Errorf("unsupported source type: %s", sourceType)
+	}
+}
+
+// downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
+func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource, resourceType string) (*DecryptedResource, error) {
+	as.logger.Info(fmt.Sprintf("downloading OCI image (url=%s encrypted=%t kbs_path=%s)",
+		source.URL, source.Encrypted, source.KBSResourcePath))
+
+	// Create Skopeo client
+	workDir := filepath.Join(os.TempDir(), "cocos-oci")
+	skopeoClient, err := oci.NewSkopeoClient(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Skopeo client: %w", err)
+	}
+
+	// Create OCI resource source
+	ociSource := oci.ResourceSource{
+		Type:            oci.ResourceTypeOCIImage,
+		URI:             source.URL,
+		Encrypted:       source.Encrypted,
+		KBSResourcePath: source.KBSResourcePath,
+	}
+
+	// Pull and decrypt image
+	// CoCo Keyprovider will automatically handle decryption via ocicrypt
+	// Sanitize directory name to avoid Skopeo interpreting ':' as tag separator
+	sanitizedName := strings.ReplaceAll(filepath.Base(source.URL), ":", "_")
+	destDir := filepath.Join(workDir, "images", sanitizedName)
+	if err := skopeoClient.PullAndDecrypt(ctx, ociSource, destDir); err != nil {
+		return nil, fmt.Errorf("failed to pull and decrypt OCI image: %w", err)
+	}
+
+	as.logger.Info("OCI image downloaded and decrypted", "dest", destDir)
+
+	// Extract algorithm file from OCI layers
+	extractDir := filepath.Join(workDir, "extracted", sanitizedName)
+	var algorithmPath string
+
+	if resourceType == "algorithm" {
+		algorithmPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
+		}
+		as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
+	} else {
+		// Assume dataset
+		files, err := oci.ExtractDataset(destDir, extractDir)
+		if err != nil || len(files) == 0 {
+			return nil, fmt.Errorf("failed to extract dataset from OCI image: %w", err)
+		}
+		// For now, take the first file found.
+		// TODO: Handle multiple files / directory structure if needed.
+		algorithmPath = files[0]
+		as.logger.Info("dataset extracted from OCI image", "path", algorithmPath)
+	}
+
+	// Read algorithm file
+	algorithmData, err := os.ReadFile(algorithmPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read algorithm file: %w", err)
+	}
+
+	// Check for requirements.txt if algorithm
+	var reqData []byte
+	if resourceType == "algorithm" {
+		reqPath := filepath.Join(filepath.Dir(algorithmPath), "requirements.txt")
+		if data, err := os.ReadFile(reqPath); err == nil {
+			reqData = data
+			as.logger.Info("found requirements.txt", "size", len(data))
+		}
+	}
+
+	as.logger.Info("algorithm loaded", "size", len(algorithmData))
+
+	return &DecryptedResource{
+		Data:         algorithmData,
+		Requirements: reqData,
+		SourceDir:    filepath.Dir(algorithmPath),
+	}, nil
+}
+
 func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	if as.sm.GetState() != ReceivingAlgorithm {
 		return ErrStateNotReady
@@ -286,7 +638,25 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return ErrAllManifestItemsReceived
 	}
 
-	hash := sha3.Sum256(algo.Algorithm)
+	var algoData []byte
+
+	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm.Source != nil && as.computation.KBS.Enabled {
+		as.logger.Info("downloading algorithm from remote source")
+
+		res, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source, "algorithm")
+		if err != nil {
+			return fmt.Errorf("failed to download and decrypt algorithm: %w", err)
+		}
+
+		algoData = res.Data
+		as.algoRequirements = res.Requirements
+	} else {
+		// Use directly uploaded algorithm
+		algoData = algo.Algorithm
+	}
+
+	hash := sha3.Sum256(algoData)
 
 	if hash != as.computation.Algorithm.Hash {
 		return ErrHashMismatch
@@ -302,7 +672,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error creating algorithm file: %v", err)
 	}
 
-	if _, err := f.Write(algo.Algorithm); err != nil {
+	if _, err := f.Write(algoData); err != nil {
 		return fmt.Errorf("error writing algorithm to file: %v", err)
 	}
 
@@ -347,28 +717,55 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 		return ErrAllManifestItemsReceived
 	}
 
-	hash := sha3.Sum256(dataset.Dataset)
+	var datasetData []byte
+	var datasetFilename string
+
+	// Check if any dataset should be downloaded from remote source
+	var matchedIndex = -1
+	for i, d := range as.computation.Datasets {
+		if d.Source != nil && as.computation.KBS.Enabled {
+			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
+
+			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source, "dataset")
+			if err != nil {
+				return fmt.Errorf("failed to download and decrypt dataset: %w", err)
+			}
+
+			datasetData = downloadedData.Data
+			datasetFilename = d.Filename
+			matchedIndex = i
+			break
+		}
+	}
+
+	// If no remote dataset, use uploaded dataset
+	if matchedIndex == -1 {
+		datasetData = dataset.Dataset
+		datasetFilename = dataset.Filename
+	}
+
+	hash := sha3.Sum256(datasetData)
 
 	matched := false
 	for i, d := range as.computation.Datasets {
 		if hash == d.Hash {
-			if d.Filename != "" && d.Filename != dataset.Filename {
+			if d.Filename != "" && d.Filename != datasetFilename {
 				return ErrFileNameMismatch
 			}
 
 			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
 
 			if DecompressFromContext(ctx) {
-				if err := internal.UnzipFromMemory(dataset.Dataset, algorithm.DatasetsDir); err != nil {
+				if err := internal.UnzipFromMemory(datasetData, algorithm.DatasetsDir); err != nil {
 					return fmt.Errorf("error decompressing dataset: %v", err)
 				}
 			} else {
-				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, dataset.Filename))
+				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, datasetFilename))
 				if err != nil {
 					return fmt.Errorf("error creating dataset file: %v", err)
 				}
 
-				if _, err := f.Write(dataset.Dataset); err != nil {
+				if _, err := f.Write(datasetData); err != nil {
 					return fmt.Errorf("error writing dataset to file: %v", err)
 				}
 				if err := f.Close(); err != nil {

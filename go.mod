@@ -24,6 +24,8 @@ require (
 require (
 	cloud.google.com/go/storage v1.57.2
 	github.com/absmach/supermq v0.18.4
+	cloud.google.com/go/storage v1.57.1
+	github.com/absmach/supermq v0.18.2
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.2.3
