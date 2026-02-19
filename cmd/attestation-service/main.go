@@ -17,6 +17,7 @@ import (
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/ccaa"
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
@@ -30,14 +31,27 @@ const (
 )
 
 type config struct {
-	LogLevel      string `env:"ATTESTATION_LOG_LEVEL"   envDefault:"debug"`
-	Vmpl          int    `env:"ATTESTATION_VMPL"        envDefault:"2"`
-	AgentMaaURL   string `env:"AGENT_MAA_URL"           envDefault:"https://sharedeus2.eus2.attest.azure.net"`
-	AgentOSBuild  string `env:"AGENT_OS_BUILD"          envDefault:"UVC"`
-	AgentOSDistro string `env:"AGENT_OS_DISTRO"         envDefault:"UVC"`
-	AgentOSType   string `env:"AGENT_OS_TYPE"           envDefault:"UVC"`
-	EATFormat     string `env:"ATTESTATION_EAT_FORMAT"  envDefault:"CBOR"` // JWT or CBOR
-	EATIssuer     string `env:"ATTESTATION_EAT_ISSUER"  envDefault:"cocos-attestation-service"`
+	LogLevel              string `env:"ATTESTATION_LOG_LEVEL"    envDefault:"debug"`
+	Vmpl                  int    `env:"ATTESTATION_VMPL"         envDefault:"2"`
+	AgentMaaURL           string `env:"AGENT_MAA_URL"            envDefault:"https://sharedeus2.eus2.attest.azure.net"`
+	AgentOSBuild          string `env:"AGENT_OS_BUILD"           envDefault:"UVC"`
+	AgentOSDistro         string `env:"AGENT_OS_DISTRO"          envDefault:"UVC"`
+	AgentOSType           string `env:"AGENT_OS_TYPE"            envDefault:"UVC"`
+	EATFormat             string `env:"ATTESTATION_EAT_FORMAT"   envDefault:"CBOR"` // JWT or CBOR
+	EATIssuer             string `env:"ATTESTATION_EAT_ISSUER"   envDefault:"cocos-attestation-service"`
+	UseCCAttestationAgent bool   `env:"USE_CC_ATTESTATION_AGENT" envDefault:"false"`
+	CCAgentAddress        string `env:"CC_AGENT_ADDRESS"         envDefault:"127.0.0.1:50002"`
+
+	// Future KBS Integration Configuration
+	// When KBS support is added, these fields will enable:
+	// - Remote attestation verification via KBS
+	// - Encrypted algorithm/dataset retrieval
+	// - Per-computation secret provisioning
+	//
+	// Example future fields:
+	// KBSEndpoint   string `env:"KBS_ENDPOINT"            envDefault:""` // Optional KBS URL
+	// KBSEnabled    bool   `env:"KBS_ENABLED"             envDefault:"false"`
+	// KBSTimeout    int    `env:"KBS_TIMEOUT_SECONDS"     envDefault:"30"`
 }
 
 func main() {
@@ -73,18 +87,34 @@ func main() {
 	)
 	azure.InitializeDefaultMAAVars(azureConfig)
 
-	switch ccPlatform {
-	case attestation.SNP:
-		provider = vtpm.NewProvider(false, uint(cfg.Vmpl))
-	case attestation.SNPvTPM:
-		provider = vtpm.NewProvider(true, uint(cfg.Vmpl))
-	case attestation.Azure:
-		provider = azure.NewProvider()
-	case attestation.TDX:
-		provider = tdx.NewProvider()
-	case attestation.NoCC:
-		logger.Info("TEE device not found")
-		provider = &attestation.EmptyProvider{}
+	// Try to use CC attestation-agent if configured
+	if cfg.UseCCAttestationAgent {
+		logger.Info(fmt.Sprintf("attempting to use CC attestation-agent at %s", cfg.CCAgentAddress))
+		ccProvider, err := ccaa.NewProvider(cfg.CCAgentAddress)
+		if err != nil {
+			logger.Warn(fmt.Sprintf("failed to connect to CC attestation-agent: %s, falling back to direct providers", err))
+		} else {
+			logger.Info("successfully connected to CC attestation-agent")
+			provider = ccProvider
+			defer ccProvider.Close()
+		}
+	}
+
+	// Fallback to direct providers if CC AA not configured or unavailable
+	if provider == nil {
+		switch ccPlatform {
+		case attestation.SNP:
+			provider = vtpm.NewProvider(false, uint(cfg.Vmpl))
+		case attestation.SNPvTPM:
+			provider = vtpm.NewProvider(true, uint(cfg.Vmpl))
+		case attestation.Azure:
+			provider = azure.NewProvider()
+		case attestation.TDX:
+			provider = tdx.NewProvider()
+		case attestation.NoCC:
+			logger.Info("TEE device not found")
+			provider = &attestation.EmptyProvider{}
+		}
 	}
 
 	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {

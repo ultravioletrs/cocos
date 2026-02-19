@@ -35,8 +35,8 @@ jobs:
       - name: Set up protoc
         run: |
           PROTOC_VERSION=33.1
-          PROTOC_GEN_VERSION=v1.36.8
-          PROTOC_GRPC_VERSION=v1.5.1
+          PROTOC_GEN_VERSION=v1.36.11
+          PROTOC_GRPC_VERSION=v1.6.0
 
           # Download and install protoc
           PROTOC_ZIP=protoc-$PROTOC_VERSION-linux-x86_64.zip

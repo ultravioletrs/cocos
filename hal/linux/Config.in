@@ -1,5 +1,7 @@
 source "$BR2_EXTERNAL_COCOS_PATH/package/agent/Config.in"
 source "$BR2_EXTERNAL_COCOS_PATH/package/attestation-service/Config.in"
+source "$BR2_EXTERNAL_COCOS_PATH/package/cc-attestation-agent/Config.in"
+source "$BR2_EXTERNAL_COCOS_PATH/package/cc-attestation-adapter/Config.in"
 source "$BR2_EXTERNAL_COCOS_PATH/package/wasmedge/Config.in"
 source "$BR2_EXTERNAL_COCOS_PATH/package/log-forwarder/Config.in"
 source "$BR2_EXTERNAL_COCOS_PATH/package/computation-runner/Config.in"
