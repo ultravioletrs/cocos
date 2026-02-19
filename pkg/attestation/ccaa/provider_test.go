@@ -11,7 +11,7 @@ import (
 	"github.com/ultravioletrs/cocos/internal/proto/attestation-agent/mocks"
 )
 
-// TestTeeAttestationSuccess tests successful TDX attestation
+// TestTeeAttestationSuccess tests successful TDX attestation.
 func TestTeeAttestationSuccess(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -26,7 +26,6 @@ func TestTeeAttestationSuccess(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.TeeAttestation(make([]byte, 64))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -35,7 +34,7 @@ func TestTeeAttestationSuccess(t *testing.T) {
 	}
 }
 
-// TestVTpmAttestationSuccess tests successful vTPM attestation
+// TestVTpmAttestationSuccess tests successful vTPM attestation.
 func TestVTpmAttestationSuccess(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -50,7 +49,6 @@ func TestVTpmAttestationSuccess(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.VTpmAttestation(make([]byte, 32))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -59,7 +57,7 @@ func TestVTpmAttestationSuccess(t *testing.T) {
 	}
 }
 
-// TestAttestationSuccess tests combined SNP+vTPM attestation
+// TestAttestationSuccess tests combined SNP+vTPM attestation.
 func TestAttestationSuccess(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -74,7 +72,6 @@ func TestAttestationSuccess(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.Attestation(make([]byte, 64), make([]byte, 32))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -83,7 +80,7 @@ func TestAttestationSuccess(t *testing.T) {
 	}
 }
 
-// TestAzureTokenSuccess tests Azure token retrieval via GetToken
+// TestAzureTokenSuccess tests Azure token retrieval via GetToken.
 func TestAzureTokenSuccess(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -98,7 +95,6 @@ func TestAzureTokenSuccess(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	token, err := provider.AzureAttestationToken(make([]byte, 32))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -107,7 +103,7 @@ func TestAzureTokenSuccess(t *testing.T) {
 	}
 }
 
-// TestAzureTokenFallback tests fallback from GetToken to GetEvidence
+// TestAzureTokenFallback tests fallback from GetToken to GetEvidence.
 func TestAzureTokenFallback(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 
@@ -127,7 +123,6 @@ func TestAzureTokenFallback(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.AzureAttestationToken(make([]byte, 32))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -136,7 +131,7 @@ func TestAzureTokenFallback(t *testing.T) {
 	}
 }
 
-// TestTeeAttestationError tests error handling in TeeAttestation
+// TestTeeAttestationError tests error handling in TeeAttestation.
 func TestTeeAttestationError(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -151,7 +146,7 @@ func TestTeeAttestationError(t *testing.T) {
 	}
 }
 
-// TestVTpmAttestationError tests error handling in VTpmAttestation
+// TestVTpmAttestationError tests error handling in VTpmAttestation.
 func TestVTpmAttestationError(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -166,7 +161,7 @@ func TestVTpmAttestationError(t *testing.T) {
 	}
 }
 
-// TestAzureTokenBothFail tests error when both GetToken and GetEvidence fail
+// TestAzureTokenBothFail tests error when both GetToken and GetEvidence fail.
 func TestAzureTokenBothFail(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 
@@ -186,7 +181,7 @@ func TestAzureTokenBothFail(t *testing.T) {
 	}
 }
 
-// TestCloseWithNilConnection tests Close with nil connection
+// TestCloseWithNilConnection tests Close with nil connection.
 func TestCloseWithNilConnection(t *testing.T) {
 	provider := &Provider{conn: nil}
 	err := provider.Close()
@@ -195,7 +190,7 @@ func TestCloseWithNilConnection(t *testing.T) {
 	}
 }
 
-// TestProviderFields tests provider field initialization
+// TestProviderFields tests provider field initialization.
 func TestProviderFields(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	addr := "localhost:50002"
@@ -214,7 +209,7 @@ func TestProviderFields(t *testing.T) {
 	}
 }
 
-// TestEmptyReportData tests TeeAttestation with empty data
+// TestEmptyReportData tests TeeAttestation with empty data.
 func TestEmptyReportData(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -227,7 +222,6 @@ func TestEmptyReportData(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.TeeAttestation([]byte{})
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -236,7 +230,7 @@ func TestEmptyReportData(t *testing.T) {
 	}
 }
 
-// TestLargeReportData tests TeeAttestation with large data
+// TestLargeReportData tests TeeAttestation with large data.
 func TestLargeReportData(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -249,7 +243,6 @@ func TestLargeReportData(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.TeeAttestation(make([]byte, 10000))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -258,7 +251,7 @@ func TestLargeReportData(t *testing.T) {
 	}
 }
 
-// TestDataConcatenationInAttestation tests data concatenation
+// TestDataConcatenationInAttestation tests data concatenation.
 func TestDataConcatenationInAttestation(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	mockClient.EXPECT().
@@ -273,7 +266,6 @@ func TestDataConcatenationInAttestation(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.Attestation([]byte{1, 2, 3}, []byte{4, 5, 6})
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -282,7 +274,7 @@ func TestDataConcatenationInAttestation(t *testing.T) {
 	}
 }
 
-// TestMultipleCalls tests multiple successive calls
+// TestMultipleCalls tests multiple successive calls.
 func TestMultipleCalls(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 
@@ -308,7 +300,7 @@ func TestMultipleCalls(t *testing.T) {
 	}
 }
 
-// TestEvidencePreservation tests that evidence data is preserved
+// TestEvidencePreservation tests that evidence data is preserved.
 func TestEvidencePreservation(t *testing.T) {
 	mockClient := mocks.NewAttestationAgentServiceClient(t)
 	expectedBytes := []byte{0xFF, 0xEE, 0xDD, 0xCC}
@@ -321,7 +313,6 @@ func TestEvidencePreservation(t *testing.T) {
 
 	provider := &Provider{client: mockClient, conn: nil, addr: "localhost:50002"}
 	evidence, err := provider.TeeAttestation(make([]byte, 64))
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
