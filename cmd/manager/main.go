@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"log/slog"
@@ -26,6 +27,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/api/http"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
+	"github.com/ultravioletrs/cocos/pkg/attestation/policy"
 	"github.com/ultravioletrs/cocos/pkg/server"
 	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"go.opentelemetry.io/otel/trace"
@@ -43,15 +45,25 @@ const (
 )
 
 type config struct {
-	LogLevel                string  `env:"MANAGER_LOG_LEVEL"                  envDefault:"info"`
-	JaegerURL               url.URL `env:"COCOS_JAEGER_URL"                   envDefault:"http://localhost:4318"`
-	TraceRatio              float64 `env:"COCOS_JAEGER_TRACE_RATIO"           envDefault:"1.0"`
-	InstanceID              string  `env:"MANAGER_INSTANCE_ID"                envDefault:""`
-	AttestationPolicyBinary string  `env:"MANAGER_ATTESTATION_POLICY_BINARY"  envDefault:"../../build/attestation_policy"`
-	IgvmMeasureBinary       string  `env:"MANAGER_IGVMMEASURE_BINARY"         envDefault:"../../build/igvmmeasure"`
-	PcrValues               string  `env:"MANAGER_PCR_VALUES"                 envDefault:""`
-	EosVersion              string  `env:"MANAGER_EOS_VERSION"                envDefault:""`
-	MaxVMs                  int     `env:"MANAGER_MAX_VMS"                    envDefault:"10"`
+	LogLevel          string  `env:"MANAGER_LOG_LEVEL"          envDefault:"info"`
+	JaegerURL         url.URL `env:"COCOS_JAEGER_URL"           envDefault:"http://localhost:4318"`
+	TraceRatio        float64 `env:"COCOS_JAEGER_TRACE_RATIO"   envDefault:"1.0"`
+	InstanceID        string  `env:"MANAGER_INSTANCE_ID"        envDefault:""`
+	IgvmMeasureBinary string  `env:"MANAGER_IGVMMEASURE_BINARY" envDefault:"../../build/igvmmeasure"`
+	SEVSNPPolicy      uint64  `env:"MANAGER_SEV_SNP_POLICY"     envDefault:"196608"`
+	PcrValues         string  `env:"MANAGER_PCR_VALUES"         envDefault:""`
+	EosVersion        string  `env:"MANAGER_EOS_VERSION"        envDefault:""`
+	MaxVMs            int     `env:"MANAGER_MAX_VMS"            envDefault:"10"`
+	SGXVendorIDHex    string  `env:"MANAGER_SGX_VENDOR_ID"      envDefault:""`
+	MinTdxSvnHex      string  `env:"MANAGER_MIN_TDX_SVN"        envDefault:""`
+	MrSeamHex         string  `env:"MANAGER_MRSEAM"             envDefault:""`
+	TdAttributesHex   string  `env:"MANAGER_TD_ATTRIBUTES"      envDefault:""`
+	XfamHex           string  `env:"MANAGER_XFAM"               envDefault:""`
+	MrTdHex           string  `env:"MANAGER_MRTD"               envDefault:""`
+	RTMR0Hex          string  `env:"MANAGER_RTMR0"              envDefault:""`
+	RTMR1Hex          string  `env:"MANAGER_RTMR1"              envDefault:""`
+	RTMR2Hex          string  `env:"MANAGER_RTMR2"              envDefault:""`
+	RTMR3Hex          string  `env:"MANAGER_RTMR3"              envDefault:""`
 }
 
 func main() {
@@ -125,7 +137,14 @@ func main() {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC server configuration : %s", svcName, err))
 	}
 
-	svc, err := newService(logger, tracer, *qemuCfg, cfg.AttestationPolicyBinary, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.EosVersion, cfg.MaxVMs)
+	tdxPolicy, err := parseTDXPolicyConfig(&cfg)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to parse TDX policy configuration: %s", err))
+		exitCode = 1
+		return
+	}
+
+	svc, err := newService(logger, tracer, *qemuCfg, cfg.IgvmMeasureBinary, cfg.PcrValues, cfg.SEVSNPPolicy, tdxPolicy, cfg.EosVersion, cfg.MaxVMs)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1
@@ -166,8 +185,8 @@ func main() {
 	}
 }
 
-func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, attestationPolicyPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, eosVersion string, maxVMs int) (manager.Service, error) {
-	svc, err := manager.New(qemuCfg, attestationPolicyPath, igvmMeasurementBinaryPath, pcrValuesFilePath, logger, qemu.NewVM, eosVersion, maxVMs)
+func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, igvmMeasurementBinaryPath string, pcrValuesFilePath string, sevsnpPolicy uint64, tdxPolicy *policy.TDXConfig, eosVersion string, maxVMs int) (manager.Service, error) {
+	svc, err := manager.New(qemuCfg, igvmMeasurementBinaryPath, pcrValuesFilePath, sevsnpPolicy, tdxPolicy, logger, qemu.NewVM, eosVersion, maxVMs)
 	if err != nil {
 		return nil, err
 	}
@@ -177,4 +196,55 @@ func newService(logger *slog.Logger, tracer trace.Tracer, qemuCfg qemu.Config, a
 	svc = tracing.New(svc, tracer)
 
 	return svc, nil
+}
+
+func parseTDXPolicyConfig(cfg *config) (*policy.TDXConfig, error) {
+	decodeFixed := func(dst []byte, hexStr string) error {
+		b, err := hex.DecodeString(strings.TrimSpace(hexStr))
+		if err != nil {
+			return err
+		}
+		if len(b) != len(dst) {
+			return fmt.Errorf("expected %d bytes, got %d", len(dst), len(b))
+		}
+		copy(dst, b)
+		return nil
+	}
+
+	var policy policy.TDXConfig
+
+	if err := decodeFixed(policy.SGXVendorID[:], cfg.SGXVendorIDHex); err != nil {
+		return nil, fmt.Errorf("SGXVendorID: %w", err)
+	}
+	if err := decodeFixed(policy.MinTdxSvn[:], cfg.MinTdxSvnHex); err != nil {
+		return nil, fmt.Errorf("MinTdxSvn: %w", err)
+	}
+	if err := decodeFixed(policy.TdAttributes[:], cfg.TdAttributesHex); err != nil {
+		return nil, fmt.Errorf("TdAttributes: %w", err)
+	}
+	if err := decodeFixed(policy.Xfam[:], cfg.XfamHex); err != nil {
+		return nil, fmt.Errorf("Xfam: %w", err)
+	}
+
+	mrSeam, err := hex.DecodeString(strings.TrimSpace(cfg.MrSeamHex))
+	if err != nil {
+		return nil, fmt.Errorf("MrSeam: %w", err)
+	}
+	policy.MrSeam = mrSeam
+
+	mrTd, err := hex.DecodeString(strings.TrimSpace(cfg.MrTdHex))
+	if err != nil {
+		return nil, fmt.Errorf("MrTd: %w", err)
+	}
+	policy.MrTd = mrTd
+
+	for i, s := range []string{cfg.RTMR0Hex, cfg.RTMR1Hex, cfg.RTMR2Hex, cfg.RTMR3Hex} {
+		b, err := hex.DecodeString(strings.TrimSpace(s))
+		if err != nil {
+			return nil, fmt.Errorf("RTMR%d: %w", i, err)
+		}
+		policy.RTMR[i] = b
+	}
+
+	return &policy, nil
 }

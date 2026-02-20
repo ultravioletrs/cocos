@@ -16,12 +16,10 @@ import (
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/uuid"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	"github.com/ultravioletrs/cocos/pkg/attestation/policy"
 	"github.com/ultravioletrs/cocos/pkg/manager"
 	"golang.org/x/crypto/sha3"
 )
@@ -66,9 +64,6 @@ var (
 	// ErrFailedToReadPolicy indicates that the file for attestation policy could not be opened.
 	ErrFailedToReadPolicy = errors.New("error while opening file attestation policy")
 
-	// ErrUnmarshalFailed indicates that the file for the attestation policy could not be unmarshaled.
-	ErrUnmarshalFailed = errors.New("error while unmarshaling the attestation policy")
-
 	// ErrMaxVMsExceeded indicates that the maximum number of VMs has been reached.
 	ErrMaxVMsExceeded = errors.New("maximum number of VMs exceeded")
 )
@@ -89,27 +84,27 @@ type Service interface {
 }
 
 type managerService struct {
-	mu                          sync.Mutex
-	ap                          sync.Mutex
-	qemuCfg                     qemu.Config
-	attestationPolicyBinaryPath string
-	igvmMeasurementBinaryPath   string
-	pcrValuesFilePath           string
-	logger                      *slog.Logger
-	vms                         map[string]vm.VM
-	vmFactory                   vm.Provider
-	portRangeMin                int
-	portRangeMax                int
-	persistence                 qemu.Persistence
-	eosVersion                  string
-	ttlManager                  *TTLManager
-	maxVMs                      int
+	mu                        sync.Mutex
+	qemuCfg                   qemu.Config
+	igvmMeasurementBinaryPath string
+	pcrValuesFilePath         string
+	sevsnpPolicy              uint64
+	tdxPolicyConfig           *policy.TDXConfig
+	logger                    *slog.Logger
+	vms                       map[string]vm.VM
+	vmFactory                 vm.Provider
+	portRangeMin              int
+	portRangeMax              int
+	persistence               qemu.Persistence
+	eosVersion                string
+	ttlManager                *TTLManager
+	maxVMs                    int
 }
 
 var _ Service = (*managerService)(nil)
 
 // New instantiates the manager service implementation.
-func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinaryPath string, pcrValuesFilePath string, logger *slog.Logger, vmFactory vm.Provider, eosVersion string, maxVMs int) (Service, error) {
+func New(cfg qemu.Config, igvmMeasurementBinaryPath string, pcrValuesFilePath string, sevsnpPolicy uint64, tdxPolicyConfig *policy.TDXConfig, logger *slog.Logger, vmFactory vm.Provider, eosVersion string, maxVMs int) (Service, error) {
 	start, end, err := decodeRange(cfg.HostFwdRange)
 	if err != nil {
 		return nil, err
@@ -121,19 +116,20 @@ func New(cfg qemu.Config, attestationPolicyBinPath string, igvmMeasurementBinary
 	}
 
 	ms := &managerService{
-		qemuCfg:                     cfg,
-		logger:                      logger,
-		vms:                         make(map[string]vm.VM),
-		vmFactory:                   vmFactory,
-		attestationPolicyBinaryPath: attestationPolicyBinPath,
-		igvmMeasurementBinaryPath:   igvmMeasurementBinaryPath,
-		pcrValuesFilePath:           pcrValuesFilePath,
-		portRangeMin:                start,
-		portRangeMax:                end,
-		persistence:                 persistence,
-		eosVersion:                  eosVersion,
-		ttlManager:                  NewTTLManager(),
-		maxVMs:                      maxVMs,
+		qemuCfg:                   cfg,
+		logger:                    logger,
+		vms:                       make(map[string]vm.VM),
+		vmFactory:                 vmFactory,
+		igvmMeasurementBinaryPath: igvmMeasurementBinaryPath,
+		pcrValuesFilePath:         pcrValuesFilePath,
+		sevsnpPolicy:              sevsnpPolicy,
+		tdxPolicyConfig:           tdxPolicyConfig,
+		portRangeMin:              start,
+		portRangeMax:              end,
+		persistence:               persistence,
+		eosVersion:                eosVersion,
+		ttlManager:                NewTTLManager(),
+		maxVMs:                    maxVMs,
 	}
 
 	if err := ms.restoreVMs(); err != nil {
@@ -172,23 +168,15 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg.Config.EnvMount = tmpEnvDir
 
 	if ms.qemuCfg.EnableSEVSNP {
-		attestPolicyCmd, err := fetchSNPAttestationPolicy(ms)
-		if err != nil {
-			return "", id, err
-		}
-
-		var stdOutByte []byte
-		ms.ap.Lock()
-		stdOutByte, err = attestPolicyCmd.Run(ms.attestationPolicyBinaryPath)
-		ms.ap.Unlock()
+		attestationPolicy, err := policy.FetchSEVSNPAttestationPolicy(
+			ms.sevsnpPolicy,
+			ms.pcrValuesFilePath,
+			ms.qemuCfg.IGVMConfig.File,
+			ms.igvmMeasurementBinaryPath,
+			ms.qemuCfg.EnableHostData,
+			ms.qemuCfg.HostData)
 		if err != nil {
 			return "", id, errors.Wrap(ErrFailedToCreateAttestationPolicy, err)
-		}
-
-		attestationPolicy := attestation.Config{Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}, PcrConfig: &attestation.PcrConfig{}}
-
-		if err = vtpm.ReadPolicyFromByte(stdOutByte, &attestationPolicy); err != nil {
-			return "", id, errors.Wrap(ErrUnmarshalFailed, err)
 		}
 
 		// Define the TCB that was present at launch of the VM.

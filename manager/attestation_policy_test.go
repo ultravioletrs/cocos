@@ -5,57 +5,26 @@ package manager
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/policy"
 )
-
-func CreateDummyAttestationPolicyBinary(t *testing.T, behavior string) string {
-	var content []byte
-	switch behavior {
-	case "success":
-		content = []byte(`#!/bin/sh
-echo '{"pcr_values": {"sha256": null, "sha384": null}, "policy": {"measurement": null, "host_data": null}}'
-`)
-	case "fail":
-		content = []byte(`#!/bin/sh
-echo "Error: Failed to execute attestation policy" >&2
-exit 1
-`)
-	case "no_json":
-		content = []byte(`#!/bin/sh
-echo 'No JSON file created'
-`)
-	default:
-		t.Fatalf("Unknown behavior: %s", behavior)
-	}
-
-	tempDir := t.TempDir()
-	binaryPath := filepath.Join(tempDir, "attestation_policy")
-	err := os.WriteFile(binaryPath, content, 0o755)
-	assert.NoError(t, err)
-	return tempDir
-}
 
 func TestFetchAttestationPolicy(t *testing.T) {
 	testCases := []struct {
 		name           string
 		computationId  string
 		vmConfig       any
-		binaryBehavior string
 		expectedError  string
 		expectedResult map[string]any
 	}{
 		{
-			name:           "Valid SEV-SNP configuration",
-			computationId:  "sev-snp-computation",
-			binaryBehavior: "success",
+			name:          "Valid SEV-SNP configuration",
+			computationId: "sev-snp-computation",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
 					EnableSEVSNP: true,
@@ -64,59 +33,78 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				},
 				LaunchTCB: 0,
 			},
-			expectedError: "pathToBinary cannot be empty",
+			expectedError: "open /dev/sev:",
 		},
 		{
-			name:           "Invalid computation ID",
-			computationId:  "non-existent",
-			binaryBehavior: "success",
-			vmConfig:       qemu.VMInfo{Config: qemu.Config{}, LaunchTCB: 0},
-			expectedError:  "computationId non-existent not found",
+			name:          "Invalid computation ID",
+			computationId: "non-existent",
+			vmConfig:      qemu.VMInfo{Config: qemu.Config{}, LaunchTCB: 0},
+			expectedError: "computationId non-existent not found",
 		},
 		{
-			name:           "Invalid config type",
-			computationId:  "invalid-config",
-			binaryBehavior: "success",
-			vmConfig:       struct{}{},
-			expectedError:  "failed to cast config to qemu.VMInfo",
+			name:          "Invalid config type",
+			computationId: "invalid-config",
+			vmConfig:      struct{}{},
+			expectedError: "failed to cast config to qemu.VMInfo",
 		},
 		{
-			name:           "Binary execution failure",
-			computationId:  "binary-fail",
-			binaryBehavior: "fail",
+			name:          "Valid TDX configuration",
+			computationId: "tdx-computation",
 			vmConfig: qemu.VMInfo{
 				Config: qemu.Config{
-					EnableSEVSNP: true,
+					EnableTDX: true,
+					SMPCount:  2,
+					CPU:       "Intel",
 				},
 				LaunchTCB: 0,
 			},
-			expectedError: "exit status 1",
-		},
-		{
-			name:           "JSON file not created",
-			computationId:  "no-json",
-			binaryBehavior: "no_json",
-			vmConfig: qemu.VMInfo{
-				Config: qemu.Config{
-					EnableSEVSNP: true,
+			expectedError: "",
+			expectedResult: map[string]interface{}{
+				"policy": map[string]interface{}{
+					"headerPolicy": map[string]interface{}{"qeVendorId": "AQIDBAUGBwgJCgsMDQ4PEA=="},
+					"tdQuoteBodyPolicy": map[string]interface{}{
+						"minimumTeeTcbSvn": "ERITFBUWFxgZGhscHR4fIA==",
+						"mrSeam":           "ISIjJA==",
+						"mrTd":             "NTY3OA==",
+						"rtmrs": []interface{}{
+							"QUJDRA==",
+							"RUZHSA==",
+							"SUpLTA==",
+							"TU5PUA==",
+						},
+						"tdAttributes": "JSYnKCkqKyw=",
+						"xfam":         "LS4vMDEyMzQ=",
+					},
 				},
-				LaunchTCB: 0,
+				"rootOfTrust": map[string]interface{}{
+					"checkCrl":      true,
+					"getCollateral": true,
+				},
 			},
-			expectedError: "failed to decode Attestation Policy file",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := CreateDummyAttestationPolicyBinary(t, tc.binaryBehavior)
-			defer os.RemoveAll(tempDir)
-
 			ms := &managerService{
-				vms:                         make(map[string]vm.VM),
-				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
-				pcrValuesFilePath:           tempDir,
+				vms:               make(map[string]vm.VM),
+				pcrValuesFilePath: "",
 				qemuCfg: qemu.Config{
-					CPU: "EPYC",
+					CPU: "host",
+				},
+				tdxPolicyConfig: &policy.TDXConfig{
+					SGXVendorID:  [16]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10},
+					MinTdxSvn:    [16]byte{0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20},
+					MrSeam:       []byte{0x21, 0x22, 0x23, 0x24},
+					TdAttributes: [8]byte{0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c},
+					Xfam:         [8]byte{0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34},
+					MrTd:         []byte{0x35, 0x36, 0x37, 0x38},
+					RTMR: [4][]byte{
+						{0x41, 0x42, 0x43, 0x44},
+						{0x45, 0x46, 0x47, 0x48},
+						{0x49, 0x4a, 0x4b, 0x4c},
+						{0x4d, 0x4e, 0x4f, 0x50},
+					},
 				},
 			}
 
@@ -141,10 +129,6 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				assert.NoError(t, err)
 
 				assert.Equal(t, tc.expectedResult, attestationPolicy)
-			}
-
-			if tc.binaryBehavior == "success" {
-				os.Remove("attestation_policy.json")
 			}
 		})
 	}

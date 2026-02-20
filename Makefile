@@ -1,6 +1,5 @@
 BUILD_DIR = build
 SERVICES = manager agent cli attestation-service log-forwarder computation-runner egress-proxy ingress-proxy
-ATTESTATION_POLICY = attestation_policy
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags --always)
@@ -24,16 +23,13 @@ define compile_service
 	-o ${BUILD_DIR}/cocos-$(1) cmd/$(1)/main.go
 endef
 
-.PHONY: all $(SERVICES) $(ATTESTATION_POLICY) install clean
+.PHONY: all $(SERVICES) install clean
 
-all: $(SERVICES) $(ATTESTATION_POLICY)
+all: $(SERVICES)
 
 $(SERVICES): 
 	$(call compile_service,$@)
 	@if [ "$@" = "cli" ] || [ "$@" = "manager" ]; then $(MAKE) build-igvm; fi
-
-$(ATTESTATION_POLICY):
-	$(MAKE) -C ./scripts/attestation_policy OUTPUT_DIR=../../$(BUILD_DIR)
 
 protoc:
 	protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative agent/agent.proto
@@ -47,18 +43,15 @@ protoc:
 mocks:
 	mockery --config ./.mockery.yml
 
-install: $(SERVICES) $(ATTESTATION_POLICY)
+install: $(SERVICES)
 	install -d $(INSTALL_DIR)
 	install $(BUILD_DIR)/cocos-cli $(INSTALL_DIR)/cocos-cli
 	install $(BUILD_DIR)/cocos-manager $(INSTALL_DIR)/cocos-manager
-	install $(BUILD_DIR)/attestation_policy $(INSTALL_DIR)/attestation_policy
-	install $(BUILD_DIR)/attestation_policy_tdx $(INSTALL_DIR)/attestation_policy_tdx
 	install -d $(CONFIG_DIR)
 	install cocos-manager.env $(CONFIG_DIR)/cocos-manager.env
 
 clean:
 	rm -rf $(BUILD_DIR)
-	$(MAKE) -C ./scripts/attestation_policy OUTPUT_DIR=../../$(BUILD_DIR) clean
 
 run: install_service
 	sudo systemctl start $(SERVICE_NAME).service

@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"testing"
 
 	mglog "github.com/absmach/supermq/logger"
@@ -21,6 +20,7 @@ import (
 	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/ultravioletrs/cocos/pkg/attestation/policy"
 )
 
 func TestNew(t *testing.T) {
@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	logger := slog.Default()
 	vmf := new(mocks.Provider)
 
-	service, err := New(cfg, "", "", "", logger, vmf.Execute, "", 10)
+	service, err := New(cfg, "", "", 0, nil, logger, vmf.Execute, "", 10)
 	require.NoError(t, err)
 
 	assert.NotNil(t, service)
@@ -43,46 +43,34 @@ func TestRun(t *testing.T) {
 	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
 	tests := []struct {
-		name           string
-		binaryBehavior string
-		vmStartError   error
-		expectedError  error
-		ttl            string
+		name          string
+		vmStartError  error
+		expectedError error
+		ttl           string
 	}{
 		{
-			name:           "Successful run",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "",
+			name:          "Successful run",
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "",
 		},
 		{
-			name:           "VM start failure",
-			binaryBehavior: "success",
-			vmStartError:   assert.AnError,
-			expectedError:  assert.AnError,
-			ttl:            "",
+			name:          "VM start failure",
+			vmStartError:  assert.AnError,
+			expectedError: assert.AnError,
+			ttl:           "",
 		},
 		{
-			name:           "Invalid attestation policy",
-			binaryBehavior: "fail",
-			vmStartError:   nil,
-			expectedError:  ErrFailedToCreateAttestationPolicy,
-			ttl:            "",
+			name:          "With TTL",
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "10s",
 		},
 		{
-			name:           "With TTL",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "10s",
-		},
-		{
-			name:           "with exceeded max vms",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  errors.New("maximum number of VMs exceeded"),
-			ttl:            "",
+			name:          "with exceeded max vms",
+			vmStartError:  nil,
+			expectedError: errors.New("maximum number of VMs exceeded"),
+			ttl:           "",
 		},
 	}
 
@@ -101,22 +89,31 @@ func TestRun(t *testing.T) {
 			persistence.On("SaveVM", mock.Anything).Return(nil)
 
 			qemuCfg := qemu.Config{
-				EnableSEVSNP: true,
+				EnableTDX: true,
 			}
 			logger := slog.Default()
 
-			tempDir := CreateDummyAttestationPolicyBinary(t, tt.binaryBehavior)
-			defer os.RemoveAll(tempDir)
-
 			ms := &managerService{
-				qemuCfg:                     qemuCfg,
-				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
-				pcrValuesFilePath:           tempDir,
-				logger:                      logger,
-				vms:                         make(map[string]vm.VM),
-				vmFactory:                   vmf.Execute,
-				persistence:                 persistence,
-				ttlManager:                  NewTTLManager(),
+				qemuCfg: qemuCfg,
+				tdxPolicyConfig: &policy.TDXConfig{
+					SGXVendorID:  [16]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10},
+					MinTdxSvn:    [16]byte{0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20},
+					MrSeam:       []byte{0x21, 0x22, 0x23, 0x24},
+					TdAttributes: [8]byte{0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c},
+					Xfam:         [8]byte{0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34},
+					MrTd:         []byte{0x35, 0x36, 0x37, 0x38},
+					RTMR: [4][]byte{
+						{0x41, 0x42, 0x43, 0x44},
+						{0x45, 0x46, 0x47, 0x48},
+						{0x49, 0x4a, 0x4b, 0x4c},
+						{0x4d, 0x4e, 0x4f, 0x50},
+					},
+				},
+				logger:      logger,
+				vms:         make(map[string]vm.VM),
+				vmFactory:   vmf.Execute,
+				persistence: persistence,
+				ttlManager:  NewTTLManager(),
 			}
 
 			if tt.name == "with exceeded max vms" {
