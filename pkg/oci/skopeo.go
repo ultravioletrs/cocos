@@ -12,23 +12,23 @@ import (
 )
 
 const (
-	// OCICryptKeyproviderConfig is the environment variable for ocicrypt config
+	// OCICryptKeyproviderConfig is the environment variable for ocicrypt config.
 	OCICryptKeyproviderConfig = "OCICRYPT_KEYPROVIDER_CONFIG"
 
-	// DefaultOCICryptConfig is the default path to ocicrypt config
+	// DefaultOCICryptConfig is the default path to ocicrypt config.
 	DefaultOCICryptConfig = "/etc/ocicrypt_keyprovider.conf"
 
-	// DecryptionKeyProvider is the decryption key provider for CoCo
+	// DecryptionKeyProvider is the decryption key provider for CoCo.
 	DecryptionKeyProvider = "provider:attestation-agent:cc_kbc::null"
 )
 
-// SkopeoClient wraps skopeo command-line operations
+// SkopeoClient wraps skopeo command-line operations.
 type SkopeoClient struct {
 	skopeoPath string
 	workDir    string
 }
 
-// NewSkopeoClient creates a new Skopeo client
+// NewSkopeoClient creates a new Skopeo client.
 func NewSkopeoClient(workDir string) (*SkopeoClient, error) {
 	// Find skopeo binary
 	skopeoPath, err := exec.LookPath("skopeo")
@@ -37,7 +37,7 @@ func NewSkopeoClient(workDir string) (*SkopeoClient, error) {
 	}
 
 	// Ensure work directory exists
-	if err := os.MkdirAll(workDir, 0755); err != nil {
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create work directory: %w", err)
 	}
 
@@ -47,10 +47,10 @@ func NewSkopeoClient(workDir string) (*SkopeoClient, error) {
 	}, nil
 }
 
-// PullAndDecrypt pulls an OCI image and decrypts it if encrypted
+// PullAndDecrypt pulls an OCI image and decrypts it if encrypted.
 func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource, destDir string) error {
 	// Ensure destination directory exists
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -89,7 +89,7 @@ func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource
 	return nil
 }
 
-// Inspect inspects an OCI image and returns basic manifest information
+// Inspect inspects an OCI image and returns basic manifest information.
 func (s *SkopeoClient) Inspect(ctx context.Context, imageRef string) (*ImageManifest, error) {
 	args := []string{"inspect", "--insecure-policy", "--tls-verify=false", imageRef}
 
@@ -103,13 +103,13 @@ func (s *SkopeoClient) Inspect(ctx context.Context, imageRef string) (*ImageMani
 	}
 
 	// For now, return basic info
-	// TODO: Parse JSON output for detailed manifest info
+	// nolint:godox // TODO: Parse JSON output for detailed manifest info
 	return &ImageManifest{
 		Reference: imageRef,
 	}, nil
 }
 
-// GetLocalImagePath returns the path to a local OCI image directory
+// GetLocalImagePath returns the path to a local OCI image directory.
 func (s *SkopeoClient) GetLocalImagePath(name string) string {
 	return filepath.Join(s.workDir, name)
 }

@@ -1,4 +1,7 @@
 version: "2"
+run:
+  skip-dirs:
+    - build
 linters:
   default: none
   enable:
@@ -78,6 +81,12 @@ linters:
       - builtin$
       - examples$
 issues:
+  exclude-rules:
+    - path: build/
+      linters:
+        - errcheck
+  exclude-dirs:
+    - build
   max-issues-per-linter: 10
   max-same-issues: 10
 formatters:

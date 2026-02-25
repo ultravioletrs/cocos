@@ -3,15 +3,15 @@
 
 package oci
 
-// ResourceType defines the type of OCI resource
+// ResourceType defines the type of OCI resource.
 type ResourceType string
 
 const (
-	// ResourceTypeOCIImage represents a standard OCI image
+	// ResourceTypeOCIImage represents a standard OCI image.
 	ResourceTypeOCIImage ResourceType = "oci-image"
 )
 
-// ResourceSource defines the source of an OCI resource
+// ResourceSource defines the source of an OCI resource.
 type ResourceSource struct {
 	// Type of resource (oci-image)
 	Type ResourceType `json:"type"`
@@ -27,7 +27,7 @@ type ResourceSource struct {
 	KBSResourcePath string `json:"kbs_resource_path,omitempty"`
 }
 
-// ImageManifest represents basic OCI image manifest information
+// ImageManifest represents basic OCI image manifest information.
 type ImageManifest struct {
 	// Reference is the original image reference
 	Reference string

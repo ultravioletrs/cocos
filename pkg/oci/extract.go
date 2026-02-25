@@ -16,12 +16,12 @@ import (
 	"strings"
 )
 
-// OCILayout represents the OCI image layout
+// OCILayout represents the OCI image layout.
 type OCILayout struct {
 	ImageLayoutVersion string `json:"imageLayoutVersion"`
 }
 
-// OCIIndex represents the OCI index.json
+// OCIIndex represents the OCI index.json.
 type OCIIndex struct {
 	SchemaVersion int `json:"schemaVersion"`
 	Manifests     []struct {
@@ -31,7 +31,7 @@ type OCIIndex struct {
 	} `json:"manifests"`
 }
 
-// ExtractAlgorithm extracts the algorithm file from an OCI image directory
+// ExtractAlgorithm extracts the algorithm file from an OCI image directory.
 func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath string) (string, error) {
 	// Read index.json to find manifest
 	indexPath := filepath.Join(ociDir, "index.json")
@@ -96,7 +96,7 @@ func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath
 	return "", fmt.Errorf("no algorithm file found in OCI image layers (seen: %v)", allSeenFiles)
 }
 
-// extractLayerAndFindAlgorithm extracts a layer and searches for algorithm files
+// extractLayerAndFindAlgorithm extracts a layer and searches for algorithm files.
 func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath string) (string, []string, error) {
 	// Open layer file
 	layerFile, err := os.Open(layerPath)
@@ -150,7 +150,7 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 
 			targetPath := filepath.Join(destPath, cleanName)
 
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 				return "", seenFiles, fmt.Errorf("failed to create dir: %w", err)
 			}
 
@@ -175,7 +175,7 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 	return algorithmPath, seenFiles, nil
 }
 
-// isAlgorithmFile checks if a file is likely an algorithm file
+// isAlgorithmFile checks if a file is likely an algorithm file.
 func isAlgorithmFile(filename string) bool {
 	// Common algorithm file extensions
 	algorithmExts := []string{".py", ".wasm", ".wat", ".js", ".sh"}
@@ -203,7 +203,7 @@ func isAlgorithmFile(filename string) bool {
 	return false
 }
 
-// ExtractDataset extracts dataset files from an OCI image directory
+// ExtractDataset extracts dataset files from an OCI image directory.
 func ExtractDataset(ociDir, destPath string) ([]string, error) {
 	// Similar to ExtractAlgorithm but extracts all data files
 	// Read index.json to find manifest
@@ -262,7 +262,7 @@ func ExtractDataset(ociDir, destPath string) ([]string, error) {
 	return datasetFiles, nil
 }
 
-// extractLayerDataFiles extracts data files from a layer
+// extractLayerDataFiles extracts data files from a layer.
 func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 	layerFile, err := os.Open(layerPath)
 	if err != nil {
@@ -302,7 +302,7 @@ func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 
 			targetPath := filepath.Join(destPath, cleanName)
 
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 				return nil, err
 			}
 
@@ -324,7 +324,7 @@ func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 	return extractedFiles, nil
 }
 
-// isDataFile checks if a file is likely a dataset file
+// isDataFile checks if a file is likely a dataset file.
 func isDataFile(filename string) bool {
 	dataExts := []string{".csv", ".json", ".txt", ".parquet", ".arrow", ".dat"}
 

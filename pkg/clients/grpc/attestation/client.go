@@ -77,7 +77,7 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 	return resp.EatToken, nil
 }
 
-// GetRawEvidence gets raw binary evidence (for KBS) instead of EAT token
+// GetRawEvidence gets raw binary evidence (for KBS) instead of EAT token.
 func (c *client) GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

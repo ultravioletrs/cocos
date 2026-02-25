@@ -12,13 +12,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	mglog "github.com/absmach/supermq/logger"
+	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	logpb "github.com/ultravioletrs/cocos/agent/log"
 	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
-	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
-
-	mglog "github.com/absmach/supermq/logger"
-	"github.com/caarlos0/env/v11"
 	attestationpb "github.com/ultravioletrs/cocos/internal/proto/attestation/v1"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
@@ -26,6 +24,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )

@@ -42,7 +42,7 @@ var (
 	attestedTLS       bool
 	pubKeyFile        string
 	clientCAFile      string
-	// Remote resource configuration
+	// Remote resource configuration.
 	kbsURL              string
 	algoSourceURL       string
 	algoKBSResourcePath string

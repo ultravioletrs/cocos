@@ -26,7 +26,7 @@ type client struct {
 }
 
 // NewClient creates a new attestation-agent client.
-// address can be either a TCP address (e.g., "127.0.0.1:50002") or Unix socket path (e.g., "/run/aa.sock")
+// address can be either a TCP address (e.g., "127.0.0.1:50002") or Unix socket path (e.g., "/run/aa.sock").
 func NewClient(address string) (Client, error) {
 	var target string
 	// If address contains ":", it's a TCP address, otherwise it's a Unix socket

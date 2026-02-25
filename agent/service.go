@@ -521,7 +521,7 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 	// Otherwise, wait for remaining datasets to be uploaded via Data() RPC calls
 }
 
-// DecryptedResource holds the data and metadata of a downloaded and decrypted resource
+// DecryptedResource holds the data and metadata of a downloaded and decrypted resource.
 type DecryptedResource struct {
 	Data         []byte
 	Requirements []byte
@@ -550,7 +550,7 @@ func (as *agentService) downloadAndDecryptResource(ctx context.Context, source *
 	}
 }
 
-// downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider
+// downloadAndDecryptOCIImage downloads and decrypts an OCI image using Skopeo and CoCo Keyprovider.
 func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *ResourceSource, resourceType string) (*DecryptedResource, error) {
 	as.logger.Info(fmt.Sprintf("downloading OCI image (url=%s encrypted=%t kbs_path=%s)",
 		source.URL, source.Encrypted, source.KBSResourcePath))
@@ -598,7 +598,7 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 			return nil, fmt.Errorf("failed to extract dataset from OCI image: %w", err)
 		}
 		// For now, take the first file found.
-		// TODO: Handle multiple files / directory structure if needed.
+		// nolint:godox // TODO: Handle multiple files / directory structure if needed.
 		algorithmPath = files[0]
 		as.logger.Info("dataset extracted from OCI image", "path", algorithmPath)
 	}
@@ -721,7 +721,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	var datasetFilename string
 
 	// Check if any dataset should be downloaded from remote source
-	var matchedIndex = -1
+	matchedIndex := -1
 	for i, d := range as.computation.Datasets {
 		if d.Source != nil && as.computation.KBS.Enabled {
 			as.logger.Info("downloading dataset from remote source", "filename", d.Filename)
