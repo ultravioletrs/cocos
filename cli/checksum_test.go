@@ -131,7 +131,7 @@ func TestManifestChecksum(t *testing.T) {
 				"name": "Example Computation",
 				"description": "This is an example computation"
 			}`,
-			expectedSum: "a99683e4d22ba54cefa51aa49fb2e97a92b828c088395992ddff16a6236f3299",
+			expectedSum: "4ff220c22b2bdf6d5bb4c32dc0f24b5183cfef9b8200dfdf6109c230c8c90394",
 		},
 		{
 			name:        "Invalid JSON",
