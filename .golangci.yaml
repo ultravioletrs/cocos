@@ -1,7 +1,4 @@
 version: "2"
-run:
-  skip-dirs:
-    - build
 linters:
   default: none
   enable:
@@ -74,19 +71,17 @@ linters:
       - std-error-handling
     rules:
       - linters:
+          - errcheck
+        path: build/
+      - linters:
           - makezero
         text: with non-zero initialized length
     paths:
+      - build
       - third_party$
       - builtin$
       - examples$
 issues:
-  exclude-rules:
-    - path: build/
-      linters:
-        - errcheck
-  exclude-dirs:
-    - build
   max-issues-per-linter: 10
   max-same-issues: 10
 formatters:
