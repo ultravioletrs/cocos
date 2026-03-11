@@ -175,7 +175,10 @@ func TestParseEncryptedResource(t *testing.T) {
 					Tag:          []byte("auth tag"),
 					AAD:          []byte("additional data"),
 				}
-				data, _ := json.Marshal(resource)
+				data, err := json.Marshal(resource)
+				if err != nil {
+					panic(err)
+				}
 				return data
 			}(),
 			wantErr: false,
@@ -194,7 +197,10 @@ func TestParseEncryptedResource(t *testing.T) {
 						Y:     "BBBB",
 					},
 				}
-				data, _ := json.Marshal(resource)
+				data, err := json.Marshal(resource)
+				if err != nil {
+					panic(err)
+				}
 				return data
 			}(),
 			wantErr: false,

@@ -185,7 +185,8 @@ func setupTestOCIImage(t *testing.T, filename, content string) (ociDir, destDir 
 			Digest string `json:"digest"`
 		}{{Digest: "sha256:layer123"}},
 	}
-	manifestData, _ := json.Marshal(manifest)
+	manifestData, err := json.Marshal(manifest)
+	require.NoError(t, err)
 	manifestPath := filepath.Join(blobsDir, "manifest123")
 	require.NoError(t, os.WriteFile(manifestPath, manifestData, 0o644))
 
@@ -201,7 +202,8 @@ func setupTestOCIImage(t *testing.T, filename, content string) (ociDir, destDir 
 			Size:      len(manifestData),
 		}},
 	}
-	indexData, _ := json.Marshal(index)
+	indexData, err := json.Marshal(index)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
 	return ociDir, destDir
