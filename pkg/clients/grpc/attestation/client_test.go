@@ -20,11 +20,13 @@ import (
 type mockAttestationServer struct {
 	attestation_v1.UnimplementedAttestationServiceServer
 	fetchAttestationCalled bool
+	fetchRawEvidenceCalled bool
 	fetchAzureTokenCalled  bool
 	lastReportData         []byte
 	lastNonce              []byte
 	lastPlatformType       attestation_v1.PlatformType
 	attestationErr         error
+	rawEvidenceErr         error
 	azureTokenErr          error
 }
 
@@ -40,6 +42,21 @@ func (m *mockAttestationServer) FetchAttestation(ctx context.Context, req *attes
 
 	return &attestation_v1.AttestationResponse{
 		EatToken: []byte("mock-attestation-quote"),
+	}, nil
+}
+
+func (m *mockAttestationServer) FetchRawEvidence(ctx context.Context, req *attestation_v1.AttestationRequest) (*attestation_v1.RawEvidenceResponse, error) {
+	m.fetchRawEvidenceCalled = true
+	m.lastReportData = req.ReportData
+	m.lastNonce = req.Nonce
+	m.lastPlatformType = req.PlatformType
+
+	if m.rawEvidenceErr != nil {
+		return nil, m.rawEvidenceErr
+	}
+
+	return &attestation_v1.RawEvidenceResponse{
+		Evidence: []byte("mock-raw-evidence"),
 	}, nil
 }
 
@@ -389,4 +406,177 @@ func TestClientOperationsAfterClose(t *testing.T) {
 
 	_, err = client.GetAttestation(ctx, reportData, nonce, attestation.SNP)
 	assert.Error(t, err)
+}
+
+// TestGetRawEvidenceSNP tests getting raw evidence for SNP platform.
+func TestGetRawEvidenceSNP(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-snp.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+	copy(reportData[:], []byte("test-report-data"))
+	copy(nonce[:], []byte("test-nonce"))
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.SNP)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("mock-raw-evidence"), evidence)
+	assert.True(t, mockServer.fetchRawEvidenceCalled)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_SNP, mockServer.lastPlatformType)
+}
+
+// TestGetRawEvidenceTDX tests getting raw evidence for TDX platform.
+func TestGetRawEvidenceTDX(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-tdx.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.TDX)
+	require.NoError(t, err)
+	assert.NotNil(t, evidence)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_TDX, mockServer.lastPlatformType)
+}
+
+// TestGetRawEvidenceVTPM tests getting raw evidence for VTPM platform.
+func TestGetRawEvidenceVTPM(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-vtpm.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.VTPM)
+	require.NoError(t, err)
+	assert.NotNil(t, evidence)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_VTPM, mockServer.lastPlatformType)
+}
+
+// TestGetRawEvidenceSNPvTPM tests getting raw evidence for SNPvTPM platform.
+func TestGetRawEvidenceSNPvTPM(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-snpvtpm.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.SNPvTPM)
+	require.NoError(t, err)
+	assert.NotNil(t, evidence)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_SNP_VTPM, mockServer.lastPlatformType)
+}
+
+// TestGetRawEvidenceUnspecified tests getting raw evidence with unspecified platform.
+func TestGetRawEvidenceUnspecified(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-unspec.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.PlatformType(999))
+	require.NoError(t, err)
+	assert.NotNil(t, evidence)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_UNSPECIFIED, mockServer.lastPlatformType)
 }

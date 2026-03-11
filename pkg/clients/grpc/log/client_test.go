@@ -330,3 +330,71 @@ func TestClientOperationsAfterClose(t *testing.T) {
 	err = client.SendLog(ctx, entry)
 	assert.Error(t, err)
 }
+
+// TestClientSendLogRetrySuccess tests SendLog retry behavior.
+func TestClientSendLogRetrySuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "log-retry-success.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockLogCollectorServer{}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.LogEntry{
+		Level:   "INFO",
+		Message: "retry test",
+	}
+
+	err = client.SendLog(ctx, entry)
+	require.NoError(t, err)
+	assert.True(t, mockServer.sendLogCalled)
+}
+
+// TestClientSendEventRetrySuccess tests SendEvent retry behavior.
+func TestClientSendEventRetrySuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "log-event-retry.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockLogCollectorServer{}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.EventEntry{
+		EventType: "test.retry",
+	}
+
+	err = client.SendEvent(ctx, entry)
+	require.NoError(t, err)
+}
