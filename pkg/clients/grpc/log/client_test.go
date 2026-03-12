@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -397,4 +398,151 @@ func TestClientSendEventRetrySuccess(t *testing.T) {
 
 	err = client.SendEvent(ctx, entry)
 	require.NoError(t, err)
+}
+
+// TestClientSendLogRetryWithFailures tests SendLog retry with intermittent failures.
+func TestClientSendLogRetryWithFailures(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "log-retry-failures.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &retryMockLogCollectorServer{
+		failCount:    2, // Fail first 2 attempts
+		maxFailCount: 2,
+	}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.LogEntry{
+		Level:   "INFO",
+		Message: "retry test",
+	}
+
+	// With retry logic, this should succeed on 3rd attempt
+	err = client.SendLog(ctx, entry)
+	require.NoError(t, err)
+	assert.Equal(t, 3, mockServer.callCount)
+}
+
+// TestClientSendEventRetryWithFailures tests SendEvent retry with intermittent failures.
+func TestClientSendEventRetryWithFailures(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "event-retry-failures.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &retryMockLogCollectorServer{
+		failCount:    2, // Fail first 2 attempts
+		maxFailCount: 2,
+	}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.EventEntry{
+		EventType: "test.retry",
+	}
+
+	// With retry logic, this should succeed on 3rd attempt
+	err = client.SendEvent(ctx, entry)
+	require.NoError(t, err)
+	assert.Equal(t, 3, mockServer.eventCallCount)
+}
+
+// TestClientSendLogAllRetriesFail tests SendLog when all retries fail.
+func TestClientSendLogAllRetriesFail(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "log-all-fail.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &retryMockLogCollectorServer{
+		failCount:    10, // Fail all attempts
+		maxFailCount: 10,
+	}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.LogEntry{
+		Level:   "ERROR",
+		Message: "will fail",
+	}
+
+	// Should fail after all retries
+	err = client.SendLog(ctx, entry)
+	assert.Error(t, err)
+	// 3 retries + 1 final attempt = 4 calls
+	assert.Equal(t, 4, mockServer.callCount)
+}
+
+// retryMockLogCollectorServer is a mock server that fails a specified number of times.
+type retryMockLogCollectorServer struct {
+	log.UnimplementedLogCollectorServer
+	failCount      int
+	maxFailCount   int
+	callCount      int
+	eventCallCount int
+	mu             sync.Mutex
+}
+
+func (m *retryMockLogCollectorServer) SendLog(ctx context.Context, entry *log.LogEntry) (*emptypb.Empty, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.callCount++
+	if m.callCount <= m.maxFailCount {
+		return nil, assert.AnError
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (m *retryMockLogCollectorServer) SendEvent(ctx context.Context, entry *log.EventEntry) (*emptypb.Empty, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.eventCallCount++
+	if m.eventCallCount <= m.maxFailCount {
+		return nil, assert.AnError
+	}
+	return &emptypb.Empty{}, nil
 }
