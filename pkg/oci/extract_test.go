@@ -134,6 +134,196 @@ func TestExtractDataset(t *testing.T) {
 	})
 }
 
+func TestExtractDatasetWithPathTraversal(t *testing.T) {
+	t.Run("path traversal skipped, valid file extracted", func(t *testing.T) {
+		ociDir := t.TempDir()
+		destDir := t.TempDir()
+
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		layerPath := filepath.Join(blobsDir, "layer123")
+		layerFile, err := os.Create(layerPath)
+		require.NoError(t, err)
+
+		gw := gzip.NewWriter(layerFile)
+		tw := tar.NewWriter(gw)
+
+		// Path traversal entry (should be skipped)
+		maliciousHdr := &tar.Header{
+			Name: "../../../tmp/evil.csv",
+			Mode: 0o644,
+			Size: int64(len("evil")),
+		}
+		require.NoError(t, tw.WriteHeader(maliciousHdr))
+		_, err = tw.Write([]byte("evil"))
+		require.NoError(t, err)
+
+		// Valid CSV file
+		csvContent := "col1,col2\n1,2"
+		csvHdr := &tar.Header{
+			Name: "data.csv",
+			Mode: 0o644,
+			Size: int64(len(csvContent)),
+		}
+		require.NoError(t, tw.WriteHeader(csvHdr))
+		_, err = tw.Write([]byte(csvContent))
+		require.NoError(t, err)
+
+		require.NoError(t, tw.Close())
+		require.NoError(t, gw.Close())
+		require.NoError(t, layerFile.Close())
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:layer123"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		files, err := ExtractDataset(ociDir, destDir)
+		require.NoError(t, err)
+		assert.Len(t, files, 1)
+		assert.Contains(t, files[0], "data.csv")
+
+		// Verify malicious file was NOT created outside destDir
+		_, err = os.Stat("/tmp/evil.csv")
+		assert.True(t, os.IsNotExist(err))
+	})
+}
+
+func TestExtractDatasetInvalidManifest(t *testing.T) {
+	t.Run("invalid manifest JSON", func(t *testing.T) {
+		ociDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), []byte("not json"), 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: 8}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		_, err := ExtractDataset(ociDir, t.TempDir())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse manifest")
+	})
+}
+
+func TestExtractDatasetWithDirectory(t *testing.T) {
+	t.Run("layer with directory entries for dataset", func(t *testing.T) {
+		ociDir := t.TempDir()
+		destDir := t.TempDir()
+
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		layerPath := filepath.Join(blobsDir, "layer123")
+		layerFile, err := os.Create(layerPath)
+		require.NoError(t, err)
+
+		gw := gzip.NewWriter(layerFile)
+		tw := tar.NewWriter(gw)
+
+		// Directory entry
+		dirHdr := &tar.Header{
+			Name:     "data/",
+			Mode:     0o755,
+			Typeflag: tar.TypeDir,
+		}
+		require.NoError(t, tw.WriteHeader(dirHdr))
+
+		// CSV inside directory
+		csvContent := "a,b\n1,2"
+		csvHdr := &tar.Header{
+			Name: "data/dataset.csv",
+			Mode: 0o644,
+			Size: int64(len(csvContent)),
+		}
+		require.NoError(t, tw.WriteHeader(csvHdr))
+		_, err = tw.Write([]byte(csvContent))
+		require.NoError(t, err)
+
+		require.NoError(t, tw.Close())
+		require.NoError(t, gw.Close())
+		require.NoError(t, layerFile.Close())
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:layer123"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		files, err := ExtractDataset(ociDir, destDir)
+		require.NoError(t, err)
+		require.Len(t, files, 1)
+		assert.Contains(t, files[0], "dataset.csv")
+	})
+}
+
+func TestExtractDatasetMissingManifest(t *testing.T) {
+	t.Run("manifest file not found", func(t *testing.T) {
+		ociDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:nonexistent", Size: 0}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		_, err := ExtractDataset(ociDir, t.TempDir())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read manifest")
+	})
+}
+
 func TestOCILayoutStructure(t *testing.T) {
 	t.Run("OCILayout JSON serialization", func(t *testing.T) {
 		layout := OCILayout{ImageLayoutVersion: "1.0.0"}

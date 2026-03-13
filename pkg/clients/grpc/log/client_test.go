@@ -517,6 +517,44 @@ func TestClientSendLogAllRetriesFail(t *testing.T) {
 	assert.Equal(t, 4, mockServer.callCount)
 }
 
+func TestClientSendEventAllRetriesFail(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "log-event-all-fail.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &retryMockLogCollectorServer{
+		failCount:    10,
+		maxFailCount: 10,
+	}
+	log.RegisterLogCollectorServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	entry := &log.EventEntry{
+		EventType: "TestEvent",
+	}
+
+	// Should fail after all retries
+	err = client.SendEvent(ctx, entry)
+	assert.Error(t, err)
+	// 3 retries + 1 final attempt = 4 calls
+	assert.Equal(t, 4, mockServer.eventCallCount)
+}
+
 // retryMockLogCollectorServer is a mock server that fails a specified number of times.
 type retryMockLogCollectorServer struct {
 	log.UnimplementedLogCollectorServer

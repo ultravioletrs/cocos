@@ -145,3 +145,41 @@ func TestSkopeoConstants(t *testing.T) {
 	assert.Equal(t, "/etc/ocicrypt_keyprovider.conf", DefaultOCICryptConfig)
 	assert.Equal(t, "provider:attestation-agent:cc_kbc::null", DecryptionKeyProvider)
 }
+
+func TestNewSkopeoClientUnwritableDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("cannot test unwritable dir as root")
+	}
+
+	// Create a file where a directory is expected
+	tmpDir := t.TempDir()
+	blockingFile := filepath.Join(tmpDir, "blocking")
+	require.NoError(t, os.WriteFile(blockingFile, []byte("data"), 0o444))
+
+	// Try to create a client with workDir inside a file (not a dir)
+	_, err := NewSkopeoClient(filepath.Join(blockingFile, "subdir"))
+	assert.Error(t, err)
+}
+
+func TestSkopeoClientPullAndDecryptEncrypted(t *testing.T) {
+	workDir := t.TempDir()
+	client, err := NewSkopeoClient(workDir)
+	if err != nil {
+		t.Skip("skopeo not installed, skipping test")
+	}
+
+	t.Run("encrypted image uses decryption key flag", func(t *testing.T) {
+		ctx := context.Background()
+		destDir := t.TempDir()
+		// Encrypted source - skopeo call will fail but the --decryption-key arg is built
+		source := ResourceSource{
+			Type:      ResourceTypeOCIImage,
+			URI:       "docker://invalid.registry/nonexistent:latest",
+			Encrypted: true,
+		}
+		err := client.PullAndDecrypt(ctx, source, destDir)
+		// We expect an error (no such image) but the encrypted code path was exercised
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "skopeo copy failed")
+	})
+}

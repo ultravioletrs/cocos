@@ -8,13 +8,53 @@ import (
 	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/hkdf"
 )
+
+// testAESKeyWrap implements RFC 3394 AES Key Wrap for use in test setup.
+func testAESKeyWrap(kek, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(kek)
+	if err != nil {
+		return nil, err
+	}
+
+	n := len(key) / 8
+	a := []byte{0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6}
+	r := make([][]byte, n+1)
+	for i := 1; i <= n; i++ {
+		r[i] = make([]byte, 8)
+		copy(r[i], key[(i-1)*8:i*8])
+	}
+
+	for j := 0; j <= 5; j++ {
+		for i := 1; i <= n; i++ {
+			t := uint64(n*j + i)
+			b := make([]byte, 16)
+			copy(b[:8], a)
+			copy(b[8:], r[i])
+			block.Encrypt(b, b)
+			for k := 0; k < 8; k++ {
+				a[k] = b[k] ^ byte(t>>(56-8*k))
+			}
+			r[i] = make([]byte, 8)
+			copy(r[i], b[8:])
+		}
+	}
+
+	result := make([]byte, (n+1)*8)
+	copy(result[:8], a)
+	for i := 1; i <= n; i++ {
+		copy(result[i*8:(i+1)*8], r[i])
+	}
+	return result, nil
+}
 
 func TestDecryptAESGCM(t *testing.T) {
 	// Generate a valid key
@@ -470,6 +510,190 @@ func TestEncryptedResourceStructure(t *testing.T) {
 		assert.Equal(t, resource.AAD, decoded.AAD)
 		assert.NotNil(t, decoded.EPK)
 		assert.Equal(t, resource.EPK.Curve, decoded.EPK.Curve)
+	})
+}
+
+func TestDecryptWithWrappedKeyFullRoundTrip(t *testing.T) {
+	t.Run("full ECDH + key wrap + AES-GCM round trip", func(t *testing.T) {
+		// Generate recipient private key (who will decrypt)
+		recipientKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		// Generate ephemeral key pair (used to encrypt)
+		ephemeralKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		// Compute shared secret: ephemeral_private ECDH recipient_public
+		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
+		require.NoError(t, err)
+
+		// Derive KEK using HKDF (same as in DecryptWithWrappedKey)
+		kek := make([]byte, 32)
+		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
+		_, err = kdf.Read(kek)
+		require.NoError(t, err)
+
+		// Generate random CEK (32 bytes)
+		cek := make([]byte, 32)
+		_, err = rand.Read(cek)
+		require.NoError(t, err)
+
+		// Wrap CEK using AES Key Wrap (RFC 3394)
+		wrappedKey, err := testAESKeyWrap(kek, cek)
+		require.NoError(t, err)
+
+		// Encrypt plaintext with AES-GCM using CEK
+		plaintext := []byte("hello world secret message for testing")
+		blk, err := aes.NewCipher(cek)
+		require.NoError(t, err)
+		aesgcm, err := cipher.NewGCM(blk)
+		require.NoError(t, err)
+		iv := make([]byte, aesgcm.NonceSize())
+		_, err = rand.Read(iv)
+		require.NoError(t, err)
+
+		// Go's Seal returns ciphertext || tag
+		combined := aesgcm.Seal(nil, iv, plaintext, nil)
+		ciphertext := combined[:len(combined)-aesgcm.Overhead()]
+		tag := combined[len(combined)-aesgcm.Overhead():]
+
+		// Get ephemeral public key coordinates (uncompressed: 0x04 || X(32) || Y(32))
+		epkPubBytes := ephemeralKey.PublicKey().Bytes()
+		xBytes := epkPubBytes[1:33]
+		yBytes := epkPubBytes[33:65]
+
+		resource := EncryptedResource{
+			Ciphertext:   ciphertext,
+			EncryptedKey: wrappedKey,
+			IV:           iv,
+			Tag:          tag,
+			EPK: &EphemeralPublicKey{
+				Curve: "P-256",
+				X:     base64.RawURLEncoding.EncodeToString(xBytes),
+				Y:     base64.RawURLEncoding.EncodeToString(yBytes),
+			},
+		}
+
+		decrypted, err := DecryptWithWrappedKey(resource, recipientKey)
+		require.NoError(t, err)
+		assert.Equal(t, plaintext, decrypted)
+	})
+
+	t.Run("full round trip with AAD", func(t *testing.T) {
+		recipientKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		ephemeralKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
+		require.NoError(t, err)
+
+		kek := make([]byte, 32)
+		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
+		_, err = kdf.Read(kek)
+		require.NoError(t, err)
+
+		cek := make([]byte, 16) // 16-byte CEK (AES-128)
+		_, err = rand.Read(cek)
+		require.NoError(t, err)
+
+		wrappedKey, err := testAESKeyWrap(kek, cek)
+		require.NoError(t, err)
+
+		plaintext := []byte("confidential data with AAD")
+		aad := []byte("additional authenticated data")
+
+		blk, err := aes.NewCipher(cek)
+		require.NoError(t, err)
+		aesgcm, err := cipher.NewGCM(blk)
+		require.NoError(t, err)
+		iv := make([]byte, aesgcm.NonceSize())
+		_, err = rand.Read(iv)
+		require.NoError(t, err)
+
+		combined := aesgcm.Seal(nil, iv, plaintext, aad)
+		ciphertext := combined[:len(combined)-aesgcm.Overhead()]
+		tag := combined[len(combined)-aesgcm.Overhead():]
+
+		epkPubBytes := ephemeralKey.PublicKey().Bytes()
+		xBytes := epkPubBytes[1:33]
+		yBytes := epkPubBytes[33:65]
+
+		resource := EncryptedResource{
+			Ciphertext:   ciphertext,
+			EncryptedKey: wrappedKey,
+			IV:           iv,
+			Tag:          tag,
+			AAD:          aad,
+			EPK: &EphemeralPublicKey{
+				Curve: "P-256",
+				X:     base64.RawURLEncoding.EncodeToString(xBytes),
+				Y:     base64.RawURLEncoding.EncodeToString(yBytes),
+			},
+		}
+
+		decrypted, err := DecryptWithWrappedKey(resource, recipientKey)
+		require.NoError(t, err)
+		assert.Equal(t, plaintext, decrypted)
+	})
+
+	t.Run("wrong private key fails decryption", func(t *testing.T) {
+		recipientKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+		wrongKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		ephemeralKey, err := ecdh.P256().GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
+		require.NoError(t, err)
+
+		kek := make([]byte, 32)
+		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
+		_, err = kdf.Read(kek)
+		require.NoError(t, err)
+
+		cek := make([]byte, 32)
+		_, err = rand.Read(cek)
+		require.NoError(t, err)
+
+		wrappedKey, err := testAESKeyWrap(kek, cek)
+		require.NoError(t, err)
+
+		plaintext := []byte("secret")
+		blk, err := aes.NewCipher(cek)
+		require.NoError(t, err)
+		aesgcm, err := cipher.NewGCM(blk)
+		require.NoError(t, err)
+		iv := make([]byte, aesgcm.NonceSize())
+		_, err = rand.Read(iv)
+		require.NoError(t, err)
+
+		combined := aesgcm.Seal(nil, iv, plaintext, nil)
+		ciphertext := combined[:len(combined)-aesgcm.Overhead()]
+		tag := combined[len(combined)-aesgcm.Overhead():]
+
+		epkPubBytes := ephemeralKey.PublicKey().Bytes()
+		xBytes := epkPubBytes[1:33]
+		yBytes := epkPubBytes[33:65]
+
+		resource := EncryptedResource{
+			Ciphertext:   ciphertext,
+			EncryptedKey: wrappedKey,
+			IV:           iv,
+			Tag:          tag,
+			EPK: &EphemeralPublicKey{
+				Curve: "P-256",
+				X:     base64.RawURLEncoding.EncodeToString(xBytes),
+				Y:     base64.RawURLEncoding.EncodeToString(yBytes),
+			},
+		}
+
+		// Using wrong key should fail
+		_, err = DecryptWithWrappedKey(resource, wrongKey)
+		assert.Error(t, err)
 	})
 }
 
