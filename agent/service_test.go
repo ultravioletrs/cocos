@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/python"
+	agentevents "github.com/ultravioletrs/cocos/agent/events"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	runnerpb "github.com/ultravioletrs/cocos/agent/runner"
 	"github.com/ultravioletrs/cocos/agent/statemachine"
@@ -671,4 +673,371 @@ func TestStopComputationConcurrent(t *testing.T) {
 	}
 
 	assert.True(t, len(errors) < numGoroutines, "All StopComputation calls failed")
+}
+
+// newTestAgentService creates a minimal agentService for direct method testing.
+func newTestAgentService(sm statemachine.StateMachine, eventSvc agentevents.Service) *agentService {
+	return &agentService{
+		logger:   slog.Default(),
+		eventSvc: eventSvc,
+		sm:       sm,
+	}
+}
+
+func TestDownloadAndDecryptResource(t *testing.T) {
+	eventsSvc := new(mocks.Service)
+	eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+	sm := &smmocks.StateMachine{}
+	sm.On("SendEvent", mock.Anything).Return().Maybe()
+
+	svc := newTestAgentService(sm, eventsSvc)
+
+	ctx := context.Background()
+
+	t.Run("unsupported URL format no type", func(t *testing.T) {
+		source := &ResourceSource{URL: "http://unsupported-format"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported source URL format")
+	})
+
+	t.Run("ftp URL unsupported format", func(t *testing.T) {
+		source := &ResourceSource{URL: "ftp://some-server/file"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported source URL format")
+	})
+
+	t.Run("unsupported explicit source type", func(t *testing.T) {
+		source := &ResourceSource{Type: "s3-bucket", URL: "s3://mybucket/algo"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported source type: s3-bucket")
+	})
+
+	t.Run("docker:// URL inferred as oci-image routes to skopeo", func(t *testing.T) {
+		// This exercises the oci-image path; will fail at skopeo step
+		source := &ResourceSource{URL: "docker://invalid.example.com/algo:latest"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		// Should be a skopeo or OCI error, not an "unsupported" error
+		assert.NotContains(t, err.Error(), "unsupported source URL format")
+	})
+
+	t.Run("oci: URL inferred as oci-image routes to skopeo", func(t *testing.T) {
+		source := &ResourceSource{URL: "oci:some-local-dir"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "unsupported source URL format")
+	})
+
+	t.Run("explicit oci-image type routes to skopeo", func(t *testing.T) {
+		source := &ResourceSource{Type: "oci-image", URL: "docker://invalid.example.com/algo:latest"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "algorithm")
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "unsupported source type")
+	})
+
+	t.Run("dataset resource type with oci-image", func(t *testing.T) {
+		source := &ResourceSource{Type: "oci-image", URL: "docker://invalid.example.com/data:latest"}
+		_, err := svc.downloadAndDecryptResource(ctx, source, "dataset")
+		require.Error(t, err)
+	})
+}
+
+func TestDownloadAlgorithmIfRemote(t *testing.T) {
+	t.Run("no source configured - no-op, waits for direct upload", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		// No SendEvent expected — just the no-op path
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{} // Algorithm.Source == nil
+
+		svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+		assert.Nil(t, svc.runError)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("source set but KBS disabled - no-op", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Algorithm: Algorithm{
+				Source: &ResourceSource{URL: "docker://registry/algo:latest"},
+			},
+			KBS: KBSConfig{Enabled: false},
+		}
+
+		svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+		assert.Nil(t, svc.runError)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("source + KBS enabled - download fails, sends RunFailed", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Algorithm: Algorithm{
+				Source: &ResourceSource{
+					Type: "oci-image",
+					URL:  "docker://invalid.example.com/algo:latest",
+				},
+			},
+			KBS: KBSConfig{Enabled: true, URL: "https://kbs.example.com"},
+		}
+
+		svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+		assert.NotNil(t, svc.runError)
+		assert.Contains(t, svc.runError.Error(), "failed to download and decrypt algorithm")
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("unsupported URL format - download fails, sends RunFailed", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Algorithm: Algorithm{
+				Source: &ResourceSource{
+					URL: "http://unsupported-format/algo",
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+		assert.NotNil(t, svc.runError)
+		sm.AssertExpectations(t)
+	})
+}
+
+func TestDownloadDatasetsIfRemote(t *testing.T) {
+	t.Run("no datasets with remote sources - no-op", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+
+		svc := newTestAgentService(sm, eventsSvc)
+		// Dataset with no Source
+		dataHash := sha3.Sum256([]byte("testdata"))
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{Hash: dataHash, Filename: "data.csv"},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		// No RunFailed event, no DataReceived event
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("no datasets at all - no-op", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Datasets: []Dataset{},
+			KBS:      KBSConfig{Enabled: true},
+		}
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("KBS disabled even with source - no-op", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{
+					Filename: "data.csv",
+					Source:   &ResourceSource{URL: "docker://registry/data:latest"},
+				},
+			},
+			KBS: KBSConfig{Enabled: false},
+		}
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("remote dataset + KBS enabled - download fails, sends RunFailed", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{
+					Filename: "data.csv",
+					Source: &ResourceSource{
+						Type: "oci-image",
+						URL:  "docker://invalid.example.com/data:latest",
+					},
+				},
+			},
+			KBS: KBSConfig{Enabled: true, URL: "https://kbs.example.com"},
+		}
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("unsupported URL fails - sends RunFailed", func(t *testing.T) {
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{
+					Filename: "data.csv",
+					Source: &ResourceSource{
+						URL: "ftp://unsupported/data",
+					},
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		sm.AssertExpectations(t)
+	})
+}
+
+func TestRunComputation(t *testing.T) {
+	// Helper to set up a temp working directory and restore CWD afterwards.
+	withTempDir := func(t *testing.T) (tmpDir string, restore func()) {
+		t.Helper()
+		origDir, err := os.Getwd()
+		require.NoError(t, err)
+		tmpDir = t.TempDir()
+		require.NoError(t, os.Chdir(tmpDir))
+		return tmpDir, func() { _ = os.Chdir(origDir) }
+	}
+
+	t.Run("algo file not found sends RunFailed", func(t *testing.T) {
+		_, restore := withTempDir(t)
+		defer restore()
+
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		// No algo file exists – runComputation should hit the ReadFile error path.
+		svc.runComputation(Running)
+
+		assert.Error(t, svc.runError)
+		assert.Contains(t, svc.runError.Error(), "failed to read algo file")
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("runner client returns error sends RunFailed", func(t *testing.T) {
+		_, restore := withTempDir(t)
+		defer restore()
+
+		// Write a dummy algo file so ReadFile succeeds.
+		require.NoError(t, os.WriteFile("algo", []byte("#!/bin/sh\necho ok\n"), 0o755))
+
+		runnerCli := new(runnermocks.Client)
+		runnerCli.On("Run", mock.Anything, mock.Anything).Return((*runnerpb.RunResponse)(nil), fmt.Errorf("runner unavailable"))
+
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.runnerClient = runnerCli
+
+		svc.runComputation(Running)
+
+		assert.Error(t, svc.runError)
+		assert.Contains(t, svc.runError.Error(), "runner unavailable")
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("runner returns non-empty error field sends RunFailed", func(t *testing.T) {
+		_, restore := withTempDir(t)
+		defer restore()
+
+		require.NoError(t, os.WriteFile("algo", []byte("#!/bin/sh\necho ok\n"), 0o755))
+
+		runnerCli := new(runnermocks.Client)
+		runnerCli.On("Run", mock.Anything, mock.Anything).Return(&runnerpb.RunResponse{Error: "computation crashed"}, nil)
+
+		eventsSvc := new(mocks.Service)
+		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.runnerClient = runnerCli
+
+		svc.runComputation(Running)
+
+		assert.Error(t, svc.runError)
+		assert.Contains(t, svc.runError.Error(), "computation crashed")
+		sm.AssertExpectations(t)
+	})
+}
+
+func TestIMAMeasurements(t *testing.T) {
+	t.Run("error when IMA measurements file does not exist in non-SGX environment", func(t *testing.T) {
+		// In a regular test environment (non-SGX), the IMA measurements file
+		// at /sys/kernel/security/integrity/ima/ascii_runtime_measurements won't exist.
+		// Verify our error handling works correctly.
+		_, statErr := os.Stat(ImaMeasurementsFilePath)
+		if !os.IsNotExist(statErr) {
+			t.Skip("IMA measurements file exists - running on SGX/TPM hardware, skipping error path test")
+		}
+
+		eventsSvc := new(mocks.Service)
+		sm := &smmocks.StateMachine{}
+
+		svc := newTestAgentService(sm, eventsSvc)
+
+		data, pcr10, err := svc.IMAMeasurements(context.Background())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error reading Linux IMA measurements file")
+		assert.Nil(t, data)
+		assert.Nil(t, pcr10)
+	})
 }
