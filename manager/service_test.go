@@ -424,7 +424,6 @@ func TestCreateVMWithAaKbsParams(t *testing.T) {
 				Return(vmMock).Once()
 
 			vmMock.On("Start").Return(nil).Once()
-			vmMock.On("SendAgentConfig", mock.Anything).Return(nil).Once()
 			vmMock.On("GetProcess").Return(1234).Once()
 			vmMock.On("Transition", mock.Anything).Return(nil).Once()
 			persistence.On("SaveVM", mock.Anything).Return(nil).Once()
