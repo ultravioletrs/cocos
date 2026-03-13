@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testPythonScript = "print('hello')"
+
 func TestIsAlgorithmFile(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -108,7 +110,7 @@ func TestExtractAlgorithm(t *testing.T) {
 	})
 
 	t.Run("successful extraction", func(t *testing.T) {
-		ociDir, destDir := setupTestOCIImage(t, "algorithm.py", "print('hello')")
+		ociDir, destDir := setupTestOCIImage(t, "algorithm.py", testPythonScript)
 		algoPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
 		require.NoError(t, err)
 		assert.NotEmpty(t, algoPath)
@@ -227,7 +229,7 @@ func TestExtractAlgorithmWithRequirements(t *testing.T) {
 		tw := tar.NewWriter(gw)
 
 		// Add algorithm file
-		algoContent := "print('hello')"
+		algoContent := testPythonScript
 		algoHdr := &tar.Header{
 			Name: "main.py",
 			Mode: 0o644,
@@ -366,7 +368,7 @@ func TestExtractDatasetNoDataFiles(t *testing.T) {
 		tw := tar.NewWriter(gw)
 
 		// Add a python file (not a data file)
-		pyContent := "print('hello')"
+		pyContent := testPythonScript
 		pyHdr := &tar.Header{
 			Name: "script.py",
 			Mode: 0o644,
@@ -493,7 +495,7 @@ func TestExtractAlgorithmWithDirectory(t *testing.T) {
 		require.NoError(t, tw.WriteHeader(dirHdr))
 
 		// Add algorithm file in subdirectory
-		algoContent := "print('hello')"
+		algoContent := testPythonScript
 		algoHdr := &tar.Header{
 			Name: "src/main.py",
 			Mode: 0o644,
@@ -565,7 +567,7 @@ func TestExtractAlgorithmPathTraversal(t *testing.T) {
 		require.NoError(t, err)
 
 		// Add a legit file
-		algoContent := "print('hello')"
+		algoContent := testPythonScript
 		algoHdr := &tar.Header{
 			Name: "algorithm.py",
 			Mode: 0o644,
