@@ -5,6 +5,7 @@ package oci
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -801,5 +802,119 @@ func TestExtractAlgorithmPathTraversal(t *testing.T) {
 		// Verify malicious file was NOT extracted outside destDir
 		_, err = os.Stat("/etc/malicious.py")
 		assert.True(t, os.IsNotExist(err))
+	})
+}
+
+func TestExtractAlgorithmErrorPathsAdditional(t *testing.T) {
+	logger := slog.Default()
+
+	t.Run("invalid layer gzip", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "main.py", "print('hello')")
+		// Corrupt the layer file
+		layerPath := filepath.Join(ociDir, "blobs", "sha256", "layer123")
+		err := os.WriteFile(layerPath, []byte("not gzip"), 0o644)
+		require.NoError(t, err)
+
+		_, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no algorithm file found")
+	})
+
+	t.Run("invalid tar formatting", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "main.py", "print('hello')")
+		layerPath := filepath.Join(ociDir, "blobs", "sha256", "layer123")
+
+		// Create a valid gzip but invalid tar
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte("not a tar archive but it is gzipped"))
+		require.NoError(t, err)
+		gw.Close()
+		err = os.WriteFile(layerPath, buf.Bytes(), 0o644)
+		require.NoError(t, err)
+
+		_, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no algorithm file found")
+	})
+
+	t.Run("non-existent layer file", func(t *testing.T) {
+		ociDir := t.TempDir()
+		destDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:nonexistent"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		_, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no algorithm file found")
+	})
+}
+
+func TestExtractDatasetErrorPathsAdditional(t *testing.T) {
+	t.Run("invalid layer gzip", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "data.csv", "a,b,c")
+		layerPath := filepath.Join(ociDir, "blobs", "sha256", "layer123")
+		err := os.WriteFile(layerPath, []byte("not gzip"), 0o644)
+		require.NoError(t, err)
+
+		_, err = ExtractDataset(ociDir, destDir)
+		assert.Error(t, err)
+	})
+
+	t.Run("non-existent layer file", func(t *testing.T) {
+		ociDir := t.TempDir()
+		destDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:nonexistent"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		_, err := ExtractDataset(ociDir, destDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no dataset files found")
 	})
 }

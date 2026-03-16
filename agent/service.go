@@ -76,7 +76,7 @@ const (
 	algoFilePermission = 0o700
 )
 
-const (
+var (
 	ImaMeasurementsFilePath = "/sys/kernel/security/integrity/ima/ascii_runtime_measurements"
 	ImaPcrIndex             = 10
 )
@@ -128,6 +128,10 @@ type Service interface {
 	State() string
 }
 
+type OCIClient interface {
+	PullAndDecrypt(ctx context.Context, source oci.ResourceSource, destDir string) error
+}
+
 type agentService struct {
 	mu                sync.Mutex
 	computation       Computation // Holds the current computation request details.
@@ -145,6 +149,7 @@ type agentService struct {
 	resultsConsumed   bool                      // Indicates if the results have been consumed.
 	cancel            context.CancelFunc        // Cancels the computation context.
 	vmpl              int                       // VMPL at which the Agent is running.
+	ociClient         OCIClient
 }
 
 var _ Service = (*agentService)(nil)
@@ -162,6 +167,13 @@ func New(ctx context.Context, logger *slog.Logger, eventSvc events.Service, atte
 		cancel:            cancel,
 		vmpl:              vmlp,
 	}
+
+	workDir := filepath.Join(os.TempDir(), "cocos-oci")
+	skopeoClient, err := oci.NewSkopeoClient(workDir)
+	if err != nil {
+		logger.Warn("failed to create Skopeo client", "error", err)
+	}
+	svc.ociClient = skopeoClient
 
 	transitions := []statemachine.Transition{
 		{From: Idle, Event: Start, To: ReceivingManifest},
@@ -556,10 +568,8 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 		source.URL, source.Encrypted, source.KBSResourcePath))
 
 	// Create Skopeo client
-	workDir := filepath.Join(os.TempDir(), "cocos-oci")
-	skopeoClient, err := oci.NewSkopeoClient(workDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Skopeo client: %w", err)
+	if as.ociClient == nil {
+		return nil, fmt.Errorf("OCI client not initialized")
 	}
 
 	// Create OCI resource source
@@ -574,16 +584,17 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 	// CoCo Keyprovider will automatically handle decryption via ocicrypt
 	// Sanitize directory name to avoid Skopeo interpreting ':' as tag separator
 	sanitizedName := strings.ReplaceAll(filepath.Base(source.URL), ":", "_")
-	destDir := filepath.Join(workDir, "images", sanitizedName)
-	if err := skopeoClient.PullAndDecrypt(ctx, ociSource, destDir); err != nil {
+	destDir := filepath.Join(os.TempDir(), "cocos-oci", "images", sanitizedName)
+	if err := as.ociClient.PullAndDecrypt(ctx, ociSource, destDir); err != nil {
 		return nil, fmt.Errorf("failed to pull and decrypt OCI image: %w", err)
 	}
 
 	as.logger.Info("OCI image downloaded and decrypted", "dest", destDir)
 
 	// Extract algorithm file from OCI layers
-	extractDir := filepath.Join(workDir, "extracted", sanitizedName)
+	extractDir := filepath.Join(os.TempDir(), "cocos-oci", "extracted", sanitizedName)
 	var algorithmPath string
+	var err error
 
 	if resourceType == "algorithm" {
 		algorithmPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)

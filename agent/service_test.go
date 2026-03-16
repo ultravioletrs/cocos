@@ -3,8 +3,11 @@
 package agent
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -28,10 +31,20 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	runnermocks "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner/mocks"
+	"github.com/ultravioletrs/cocos/pkg/oci"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+type MockOCIClient struct {
+	mock.Mock
+}
+
+func (m *MockOCIClient) PullAndDecrypt(ctx context.Context, source oci.ResourceSource, destDir string) error {
+	args := m.Called(ctx, source, destDir)
+	return args.Error(0)
+}
 
 var (
 	algoPath = "../test/manual/algo/lin_reg.py"
@@ -1024,12 +1037,12 @@ func TestIMAMeasurements(t *testing.T) {
 		// In a regular test environment (non-SGX), the IMA measurements file
 		// at /sys/kernel/security/integrity/ima/ascii_runtime_measurements won't exist.
 		// Verify our error handling works correctly.
-		_, statErr := os.Stat(ImaMeasurementsFilePath)
-		if !os.IsNotExist(statErr) {
-			t.Skip("IMA measurements file exists - running on SGX/TPM hardware, skipping error path test")
-		}
+		origPath := ImaMeasurementsFilePath
+		ImaMeasurementsFilePath = "/non/existent/path"
+		defer func() { ImaMeasurementsFilePath = origPath }()
 
 		eventsSvc := new(mocks.Service)
+		eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 		sm := &smmocks.StateMachine{}
 
 		svc := newTestAgentService(sm, eventsSvc)
@@ -1040,4 +1053,184 @@ func TestIMAMeasurements(t *testing.T) {
 		assert.Nil(t, data)
 		assert.Nil(t, pcr10)
 	})
+
+	t.Run("successful reading of IMA measurements", func(t *testing.T) {
+		tempFile := filepath.Join(t.TempDir(), "ima_measurements")
+		content := []byte("10 sha1:0000000000000000000000000000000000000000 ima-ng sha256:0000000000000000000000000000000000000000000000000000000000000000 /usr/bin/python3\n")
+		err := os.WriteFile(tempFile, content, 0o644)
+		require.NoError(t, err)
+		vtpm.ExternalTPM = &vtpm.DummyRWC{}
+
+		origPath := ImaMeasurementsFilePath
+		ImaMeasurementsFilePath = tempFile
+		defer func() { ImaMeasurementsFilePath = origPath }()
+
+		eventsSvc := new(mocks.Service)
+		eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+		sm := &smmocks.StateMachine{}
+		svc := newTestAgentService(sm, eventsSvc)
+
+		data, pcr10, err := svc.IMAMeasurements(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, content, data)
+		assert.NotEmpty(t, pcr10)
+	})
+}
+
+func TestDownloadAlgorithmIfRemote_Success(t *testing.T) {
+	// Skip this test in short mode as it might involve more setup if we were using real OCI
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	sm := &smmocks.StateMachine{}
+	sm.On("SendEvent", AlgorithmReceived).Return().Once()
+
+	mockOCI := new(MockOCIClient)
+	algoContent := []byte("print('hello')")
+	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		destDir := args.String(2)
+		setupMinimalOCI(t, destDir, "main.py", string(algoContent))
+	}).Return(nil)
+
+	svc := newTestAgentService(sm, eventsSvc)
+	svc.ociClient = mockOCI
+
+	algoContent = []byte("print('hello')")
+	algoHash := sha3.Sum256(algoContent)
+
+	svc.computation = Computation{
+		Algorithm: Algorithm{
+			Hash:     algoHash,
+			AlgoType: "python",
+			Source: &ResourceSource{
+				Type: "oci-image",
+				URL:  "docker://test/image",
+			},
+		},
+		KBS: KBSConfig{Enabled: true},
+	}
+
+	// We need to bypass oci.ExtractAlgorithm by manually creating what it would create
+	// OR use a real-enough looking OCI layout.
+	// Since we can't easily mock oci.ExtractAlgorithm, we'll try to provide a minimal OCI layout
+	// so that oci.ExtractAlgorithm doesn't fail.
+
+	svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+
+	assert.Nil(t, svc.runError)
+	assert.True(t, svc.algoReceived)
+	sm.AssertExpectations(t)
+	mockOCI.AssertExpectations(t)
+}
+
+func setupMinimalOCI(t *testing.T, ociDir, filename, content string) {
+	t.Helper()
+	blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+	require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+	layerPath := filepath.Join(blobsDir, "layer123")
+	layerFile, err := os.Create(layerPath)
+	require.NoError(t, err)
+
+	gw := gzip.NewWriter(layerFile)
+	tw := tar.NewWriter(gw)
+
+	hdr := &tar.Header{
+		Name: filename,
+		Mode: 0o755,
+		Size: int64(len(content)),
+	}
+	require.NoError(t, tw.WriteHeader(hdr))
+	_, err = tw.Write([]byte(content))
+	require.NoError(t, err)
+
+	require.NoError(t, tw.Close())
+	require.NoError(t, gw.Close())
+	require.NoError(t, layerFile.Close())
+
+	manifest := struct {
+		Layers []struct {
+			Digest string `json:"digest"`
+		} `json:"layers"`
+	}{
+		Layers: []struct {
+			Digest string `json:"digest"`
+		}{{Digest: "sha256:layer123"}},
+	}
+	manifestData, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+	index := oci.OCIIndex{
+		SchemaVersion: 2,
+		Manifests: []struct {
+			MediaType string `json:"mediaType"`
+			Digest    string `json:"digest"`
+			Size      int    `json:"size"`
+		}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+	}
+	indexData, err := json.Marshal(index)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+}
+
+func TestDownloadDatasetsIfRemote_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	sm := &smmocks.StateMachine{}
+	sm.On("SendEvent", DataReceived).Return().Once()
+
+	mockOCI := new(MockOCIClient)
+	dataContent := []byte("a,b,c\n1,2,3")
+	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		destDir := args.String(2)
+		setupMinimalOCI(t, destDir, "data.csv", string(dataContent))
+	}).Return(nil)
+
+	svc := newTestAgentService(sm, eventsSvc)
+	svc.ociClient = mockOCI
+
+	dataContent = []byte("a,b,c\n1,2,3")
+	dataHash := sha3.Sum256(dataContent)
+
+	svc.computation = Computation{
+		Datasets: []Dataset{
+			{
+				Filename: "data.csv",
+				Hash:     dataHash,
+				Source: &ResourceSource{
+					Type: "oci-image",
+					URL:  "docker://test/image",
+				},
+			},
+		},
+		KBS: KBSConfig{Enabled: true},
+	}
+
+	err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
+	require.NoError(t, err)
+
+	svc.downloadDatasetsIfRemote(ReceivingData)
+
+	assert.Nil(t, svc.runError)
+	assert.Len(t, svc.computation.Datasets, 0)
+	sm.AssertExpectations(t)
+	mockOCI.AssertExpectations(t)
 }

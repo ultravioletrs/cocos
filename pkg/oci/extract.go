@@ -250,9 +250,11 @@ func ExtractDataset(ociDir, destPath string) ([]string, error) {
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		files, err := extractLayerDataFiles(layerPath, destPath)
-		if err == nil {
-			datasetFiles = append(datasetFiles, files...)
+		if err != nil {
+			slog.Warn("error extracting layer", "digest", layer.Digest, "error", err)
+			continue
 		}
+		datasetFiles = append(datasetFiles, files...)
 	}
 
 	if len(datasetFiles) == 0 {
