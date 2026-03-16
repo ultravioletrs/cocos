@@ -31,11 +31,6 @@ const (
 	sevSnpProductGenoa = "Genoa"
 )
 
-var (
-	timeout     = time.Minute * 2
-	maxTryDelay = time.Second * 30
-)
-
 // getLeveledQuoteProvider returns a leveled quote provider for SEV-SNP.
 func getLeveledQuoteProvider() (client.LeveledQuoteProvider, error) {
 	return client.GetLeveledQuoteProvider()

@@ -186,6 +186,6 @@ func TestNewValidateAttestationValidationCmd(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
-	cmd.Execute()
+	_ = cmd.Execute()
 	assert.Contains(t, buf.String(), "deprecated")
 }

@@ -93,7 +93,6 @@ type Service interface {
 
 type managerService struct {
 	mu                          sync.Mutex
-	ap                          sync.Mutex
 	qemuCfg                     qemu.Config
 	attestationPolicyBinaryPath string
 	pcrValuesFilePath           string

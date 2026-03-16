@@ -40,7 +40,7 @@ func (cli *CLI) NewCreateCoRIMAzureCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&tokenPath, "token", "", "Path to file containing Azure Attestation Token (JWT)")
 	cmd.Flags().StringVar(&product, "product", "Milan", "Processor product name (Milan, Genoa)")
-	cmd.MarkFlagRequired("token")
+	_ = cmd.MarkFlagRequired("token")
 
 	return cmd
 }
@@ -59,7 +59,7 @@ func (cli *CLI) NewCreateCoRIMGCPCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&measurement, "measurement", "", "384-bit measurement hex string")
 	cmd.Flags().Uint32Var(&vcpuNum, "vcpu", 0, "vCPU number")
-	cmd.MarkFlagRequired("measurement")
+	_ = cmd.MarkFlagRequired("measurement")
 
 	return cmd
 }
@@ -105,7 +105,7 @@ func (cli *CLI) NewCreateCoRIMSNPCmd() *cobra.Command {
 			}
 
 			if output != "" {
-				if err := os.WriteFile(output, cborBytes, 0644); err != nil {
+				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
 				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)
@@ -168,7 +168,7 @@ func (cli *CLI) NewCreateCoRIMTDXCmd() *cobra.Command {
 			}
 
 			if output != "" {
-				if err := os.WriteFile(output, cborBytes, 0644); err != nil {
+				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
 				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)

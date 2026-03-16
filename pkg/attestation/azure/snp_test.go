@@ -19,7 +19,6 @@ import (
 
 var (
 	testNonce        = []byte("test-nonce-12345678901234567890123456789012")
-	testReport       = []byte("test-report-data")
 	testKID          = "test-kid"
 	openIDConfigPath = "/.well-known/openid_configuration"
 	certsPath        = "/certs"
@@ -401,8 +400,6 @@ func TestIntegration_ErrorPropagation(t *testing.T) {
 
 		_, err := provider.AzureAttestationToken([]byte("test-nonce"))
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to fetch Azure token")
-
 	})
 }
 

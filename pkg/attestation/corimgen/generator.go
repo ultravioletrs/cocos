@@ -14,13 +14,13 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-// Legacy SNP Defaults
+// Legacy SNP Defaults.
 const (
 	SNPDefaultVmpl        = 2
 	SNPDefaultMeasurement = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" // 48 bytes
 )
 
-// Legacy TDX Defaults
+// Legacy TDX Defaults.
 var (
 	TDXDefaultMrSeam = "5b38e33a6487958b72c3c12a938eaa5e3fd4510c51aeeab58c7d5ecee41d7c436489d6c8e4f92f160b7cad34207b00c1"
 	TDXDefaultMrTd   = "91eb2b44d141d4ece09f0c75c2c53d247a3c68edd7fafe8a3520c942a604a407de03ae6dc5f87f27428b2538873118b7"

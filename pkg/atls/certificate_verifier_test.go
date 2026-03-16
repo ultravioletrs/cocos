@@ -18,33 +18,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
+	"github.com/veraison/corim/corim"
 	"golang.org/x/crypto/sha3"
 )
 
 type mockVerifier struct {
-	verifyAttestationFunc func(report []byte, teeNonce []byte, vTpmNonce []byte) error
+	verifyWithCoRIMFunc func(report []byte, manifest *corim.UnsignedCorim) error
 }
 
-func (m *mockVerifier) VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error {
-	if m.verifyAttestationFunc != nil {
-		return m.verifyAttestationFunc(report, teeNonce, vTpmNonce)
+func (m *mockVerifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error {
+	if m.verifyWithCoRIMFunc != nil {
+		return m.verifyWithCoRIMFunc(report, manifest)
 	}
-	return nil
-}
-
-func (m *mockVerifier) VerifTeeAttestation(report []byte, teeNonce []byte) error {
-	return nil
-}
-
-func (m *mockVerifier) VerifVTpmAttestation(report []byte, vTpmNonce []byte) error {
-	return nil
-}
-
-func (m *mockVerifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error {
-	return nil
-}
-
-func (m *mockVerifier) JSONToPolicy(path string) error {
 	return nil
 }
 
@@ -74,7 +59,7 @@ func TestVerifyPeerCertificate_Success(t *testing.T) {
 	verifier := NewCertificateVerifier(rootCAs).(*certificateVerifier)
 	verifier.verifierProvider = func(pt attestation.PlatformType) (attestation.Verifier, error) {
 		return &mockVerifier{
-			verifyAttestationFunc: func(report []byte, teeNonce []byte, vTpmNonce []byte) error {
+			verifyWithCoRIMFunc: func(report []byte, manifest *corim.UnsignedCorim) error {
 				return nil
 			},
 		}, nil

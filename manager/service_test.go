@@ -109,7 +109,7 @@ func TestRun(t *testing.T) {
 
 			binaryDir := t.TempDir()
 			igvmBinary := filepath.Join(binaryDir, "igvmmeasure")
-			err := os.WriteFile(igvmBinary, []byte("#!/bin/sh\nprintf '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'"), 0755)
+			err := os.WriteFile(igvmBinary, []byte("#!/bin/sh\nprintf '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'"), 0o755)
 			assert.NoError(t, err)
 
 			ms := &managerService{

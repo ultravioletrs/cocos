@@ -8,13 +8,13 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/corimgen"
 )
 
-// Legacy SNP Defaults (re-exported from corimgen)
+// Legacy SNP Defaults (re-exported from corimgen).
 const (
 	SNPDefaultVmpl        = corimgen.SNPDefaultVmpl
 	SNPDefaultMeasurement = corimgen.SNPDefaultMeasurement
 )
 
-// Legacy TDX Defaults (re-exported from corimgen)
+// Legacy TDX Defaults (re-exported from corimgen).
 var (
 	TDXDefaultMrSeam = corimgen.TDXDefaultMrSeam
 	TDXDefaultMrTd   = corimgen.TDXDefaultMrTd

@@ -44,10 +44,7 @@ const (
 
 var (
 	errReportSize                 = errors.New("attestation contents too small")
-	output                        string
 	nonce                         []byte
-	format                        string
-	attestationFile               string
 	teeNonce                      []byte
 	tokenNonce                    []byte
 	getTextProtoAttestationReport bool

@@ -31,13 +31,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"golang.org/x/crypto/sha3"
-
 	"github.com/veraison/corim/corim"
-)
-
-const (
-	sevProductNameMilan = "Milan"
+	"golang.org/x/crypto/sha3"
 )
 
 // var policy = attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
@@ -68,14 +63,6 @@ func (m *mockAttestationClient) GetRawEvidence(ctx context.Context, reportData [
 
 func (m *mockAttestationClient) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error) {
 	args := m.Called(ctx, nonce)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-func (m *mockAttestationClient) GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
-	args := m.Called(ctx, reportData, nonce, attType)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
