@@ -3,7 +3,6 @@
 package manager
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -13,7 +12,7 @@ import (
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
-	"github.com/ultravioletrs/cocos/pkg/attestation/corim"
+	"github.com/veraison/corim/corim"
 )
 
 func CreateDummyCoRIMFile(t *testing.T, content []byte) string {
@@ -54,13 +53,21 @@ func TestFetchAttestationPolicy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			binaryDir := t.TempDir()
+			igvmBinary := filepath.Join(binaryDir, "igvmmeasure")
+			err := os.WriteFile(igvmBinary, []byte("#!/bin/sh\nprintf '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'"), 0755)
+			assert.NoError(t, err)
+
 			ms := &managerService{
 				vms: make(map[string]vm.VM),
 				qemuCfg: qemu.Config{
 					EnableSEVSNP: tc.enableSEVSNP,
 					CPU:          "EPYC",
+					IGVMConfig: qemu.IGVMConfig{
+						File: "/tmp/dummy.igvm",
+					},
 				},
-				attestationPolicyBinaryPath: "/tmp/test",
+				attestationPolicyBinaryPath: binaryDir,
 			}
 
 			mockVM := new(mocks.VM)
@@ -87,13 +94,12 @@ func TestFetchAttestationPolicy(t *testing.T) {
 				assert.NotNil(t, result)
 
 				// Verify generated content is valid CoRIM
-				manifest, err := corim.ParseCorim(result)
+				manifest := corim.NewUnsignedCorim()
+				err = manifest.FromCBOR(result)
 				assert.NoError(t, err, "Result should be valid CoRIM CBOR")
 
 				// Verify Platform ID matches
-				// Corim ID is usually the first byte array in Corim struct (ID)
-				// Corim.ID is []byte
-				assert.True(t, bytes.Equal(manifest.ID, []byte(tc.expectedPlatform)), "CoRIM ID should match platform tag")
+				assert.Contains(t, manifest.GetID(), tc.expectedPlatform, "CoRIM ID should contains platform tag")
 			}
 		})
 	}
