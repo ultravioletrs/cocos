@@ -10,6 +10,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -100,6 +102,26 @@ func TestVerifyPeerCertificate_Success(t *testing.T) {
 	}
 	peerCertDER, err := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
 	require.NoError(t, err)
+
+	// Create dummy CoRIM file
+	tempDir, err := os.MkdirTemp("", "policy")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	c := corim.NewUnsignedCorim()
+	c.SetID("cocos-test-id")
+	corimBytes, err := c.ToCBOR()
+	require.NoError(t, err)
+
+	policyPath := filepath.Join(tempDir, "attestation_policy.json")
+	err = os.WriteFile(policyPath, corimBytes, 0o644)
+	require.NoError(t, err)
+
+	oldPolicyPath := attestation.AttestationPolicyPath
+	attestation.AttestationPolicyPath = policyPath
+	t.Cleanup(func() {
+		attestation.AttestationPolicyPath = oldPolicyPath
+	})
 
 	err = verifier.VerifyPeerCertificate([][]byte{peerCertDER}, nil, nonce)
 	assert.NoError(t, err)

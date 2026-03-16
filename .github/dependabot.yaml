@@ -1,15 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/scripts/attestation_policy"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      rs-dependencies:
-        patterns:
-          - "*"
-
   - package-ecosystem: "gomod"
     directories:
       - "/"

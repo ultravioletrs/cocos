@@ -440,6 +440,11 @@ func TestPlatformVerifier(t *testing.T) {
 	err = setAttestationPolicy(attestationPB, tempDir)
 	require.NoError(t, err)
 
+	oldPath := attestation.AttestationPolicyPath
+	t.Cleanup(func() {
+		attestation.AttestationPolicyPath = oldPath
+	})
+
 	cases := []struct {
 		name          string
 		platformType  attestation.PlatformType
@@ -531,6 +536,11 @@ func TestVerifyCertificateExtension(t *testing.T) {
 	attestationPB := prepVerifyAttReport(t)
 	err = setAttestationPolicy(attestationPB, tempDir)
 	require.NoError(t, err)
+
+	oldPath := attestation.AttestationPolicyPath
+	t.Cleanup(func() {
+		attestation.AttestationPolicyPath = oldPath
+	})
 
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)

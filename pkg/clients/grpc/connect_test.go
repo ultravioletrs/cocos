@@ -26,10 +26,18 @@ func TestNewClient(t *testing.T) {
 	caCertFile, clientCertFile, clientKeyFile, err := createCertificatesFiles()
 	require.NoError(t, err)
 
+	policyFile, err := os.CreateTemp("", "attestation_policy.json")
+	require.NoError(t, err)
+	_, err = policyFile.Write([]byte("{}"))
+	require.NoError(t, err)
+	err = policyFile.Close()
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
 		os.Remove(caCertFile)
 		os.Remove(clientCertFile)
 		os.Remove(clientKeyFile)
+		os.Remove(policyFile.Name())
 	})
 
 	tests := []struct {
@@ -90,7 +98,7 @@ func TestNewClient(t *testing.T) {
 					ClientKey:    clientKeyFile,
 				},
 				AttestedTLS:       true,
-				AttestationPolicy: "../../../scripts/attestation_policy/sev-snp/attestation_policy.json",
+				AttestationPolicy: policyFile.Name(),
 			},
 			wantErr: false,
 			err:     nil,
