@@ -71,9 +71,13 @@ linters:
       - std-error-handling
     rules:
       - linters:
+          - errcheck
+        path: build/
+      - linters:
           - makezero
         text: with non-zero initialized length
     paths:
+      - build
       - third_party$
       - builtin$
       - examples$

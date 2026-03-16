@@ -6,6 +6,7 @@ option go_package = "github.com/ultravioletrs/cocos/internal/proto/attestation/v
 
 service AttestationService {
   rpc FetchAttestation (AttestationRequest) returns (AttestationResponse);
+  rpc FetchRawEvidence (AttestationRequest) returns (RawEvidenceResponse);
   rpc FetchAzureToken (AzureTokenRequest) returns (AzureTokenResponse);
 }
 
@@ -17,6 +18,10 @@ message AttestationRequest {
 
 message AttestationResponse {
   bytes eat_token = 1; // EAT token (JWT or CBOR format)
+}
+
+message RawEvidenceResponse {
+  bytes evidence = 1; // Raw binary evidence (for KBS)
 }
 
 message AzureTokenRequest {

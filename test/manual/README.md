@@ -17,7 +17,7 @@ All assets/datasets the algorithm uses are stored in the `datasets` directory. T
 
 ### Agent-CLI interaction
 
-Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](./agent-config/main.go)
+Agent is started automatically in the VM when launched but requires configuration and manifest to be passed by manager. Alternatively you can pass configuration using this [simplified script](/test/cvms/main.go)
 
 For attested TLS, you will have to calculate the VM's measurement, which can be done using cli. This information is also contained in the Attestation Policy file.
 

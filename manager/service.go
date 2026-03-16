@@ -36,6 +36,10 @@ const (
 	agentCvmId              = "AGENT_CVM_ID"
 	agentCaToken            = "AGENT_CERTS_TOKEN"
 	agentCvmCaUrl           = "AGENT_CVM_CA_URL"
+	awsAccessKeyIdKey       = "AWS_ACCESS_KEY_ID"
+	awsSecretAccessKeyKey   = "AWS_SECRET_ACCESS_KEY"
+	awsEndpointUrlKey       = "AWS_ENDPOINT_URL"
+	awsRegionKey            = "AWS_REGION"
 	defClientCertPath       = "/etc/certs/cert.pem"
 	defClientKeyPath        = "/etc/certs/key.pem"
 	defServerCaCertPath     = "/etc/certs/ca.pem"
@@ -155,6 +159,9 @@ func (ms *managerService) CreateVM(ctx context.Context, req *CreateReq) (string,
 	cfg := qemu.VMInfo{
 		Config:    ms.qemuCfg,
 		LaunchTCB: 0,
+	}
+	if req.AaKbsParams != "" {
+		cfg.Config.KernelCommandLine = fmt.Sprintf("%s agent.aa_kbc_params=%s", cfg.Config.KernelCommandLine, req.AaKbsParams)
 	}
 	ms.mu.Unlock()
 
@@ -458,6 +465,20 @@ func tmpEnvironment(id string, req *CreateReq) (string, error) {
 	}
 	if req.AgentCvmServerCaCert != nil {
 		envMap[agentCvmServerCaCertKey] = defServerCaCertPath
+	}
+
+	// Add AWS credentials if provided
+	if req.AwsAccessKeyId != "" {
+		envMap[awsAccessKeyIdKey] = req.AwsAccessKeyId
+	}
+	if req.AwsSecretAccessKey != "" {
+		envMap[awsSecretAccessKeyKey] = req.AwsSecretAccessKey
+	}
+	if req.AwsEndpointUrl != "" {
+		envMap[awsEndpointUrlKey] = req.AwsEndpointUrl
+	}
+	if req.AwsRegion != "" {
+		envMap[awsRegionKey] = req.AwsRegion
 	}
 
 	envFile, err := os.OpenFile(fmt.Sprintf("%s/%s", dir, cvmEnvironmentFile), os.O_CREATE|os.O_WRONLY, 0o644)

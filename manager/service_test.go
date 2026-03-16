@@ -310,6 +310,70 @@ func TestProcessExists(t *testing.T) {
 	}
 }
 
+func TestTmpEnvironmentWithAWSCredentials(t *testing.T) {
+	tests := []struct {
+		name           string
+		req            *CreateReq
+		wantEnvKeys    []string
+		wantEnvNotKeys []string
+	}{
+		{
+			name: "with all AWS credentials",
+			req: &CreateReq{
+				AgentLogLevel:      "debug",
+				AgentCvmServerUrl:  "localhost:7001",
+				AwsAccessKeyId:     "AKIAIOSFODNN7EXAMPLE",
+				AwsSecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				AwsEndpointUrl:     "http://localhost:9000",
+				AwsRegion:          "us-east-1",
+			},
+			wantEnvKeys:    []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL", "AWS_REGION"},
+			wantEnvNotKeys: []string{},
+		},
+		{
+			name: "with partial AWS credentials",
+			req: &CreateReq{
+				AgentLogLevel:  "info",
+				AwsAccessKeyId: "AKIAIOSFODNN7EXAMPLE",
+				AwsRegion:      "eu-west-1",
+			},
+			wantEnvKeys:    []string{"AWS_ACCESS_KEY_ID", "AWS_REGION"},
+			wantEnvNotKeys: []string{"AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL"},
+		},
+		{
+			name: "without AWS credentials",
+			req: &CreateReq{
+				AgentLogLevel:     "info",
+				AgentCvmServerUrl: "localhost:7001",
+			},
+			wantEnvKeys:    []string{},
+			wantEnvNotKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL", "AWS_REGION"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, err := tmpEnvironment("test-id", tt.req)
+			require.NoError(t, err)
+			defer os.RemoveAll(dir)
+
+			// Read the environment file
+			envContent, err := os.ReadFile(path.Join(dir, "environment"))
+			require.NoError(t, err)
+
+			envStr := string(envContent)
+
+			for _, key := range tt.wantEnvKeys {
+				assert.Contains(t, envStr, key+"=", "expected key %s to be present", key)
+			}
+
+			for _, key := range tt.wantEnvNotKeys {
+				assert.NotContains(t, envStr, key+"=", "expected key %s to NOT be present", key)
+			}
+		})
+	}
+}
+
 func TestShutdown(t *testing.T) {
 	ms := &managerService{
 		vms:        make(map[string]vm.VM),
@@ -325,4 +389,84 @@ func TestShutdown(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, ms.vms, 0)
+}
+
+func TestCreateVMWithAaKbsParams(t *testing.T) {
+	vmf := new(mocks.Provider)
+	vmMock := new(mocks.VM)
+	persistence := new(persistenceMocks.Persistence)
+
+	tests := []struct {
+		name              string
+		aaKbsParams       string
+		expectedKernelArg string
+	}{
+		{
+			name:              "with AaKbsParams",
+			aaKbsParams:       "cc_kbc::http://kbs.example.com:8080",
+			expectedKernelArg: "agent.aa_kbc_params=cc_kbc::http://kbs.example.com:8080",
+		},
+		{
+			name:              "without AaKbsParams",
+			aaKbsParams:       "",
+			expectedKernelArg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedConfig any
+
+			vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) {
+					capturedConfig = args.Get(0)
+				}).
+				Return(vmMock).Once()
+
+			vmMock.On("Start").Return(nil).Once()
+			vmMock.On("GetProcess").Return(1234).Once()
+			vmMock.On("Transition", mock.Anything).Return(nil).Once()
+			persistence.On("SaveVM", mock.Anything).Return(nil).Once()
+
+			tempDir := CreateDummyAttestationPolicyBinary(t, "success")
+			defer os.RemoveAll(tempDir)
+
+			qemuCfg := qemu.Config{
+				EnableSEVSNP:      true,
+				KernelCommandLine: "quiet console=null",
+			}
+
+			ms := &managerService{
+				qemuCfg:                     qemuCfg,
+				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
+				pcrValuesFilePath:           tempDir,
+				logger:                      slog.Default(),
+				vms:                         make(map[string]vm.VM),
+				vmFactory:                   vmf.Execute,
+				persistence:                 persistence,
+				ttlManager:                  NewTTLManager(),
+			}
+
+			ctx := context.Background()
+
+			_, _, err := ms.CreateVM(ctx, &CreateReq{
+				AaKbsParams: tt.aaKbsParams,
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedConfig)
+
+			vmInfo, ok := capturedConfig.(qemu.VMInfo)
+			require.True(t, ok, "expected capturedConfig to be qemu.VMInfo")
+
+			if tt.expectedKernelArg != "" {
+				assert.Contains(t, vmInfo.Config.KernelCommandLine, tt.expectedKernelArg)
+			} else {
+				assert.NotContains(t, vmInfo.Config.KernelCommandLine, "agent.aa_kbc_params=")
+			}
+
+			vmf.AssertExpectations(t)
+			vmMock.AssertExpectations(t)
+		})
+	}
 }

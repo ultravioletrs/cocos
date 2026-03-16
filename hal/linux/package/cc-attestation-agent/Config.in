@@ -1,16 +1,14 @@
 config BR2_PACKAGE_CC_ATTESTATION_AGENT
-	bool
-	default y if BR2_PACKAGE_ATTESTATION_BACKEND_CC
-	depends on BR2_PACKAGE_HOST_RUSTC
+	bool "cc-attestation-agent"
 	select BR2_PACKAGE_PROTOBUF
 	select BR2_PACKAGE_OPENSSL
+	select BR2_PACKAGE_TPM2_TSS
 	help
-	  Confidential Containers attestation-agent for TEE attestation
-	  with optional KBS (Key Broker Service) protocol support.
+	  Confidential Containers attestation-agent for TEE attestation.
 	  
-	  This package provides an alternative attestation backend that
-	  can operate in local mode or connect to a KBS for remote
-	  attestation and encrypted secret provisioning.
+	  Optional backend for the Cocos AI attestation service that
+	  provides KBS protocol support for remote attestation and
+	  encrypted secret provisioning.
 	  
 	  https://github.com/confidential-containers/guest-components
 
@@ -24,7 +22,6 @@ config BR2_PACKAGE_CC_ATTESTATION_AGENT_KBS_URL
 	  attestation and secret provisioning.
 	  
 	  Leave empty to operate in local attestation mode only.
-	  Can be overridden per-computation via environment variables.
 	  
 	  Example: https://kbs.example.com:8080
 

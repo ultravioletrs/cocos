@@ -10,6 +10,7 @@ import (
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/ultravioletrs/cocos/agent"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	"github.com/ultravioletrs/cocos/agent/cvms/api/grpc/storage"
 	servermocks "github.com/ultravioletrs/cocos/agent/cvms/server/mocks"
@@ -512,4 +513,141 @@ func TestManagerClient_sendMessageTimeout(t *testing.T) {
 
 	// Should complete without blocking
 	time.Sleep(100 * time.Millisecond)
+}
+
+// TestManagerClient_handleRunReqChunksWithRemoteSource tests handling run request with remote source.
+func TestManagerClient_handleRunReqChunksWithRemoteSource(t *testing.T) {
+	mockStream := new(mockStream)
+	mockSvc := new(mocks.Service)
+	mockServerSvc := new(servermocks.AgentServer)
+	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
+	logger := mglog.NewMock()
+	grpcClient := new(clientmocks.Client)
+
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, nil, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
+	assert.NoError(t, err)
+
+	runReq := &cvms.ComputationRunReq{
+		Id:          "test-id-remote",
+		Name:        "test-computation",
+		Description: "test description",
+		Datasets: []*cvms.Dataset{
+			{
+				Hash:     sha3.New256().Sum([]byte("test-dataset")),
+				Filename: "data.csv",
+				Source: &cvms.Source{
+					Type:            "oci-image",
+					Url:             "docker://registry.example.com/data:v1",
+					KbsResourcePath: "default/key/data-key",
+					Encrypted:       true,
+				},
+				Decompress: true,
+			},
+		},
+		Algorithm: &cvms.Algorithm{
+			Hash:     sha3.New256().Sum([]byte("test-algorithm")),
+			AlgoType: "python",
+			AlgoArgs: []string{"--verbose"},
+			Source: &cvms.Source{
+				Type:            "oci-image",
+				Url:             "docker://registry.example.com/algo:v1",
+				KbsResourcePath: "default/key/algo-key",
+				Encrypted:       true,
+			},
+		},
+		Kbs: &cvms.KBSConfig{
+			Url:     "https://kbs.example.com:8080",
+			Enabled: true,
+		},
+		ResultConsumers: []*cvms.ResultConsumer{
+			{
+				UserKey: []byte("test-consumer"),
+			},
+		},
+	}
+	runReqBytes, _ := proto.Marshal(runReq)
+
+	chunk := &cvms.ServerStreamMessage_RunReqChunks{
+		RunReqChunks: &cvms.RunReqChunks{
+			Id:     "chunk-remote-1",
+			Data:   runReqBytes,
+			IsLast: true,
+		},
+	}
+
+	mockSvc.On("State").Return("ReceivingManifest")
+	mockSvc.On("InitComputation", mock.Anything, mock.MatchedBy(func(c agent.Computation) bool {
+		// Verify KBS config is passed
+		if !c.KBS.Enabled || c.KBS.URL != "https://kbs.example.com:8080" {
+			return false
+		}
+		// Verify algorithm source is passed
+		if c.Algorithm.Source == nil ||
+			c.Algorithm.Source.URL != "docker://registry.example.com/algo:v1" ||
+			c.Algorithm.Source.KBSResourcePath != "default/key/algo-key" ||
+			!c.Algorithm.Source.Encrypted {
+			return false
+		}
+		// Verify algorithm type and args
+		if c.Algorithm.AlgoType != "python" || len(c.Algorithm.AlgoArgs) != 1 || c.Algorithm.AlgoArgs[0] != "--verbose" {
+			return false
+		}
+		// Verify dataset source is passed
+		if len(c.Datasets) != 1 ||
+			c.Datasets[0].Source == nil ||
+			c.Datasets[0].Source.URL != "docker://registry.example.com/data:v1" ||
+			c.Datasets[0].Filename != "data.csv" ||
+			!c.Datasets[0].Decompress {
+			return false
+		}
+		return true
+	})).Return(nil)
+	mockServerSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	err = client.handleRunReqChunks(context.Background(), chunk)
+	assert.NoError(t, err)
+
+	// Wait for the goroutine to finish
+	time.Sleep(100 * time.Millisecond)
+
+	mockSvc.AssertExpectations(t)
+}
+
+// TestManagerClient_handleRunReqChunksAlreadyProcessing tests skipping init when already processing.
+func TestManagerClient_handleRunReqChunksAlreadyProcessing(t *testing.T) {
+	mockStream := new(mockStream)
+	mockSvc := new(mocks.Service)
+	mockServerSvc := new(servermocks.AgentServer)
+	messageQueue := make(chan *cvms.ClientStreamMessage, 10)
+	logger := mglog.NewMock()
+	grpcClient := new(clientmocks.Client)
+
+	client, err := NewClient(mockStream, mockSvc, messageQueue, logger, mockServerSvc, nil, t.TempDir(), func(ctx context.Context) (pkggrpc.Client, cvms.Service_ProcessClient, error) { return nil, nil, nil }, grpcClient)
+	assert.NoError(t, err)
+
+	runReq := &cvms.ComputationRunReq{
+		Id:   "test-id-processing",
+		Name: "test-computation",
+	}
+	runReqBytes, _ := proto.Marshal(runReq)
+
+	chunk := &cvms.ServerStreamMessage_RunReqChunks{
+		RunReqChunks: &cvms.RunReqChunks{
+			Id:     "chunk-processing-1",
+			Data:   runReqBytes,
+			IsLast: true,
+		},
+	}
+
+	// Simulate agent already processing a computation
+	mockSvc.On("State").Return("Running")
+
+	err = client.handleRunReqChunks(context.Background(), chunk)
+	assert.NoError(t, err)
+
+	// Wait for the goroutine to finish
+	time.Sleep(50 * time.Millisecond)
+
+	// InitComputation should NOT be called since state is not ReceivingManifest
+	mockSvc.AssertNotCalled(t, "InitComputation")
 }

@@ -18,6 +18,11 @@ func (m *MockAttestationClient) GetAttestation(ctx context.Context, reportData [
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+func (m *MockAttestationClient) GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error) {
+	args := m.Called(ctx, reportData, nonce, attType)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
 func (m *MockAttestationClient) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error) {
 	args := m.Called(ctx, nonce)
 	return args.Get(0).([]byte), args.Error(1)

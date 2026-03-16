@@ -186,6 +186,50 @@ func (x *AttestationResponse) GetEatToken() []byte {
 	return nil
 }
 
+type RawEvidenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Evidence      []byte                 `protobuf:"bytes,1,opt,name=evidence,proto3" json:"evidence,omitempty"` // Raw binary evidence (for KBS)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RawEvidenceResponse) Reset() {
+	*x = RawEvidenceResponse{}
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RawEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RawEvidenceResponse) ProtoMessage() {}
+
+func (x *RawEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RawEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*RawEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RawEvidenceResponse) GetEvidence() []byte {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 type AzureTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Nonce         []byte                 `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
@@ -195,7 +239,7 @@ type AzureTokenRequest struct {
 
 func (x *AzureTokenRequest) Reset() {
 	*x = AzureTokenRequest{}
-	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[2]
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -207,7 +251,7 @@ func (x *AzureTokenRequest) String() string {
 func (*AzureTokenRequest) ProtoMessage() {}
 
 func (x *AzureTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[2]
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -220,7 +264,7 @@ func (x *AzureTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AzureTokenRequest.ProtoReflect.Descriptor instead.
 func (*AzureTokenRequest) Descriptor() ([]byte, []int) {
-	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{2}
+	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AzureTokenRequest) GetNonce() []byte {
@@ -239,7 +283,7 @@ type AzureTokenResponse struct {
 
 func (x *AzureTokenResponse) Reset() {
 	*x = AzureTokenResponse{}
-	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[3]
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -251,7 +295,7 @@ func (x *AzureTokenResponse) String() string {
 func (*AzureTokenResponse) ProtoMessage() {}
 
 func (x *AzureTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[3]
+	mi := &file_internal_proto_attestation_v1_attestation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -264,7 +308,7 @@ func (x *AzureTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AzureTokenResponse.ProtoReflect.Descriptor instead.
 func (*AzureTokenResponse) Descriptor() ([]byte, []int) {
-	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{3}
+	return file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AzureTokenResponse) GetToken() []byte {
@@ -285,7 +329,9 @@ const file_internal_proto_attestation_v1_attestation_proto_rawDesc = "" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12A\n" +
 	"\rplatform_type\x18\x03 \x01(\x0e2\x1c.attestation.v1.PlatformTypeR\fplatformType\"2\n" +
 	"\x13AttestationResponse\x12\x1b\n" +
-	"\teat_token\x18\x01 \x01(\fR\beatToken\")\n" +
+	"\teat_token\x18\x01 \x01(\fR\beatToken\"1\n" +
+	"\x13RawEvidenceResponse\x12\x1a\n" +
+	"\bevidence\x18\x01 \x01(\fR\bevidence\")\n" +
 	"\x11AzureTokenRequest\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\"*\n" +
 	"\x12AzureTokenResponse\x12\x14\n" +
@@ -297,9 +343,10 @@ const file_internal_proto_attestation_v1_attestation_proto_rawDesc = "" +
 	"\x12PLATFORM_TYPE_VTPM\x10\x03\x12\x1a\n" +
 	"\x16PLATFORM_TYPE_SNP_VTPM\x10\x04\x12\x17\n" +
 	"\x13PLATFORM_TYPE_AZURE\x10\x05\x12\x17\n" +
-	"\x13PLATFORM_TYPE_NO_CC\x10\x062\xcb\x01\n" +
+	"\x13PLATFORM_TYPE_NO_CC\x10\x062\xa8\x02\n" +
 	"\x12AttestationService\x12[\n" +
-	"\x10FetchAttestation\x12\".attestation.v1.AttestationRequest\x1a#.attestation.v1.AttestationResponse\x12X\n" +
+	"\x10FetchAttestation\x12\".attestation.v1.AttestationRequest\x1a#.attestation.v1.AttestationResponse\x12[\n" +
+	"\x10FetchRawEvidence\x12\".attestation.v1.AttestationRequest\x1a#.attestation.v1.RawEvidenceResponse\x12X\n" +
 	"\x0fFetchAzureToken\x12!.attestation.v1.AzureTokenRequest\x1a\".attestation.v1.AzureTokenResponseBJZHgithub.com/ultravioletrs/cocos/internal/proto/attestation/v1;attestationb\x06proto3"
 
 var (
@@ -315,22 +362,25 @@ func file_internal_proto_attestation_v1_attestation_proto_rawDescGZIP() []byte {
 }
 
 var file_internal_proto_attestation_v1_attestation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_proto_attestation_v1_attestation_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_internal_proto_attestation_v1_attestation_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_internal_proto_attestation_v1_attestation_proto_goTypes = []any{
 	(PlatformType)(0),           // 0: attestation.v1.PlatformType
 	(*AttestationRequest)(nil),  // 1: attestation.v1.AttestationRequest
 	(*AttestationResponse)(nil), // 2: attestation.v1.AttestationResponse
-	(*AzureTokenRequest)(nil),   // 3: attestation.v1.AzureTokenRequest
-	(*AzureTokenResponse)(nil),  // 4: attestation.v1.AzureTokenResponse
+	(*RawEvidenceResponse)(nil), // 3: attestation.v1.RawEvidenceResponse
+	(*AzureTokenRequest)(nil),   // 4: attestation.v1.AzureTokenRequest
+	(*AzureTokenResponse)(nil),  // 5: attestation.v1.AzureTokenResponse
 }
 var file_internal_proto_attestation_v1_attestation_proto_depIdxs = []int32{
 	0, // 0: attestation.v1.AttestationRequest.platform_type:type_name -> attestation.v1.PlatformType
 	1, // 1: attestation.v1.AttestationService.FetchAttestation:input_type -> attestation.v1.AttestationRequest
-	3, // 2: attestation.v1.AttestationService.FetchAzureToken:input_type -> attestation.v1.AzureTokenRequest
-	2, // 3: attestation.v1.AttestationService.FetchAttestation:output_type -> attestation.v1.AttestationResponse
-	4, // 4: attestation.v1.AttestationService.FetchAzureToken:output_type -> attestation.v1.AzureTokenResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	1, // 2: attestation.v1.AttestationService.FetchRawEvidence:input_type -> attestation.v1.AttestationRequest
+	4, // 3: attestation.v1.AttestationService.FetchAzureToken:input_type -> attestation.v1.AzureTokenRequest
+	2, // 4: attestation.v1.AttestationService.FetchAttestation:output_type -> attestation.v1.AttestationResponse
+	3, // 5: attestation.v1.AttestationService.FetchRawEvidence:output_type -> attestation.v1.RawEvidenceResponse
+	5, // 6: attestation.v1.AttestationService.FetchAzureToken:output_type -> attestation.v1.AzureTokenResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -347,7 +397,7 @@ func file_internal_proto_attestation_v1_attestation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_proto_attestation_v1_attestation_proto_rawDesc), len(file_internal_proto_attestation_v1_attestation_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

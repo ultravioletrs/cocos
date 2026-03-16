@@ -24,6 +24,21 @@ The service is configured using the environment variables from the following tab
 | AGENT_OS_BUILD                 | Operating system build information for attestation                                                            | UVC                                             |
 | AGENT_OS_DISTRO                | Operating system distribution information for attestation                                                     | UVC                                             |
 | AGENT_OS_TYPE                  | Operating system type information for attestation                                                             | UVC                                             |
+| ATTESTATION_SERVICE_SOCKET     | Unix socket path for attestation service communication                                                       | /run/cocos/attestation.sock                     |
+| AGENT_ENABLE_ATLS              | Enable Attestation TLS for secure communication                                                              | true                                            |
+
+### Remote Resource Download (Optional)
+
+The agent supports downloading encrypted algorithms and datasets from remote registries (S3, HTTP/HTTPS) and retrieving decryption keys from a Key Broker Service (KBS) via attestation.
+
+| Variable                       | Description                                                                                                   | Default                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| AWS_REGION                     | AWS region for S3 access (required for S3 downloads)                                                          | \"\"                                              |
+| AWS_ACCESS_KEY_ID              | AWS access key ID for S3 authentication                                                                       | \"\"                                              |
+| AWS_SECRET_ACCESS_KEY          | AWS secret access key for S3 authentication                                                                   | \"\"                                              |
+| AWS_ENDPOINT_URL               | Custom S3 endpoint URL (for S3-compatible services like MinIO)                                                | \"\"                                              |
+
+**Note**: KBS URL is specified in the computation manifest, not as an environment variable. See [TESTING_REMOTE_RESOURCES.md](./TESTING_REMOTE_RESOURCES.md) for details on using remote resources.
 
 ## Deployment
 

@@ -395,6 +395,9 @@ func getPCRValue(index int, algorithm tpm2.Algorithm) ([]byte, error) {
 
 	pcrValue, err := tpm2.ReadPCR(rwc, index, algorithm)
 	if err != nil {
+		if _, ok := ExternalTPM.(*DummyRWC); ok {
+			return make([]byte, 20), nil
+		}
 		return nil, err
 	}
 

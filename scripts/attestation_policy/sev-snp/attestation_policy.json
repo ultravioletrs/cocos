@@ -1,8 +1,10 @@
 {
   "pcr_values": {
+    "sha1": null,
     "sha256": {
       "0": "71e0cc99e4609fdbc44698cceeda9e5ecb2f74fe07bd10710d5330e0eb6bd32b",
       "1": "ac95eee1ca55ae3c7cffc6126d6fc854a801cc03203583e6b96a4a706d368ad2",
+      "16": "27e979da1d644911979ee35b71f005962d6471b6bb324240959003e167a54906",
       "2": "3d458cfe55cc03ea1f443f1562beec8df51c75e14a9fcf9a7234a13f198e7969",
       "3": "3d458cfe55cc03ea1f443f1562beec8df51c75e14a9fcf9a7234a13f198e7969",
       "4": "db8197e8eef9069966988524d1da98fae9b41f96f0204efcf5c1c3ac9496ae54",
@@ -14,6 +16,7 @@
     "sha384": {
       "0": "ff93a763afde2c4a152d4843d9fcabe73a70d4f34bf8861845f2ab08440c1f0742b5882ed7f2524e38a3a6e40fbcdfca",
       "1": "707d1b180015e36792ffe396367a00575c45b6c920f97883074bfad183d8669c73d748df84c658ca8b58b8d73bb38642",
+      "16": "1ee325aad737c22f0d411255071b30b1a22bb1d7859bae37bcaca88d62a49cb434eedbf78428d7d7ca450579749ac074",
       "2": "518923b0f955d08da077c96aaba522b9decede61c599cea6c41889cfbea4ae4d50529d96fe4d1afdafb65e7f95bf23c4",
       "3": "518923b0f955d08da077c96aaba522b9decede61c599cea6c41889cfbea4ae4d50529d96fe4d1afdafb65e7f95bf23c4",
       "4": "a442d31eb3c47cc9287fd07ceeeb7798cfb1550fbf9388f9fc7d83494ef0411e18b78bd28eb95f060daab69095d6f384",
@@ -24,36 +27,26 @@
     }
   },
   "policy": {
-    "chip_id": "GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
-    "family_id": "AAAAAAAAAAAAAAAAAAAAAA==",
-    "host_data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-    "image_id": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "chipId": "GrFqtQ+lrkLsjBslu9pcC6XqkrtFWY1ArIQ+I4gugQIsvCG0qekSvEtE4P/SLSJ6mHNpOkY0MHnGpvz1OkV+kw==",
+    "familyId": "AAAAAAAAAAAAAAAAAAAAAA==",
+    "hostData": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "imageId": "AAAAAAAAAAAAAAAAAAAAAA==",
     "measurement": "oDYo4e98Da2Fy73nDVZmxiWiz+5gnxae7NMRtdfnwpbBuVYZsI0mynz3fpfe+YIX",
-    "minimum_build": 8,
-    "minimum_launch_tcb": 15352208179752599555,
-    "minimum_tcb": 15352208179752599555,
-    "minimum_version": "1.55",
-    "permit_provisional_firmware": true,
-    "policy": 196608,
+    "minimumBuild": 8,
+    "minimumLaunchTcb": "15352208179752599555",
+    "minimumTcb": "15352208179752599555",
+    "minimumVersion": "1.55",
+    "permitProvisionalFirmware": true,
+    "policy": "196608",
     "product": {
-      "name": 1
+      "name": "SEV_PRODUCT_MILAN"
     },
-    "report_id_ma": "//////////////////////////////////////////8=",
-    "require_author_key": false,
-    "require_id_block": false,
+    "reportIdMa": "//////////////////////////////////////////8=",
     "vmpl": 2
   },
-  "root_of_trust": {
-    "check_crl": true,
-    "disallow_network": false,
+  "rootOfTrust": {
+    "checkCrl": true,
     "product": "Milan",
-    "product_line": "Milan"
-  },
-  "eat_validation": {
-    "require_eat_format": true,
-    "allowed_formats": ["CBOR", "JWT"],
-    "max_token_age_seconds": 300,
-    "require_claims": ["eat_nonce", "measurements", "platform_type"],
-    "verify_signature": true
+    "productLine": "Milan"
   }
 }

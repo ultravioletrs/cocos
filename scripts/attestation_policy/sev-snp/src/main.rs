@@ -2,7 +2,7 @@ use base64::prelude::*;
 use clap::{value_parser, Arg, Command};
 use serde::Serialize;
 use serde_json::Value;
-use sev::firmware::host::*;
+use sev::firmware::host::{Firmware, Identifier, SnpPlatformStatus, TcbVersion};
 use std::arch::x86_64::__cpuid;
 use std::fs::read_to_string;
 
@@ -57,6 +57,7 @@ struct Computation {
     root_of_trust: RootOfTrust,
 }
 
+#[allow(unused_unsafe)]
 fn get_sev_snp_processor() -> u32 {
     let cpuid_result = unsafe { __cpuid(1) };
     cpuid_result.eax
@@ -70,11 +71,11 @@ fn get_product_name(product: i32) -> String {
     }
 }
 
-fn get_uint64_from_tcb(tcb_version: &TcbVersion) -> u64 {
-    let microcode = (tcb_version.microcode as u64) << 56;
-    let snp = (tcb_version.snp as u64) << 48;
-    let tee = (tcb_version.tee as u64) << 8;
-    let bootloader: u64 = tcb_version.bootloader as u64;
+fn get_uint64_from_tcb(tcb_version: TcbVersion) -> u64 {
+    let microcode = u64::from(tcb_version.microcode) << 56;
+    let snp = u64::from(tcb_version.snp) << 48;
+    let tee = u64::from(tcb_version.tee) << 8;
+    let bootloader = u64::from(tcb_version.bootloader);
 
     microcode | snp | tee | bootloader
 }
@@ -133,8 +134,8 @@ fn main() {
     let family_id = BASE64_STANDARD.encode(vec![0; 16]);
     let image_id = BASE64_STANDARD.encode(vec![0; 16]);
     let vmpl = 2;
-    let minimum_tcb = get_uint64_from_tcb(&status.reported_tcb_version);
-    let minimum_launch_tcb = get_uint64_from_tcb(&status.reported_tcb_version);
+    let minimum_tcb = get_uint64_from_tcb(status.reported_tcb_version);
+    let minimum_launch_tcb = get_uint64_from_tcb(status.reported_tcb_version);
     let require_author_key = false;
     let measurement = BASE64_STANDARD.encode(vec![0; 48]);
     let host_data = BASE64_STANDARD.encode(vec![0; 32]);

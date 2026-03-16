@@ -4,14 +4,13 @@ package qemu
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/caarlos0/env/v10"
 )
 
 const (
-	KernelCommandLine = "quiet console=null"
-	TDXObject         = "{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}"
+	defaultKernelCommandLine = "quiet console=null"
+	TDXObject                = "{\"qom-type\":\"tdx-guest\",\"id\":\"%s\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"%d\"}}"
 )
 
 type MemoryConfig struct {
@@ -112,6 +111,9 @@ type Config struct {
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
 	Monitor   string `env:"MONITOR"    envDefault:"pty"`
+
+	// kernel
+	KernelCommandLine string `env:"KERNEL_CMDLINE" envDefault:"quiet console=null"`
 
 	// ports
 	HostFwdRange string `env:"HOST_FWD_RANGE" envDefault:"6100-6200"`
@@ -232,7 +234,7 @@ func (config Config) ConstructQemuArgs() []string {
 	}
 
 	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-append", strconv.Quote(KernelCommandLine))
+	args = append(args, "-append", config.KernelCommandLine)
 	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
 
 	// display

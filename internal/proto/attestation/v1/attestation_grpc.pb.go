@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	AttestationService_FetchAttestation_FullMethodName = "/attestation.v1.AttestationService/FetchAttestation"
+	AttestationService_FetchRawEvidence_FullMethodName = "/attestation.v1.AttestationService/FetchRawEvidence"
 	AttestationService_FetchAzureToken_FullMethodName  = "/attestation.v1.AttestationService/FetchAzureToken"
 )
 
@@ -28,6 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AttestationServiceClient interface {
 	FetchAttestation(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*AttestationResponse, error)
+	FetchRawEvidence(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*RawEvidenceResponse, error)
 	FetchAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error)
 }
 
@@ -49,6 +51,16 @@ func (c *attestationServiceClient) FetchAttestation(ctx context.Context, in *Att
 	return out, nil
 }
 
+func (c *attestationServiceClient) FetchRawEvidence(ctx context.Context, in *AttestationRequest, opts ...grpc.CallOption) (*RawEvidenceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RawEvidenceResponse)
+	err := c.cc.Invoke(ctx, AttestationService_FetchRawEvidence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *attestationServiceClient) FetchAzureToken(ctx context.Context, in *AzureTokenRequest, opts ...grpc.CallOption) (*AzureTokenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AzureTokenResponse)
@@ -64,6 +76,7 @@ func (c *attestationServiceClient) FetchAzureToken(ctx context.Context, in *Azur
 // for forward compatibility.
 type AttestationServiceServer interface {
 	FetchAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error)
+	FetchRawEvidence(context.Context, *AttestationRequest) (*RawEvidenceResponse, error)
 	FetchAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error)
 	mustEmbedUnimplementedAttestationServiceServer()
 }
@@ -77,6 +90,9 @@ type UnimplementedAttestationServiceServer struct{}
 
 func (UnimplementedAttestationServiceServer) FetchAttestation(context.Context, *AttestationRequest) (*AttestationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FetchAttestation not implemented")
+}
+func (UnimplementedAttestationServiceServer) FetchRawEvidence(context.Context, *AttestationRequest) (*RawEvidenceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FetchRawEvidence not implemented")
 }
 func (UnimplementedAttestationServiceServer) FetchAzureToken(context.Context, *AzureTokenRequest) (*AzureTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FetchAzureToken not implemented")
@@ -120,6 +136,24 @@ func _AttestationService_FetchAttestation_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AttestationService_FetchRawEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttestationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AttestationServiceServer).FetchRawEvidence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AttestationService_FetchRawEvidence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AttestationServiceServer).FetchRawEvidence(ctx, req.(*AttestationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AttestationService_FetchAzureToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AzureTokenRequest)
 	if err := dec(in); err != nil {
@@ -148,6 +182,10 @@ var AttestationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchAttestation",
 			Handler:    _AttestationService_FetchAttestation_Handler,
+		},
+		{
+			MethodName: "FetchRawEvidence",
+			Handler:    _AttestationService_FetchRawEvidence_Handler,
 		},
 		{
 			MethodName: "FetchAzureToken",

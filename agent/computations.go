@@ -20,6 +20,26 @@ type AgentConfig struct {
 	AttestedTls  bool   `json:"attested_tls,omitempty"`
 }
 
+// ResourceSource specifies the location of a remote encrypted resource.
+type ResourceSource struct {
+	// Type is the type of resource source (currently only "oci-image" is supported)
+	Type string `json:"type,omitempty"`
+	// URL is the location of the resource (e.g., docker://registry/repo:tag)
+	URL string `json:"url,omitempty"`
+	// KBSResourcePath is the path to the decryption key in KBS (e.g., "default/key/my-key")
+	KBSResourcePath string `json:"kbs_resource_path,omitempty"`
+	// Encrypted indicates whether the resource is encrypted and requires KBS
+	Encrypted bool `json:"encrypted,omitempty"`
+}
+
+// KBSConfig holds configuration for Key Broker Service.
+type KBSConfig struct {
+	// URL is the KBS endpoint (e.g., "https://kbs.example.com")
+	URL string `json:"url,omitempty"`
+	// Enabled indicates whether to use KBS for key retrieval
+	Enabled bool `json:"enabled,omitempty"`
+}
+
 type Computation struct {
 	ID              string           `json:"id,omitempty"`
 	Name            string           `json:"name,omitempty"`
@@ -27,6 +47,7 @@ type Computation struct {
 	Datasets        Datasets         `json:"datasets,omitempty"`
 	Algorithm       Algorithm        `json:"algorithm,omitempty"`
 	ResultConsumers []ResultConsumer `json:"result_consumers,omitempty"`
+	KBS             KBSConfig        `json:"kbs,omitempty"`
 }
 
 type ResultConsumer struct {
@@ -42,19 +63,24 @@ func (d *Datasets) String() string {
 }
 
 type Dataset struct {
-	Dataset  []byte   `json:"-"`
-	Hash     [32]byte `json:"hash,omitempty"`
-	UserKey  []byte   `json:"user_key,omitempty"`
-	Filename string   `json:"filename,omitempty"`
+	Dataset    []byte          `json:"-"`
+	Hash       [32]byte        `json:"hash,omitempty"`
+	UserKey    []byte          `json:"user_key,omitempty"`
+	Filename   string          `json:"filename,omitempty"`
+	Source     *ResourceSource `json:"source,omitempty"` // Optional remote source
+	Decompress bool            `json:"decompress,omitempty"`
 }
 
 type Datasets []Dataset
 
 type Algorithm struct {
-	Algorithm    []byte   `json:"-"`
-	Hash         [32]byte `json:"hash,omitempty"`
-	UserKey      []byte   `json:"user_key,omitempty"`
-	Requirements []byte   `json:"-"`
+	Algorithm    []byte          `json:"-"`
+	Hash         [32]byte        `json:"hash,omitempty"`
+	UserKey      []byte          `json:"user_key,omitempty"`
+	Requirements []byte          `json:"-"`
+	Source       *ResourceSource `json:"source,omitempty"` // Optional remote source
+	AlgoType     string          `json:"algo_type,omitempty"`
+	AlgoArgs     []string        `json:"algo_args,omitempty"`
 }
 
 type ManifestIndexKey struct{}
