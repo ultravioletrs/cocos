@@ -28,7 +28,7 @@ func TestNewClient(t *testing.T) {
 
 	policyFile, err := os.CreateTemp("", "attestation_policy.json")
 	require.NoError(t, err)
-	_, err = policyFile.Write([]byte("{}"))
+	_, err = policyFile.WriteString("{}")
 	require.NoError(t, err)
 	err = policyFile.Close()
 	require.NoError(t, err)
