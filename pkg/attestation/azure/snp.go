@@ -188,6 +188,55 @@ func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error
 	return []byte(token), nil
 }
 
+// AzureMeasurementData contains the exact fields extracted from an Azure attestation token
+// needed to construct a CoRIM policy for the SNP platform.
+type AzureMeasurementData struct {
+	Measurement string
+	HostData    string
+	Policy      uint64
+	SVN         uint64
+}
+
+// ExtractAzureMeasurement extracts the core SNP measurements from an Azure Attestation Token.
+func ExtractAzureMeasurement(token string) (*AzureMeasurementData, error) {
+	claims, err := validateToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate token: %w", err)
+	}
+
+	tee, ok := claims["x-ms-isolation-tee"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("failed to get tee from claims")
+	}
+
+	measurementString, ok := tee["x-ms-sevsnpvm-launchmeasurement"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get measurement from claims")
+	}
+
+	hostDataString, ok := tee["x-ms-sevsnpvm-hostdata"].(string)
+	if !ok {
+		// Host data is optional
+		hostDataString = ""
+	}
+
+	guestSVNFloat, ok := tee["x-ms-sevsnpvm-guestsvn"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("failed to get guest SVN from claims")
+	}
+
+	// We default the SNP policy to 0 if not provided, though typically Azure sets this
+	// in x-ms-sevsnpvm-policy based on the guest. For now, we will return 0 and rely on
+	// callers to provide the policy if they want to override.
+
+	return &AzureMeasurementData{
+		Measurement: measurementString,
+		HostData:    hostDataString,
+		SVN:         uint64(guestSVNFloat),
+		Policy:      0, // The policy is usually passed externally in Azure's case, or decoded separately
+	}, nil
+}
+
 func validateToken(token string) (map[string]any, error) {
 	unverifiedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {

@@ -163,7 +163,7 @@ func main() {
 	// attestationPolicyCmd.AddCommand(cliSVC.NewAddMeasurementCmd())
 	// attestationPolicyCmd.AddCommand(cliSVC.NewAddHostDataCmd())
 	// attestationPolicyCmd.AddCommand(cliSVC.NewGCPAttestationPolicy())
-	// attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
+	attestationPolicyCmd.AddCommand(cliSVC.NewDownloadGCPOvmfFile())
 	// attestationPolicyCmd.AddCommand(cliSVC.NewAzureAttestationPolicy())
 	// attestationPolicyCmd.AddCommand(cliSVC.NewExtendWithManifestCmd())
 

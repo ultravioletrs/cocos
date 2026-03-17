@@ -5,6 +5,7 @@ package gcp
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -94,4 +95,28 @@ func DownloadOvmfFile(ctx context.Context, digest string) ([]byte, error) {
 	}
 
 	return ovmf, nil
+}
+
+// GCPMeasurementData contains the exact fields extracted from a GCP VM Golden Measurement
+// needed to construct a CoRIM policy for the SNP platform.
+type GCPMeasurementData struct {
+	Measurement string
+	Policy      uint64
+}
+
+// ExtractGCPMeasurement extracts the core SNP measurements from a GCP Endorsement for a specific vCPU count.
+func ExtractGCPMeasurement(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*GCPMeasurementData, error) {
+	if endorsement.SevSnp == nil {
+		return nil, fmt.Errorf("endorsement does not contain SEV-SNP data")
+	}
+
+	measurementBytes, ok := endorsement.SevSnp.Measurements[vcpuNum]
+	if !ok {
+		return nil, fmt.Errorf("endorsement does not contain measurement for vCPU %d", vcpuNum)
+	}
+
+	return &GCPMeasurementData{
+		Measurement: hex.EncodeToString(measurementBytes),
+		Policy:      endorsement.SevSnp.Policy,
+	}, nil
 }
