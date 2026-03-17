@@ -160,7 +160,7 @@ func (v verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) 
 		// Match measurements
 		if c.Triples.ReferenceValues != nil {
 			for _, rv := range *c.Triples.ReferenceValues {
-				if rv.Measurements.Valid() != nil {
+				if err := rv.Valid(); err != nil {
 					continue
 				}
 				for _, m := range rv.Measurements {

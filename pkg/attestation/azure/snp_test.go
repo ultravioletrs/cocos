@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/veraison/corim/comid"
 	"github.com/veraison/corim/corim"
 	"google.golang.org/protobuf/proto"
 )
@@ -435,7 +437,70 @@ func createMockJWT() string {
 }
 
 func TestVerifier_VerifyWithCoRIM(t *testing.T) {
-	t.Skip("Skipping success case for now due to comid validation issues in test environment")
+	v := NewVerifier(&bytes.Buffer{})
+
+	measurement := make([]byte, 32)
+	copy(measurement, "test-measurement")
+
+	// Mock attestation report
+	att := &attest.Attestation{
+		TeeAttestation: &attest.Attestation_SevSnpAttestation{
+			SevSnpAttestation: &sevsnp.Attestation{
+				Report: &sevsnp.Report{
+					Measurement: measurement,
+				},
+			},
+		},
+	}
+	reportBytes, _ := proto.Marshal(att)
+
+	// Mock CoMID
+	c := comid.NewComid()
+	c.SetTagIdentity("test-tag", 0)
+
+	m := comid.MustNewUintMeasurement(uint64(1))
+	m.AddDigest(1, measurement)
+	m.SetRawValueBytes([]byte("raw"), nil)
+
+	rv := comid.ReferenceValue{
+		Environment: comid.Environment{
+			Class: comid.NewClassOID("1.2.3.4"),
+		},
+		Measurements: comid.Measurements{*m},
+	}
+	c.AddReferenceValue(rv)
+
+	manifest := corim.NewUnsignedCorim()
+	manifest.SetID("test-corim")
+	manifest.AddComid(*c)
+
+	err := v.VerifyWithCoRIM(reportBytes, manifest)
+	assert.NoError(t, err)
+
+	// Failure case: mismatched measurement
+	cFail := comid.NewComid()
+	cFail.SetTagIdentity("test-tag-fail", 0)
+
+	mFail := comid.MustNewUintMeasurement(uint64(1))
+	wrongMeasurement := make([]byte, 32)
+	copy(wrongMeasurement, "wrong-measurement")
+	mFail.AddDigest(1, wrongMeasurement)
+	mFail.SetRawValueBytes([]byte("raw"), nil)
+
+	rvFail := comid.ReferenceValue{
+		Environment: comid.Environment{
+			Class: comid.NewClassOID("1.2.3.4"),
+		},
+		Measurements: comid.Measurements{*mFail},
+	}
+	cFail.AddReferenceValue(rvFail)
+
+	manifest.Tags = nil
+	manifest.AddComid(*cFail)
+
+	err = v.VerifyWithCoRIM(reportBytes, manifest)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no matching reference value")
 }
 
 func TestVerifier_VerifyWithCoRIM_Error(t *testing.T) {
