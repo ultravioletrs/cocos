@@ -45,11 +45,11 @@ func (m *IgvmMeasurement) Run(pathToFile string) error {
 	args = append(args, "-b")
 
 	outBuf := &bytes.Buffer{}
-	cmd := m.execCommand(binary, args...)
-	cmd.Stderr = m.stderr
-	cmd.Stdout = outBuf
+	m.cmd = m.execCommand(binary, args...)
+	m.cmd.Stderr = m.stderr
+	m.cmd.Stdout = outBuf
 
-	if err := cmd.Run(); err != nil {
+	if err := m.cmd.Run(); err != nil {
 		return err
 	}
 	outputString := outBuf.String()

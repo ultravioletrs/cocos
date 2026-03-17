@@ -9,9 +9,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/veraison/corim/corim"
+	"google.golang.org/protobuf/proto"
 )
 
 type mockTPM struct {
@@ -177,4 +180,46 @@ func TestAttest(t *testing.T) {
 	// Attest calls FetchQuote which fails because mockTPM doesn't behave like a real TPM for client.AttestationKeyRSA
 	_, err := Attest([]byte("tee-nonce"), []byte("vtpm-nonce"), false, 0)
 	assert.Error(t, err)
+}
+
+func TestVerifier_VerifyWithCoRIM(t *testing.T) {
+	v := NewVerifier(&mockWriter{})
+
+	// 1. Invalid report
+	err := v.VerifyWithCoRIM([]byte("invalid"), &corim.UnsignedCorim{})
+	assert.Error(t, err)
+
+	// 2. Missing SEV-SNP attestation
+	att := &attest.Attestation{}
+	reportBytes, _ := proto.Marshal(att)
+	err = v.VerifyWithCoRIM(reportBytes, &corim.UnsignedCorim{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no SEV-SNP attestation found")
+
+	// 3. No measurement in report
+	att = &attest.Attestation{
+		TeeAttestation: &attest.Attestation_SevSnpAttestation{
+			SevSnpAttestation: &sevsnp.Attestation{
+				Report: &sevsnp.Report{},
+			},
+		},
+	}
+	reportBytes, _ = proto.Marshal(att)
+	err = v.VerifyWithCoRIM(reportBytes, &corim.UnsignedCorim{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no measurement in SEV-SNP report")
+
+	// 4. No tags in CoRIM (should not return error because of line 185)
+	att = &attest.Attestation{
+		TeeAttestation: &attest.Attestation_SevSnpAttestation{
+			SevSnpAttestation: &sevsnp.Attestation{
+				Report: &sevsnp.Report{
+					Measurement: []byte("meas"),
+				},
+			},
+		},
+	}
+	reportBytes, _ = proto.Marshal(att)
+	err = v.VerifyWithCoRIM(reportBytes, &corim.UnsignedCorim{})
+	assert.NoError(t, err)
 }

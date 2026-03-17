@@ -75,9 +75,9 @@ func (cli *CLI) NewCreateCoRIMAzureCmd() *cobra.Command {
 				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
-				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)
+				fmt.Fprintf(cmd.ErrOrStderr(), "CoRIM written to %s\n", output)
 			} else {
-				if _, err := os.Stdout.Write(cborBytes); err != nil {
+				if _, err := cmd.OutOrStdout().Write(cborBytes); err != nil {
 					return fmt.Errorf("failed to write output: %w", err)
 				}
 			}
@@ -140,9 +140,9 @@ func (cli *CLI) NewCreateCoRIMGCPCmd() *cobra.Command {
 				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
-				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)
+				fmt.Fprintf(cmd.ErrOrStderr(), "CoRIM written to %s\n", output)
 			} else {
-				if _, err := os.Stdout.Write(cborBytes); err != nil {
+				if _, err := cmd.OutOrStdout().Write(cborBytes); err != nil {
 					return fmt.Errorf("failed to write output: %w", err)
 				}
 			}
@@ -204,9 +204,9 @@ func (cli *CLI) NewCreateCoRIMSNPCmd() *cobra.Command {
 				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
-				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)
+				fmt.Fprintf(cmd.ErrOrStderr(), "CoRIM written to %s\n", output)
 			} else {
-				if _, err := os.Stdout.Write(cborBytes); err != nil {
+				if _, err := cmd.OutOrStdout().Write(cborBytes); err != nil {
 					return fmt.Errorf("failed to write output: %w", err)
 				}
 			}
@@ -267,9 +267,9 @@ func (cli *CLI) NewCreateCoRIMTDXCmd() *cobra.Command {
 				if err := os.WriteFile(output, cborBytes, 0o644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
-				fmt.Fprintf(os.Stderr, "CoRIM written to %s\n", output)
+				fmt.Fprintf(cmd.ErrOrStderr(), "CoRIM written to %s\n", output)
 			} else {
-				if _, err := os.Stdout.Write(cborBytes); err != nil {
+				if _, err := cmd.OutOrStdout().Write(cborBytes); err != nil {
 					return fmt.Errorf("failed to write output: %w", err)
 				}
 			}

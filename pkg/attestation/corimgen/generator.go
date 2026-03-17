@@ -53,7 +53,7 @@ func GenerateCoRIM(opts Options) ([]byte, error) {
 	applyDefaults(&opts)
 
 	// Create CoMID
-	comidObj, err := createCoMID(opts)
+	comidObj, err := CreateCoMID(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CoMID: %w", err)
 	}
@@ -107,7 +107,7 @@ func applyDefaults(opts *Options) {
 }
 
 // createCoMID creates a CoMID object for the given platform.
-func createCoMID(opts Options) (*comid.Comid, error) {
+func CreateCoMID(opts Options) (*comid.Comid, error) {
 	comidObj := comid.NewComid()
 
 	// Set tag identity

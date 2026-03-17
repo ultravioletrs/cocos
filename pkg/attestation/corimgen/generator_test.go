@@ -3,7 +3,6 @@
 package corimgen
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -133,10 +132,31 @@ func TestGenerateCoRIM_SNP_WithHostData(t *testing.T) {
 	require.NotEmpty(t, corimBytes)
 }
 
-func TestHexEncoding(t *testing.T) {
-	// Test that our hex encoding/decoding works
-	testHex := "abc123"
-	bytes, err := hex.DecodeString(testHex)
-	require.NoError(t, err)
-	assert.Equal(t, []byte{0xab, 0xc1, 0x23}, bytes)
+func TestGenerateCoRIM_TDX_InvalidMrSeam(t *testing.T) {
+	opts := Options{
+		Platform: "tdx",
+		MrSeam:   "invalid-hex",
+	}
+
+	_, err := GenerateCoRIM(opts)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode MRSEAM")
+}
+
+func TestGenerateCoRIM_TDX_InvalidRTMR(t *testing.T) {
+	opts := Options{
+		Platform: "tdx",
+		RTMRs:    "invalid-hex",
+	}
+
+	_, err := GenerateCoRIM(opts)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode RTMR")
+}
+
+func TestGenerateCoRIM_WithSigning(t *testing.T) {
+	// This would require a mock signer, but for now we can test that it
+	// fails if we provide something that looks like a key but is invalid or not fully supported
+	// However, we've already tested the unsigned paths which are the main focus.
+	t.Skip("Signing test requires mock signer")
 }
