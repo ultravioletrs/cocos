@@ -136,7 +136,7 @@ func main() {
 	rootCmd.AddCommand(cliSVC.NewFileHashCmd())
 	rootCmd.AddCommand(attestationPolicyCmd)
 	rootCmd.AddCommand(keysCmd)
-	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath))
+	rootCmd.AddCommand(cliSVC.NewCABundleCmd(directoryCachePath, nil))
 	rootCmd.AddCommand(cliSVC.NewCreateVMCmd())
 	rootCmd.AddCommand(cliSVC.NewRemoveVMCmd())
 	rootCmd.AddCommand(cliSVC.NewIMAMeasurementsCmd())

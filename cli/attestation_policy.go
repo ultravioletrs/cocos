@@ -10,6 +10,9 @@ func (cli *CLI) NewAttestationPolicyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "Change attestation policy",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(cli.NewCreateCoRIMCmd())
