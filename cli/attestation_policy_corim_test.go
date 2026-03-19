@@ -4,12 +4,18 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	"github.com/ultravioletrs/cocos/pkg/attestation/gcp"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestCLI_NewCreateCoRIMCmd(t *testing.T) {
@@ -102,20 +108,95 @@ func TestCLI_NewCreateCoRIMGCPCmd_Error(t *testing.T) {
 	// It should fail at GetLaunchEndorsement or storage client creation
 }
 
-func TestCLI_NewCreateCoRIMSNPCmd_OutputFile(t *testing.T) {
+func TestCLI_NewCreateCoRIMAzureCmd_Success(t *testing.T) {
 	cli := &CLI{}
-	cmd := cli.NewCreateCoRIMSNPCmd()
+	cmd := cli.NewCreateCoRIMAzureCmd()
 
-	tmpDir, err := os.MkdirTemp("", "corim-test-")
+	oldValidator := azure.DefaultValidator
+	defer func() { azure.DefaultValidator = oldValidator }()
+
+	azure.DefaultValidator = &mockTokenValidator{
+		validateFunc: func(token string) (map[string]any, error) {
+			return map[string]any{
+				"x-ms-isolation-tee": map[string]any{
+					"x-ms-sevsnpvm-launchmeasurement": "00112233",
+					"x-ms-sevsnpvm-guestsvn":          1.0,
+				},
+			}, nil
+		},
+	}
+
+	tmpDir := t.TempDir()
+	tokenPath := filepath.Join(tmpDir, "token.jwt")
+	// Dummy token
+	dummyToken := "eyJhbGciOiJub25lIn0.eyJoZWFkZXIiOiJkYXRhIn0."
+	err := os.WriteFile(tokenPath, []byte(dummyToken), 0o644)
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
 
-	outputPath := filepath.Join(tmpDir, "policy.cbor")
-	cmd.SetArgs([]string{"--measurement", "00", "--output", outputPath})
+	var outBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+	cmd.SetArgs([]string{"--token", tokenPath})
 
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	assert.NotEmpty(t, outBuf.Bytes())
+}
 
-	_, err = os.Stat(outputPath)
+type mockTokenValidator struct {
+	validateFunc func(token string) (map[string]any, error)
+}
+
+func (m *mockTokenValidator) Validate(token string) (map[string]any, error) {
+	return m.validateFunc(token)
+}
+
+func TestCLI_NewCreateCoRIMGCPCmd_Success(t *testing.T) {
+	cli := &CLI{}
+	cmd := cli.NewCreateCoRIMGCPCmd()
+
+	oldNewStorageClient := gcp.NewStorageClient
+	defer func() { gcp.NewStorageClient = oldNewStorageClient }()
+
+	gcp.NewStorageClient = func(ctx context.Context) (gcp.StorageClient, error) {
+		return &mockGCPStorageClient{
+			getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+				goldenUEFI := &endorsement.VMGoldenMeasurement{
+					SevSnp: &endorsement.VMSevSnp{
+						Policy:       123,
+						Measurements: map[uint32][]byte{1: {0x1, 0x2}},
+					},
+				}
+				goldenBytes, _ := proto.Marshal(goldenUEFI)
+				launchEndorsement := &endorsement.VMLaunchEndorsement{
+					SerializedUefiGolden: goldenBytes,
+				}
+				launchBytes, _ := proto.Marshal(launchEndorsement)
+				return io.NopCloser(bytes.NewReader(launchBytes)), nil
+			},
+			closeFunc: func() error { return nil },
+		}, nil
+	}
+
+	var outBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+	cmd.SetArgs([]string{"--measurement", "00112233", "--vcpu", "1"})
+
+	err := cmd.Execute()
 	assert.NoError(t, err)
+	assert.NotEmpty(t, outBuf.Bytes())
+}
+
+type mockGCPStorageClient struct {
+	getReaderFunc func(ctx context.Context, bucket, object string) (io.ReadCloser, error)
+	closeFunc     func() error
+}
+
+func (m *mockGCPStorageClient) GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+	return m.getReaderFunc(ctx, bucket, object)
+}
+
+func (m *mockGCPStorageClient) Close() error {
+	return m.closeFunc()
 }

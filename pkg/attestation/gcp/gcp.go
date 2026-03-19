@@ -16,6 +16,32 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// StorageClient defines the interface for Google Cloud Storage operations.
+type StorageClient interface {
+	GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error)
+	Close() error
+}
+
+type gcpStorageClient struct {
+	client *storage.Client
+}
+
+func (c *gcpStorageClient) GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+	return c.client.Bucket(bucket).Object(object).NewReader(ctx)
+}
+
+func (c *gcpStorageClient) Close() error {
+	return c.client.Close()
+}
+
+var NewStorageClient = func(ctx context.Context) (StorageClient, error) {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &gcpStorageClient{client: client}, nil
+}
+
 const (
 	// Offset of the 384-bit measurement in the report.
 	// The measurement is 48 bytes long and starts at offset 0x90.
@@ -46,16 +72,16 @@ func Extract384BitMeasurement(attestation *sevsnp.Attestation) (string, error) {
 }
 
 func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsement.VMGoldenMeasurement, error) {
-	client, err := storage.NewClient(ctx)
+	client, err := NewStorageClient(ctx)
 	if err != nil {
 		return &endorsement.VMGoldenMeasurement{}, fmt.Errorf("failed to create storage client: %v", err)
 	}
+	defer client.Close()
 
-	reader, err := client.Bucket(bucketName).Object(fmt.Sprintf(objectName, measurement384)).NewReader(ctx)
+	reader, err := client.GetReader(ctx, bucketName, fmt.Sprintf(objectName, measurement384))
 	if err != nil {
 		return &endorsement.VMGoldenMeasurement{}, fmt.Errorf("failed to create reader: %v", err)
 	}
-
 	defer reader.Close()
 
 	launchEndorsements, err := io.ReadAll(reader)
@@ -77,16 +103,16 @@ func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsem
 }
 
 func DownloadOvmfFile(ctx context.Context, digest string) ([]byte, error) {
-	client, err := storage.NewClient(ctx)
+	client, err := NewStorageClient(ctx)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create storage client: %v", err)
 	}
+	defer client.Close()
 
-	reader, err := client.Bucket(bucketName).Object(fmt.Sprintf(ovmfObjectName, digest)).NewReader(ctx)
+	reader, err := client.GetReader(ctx, bucketName, fmt.Sprintf(ovmfObjectName, digest))
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create reader: %v", err)
 	}
-
 	defer reader.Close()
 
 	ovmf, err := io.ReadAll(reader)

@@ -22,10 +22,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// TokenValidator defines the interface for Azure token validation.
+type TokenValidator interface {
+	Validate(token string) (map[string]any, error)
+}
+
+type azureTokenValidator struct{}
+
+func (v *azureTokenValidator) Validate(token string) (map[string]any, error) {
+	return validateToken(token)
+}
+
 var (
 	MaaURL             = "https://sharedeus2.eus2.attest.azure.net"
 	ErrFetchAzureToken = errors.New("failed to fetch Azure token")
 )
+
+var DefaultValidator TokenValidator = &azureTokenValidator{}
 
 var (
 	_ attestation.Provider = (*provider)(nil)
@@ -199,7 +212,7 @@ type AzureMeasurementData struct {
 
 // ExtractAzureMeasurement extracts the core SNP measurements from an Azure Attestation Token.
 func ExtractAzureMeasurement(token string) (*AzureMeasurementData, error) {
-	claims, err := validateToken(token)
+	claims, err := DefaultValidator.Validate(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate token: %w", err)
 	}

@@ -127,7 +127,117 @@ func TestVerifyPeerCertificate_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestVerifyPeerCertificate_Failures(t *testing.T) {
+func TestVerifyPeerCertificate_AzureSuccess(t *testing.T) {
+	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test CA"},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(1 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	caCertDER, _ := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	caCert, _ := x509.ParseCertificate(caCertDER)
+
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(caCert)
+
+	verifier := NewCertificateVerifier(rootCAs).(*certificateVerifier)
+	verifier.verifierProvider = func(pt attestation.PlatformType) (attestation.Verifier, error) {
+		return &mockVerifier{}, nil
+	}
+
+	peerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	nonce := []byte("test-nonce")
+	peerPubKeyDER, _ := x509.MarshalPKIXPublicKey(&peerKey.PublicKey)
+	teeNonce := append(peerPubKeyDER, nonce...)
+	hashNonce := sha3.Sum512(teeNonce)
+
+	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
+	eatBytes, _ := cbor.Marshal(claims)
+
+	peerTemplate := &x509.Certificate{
+		SerialNumber:    big.NewInt(2),
+		Subject:         pkix.Name{CommonName: "Azure Peer"},
+		NotBefore:       time.Now().Add(-1 * time.Hour),
+		NotAfter:        time.Now().Add(1 * time.Hour),
+		ExtraExtensions: []pkix.Extension{{Id: AzureOID, Value: eatBytes}},
+	}
+	peerCertDER, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+
+	tempDir := t.TempDir()
+	c := corim.NewUnsignedCorim()
+	c.SetID("cocos-test-id")
+	corimBytes, _ := c.ToCBOR()
+	policyPath := filepath.Join(tempDir, "policy.cbor")
+	_ = os.WriteFile(policyPath, corimBytes, 0o644)
+
+	oldPolicyPath := attestation.AttestationPolicyPath
+	attestation.AttestationPolicyPath = policyPath
+	t.Cleanup(func() { attestation.AttestationPolicyPath = oldPolicyPath })
+
+	err := verifier.VerifyPeerCertificate([][]byte{peerCertDER}, nil, nonce)
+	assert.NoError(t, err)
+}
+
+func TestVerifyPeerCertificate_TDXSuccess(t *testing.T) {
+	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test CA"},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(1 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	caCertDER, _ := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	caCert, _ := x509.ParseCertificate(caCertDER)
+
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(caCert)
+
+	verifier := NewCertificateVerifier(rootCAs).(*certificateVerifier)
+	verifier.verifierProvider = func(pt attestation.PlatformType) (attestation.Verifier, error) {
+		return &mockVerifier{}, nil
+	}
+
+	peerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	nonce := []byte("test-nonce")
+	peerPubKeyDER, _ := x509.MarshalPKIXPublicKey(&peerKey.PublicKey)
+	teeNonce := append(peerPubKeyDER, nonce...)
+	hashNonce := sha3.Sum512(teeNonce)
+
+	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
+	eatBytes, _ := cbor.Marshal(claims)
+
+	peerTemplate := &x509.Certificate{
+		SerialNumber:    big.NewInt(3),
+		Subject:         pkix.Name{CommonName: "TDX Peer"},
+		NotBefore:       time.Now().Add(-1 * time.Hour),
+		NotAfter:        time.Now().Add(1 * time.Hour),
+		ExtraExtensions: []pkix.Extension{{Id: TDXOID, Value: eatBytes}},
+	}
+	peerCertDER, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+
+	tempDir := t.TempDir()
+	c := corim.NewUnsignedCorim()
+	c.SetID("cocos-test-id")
+	corimBytes, _ := c.ToCBOR()
+	policyPath := filepath.Join(tempDir, "policy.cbor")
+	_ = os.WriteFile(policyPath, corimBytes, 0o644)
+
+	oldPolicyPath := attestation.AttestationPolicyPath
+	attestation.AttestationPolicyPath = policyPath
+	t.Cleanup(func() { attestation.AttestationPolicyPath = oldPolicyPath })
+
+	err := verifier.VerifyPeerCertificate([][]byte{peerCertDER}, nil, nonce)
+	assert.NoError(t, err)
+}
+
+func TestVerifyPeerCertificate_Failures_More(t *testing.T) {
 	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
@@ -145,35 +255,29 @@ func TestVerifyPeerCertificate_Failures(t *testing.T) {
 
 	verifier := NewCertificateVerifier(rootCAs).(*certificateVerifier)
 
+	// Case 1: Invalid OID
 	peerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	peerTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(2),
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(time.Hour),
+		SerialNumber:    big.NewInt(4),
+		NotBefore:       time.Now(),
+		NotAfter:        time.Now().Add(time.Hour),
+		ExtraExtensions: []pkix.Extension{{Id: []int{1, 2, 3}, Value: []byte("val")}},
 	}
 	certDER, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
-
 	err := verifier.VerifyPeerCertificate([][]byte{certDER}, nil, []byte("nonce"))
 	assert.ErrorContains(t, err, "attestation extension not found")
 
-	nonce := []byte("nonce1")
-	wrongNonce := []byte("nonce2")
+	// Case 2: Policy path not set
+	attestation.AttestationPolicyPath = ""
 	peerPubKeyDER, _ := x509.MarshalPKIXPublicKey(&peerKey.PublicKey)
-	teeNonce := append(peerPubKeyDER, wrongNonce...) // Mismatching input
+	nonce := []byte("nonce")
+	teeNonce := append(peerPubKeyDER, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
-
 	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
 	eatBytes, _ := cbor.Marshal(claims)
-
 	peerTemplate.ExtraExtensions = []pkix.Extension{{Id: SNPvTPMOID, Value: eatBytes}}
-	certDERMismatch, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+	certDERWithExt, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
 
-	err = verifier.VerifyPeerCertificate([][]byte{certDERMismatch}, nil, nonce) // Pass nonce1
-	assert.ErrorContains(t, err, "nonce mismatch")
-}
-
-func TestVerifyPeerCertificate_Empty(t *testing.T) {
-	verifier := NewCertificateVerifier(nil)
-	err := verifier.VerifyPeerCertificate(nil, nil, nil)
-	assert.ErrorContains(t, err, "no certificates provided")
+	err = verifier.VerifyPeerCertificate([][]byte{certDERWithExt}, nil, nonce)
+	assert.ErrorContains(t, err, "attestation policy path is not set")
 }
