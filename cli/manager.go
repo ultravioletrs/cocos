@@ -67,7 +67,6 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 			createReq.AwsAccessKeyId = awsAccessKeyId
 			createReq.AwsSecretAccessKey = awsSecretAccessKey
 			createReq.AwsEndpointUrl = awsEndpointUrl
-			createReq.AwsEndpointUrl = awsEndpointUrl
 			createReq.AwsRegion = awsRegion
 			createReq.AaKbsParams = aaKbsParams
 

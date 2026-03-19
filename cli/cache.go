@@ -9,11 +9,8 @@ import (
 
 	"github.com/google/go-sev-guest/abi"
 	"github.com/google/go-sev-guest/kds"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/spf13/cobra"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 )
 
 const (
@@ -21,46 +18,36 @@ const (
 	filePermisionKeys = 0o766
 )
 
-func (cli *CLI) NewCABundleCmd(fileSavePath string) *cobra.Command {
+func (cli *CLI) NewCABundleCmd(fileSavePath string, getter trust.HTTPSGetter) *cobra.Command {
 	return &cobra.Command{
 		Use:     "ca-bundle",
 		Short:   "Fetch AMD SEV-SNPs CA Bundle (ASK and ARK)",
-		Example: "ca-bundle <path_to_platform_info_json>",
+		Example: "ca-bundle <product_name>",
 		Args:    cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			attestationConfiguration := attestation.Config{Config: &check.Config{Policy: &check.Policy{}, RootOfTrust: &check.RootOfTrust{}}, PcrConfig: &attestation.PcrConfig{}}
-			err := vtpm.ReadPolicy(args[0], &attestationConfiguration)
-			if err != nil {
-				printError(cmd, "Error while reading manifest: %v ❌ ", err)
-				return
+		RunE: func(cmd *cobra.Command, args []string) error {
+			product := args[0]
+
+			if getter == nil {
+				getter = trust.DefaultHTTPSGetter()
 			}
-
-			product := attestationConfiguration.Config.RootOfTrust.ProductLine
-
-			getter := trust.DefaultHTTPSGetter()
 			caURL := kds.ProductCertChainURL(abi.VcekReportSigner, product)
 
 			bundle, err := getter.Get(caURL)
 			if err != nil {
-				message := fmt.Sprintf("Error fetching ARK and ASK from AMD KDS for product: %s", product)
-				message += ", error: %v ❌ "
-				printError(cmd, message, err)
-				return
+				return fmt.Errorf("error fetching ARK and ASK from AMD KDS for product %s: %w", product, err)
 			}
 
 			err = os.MkdirAll(path.Join(fileSavePath, product), filePermisionKeys)
 			if err != nil {
-				message := fmt.Sprintf("Error while creating directory for product name %s", product)
-				message += ", error: %v ❌ "
-				printError(cmd, message, err)
-				return
+				return fmt.Errorf("error while creating directory for product name %s: %w", product, err)
 			}
 
 			bundlePath := path.Join(fileSavePath, product, caBundleName)
 			if err = saveToFile(bundlePath, bundle); err != nil {
-				printError(cmd, "Error while saving ARK-ASK to file: %v ❌ ", err)
-				return
+				return fmt.Errorf("error while saving ARK-ASK to file: %w", err)
 			}
+
+			return nil
 		},
 	}
 }

@@ -4,22 +4,51 @@
 package gcp
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
 
+type mockStorageClient struct {
+	getReaderFunc func(ctx context.Context, bucket, object string) (io.ReadCloser, error)
+	closeFunc     func() error
+}
+
+func (m *mockStorageClient) GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+	if m.getReaderFunc != nil {
+		return m.getReaderFunc(ctx, bucket, object)
+	}
+	return nil, errors.New("GetReader not implemented")
+}
+
+func (m *mockStorageClient) Close() error {
+	if m.closeFunc != nil {
+		return m.closeFunc()
+	}
+	return nil
+}
+
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read error")
+}
+
+func (e *errorReader) Close() error {
+	return nil
+}
+
 func TestExtract384BitMeasurement(t *testing.T) {
 	tests := []struct {
 		name        string
 		attestation *sevsnp.Attestation
-		setupMock   func()
 		expected    string
 		expectError bool
 		errorMsg    string
@@ -31,13 +60,7 @@ func TestExtract384BitMeasurement(t *testing.T) {
 			errorMsg:    "report is nil",
 		},
 		{
-			name:        "short report",
-			attestation: &sevsnp.Attestation{Report: &sevsnp.Report{}},
-			expectError: true,
-			errorMsg:    "failed to transform report to binary",
-		},
-		{
-			name:        "empty report",
+			name:        "invalid attestation",
 			attestation: &sevsnp.Attestation{},
 			expectError: true,
 			errorMsg:    "failed to transform report to binary",
@@ -47,11 +70,11 @@ func TestExtract384BitMeasurement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := Extract384BitMeasurement(tt.attestation)
-
 			if tt.expectError {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorMsg)
-				assert.Empty(t, result)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
@@ -61,81 +84,181 @@ func TestExtract384BitMeasurement(t *testing.T) {
 }
 
 func TestGetLaunchEndorsement(t *testing.T) {
+	oldNewStorageClient := NewStorageClient
+	defer func() { NewStorageClient = oldNewStorageClient }()
+
 	tests := []struct {
 		name           string
 		measurement384 string
-		setupMock      func() ([]byte, error)
+		mockClient     *mockStorageClient
+		clientErr      error
 		expectError    bool
 		errorMsg       string
 	}{
 		{
 			name:           "successful retrieval",
 			measurement384: "test-measurement",
-			setupMock: func() ([]byte, error) {
-				goldenUEFI := &endorsement.VMGoldenMeasurement{
-					SevSnp: &endorsement.VMSevSnp{
-						Policy:       12345,
-						Measurements: map[uint32][]byte{1: []byte("test-measurement")},
-					},
-				}
-				goldenBytes, _ := proto.Marshal(goldenUEFI)
-
-				launchEndorsement := &endorsement.VMLaunchEndorsement{
-					SerializedUefiGolden: goldenBytes,
-				}
-				return proto.Marshal(launchEndorsement)
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					goldenUEFI := &endorsement.VMGoldenMeasurement{
+						SevSnp: &endorsement.VMSevSnp{
+							Policy: 12345,
+						},
+					}
+					goldenBytes, _ := proto.Marshal(goldenUEFI)
+					launchEndorsement := &endorsement.VMLaunchEndorsement{
+						SerializedUefiGolden: goldenBytes,
+					}
+					launchBytes, _ := proto.Marshal(launchEndorsement)
+					return io.NopCloser(bytes.NewReader(launchBytes)), nil
+				},
 			},
 			expectError: false,
 		},
 		{
-			name:           "storage client error",
-			measurement384: "test-measurement",
-			setupMock: func() ([]byte, error) {
-				return nil, errors.New("storage client error")
+			name:        "storage client error",
+			clientErr:   errors.New("client error"),
+			expectError: true,
+			errorMsg:    "failed to create storage client",
+		},
+		{
+			name: "reader error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return nil, errors.New("reader error")
+				},
 			},
 			expectError: true,
 			errorMsg:    "failed to create reader",
 		},
 		{
-			name:           "object not found",
-			measurement384: "non-existent-measurement",
-			setupMock: func() ([]byte, error) {
-				return nil, storage.ErrObjectNotExist
+			name: "invalid launch endorsement protobuf",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return io.NopCloser(bytes.NewReader([]byte("invalid"))), nil
+				},
 			},
 			expectError: true,
-			errorMsg:    "failed to create reader",
+			errorMsg:    "failed to unmarshal launch endorsement",
 		},
 		{
-			name:           "invalid protobuf data",
-			measurement384: "test-measurement",
-			setupMock: func() ([]byte, error) {
-				return []byte("invalid protobuf data"), nil
+			name: "invalid golden UEFI protobuf",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					launchEndorsement := &endorsement.VMLaunchEndorsement{
+						SerializedUefiGolden: []byte("invalid"),
+					}
+					launchBytes, _ := proto.Marshal(launchEndorsement)
+					return io.NopCloser(bytes.NewReader(launchBytes)), nil
+				},
 			},
 			expectError: true,
-			errorMsg:    "failed to create reader",
+			errorMsg:    "failed to unmarshal golden UEFI",
+		},
+		{
+			name: "read error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return &errorReader{}, nil
+				},
+			},
+			expectError: true,
+			errorMsg:    "failed to read object",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-
-			// skip if credentials are not set
-			if _, err := storage.NewClient(ctx); err != nil && tt.expectError {
-				t.Skip("Skipping test due to missing GCP credentials")
+			NewStorageClient = func(ctx context.Context) (StorageClient, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
+				return tt.mockClient, nil
 			}
 
-			_, err := GetLaunchEndorsement(ctx, tt.measurement384)
-
+			_, err := GetLaunchEndorsement(context.Background(), tt.measurement384)
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
 }
 
-func TestGenerateAttestationPolicy(t *testing.T) {
+func TestDownloadOvmfFile(t *testing.T) {
+	oldNewStorageClient := NewStorageClient
+	defer func() { NewStorageClient = oldNewStorageClient }()
+
+	tests := []struct {
+		name        string
+		digest      string
+		mockClient  *mockStorageClient
+		clientErr   error
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:   "successful download",
+			digest: "test-digest",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return io.NopCloser(bytes.NewReader([]byte("ovmf-data"))), nil
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:        "client error",
+			clientErr:   errors.New("client error"),
+			expectError: true,
+			errorMsg:    "failed to create storage client",
+		},
+		{
+			name: "reader error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return nil, errors.New("reader error")
+				},
+			},
+			expectError: true,
+			errorMsg:    "failed to create reader",
+		},
+		{
+			name: "read error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return &errorReader{}, nil
+				},
+			},
+			expectError: true,
+			errorMsg:    "failed to read object",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			NewStorageClient = func(ctx context.Context) (StorageClient, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
+				return tt.mockClient, nil
+			}
+
+			data, err := DownloadOvmfFile(context.Background(), tt.digest)
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorMsg)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, []byte("ovmf-data"), data)
+			}
+		})
+	}
+}
+
+func TestExtractGCPMeasurement(t *testing.T) {
 	tests := []struct {
 		name        string
 		endorsement *endorsement.VMGoldenMeasurement
@@ -144,117 +267,46 @@ func TestGenerateAttestationPolicy(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name: "valid endorsement",
+			name: "successful extraction",
 			endorsement: &endorsement.VMGoldenMeasurement{
 				SevSnp: &endorsement.VMSevSnp{
-					Policy:       12345,
-					Measurements: map[uint32][]byte{1: []byte("test-measurement")},
+					Measurements: map[uint32][]byte{1: {0x1, 0x2}},
+					Policy:       123,
 				},
 			},
 			vcpuNum:     1,
 			expectError: false,
 		},
 		{
-			name: "missing measurement for vcpu",
-			endorsement: &endorsement.VMGoldenMeasurement{
-				SevSnp: &endorsement.VMSevSnp{
-					Policy:       12345,
-					Measurements: map[uint32][]byte{2: []byte("test-measurement")},
-				},
-			},
-			vcpuNum:     1,
-			expectError: false,
+			name:        "missing SEV-SNP data",
+			endorsement: &endorsement.VMGoldenMeasurement{},
+			expectError: true,
+			errorMsg:    "endorsement does not contain SEV-SNP data",
 		},
 		{
-			name: "empty measurements map",
+			name: "missing vCPU measurement",
 			endorsement: &endorsement.VMGoldenMeasurement{
 				SevSnp: &endorsement.VMSevSnp{
-					Policy:       12345,
-					Measurements: map[uint32][]byte{},
+					Measurements: map[uint32][]byte{2: {0x1}},
 				},
 			},
 			vcpuNum:     1,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "endorsement does not contain measurement for vCPU 1",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateAttestationPolicy(tt.endorsement, tt.vcpuNum)
-
+			data, err := ExtractGCPMeasurement(tt.endorsement, tt.vcpuNum)
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, result)
-				assert.NotNil(t, result.Config)
-				assert.NotNil(t, result.Config.Policy)
-				assert.NotNil(t, result.Config.RootOfTrust)
-				assert.NotNil(t, result.PcrConfig)
-
-				assert.Equal(t, tt.endorsement.SevSnp.Policy, result.Config.Policy.Policy)
-				assert.Equal(t, tt.endorsement.SevSnp.Measurements[tt.vcpuNum], result.Config.Policy.Measurement)
-				assert.False(t, result.Config.RootOfTrust.DisallowNetwork)
-				assert.True(t, result.Config.RootOfTrust.CheckCrl)
-				assert.Equal(t, "Milan", result.Config.RootOfTrust.Product)
-				assert.Equal(t, "Milan", result.Config.RootOfTrust.ProductLine)
-			}
-		})
-	}
-}
-
-func TestDownloadOvmfFile(t *testing.T) {
-	tests := []struct {
-		name        string
-		digest      string
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "successful download",
-			digest:      "test-digest",
-			expectError: false,
-		},
-		{
-			name:        "storage client error",
-			digest:      "test-digest",
-			expectError: true,
-			errorMsg:    "failed to create reader",
-		},
-		{
-			name:        "object not found",
-			digest:      "non-existent-digest",
-			expectError: true,
-			errorMsg:    "failed to create reader",
-		},
-		{
-			name:        "read error",
-			digest:      "test-digest",
-			expectError: true,
-			errorMsg:    "failed to create reader",
-		},
-		{
-			name:        "empty digest",
-			digest:      "",
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-
-			// skip if credentials are not set
-			if _, err := storage.NewClient(ctx); err != nil && tt.expectError {
-				t.Skip("Skipping test due to missing GCP credentials")
-			}
-
-			_, err := DownloadOvmfFile(ctx, tt.digest)
-
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorMsg)
+				assert.NotNil(t, data)
+				assert.Equal(t, "0102", data.Measurement)
+				assert.Equal(t, uint64(123), data.Policy)
 			}
 		})
 	}

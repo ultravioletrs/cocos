@@ -8,8 +8,19 @@ import (
 	"path"
 	"testing"
 
+	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/stretchr/testify/assert"
 )
+
+var _ trust.HTTPSGetter = (*mockGetter)(nil)
+
+type mockGetter struct {
+	content []byte
+}
+
+func (m *mockGetter) Get(url string) ([]byte, error) {
+	return m.content, nil
+}
 
 func TestNewCABundleCmd(t *testing.T) {
 	cli := &CLI{}
@@ -17,26 +28,25 @@ func TestNewCABundleCmd(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	manifestContent := []byte(`{"root_of_trust": {"product_line": "Milan"}}`)
-	manifestPath := path.Join(tempDir, "manifest.json")
-	err = os.WriteFile(manifestPath, manifestContent, 0o644)
-	assert.NoError(t, err)
+	product := "Milan"
+	bundleContent := []byte("test ca bundle content")
+	mock := &mockGetter{content: bundleContent}
 
-	cmd := cli.NewCABundleCmd(tempDir)
-	cmd.SetArgs([]string{manifestPath})
+	cmd := cli.NewCABundleCmd(tempDir, mock)
+	cmd.SetArgs([]string{product})
 	output := &bytes.Buffer{}
 	cmd.SetOutput(output)
 	err = cmd.Execute()
 
 	assert.NoError(t, err)
 
-	expectedFilePath := path.Join(tempDir, "Milan", caBundleName)
+	expectedFilePath := path.Join(tempDir, product, caBundleName)
 	_, err = os.Stat(expectedFilePath)
 	assert.NoError(t, err)
 
 	content, err := os.ReadFile(expectedFilePath)
 	assert.NoError(t, err)
-	assert.NotNil(t, content)
+	assert.Equal(t, bundleContent, content)
 }
 
 func TestSaveToFile(t *testing.T) {

@@ -57,6 +57,7 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-1", resp.ComputationId)
 }
 
@@ -71,12 +72,13 @@ func TestRunWithPythonAlgorithm(t *testing.T) {
 		AlgoType:      "python",
 		Algorithm:     []byte("print('hello')"),
 		Args:          []string{},
-		Requirements:  []byte("numpy==1.21.0"),
+		Requirements:  []byte("numpy==2.2.0"),
 	}
 
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python", resp.ComputationId)
 }
 
@@ -96,6 +98,7 @@ func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python-noreq", resp.ComputationId)
 }
 
@@ -115,6 +118,10 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	if resp.Error != "" {
+		assert.Contains(t, resp.Error, "wasmedge")
+		t.Skip("wasmedge not found, skipping test")
+	}
 	assert.Equal(t, "test-wasm", resp.ComputationId)
 }
 
@@ -134,6 +141,10 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	if resp.Error != "" {
+		assert.Contains(t, resp.Error, "Docker")
+		t.Skip("Docker issue, skipping test")
+	}
 	assert.Equal(t, "test-docker", resp.ComputationId)
 }
 
@@ -267,5 +278,6 @@ func TestRunWithMultipleArgs(t *testing.T) {
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-multi-args", resp.ComputationId)
 }

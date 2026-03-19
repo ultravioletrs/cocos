@@ -33,6 +33,7 @@ type docker struct {
 	logger   *slog.Logger
 	stderr   io.Writer
 	stdout   io.Writer
+	cmpID    string
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, cmpID string) algorithm.Algorithm {
@@ -41,6 +42,7 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile, cmpID
 		logger:   logger,
 		stderr:   &logging.Stderr{Logger: logger, EventSvc: eventsSvc, CmpID: cmpID},
 		stdout:   &logging.Stdout{Logger: logger},
+		cmpID:    cmpID,
 	}
 
 	return d
@@ -107,7 +109,7 @@ func (d *docker) Run() error {
 				Target: resultsMountPath,
 			},
 		},
-	}, nil, nil, containerName)
+	}, nil, nil, fmt.Sprintf("%s-%s", containerName, d.cmpID))
 	if err != nil {
 		return fmt.Errorf("could not create a Docker container: %v", err)
 	}

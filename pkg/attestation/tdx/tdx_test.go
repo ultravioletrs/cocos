@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/veraison/corim/corim"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -619,4 +620,49 @@ func TestReadTDXAttestationPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVerifier_VerifyWithCoRIM(t *testing.T) {
+	v := verifier{}
+
+	// 1. Report too small
+	err := v.VerifyWithCoRIM([]byte("small"), &corim.UnsignedCorim{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TDX report too small")
+
+	// 2. No tags in CoRIM
+	report := make([]byte, 160)
+	err = v.VerifyWithCoRIM(report, &corim.UnsignedCorim{})
+	assert.NoError(t, err)
+
+	// 3. With non-comid tag
+	manifest := &corim.UnsignedCorim{
+		Tags: []corim.Tag{corim.Tag("not-a-comid")},
+	}
+	err = v.VerifyWithCoRIM(report, manifest)
+	assert.NoError(t, err)
+
+	// 4. With invalid comid tag
+	manifest = &corim.UnsignedCorim{
+		Tags: []corim.Tag{append(corim.ComidTag, []byte("invalid")...)},
+	}
+	err = v.VerifyWithCoRIM(report, manifest)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse CoMID from tag")
+}
+
+func TestVerifier_VerifyEAT(t *testing.T) {
+	v := verifier{}
+
+	// Invalid EAT token
+	err := v.VerifyEAT([]byte("invalid"), nil, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode EAT token")
+}
+
+func TestVerifier_VerifVTpmAttestation_Error(t *testing.T) {
+	v := verifier{}
+	err := v.VerifVTpmAttestation(nil, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "VTPM attestation verification is not supported")
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"testing"
 
 	mglog "github.com/absmach/supermq/logger"
@@ -21,6 +22,7 @@ import (
 	persistenceMocks "github.com/ultravioletrs/cocos/manager/qemu/mocks"
 	"github.com/ultravioletrs/cocos/manager/vm"
 	"github.com/ultravioletrs/cocos/manager/vm/mocks"
+	"github.com/veraison/corim/corim"
 )
 
 func TestNew(t *testing.T) {
@@ -42,47 +44,44 @@ func TestRun(t *testing.T) {
 	vmMock := new(mocks.VM)
 	persistence := new(persistenceMocks.Persistence)
 	vmf.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(vmMock)
+	validCorim := corim.NewUnsignedCorim()
+	validCorim.SetID("test-corim")
+	validCorimBytes, _ := validCorim.ToCBOR()
+
 	tests := []struct {
-		name           string
-		binaryBehavior string
-		vmStartError   error
-		expectedError  error
-		ttl            string
+		name          string
+		corimContent  []byte
+		vmStartError  error
+		expectedError error
+		ttl           string
 	}{
 		{
-			name:           "Successful run",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "",
+			name:          "Successful run",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "",
 		},
 		{
-			name:           "VM start failure",
-			binaryBehavior: "success",
-			vmStartError:   assert.AnError,
-			expectedError:  assert.AnError,
-			ttl:            "",
+			name:          "VM start failure",
+			corimContent:  validCorimBytes,
+			vmStartError:  assert.AnError,
+			expectedError: assert.AnError,
+			ttl:           "",
 		},
 		{
-			name:           "Invalid attestation policy",
-			binaryBehavior: "fail",
-			vmStartError:   nil,
-			expectedError:  ErrFailedToCreateAttestationPolicy,
-			ttl:            "",
+			name:          "With TTL",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: nil,
+			ttl:           "10s",
 		},
 		{
-			name:           "With TTL",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  nil,
-			ttl:            "10s",
-		},
-		{
-			name:           "with exceeded max vms",
-			binaryBehavior: "success",
-			vmStartError:   nil,
-			expectedError:  errors.New("maximum number of VMs exceeded"),
-			ttl:            "",
+			name:          "with exceeded max vms",
+			corimContent:  validCorimBytes,
+			vmStartError:  nil,
+			expectedError: errors.New("maximum number of VMs exceeded"),
+			ttl:           "",
 		},
 	}
 
@@ -105,12 +104,17 @@ func TestRun(t *testing.T) {
 			}
 			logger := slog.Default()
 
-			tempDir := CreateDummyAttestationPolicyBinary(t, tt.binaryBehavior)
+			tempDir := CreateDummyCoRIMFile(t, tt.corimContent)
 			defer os.RemoveAll(tempDir)
+
+			binaryDir := t.TempDir()
+			igvmBinary := filepath.Join(binaryDir, "igvmmeasure")
+			err := os.WriteFile(igvmBinary, []byte("#!/bin/sh\nprintf '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'"), 0o755)
+			assert.NoError(t, err)
 
 			ms := &managerService{
 				qemuCfg:                     qemuCfg,
-				attestationPolicyBinaryPath: path.Join(tempDir, "attestation_policy"),
+				attestationPolicyBinaryPath: binaryDir,
 				pcrValuesFilePath:           tempDir,
 				logger:                      logger,
 				vms:                         make(map[string]vm.VM),
@@ -129,7 +133,7 @@ func TestRun(t *testing.T) {
 			port, _, err := ms.CreateVM(ctx, &CreateReq{Ttl: tt.ttl})
 
 			if tt.expectedError != nil {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError.Error())
 				assert.Empty(t, port)
 			} else {
@@ -428,7 +432,7 @@ func TestCreateVMWithAaKbsParams(t *testing.T) {
 			vmMock.On("Transition", mock.Anything).Return(nil).Once()
 			persistence.On("SaveVM", mock.Anything).Return(nil).Once()
 
-			tempDir := CreateDummyAttestationPolicyBinary(t, "success")
+			tempDir := CreateDummyCoRIMFile(t, []byte("success"))
 			defer os.RemoveAll(tempDir)
 
 			qemuCfg := qemu.Config{

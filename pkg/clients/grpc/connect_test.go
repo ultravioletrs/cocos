@@ -16,11 +16,8 @@ import (
 	"time"
 
 	"github.com/absmach/supermq/pkg/errors"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
-	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/tls"
 )
@@ -29,10 +26,18 @@ func TestNewClient(t *testing.T) {
 	caCertFile, clientCertFile, clientKeyFile, err := createCertificatesFiles()
 	require.NoError(t, err)
 
+	policyFile, err := os.CreateTemp("", "attestation_policy.json")
+	require.NoError(t, err)
+	_, err = policyFile.WriteString("{}")
+	require.NoError(t, err)
+	err = policyFile.Close()
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
 		os.Remove(caCertFile)
 		os.Remove(clientCertFile)
 		os.Remove(clientKeyFile)
+		os.Remove(policyFile.Name())
 	})
 
 	tests := []struct {
@@ -93,7 +98,7 @@ func TestNewClient(t *testing.T) {
 					ClientKey:    clientKeyFile,
 				},
 				AttestedTLS:       true,
-				AttestationPolicy: "../../../scripts/attestation_policy/sev-snp/attestation_policy.json",
+				AttestationPolicy: policyFile.Name(),
 			},
 			wantErr: false,
 			err:     nil,
@@ -204,69 +209,6 @@ func TestClientSecure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &client{security: tt.secure}
 			assert.Equal(t, tt.expected, c.Secure())
-		})
-	}
-}
-
-func TestReadAttestationPolicy(t *testing.T) {
-	validJSON := `{"pcr_values":{"sha256":{"0":"123"},"sha384":{"0":"123"}},"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
-	invalidJSON := `{"invalid_json"`
-	invalidJSONPCR := `{"pcr_values":{"sha256":{"0":true},"sha384":{"0":"123"}},"policy":{"report_data":"AAAA"},"root_of_trust":{"product_line":"Milan"}}`
-
-	cases := []struct {
-		name         string
-		manifestPath string
-		fileContent  string
-		err          error
-	}{
-		{
-			name:         "Valid manifest",
-			manifestPath: "valid_manifest.json",
-			fileContent:  validJSON,
-			err:          nil,
-		},
-		{
-			name:         "Invalid JSON",
-			manifestPath: "invalid_manifest.json",
-			fileContent:  invalidJSON,
-			err:          vtpm.ErrAttestationPolicyDecode,
-		},
-		{
-			name:         "Non-existent file",
-			manifestPath: "nonexistent.json",
-			fileContent:  "",
-			err:          vtpm.ErrAttestationPolicyOpen,
-		},
-		{
-			name:         "Empty manifest path",
-			manifestPath: "",
-			fileContent:  "",
-			err:          vtpm.ErrAttestationPolicyMissing,
-		},
-		{
-			name:         "Invalid JSON PCR",
-			manifestPath: "invalid_manifest.json",
-			fileContent:  invalidJSONPCR,
-			err:          vtpm.ErrAttestationPolicyDecode,
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.manifestPath != "" && tt.fileContent != "" {
-				err := os.WriteFile(tt.manifestPath, []byte(tt.fileContent), 0o644)
-				require.NoError(t, err)
-				defer os.Remove(tt.manifestPath)
-			}
-
-			config := attestation.Config{Config: &check.Config{}, PcrConfig: &attestation.PcrConfig{}}
-			err := vtpm.ReadPolicy(tt.manifestPath, &config)
-
-			assert.True(t, errors.Contains(err, tt.err), fmt.Sprintf("expected error %v, got %v", tt.err, err))
-			if tt.err == nil {
-				assert.NotNil(t, config.Config.Policy)
-				assert.NotNil(t, config.Config.RootOfTrust)
-			}
 		})
 	}
 }

@@ -9,9 +9,9 @@ import (
 	"net/http"
 
 	"github.com/google/go-sev-guest/client"
-	"github.com/google/go-sev-guest/proto/check"
 	tdxcliet "github.com/google/go-tdx-guest/client"
 	"github.com/google/go-tpm/legacy/tpm2"
+	"github.com/veraison/corim/corim"
 )
 
 type PlatformType int
@@ -32,32 +32,6 @@ const (
 
 var AttestationPolicyPath string
 
-type PcrValues struct {
-	Sha256 map[string]string `json:"sha256"`
-	Sha384 map[string]string `json:"sha384"`
-	Sha1   map[string]string `json:"sha1"`
-}
-
-type PcrConfig struct {
-	PCRValues PcrValues `json:"pcr_values"`
-}
-
-// Config represents attestation configuration.
-type Config struct {
-	*check.Config
-	*PcrConfig
-	*EATValidation
-}
-
-// EATValidation contains EAT token validation settings.
-type EATValidation struct {
-	RequireEATFormat   bool     `json:"require_eat_format"`
-	AllowedFormats     []string `json:"allowed_formats"`
-	MaxTokenAgeSeconds int      `json:"max_token_age_seconds"`
-	RequireClaims      []string `json:"require_claims"`
-	VerifySignature    bool     `json:"verify_signature"`
-}
-
 type ccCheck struct {
 	checkFunc func() bool
 	platform  PlatformType
@@ -71,11 +45,7 @@ type Provider interface {
 }
 
 type Verifier interface {
-	VerifyAttestation(report []byte, teeNonce []byte, vTpmNonce []byte) error
-	VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) error
-	VerifTeeAttestation(report []byte, teeNonce []byte) error
-	VerifVTpmAttestation(report []byte, vTpmNonce []byte) error
-	JSONToPolicy(path string) error
+	VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error
 }
 
 // CCPlatform returns the type of the confidential computing platform.

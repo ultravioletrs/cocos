@@ -5,17 +5,42 @@ package gcp
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/gce-tcb-verifier/proto/endorsement"
-	"github.com/google/go-sev-guest/proto/check"
 	"github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/tools/lib/report"
-	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"google.golang.org/protobuf/proto"
 )
+
+// StorageClient defines the interface for Google Cloud Storage operations.
+type StorageClient interface {
+	GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error)
+	Close() error
+}
+
+type gcpStorageClient struct {
+	client *storage.Client
+}
+
+func (c *gcpStorageClient) GetReader(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+	return c.client.Bucket(bucket).Object(object).NewReader(ctx)
+}
+
+func (c *gcpStorageClient) Close() error {
+	return c.client.Close()
+}
+
+var NewStorageClient = func(ctx context.Context) (StorageClient, error) {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &gcpStorageClient{client: client}, nil
+}
 
 const (
 	// Offset of the 384-bit measurement in the report.
@@ -47,16 +72,16 @@ func Extract384BitMeasurement(attestation *sevsnp.Attestation) (string, error) {
 }
 
 func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsement.VMGoldenMeasurement, error) {
-	client, err := storage.NewClient(ctx)
+	client, err := NewStorageClient(ctx)
 	if err != nil {
 		return &endorsement.VMGoldenMeasurement{}, fmt.Errorf("failed to create storage client: %v", err)
 	}
+	defer client.Close()
 
-	reader, err := client.Bucket(bucketName).Object(fmt.Sprintf(objectName, measurement384)).NewReader(ctx)
+	reader, err := client.GetReader(ctx, bucketName, fmt.Sprintf(objectName, measurement384))
 	if err != nil {
 		return &endorsement.VMGoldenMeasurement{}, fmt.Errorf("failed to create reader: %v", err)
 	}
-
 	defer reader.Close()
 
 	launchEndorsements, err := io.ReadAll(reader)
@@ -77,29 +102,17 @@ func GetLaunchEndorsement(ctx context.Context, measurement384 string) (*endorsem
 	return &goldenUEFI, nil
 }
 
-func GenerateAttestationPolicy(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*attestation.Config, error) {
-	attestationPolicy := attestation.Config{PcrConfig: &attestation.PcrConfig{}, Config: &check.Config{RootOfTrust: &check.RootOfTrust{}, Policy: &check.Policy{}}}
-	attestationPolicy.Config.Policy.Policy = endorsement.SevSnp.Policy
-	attestationPolicy.Config.Policy.Measurement = endorsement.SevSnp.Measurements[vcpuNum]
-	attestationPolicy.Config.RootOfTrust.DisallowNetwork = false
-	attestationPolicy.Config.RootOfTrust.CheckCrl = true
-	attestationPolicy.Config.RootOfTrust.Product = "Milan"
-	attestationPolicy.Config.RootOfTrust.ProductLine = "Milan"
-
-	return &attestationPolicy, nil
-}
-
 func DownloadOvmfFile(ctx context.Context, digest string) ([]byte, error) {
-	client, err := storage.NewClient(ctx)
+	client, err := NewStorageClient(ctx)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create storage client: %v", err)
 	}
+	defer client.Close()
 
-	reader, err := client.Bucket(bucketName).Object(fmt.Sprintf(ovmfObjectName, digest)).NewReader(ctx)
+	reader, err := client.GetReader(ctx, bucketName, fmt.Sprintf(ovmfObjectName, digest))
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create reader: %v", err)
 	}
-
 	defer reader.Close()
 
 	ovmf, err := io.ReadAll(reader)
@@ -108,4 +121,28 @@ func DownloadOvmfFile(ctx context.Context, digest string) ([]byte, error) {
 	}
 
 	return ovmf, nil
+}
+
+// GCPMeasurementData contains the exact fields extracted from a GCP VM Golden Measurement
+// needed to construct a CoRIM policy for the SNP platform.
+type GCPMeasurementData struct {
+	Measurement string
+	Policy      uint64
+}
+
+// ExtractGCPMeasurement extracts the core SNP measurements from a GCP Endorsement for a specific vCPU count.
+func ExtractGCPMeasurement(endorsement *endorsement.VMGoldenMeasurement, vcpuNum uint32) (*GCPMeasurementData, error) {
+	if endorsement.SevSnp == nil {
+		return nil, fmt.Errorf("endorsement does not contain SEV-SNP data")
+	}
+
+	measurementBytes, ok := endorsement.SevSnp.Measurements[vcpuNum]
+	if !ok {
+		return nil, fmt.Errorf("endorsement does not contain measurement for vCPU %d", vcpuNum)
+	}
+
+	return &GCPMeasurementData{
+		Measurement: hex.EncodeToString(measurementBytes),
+		Policy:      endorsement.SevSnp.Policy,
+	}, nil
 }
