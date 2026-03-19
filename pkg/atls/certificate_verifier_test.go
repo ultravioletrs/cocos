@@ -281,3 +281,58 @@ func TestVerifyPeerCertificate_Failures_More(t *testing.T) {
 	err = verifier.VerifyPeerCertificate([][]byte{certDERWithExt}, nil, nonce)
 	assert.ErrorContains(t, err, "attestation policy path is not set")
 }
+
+func TestVerifyPeerCertificate_Failures_Ext(t *testing.T) {
+	rootCAs := x509.NewCertPool()
+	verifier := NewCertificateVerifier(rootCAs).(*certificateVerifier)
+
+	// Case 1: No certificates
+	err := verifier.VerifyPeerCertificate([][]byte{}, nil, []byte("nonce"))
+	assert.ErrorContains(t, err, "no certificates provided")
+
+	// Case 2: Nonce length mismatch
+	peerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	nonce := []byte("nonce")
+	claims := eat.EATClaims{Nonce: []byte("short"), RawReport: []byte("rep")}
+	eatBytes, _ := cbor.Marshal(claims)
+
+	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "CA"},
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+	}
+	caCertDER, _ := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	caCert, _ := x509.ParseCertificate(caCertDER)
+	rootCAs.AddCert(caCert)
+
+	peerTemplate := &x509.Certificate{
+		SerialNumber:    big.NewInt(5),
+		NotBefore:       time.Now().Add(-time.Hour),
+		NotAfter:        time.Now().Add(time.Hour),
+		ExtraExtensions: []pkix.Extension{{Id: SNPvTPMOID, Value: eatBytes}},
+	}
+	certDER, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+	err = verifier.VerifyPeerCertificate([][]byte{certDER}, nil, nonce)
+	assert.ErrorContains(t, err, "nonce length mismatch")
+
+	// Case 3: Nonce mismatch
+	peerPubKeyDER, _ := x509.MarshalPKIXPublicKey(&peerKey.PublicKey)
+	wrongTeeNonce := append(peerPubKeyDER, []byte("wrong-nonce")...)
+	wrongHashNonce := sha3.Sum512(wrongTeeNonce)
+	claims.Nonce = wrongHashNonce[:]
+	eatBytes, _ = cbor.Marshal(claims)
+	peerTemplate.ExtraExtensions = []pkix.Extension{{Id: SNPvTPMOID, Value: eatBytes}}
+	certDER, _ = x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+	err = verifier.VerifyPeerCertificate([][]byte{certDER}, nil, nonce)
+	assert.ErrorContains(t, err, "nonce mismatch in EAT token")
+
+	// Case 4: Invalid EAT (CBOR decoder failure)
+	peerTemplate.ExtraExtensions = []pkix.Extension{{Id: SNPvTPMOID, Value: []byte("invalid-cbor")}}
+	certDER, _ = x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
+	err = verifier.VerifyPeerCertificate([][]byte{certDER}, nil, nonce)
+	assert.ErrorContains(t, err, "failed to decode EAT token")
+}

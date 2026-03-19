@@ -89,6 +89,7 @@ func (a provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
 }
 
 func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
+	fmt.Printf("DEBUG: VTpmAttestation: vtpm.ExternalTPM is %T at %p\n", vtpm.ExternalTPM, &vtpm.ExternalTPM)
 	quote, err := vtpm.FetchQuote(vTpmNonce)
 	if err != nil {
 		return []byte{}, errors.Wrap(vtpm.ErrFetchQuote, err)
@@ -97,13 +98,25 @@ func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	return proto.Marshal(quote)
 }
 
+type MaaClient interface {
+	Attest(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error)
+}
+
+type defaultMaaClient struct{}
+
+func (c *defaultMaaClient) Attest(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+	return maa.Attest(ctx, nonce, maaURL, client)
+}
+
+var DefaultMaaClient MaaClient = &defaultMaaClient{}
+
 func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
-	quote, err := FetchAzureAttestationToken(tokenNonce, MaaURL)
+	token, err := DefaultMaaClient.Attest(context.Background(), tokenNonce, MaaURL, http.DefaultClient)
 	if err != nil {
 		return nil, errors.Wrap(ErrFetchAzureToken, err)
 	}
 
-	return quote, nil
+	return []byte(token), nil
 }
 
 type verifier struct {
@@ -194,7 +207,7 @@ func (v verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) 
 }
 
 func FetchAzureAttestationToken(tokenNonce []byte, maaURL string) ([]byte, error) {
-	token, err := maa.Attest(context.Background(), tokenNonce, maaURL, http.DefaultClient)
+	token, err := DefaultMaaClient.Attest(context.Background(), tokenNonce, maaURL, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching azure token: %w", err)
 	}

@@ -107,7 +107,7 @@ func (v provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
 	return fetchSEVAttestation(teeNonce, v.vmpl)
 }
 
-func (v provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
+func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 	quote, err := FetchQuote(vTpmNonce)
 	if err != nil {
 		return []byte{}, errors.Wrap(ErrFetchQuote, err)

@@ -5,6 +5,7 @@ package vtpm
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -25,6 +26,18 @@ type mockTPM struct {
 
 func (m *mockTPM) Close() error {
 	return m.closeErr
+}
+
+type errorRWC struct {
+	DummyRWC
+}
+
+func (e *errorRWC) Write(p []byte) (int, error) {
+	return 0, fmt.Errorf("write error")
+}
+
+func (e *errorRWC) Read(p []byte) (int, error) {
+	return 0, fmt.Errorf("read error")
 }
 
 type mockWriter struct {
@@ -178,9 +191,37 @@ func TestAttest(t *testing.T) {
 
 	ExternalTPM = &mockTPM{Buffer: &bytes.Buffer{}}
 
-	// Attest calls FetchQuote which fails because mockTPM doesn't behave like a real TPM for client.AttestationKeyRSA
 	_, err := Attest([]byte("tee-nonce"), []byte("vtpm-nonce"), false, 0)
 	assert.Error(t, err)
+}
+
+func TestExtendPCR(t *testing.T) {
+	originalExternalTPM := ExternalTPM
+	defer func() { ExternalTPM = originalExternalTPM }()
+
+	ExternalTPM = &errorRWC{}
+
+	err := ExtendPCR(PCR16, []byte("test-value"))
+	assert.Error(t, err)
+}
+
+func TestGetPCRValue(t *testing.T) {
+	originalExternalTPM := ExternalTPM
+	defer func() { ExternalTPM = originalExternalTPM }()
+
+	ExternalTPM = &DummyRWC{}
+
+	val, err := GetPCRSHA1Value(PCR15)
+	assert.NoError(t, err)
+	assert.Len(t, val, 20)
+
+	val, err = GetPCRSHA256Value(PCR15)
+	assert.NoError(t, err)
+	assert.Len(t, val, 20)
+
+	val, err = GetPCRSHA384Value(PCR15)
+	assert.NoError(t, err)
+	assert.Len(t, val, 20)
 }
 
 func TestVerifier_VerifyWithCoRIM(t *testing.T) {
@@ -236,4 +277,20 @@ func TestVerifier_VerifyWithCoRIM(t *testing.T) {
 
 	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
 	assert.NoError(t, err)
+
+	// 5. CoRIM with no tags
+	unsignedCorim.Tags = nil
+	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
+	assert.NoError(t, err) // Matches current implementation behavior
+
+	// 6. Non-CoMID tag
+	unsignedCorim.Tags = []corim.Tag{corim.Tag([]byte("non-comid-tag"))}
+	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
+	assert.NoError(t, err)
+
+	// 7. Invalid CoMID tag
+	unsignedCorim.Tags = []corim.Tag{corim.Tag(append(corim.ComidTag, []byte("invalid")...))}
+	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse CoMID from tag")
 }

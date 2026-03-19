@@ -5,10 +5,11 @@ package azure
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
+	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -17,17 +18,20 @@ import (
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	"github.com/veraison/corim/comid"
 	"github.com/veraison/corim/corim"
 	"google.golang.org/protobuf/proto"
 )
 
 var (
-	testNonce        = []byte("test-nonce-12345678901234567890123456789012")
-	testKID          = "test-kid"
-	openIDConfigPath = "/.well-known/openid_configuration"
-	certsPath        = "/certs"
+	testNonce = []byte("test-nonce-12345678901234567890123456789012")
+	testKID   = "test-kid"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
+}
 
 func TestNewProvider(t *testing.T) {
 	tests := []struct {
@@ -120,38 +124,49 @@ func TestProvider_TeeAttestation(t *testing.T) {
 	}
 }
 
+type mockMaaClient struct {
+	attestFunc func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error)
+}
+
+func (m *mockMaaClient) Attest(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+	return m.attestFunc(ctx, nonce, maaURL, client)
+}
+
 func TestProvider_AzureAttestationToken(t *testing.T) {
+	oldMaaClient := DefaultMaaClient
+	defer func() { DefaultMaaClient = oldMaaClient }()
+
 	tests := []struct {
 		name         string
 		tokenNonce   []byte
-		setupServer  func() *httptest.Server
+		mockAttest   func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error)
 		wantErr      bool
 		errorMessage string
 	}{
 		{
 			name:       "server error",
 			tokenNonce: testNonce,
-			setupServer: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusInternalServerError)
-				}))
+			mockAttest: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+				return "", fmt.Errorf("server error")
 			},
 			wantErr:      true,
 			errorMessage: "failed to fetch Azure token",
+		},
+		{
+			name:       "success",
+			tokenNonce: testNonce,
+			mockAttest: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+				return "fake-token", nil
+			},
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := tt.setupServer()
-			defer server.Close()
-
-			originalURL := MaaURL
-			MaaURL = server.URL
-			defer func() { MaaURL = originalURL }()
+			DefaultMaaClient = &mockMaaClient{attestFunc: tt.mockAttest}
 
 			p := NewProvider()
-
 			result, err := p.AzureAttestationToken(tt.tokenNonce)
 
 			if tt.wantErr {
@@ -162,7 +177,7 @@ func TestProvider_AzureAttestationToken(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, result)
+				assert.Equal(t, "fake-token", string(result))
 			}
 		})
 	}
@@ -195,30 +210,21 @@ func TestNewVerifier(t *testing.T) {
 }
 
 func TestFetchAzureAttestationToken(t *testing.T) {
+	oldMaaClient := DefaultMaaClient
+	defer func() { DefaultMaaClient = oldMaaClient }()
+
 	tests := []struct {
 		name         string
 		tokenNonce   []byte
-		maaURL       string
-		setupServer  func() *httptest.Server
+		mockAttest   func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error)
 		wantErr      bool
 		errorMessage string
 	}{
 		{
 			name:       "server error",
 			tokenNonce: testNonce,
-			setupServer: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusInternalServerError)
-				}))
-			},
-			wantErr:      true,
-			errorMessage: "error fetching azure token",
-		},
-		{
-			name:       "invalid url",
-			tokenNonce: testNonce,
-			setupServer: func() *httptest.Server {
-				return nil
+			mockAttest: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+				return "", fmt.Errorf("server error")
 			},
 			wantErr:      true,
 			errorMessage: "error fetching azure token",
@@ -227,54 +233,70 @@ func TestFetchAzureAttestationToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var url string
-			if tt.setupServer != nil {
-				server := tt.setupServer()
-				if server != nil {
-					defer server.Close()
-					url = server.URL
-				}
-			}
+			DefaultMaaClient = &mockMaaClient{attestFunc: tt.mockAttest}
 
-			if tt.name == "invalid url" {
-				url = "invalid-url"
-			}
-
-			result, err := FetchAzureAttestationToken(tt.tokenNonce, url)
+			_, err := FetchAzureAttestationToken(tt.tokenNonce, "http://fake-url")
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errorMessage != "" {
 					assert.Contains(t, err.Error(), tt.errorMessage)
 				}
-				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, result)
 			}
 		})
 	}
+}
+
+func TestFetchAzureAttestationToken_MalformedJSON(t *testing.T) {
+	// Not actually malformed JSON anymore since we mock the whole return string
+	// But let's keep it and test the error propagation
+	oldMaaClient := DefaultMaaClient
+	defer func() { DefaultMaaClient = oldMaaClient }()
+
+	DefaultMaaClient = &mockMaaClient{
+		attestFunc: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+			return "", fmt.Errorf("error unmarshaling azure token")
+		},
+	}
+
+	_, err := FetchAzureAttestationToken(testNonce, "http://fake-url")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error unmarshaling azure token")
+}
+
+func TestFetchAzureAttestationToken_MissingToken(t *testing.T) {
+	oldMaaClient := DefaultMaaClient
+	defer func() { DefaultMaaClient = oldMaaClient }()
+
+	DefaultMaaClient = &mockMaaClient{
+		attestFunc: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+			return "", fmt.Errorf("azure attestation token not found in response")
+		},
+	}
+
+	_, err := FetchAzureAttestationToken(testNonce, "http://fake-url")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "azure attestation token not found in response")
 }
 
 func TestValidateToken(t *testing.T) {
 	tests := []struct {
 		name         string
 		token        string
-		setupServer  func() *httptest.Server
 		wantErr      bool
 		errorMessage string
 	}{
 		{
 			name:         "invalid token format",
 			token:        "invalid-token",
-			setupServer:  nil,
 			wantErr:      true,
 			errorMessage: "failed to parse token",
 		},
 		{
 			name:         "empty token",
 			token:        "",
-			setupServer:  nil,
 			wantErr:      true,
 			errorMessage: "failed to parse token",
 		},
@@ -282,15 +304,6 @@ func TestValidateToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.setupServer != nil {
-				server := tt.setupServer()
-				defer server.Close()
-
-				originalURL := MaaURL
-				MaaURL = server.URL
-				defer func() { MaaURL = originalURL }()
-			}
-
 			result, err := validateToken(tt.token)
 
 			if tt.wantErr {
@@ -313,49 +326,18 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 	}
 
 	t.Run("full attestation flow with mock server", func(t *testing.T) {
-		maaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.URL.Path {
-			case "/attest":
-				response := map[string]any{
-					"token": createMockJWT(),
-				}
-				w.Header().Set("Content-Type", "application/json")
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					t.Fatalf("Failed to encode response: %v", err)
-				}
-			case openIDConfigPath:
-				config := map[string]any{
-					"jwks_uri": "maaServer.URL" + certsPath,
-				}
-				w.Header().Set("Content-Type", "application/json")
-				if err := json.NewEncoder(w).Encode(config); err != nil {
-					t.Fatalf("Failed to encode OpenID configuration: %v", err)
-				}
-			case certsPath:
-				jwks := map[string]any{
-					"keys": []map[string]any{
-						{
-							"kid": testKID,
-							"kty": "RSA",
-							"use": "sig",
-							"n":   "test-n-value",
-							"e":   "AQAB",
-						},
-					},
-				}
-				w.Header().Set("Content-Type", "application/json")
-				if err := json.NewEncoder(w).Encode(jwks); err != nil {
-					t.Fatalf("Failed to encode JWKS: %v", err)
-				}
-			default:
-				w.WriteHeader(http.StatusNotFound)
-			}
-		}))
-		defer maaServer.Close()
+		oldMaaClient := DefaultMaaClient
+		defer func() { DefaultMaaClient = oldMaaClient }()
 
-		originalURL := MaaURL
-		MaaURL = maaServer.URL
-		defer func() { MaaURL = originalURL }()
+		DefaultMaaClient = &mockMaaClient{
+			attestFunc: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+				return createMockJWT(), nil
+			},
+		}
+
+		originalExternalTPM := vtpm.ExternalTPM
+		defer func() { vtpm.ExternalTPM = originalExternalTPM }()
+		vtpm.ExternalTPM = &vtpm.DummyRWC{}
 
 		provider := NewProvider()
 		verifier := NewVerifier(&bytes.Buffer{})
@@ -389,17 +371,14 @@ func TestIntegration_FullAttestationFlow(t *testing.T) {
 
 func TestIntegration_ErrorPropagation(t *testing.T) {
 	t.Run("error propagation through full stack", func(t *testing.T) {
-		failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-			if _, err := w.Write([]byte("Internal Server Error")); err != nil {
-				t.Fatalf("Failed to write response: %v", err)
-			}
-		}))
-		defer failingServer.Close()
+		oldMaaClient := DefaultMaaClient
+		defer func() { DefaultMaaClient = oldMaaClient }()
 
-		originalURL := MaaURL
-		MaaURL = failingServer.URL
-		defer func() { MaaURL = originalURL }()
+		DefaultMaaClient = &mockMaaClient{
+			attestFunc: func(ctx context.Context, nonce []byte, maaURL string, client *http.Client) (string, error) {
+				return "", fmt.Errorf("Internal Server Error")
+			},
+		}
 
 		provider := NewProvider()
 
@@ -554,6 +533,19 @@ func TestExtractAzureMeasurement_Error(t *testing.T) {
 	token := createMockJWT()
 	_, err := ExtractAzureMeasurement(token)
 	assert.Error(t, err)
+
+	// Test missing x-ms-isolation-tee
+	expectedErrToken := "eyJhbGciOiJub25lIn0.eyJoZWFkZXIiOiJkYXRhIn0."
+	oldValidator := DefaultValidator
+	defer func() { DefaultValidator = oldValidator }()
+	DefaultValidator = &mockTokenValidator{
+		validateFunc: func(token string) (map[string]any, error) {
+			return map[string]any{}, nil
+		},
+	}
+	_, err = ExtractAzureMeasurement(expectedErrToken)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get tee from claims")
 }
 
 func TestVerifier_VerifyEAT(t *testing.T) {

@@ -35,6 +35,16 @@ func (m *mockStorageClient) Close() error {
 	return nil
 }
 
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read error")
+}
+
+func (e *errorReader) Close() error {
+	return nil
+}
+
 func TestExtract384BitMeasurement(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -145,6 +155,16 @@ func TestGetLaunchEndorsement(t *testing.T) {
 			expectError: true,
 			errorMsg:    "failed to unmarshal golden UEFI",
 		},
+		{
+			name: "read error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return &errorReader{}, nil
+				},
+			},
+			expectError: true,
+			errorMsg:    "failed to read object",
+		},
 	}
 
 	for _, tt := range tests {
@@ -204,6 +224,16 @@ func TestDownloadOvmfFile(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "failed to create reader",
+		},
+		{
+			name: "read error",
+			mockClient: &mockStorageClient{
+				getReaderFunc: func(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+					return &errorReader{}, nil
+				},
+			},
+			expectError: true,
+			errorMsg:    "failed to read object",
 		},
 	}
 
