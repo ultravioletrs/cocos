@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/veraison/corim/comid"
 	"github.com/veraison/corim/corim"
 	"google.golang.org/protobuf/proto"
 )
@@ -209,17 +210,30 @@ func TestVerifier_VerifyWithCoRIM(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no measurement in SEV-SNP report")
 
-	// 4. No tags in CoRIM (should not return error because of line 185)
+	// 4. Successful match
+	measurement := []byte("test-measurement-1234")
 	att = &attest.Attestation{
 		TeeAttestation: &attest.Attestation_SevSnpAttestation{
 			SevSnpAttestation: &sevsnp.Attestation{
 				Report: &sevsnp.Report{
-					Measurement: []byte("meas"),
+					Measurement: measurement,
 				},
 			},
 		},
 	}
 	reportBytes, _ = proto.Marshal(att)
-	err = v.VerifyWithCoRIM(reportBytes, &corim.UnsignedCorim{})
+
+	// Create a mock CoMID with the same measurement
+	c := comid.NewComid()
+	m := comid.MustNewUintMeasurement(uint64(1))
+	m.AddDigest(1, measurement)
+	c.AddReferenceValue(comid.ReferenceValue{
+		Measurements: comid.Measurements{*m},
+	})
+
+	unsignedCorim := corim.NewUnsignedCorim()
+	unsignedCorim.AddComid(*c)
+
+	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
 	assert.NoError(t, err)
 }

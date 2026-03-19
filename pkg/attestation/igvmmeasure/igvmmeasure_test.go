@@ -94,6 +94,23 @@ func TestIgvmMeasurement_Run(t *testing.T) {
 	assert.Contains(t, err.Error(), "error:")
 }
 
+func TestIgvmMeasurement_Stop_Success(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	m, err := NewIgvmMeasurement("igvm-bin", stderr, stdout)
+	require.NoError(t, err)
+
+	// Mock a command that sleeps so we can kill it
+	cmd := exec.Command("sleep", "10")
+	m.cmd = cmd
+	err = cmd.Start()
+	require.NoError(t, err)
+
+	err = m.Stop()
+	assert.NoError(t, err)
+}
+
 func TestIgvmMeasurement_Stop_Error(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}

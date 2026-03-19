@@ -514,12 +514,43 @@ func TestVerifier_VerifyWithCoRIM_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestExtractAzureMeasurement_Error(t *testing.T) {
-	// validateToken will fail because we are using a mock JWT without a proper MAA server
-	// and MAAURL is not set to the mock server in this unit test context easily
-	// without refactoring or global state change.
-	// But we can test the fallback in validateToken if it fails.
+type mockTokenValidator struct {
+	validateFunc func(token string) (map[string]any, error)
+}
 
+func (m *mockTokenValidator) Validate(token string) (map[string]any, error) {
+	return m.validateFunc(token)
+}
+
+func TestExtractAzureMeasurement_Success(t *testing.T) {
+	oldValidator := DefaultValidator
+	defer func() { DefaultValidator = oldValidator }()
+
+	expectedData := &AzureMeasurementData{
+		Measurement: "test-measurement",
+		HostData:    "test-host-data",
+		SVN:         5,
+		Policy:      0,
+	}
+
+	DefaultValidator = &mockTokenValidator{
+		validateFunc: func(token string) (map[string]any, error) {
+			return map[string]any{
+				"x-ms-isolation-tee": map[string]any{
+					"x-ms-sevsnpvm-launchmeasurement": "test-measurement",
+					"x-ms-sevsnpvm-hostdata":          "test-host-data",
+					"x-ms-sevsnpvm-guestsvn":          float64(5),
+				},
+			}, nil
+		},
+	}
+
+	data, err := ExtractAzureMeasurement("valid-token")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedData, data)
+}
+
+func TestExtractAzureMeasurement_Error(t *testing.T) {
 	token := createMockJWT()
 	_, err := ExtractAzureMeasurement(token)
 	assert.Error(t, err)

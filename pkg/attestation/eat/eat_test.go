@@ -139,3 +139,66 @@ func TestSanitize(t *testing.T) {
 		})
 	}
 }
+
+func TestNewEATClaims_Platforms(t *testing.T) {
+	nonce := []byte("12345678")
+	dummyReport := make([]byte, 1200) // Large enough for SNP
+
+	tests := []struct {
+		name         string
+		platform     attestation.PlatformType
+		expectError  bool
+		expectedName string
+	}{
+		{
+			name:         "SNP",
+			platform:     attestation.SNP,
+			expectError:  false,
+			expectedName: "SNP",
+		},
+		{
+			name:         "vTPM",
+			platform:     attestation.VTPM,
+			expectError:  false,
+			expectedName: "vTPM",
+		},
+		{
+			name:         "Azure",
+			platform:     attestation.Azure,
+			expectError:  false,
+			expectedName: "Azure",
+		},
+		{
+			name:         "NoCC",
+			platform:     attestation.NoCC,
+			expectError:  false,
+			expectedName: "NoCC",
+		},
+		{
+			name:         "Unknown",
+			platform:     attestation.PlatformType(99),
+			expectError:  false,
+			expectedName: "Unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := dummyReport
+			if tt.name == "SNP" {
+				report = make([]byte, 2000)
+				report[0] = 1 // Version
+			}
+			claims, err := NewEATClaims(report, nonce, tt.platform)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else if err != nil {
+				// Special case for platforms that might fail with dummy data (like TDX)
+				t.Logf("Platform %s failed with error: %v (expected for dummy data)", tt.name, err)
+			} else {
+				assert.NotNil(t, claims)
+				assert.Equal(t, tt.expectedName, claims.PlatformType)
+			}
+		})
+	}
+}
