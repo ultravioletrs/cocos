@@ -4,7 +4,13 @@
 package grpc
 
 import (
+	"context"
+	stdtls "crypto/tls"
+	"net"
+	"strings"
+
 	"github.com/absmach/supermq/pkg/errors"
+	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/clients"
 	"github.com/ultravioletrs/cocos/pkg/tls"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -77,7 +83,24 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, tls.Security, e
 			return nil, security, err
 		}
 
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(result.Config)))
+		tlsConfig := result.Config.Clone()
+		tlsConfig.MinVersion = stdtls.VersionTLS13
+		tlsConfig.NextProtos = []string{"h2"}
+
+		atlsConfig := &atls.ClientConfig{
+			TLSConfig:         tlsConfig,
+			VerifyOptions:     atls.VerifyOptionsFromTLSConfig(tlsConfig),
+			AttestationPolicy: atls.VerificationPolicyFromEvidenceVerifier(atls.NewEvidenceVerifier(agcfg.AttestationPolicy)),
+		}
+
+		opts = append(opts,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+				network, target := dialTarget(addr)
+				_ = ctx
+				return atls.Dial(network, target, atlsConfig)
+			}),
+		)
 		security = result.Security
 	} else {
 		conf := cfg.Config()
@@ -94,6 +117,16 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, tls.Security, e
 		return nil, security, errors.Wrap(errGrpcConnect, err)
 	}
 	return conn, security, nil
+}
+
+func dialTarget(addr string) (string, string) {
+	if strings.HasPrefix(addr, "unix://") {
+		return "unix", strings.TrimPrefix(addr, "unix://")
+	}
+	if strings.HasPrefix(addr, "/") {
+		return "unix", addr
+	}
+	return "tcp", addr
 }
 
 func loadTLSConfig(serverCAFile, clientCert, clientKey string) (credentials.TransportCredentials, tls.Security, error) {

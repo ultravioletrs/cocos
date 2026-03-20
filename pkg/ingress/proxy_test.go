@@ -473,5 +473,5 @@ func TestProxyAttestedTLSInvalidCA(t *testing.T) {
 
 	err := ps.Start(cfg, ctx)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to configure certificate authorities")
+	assert.Contains(t, err.Error(), "failed to setup attested TLS")
 }

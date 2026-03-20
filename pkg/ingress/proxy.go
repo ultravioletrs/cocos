@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"sync"
 
 	"github.com/ultravioletrs/cocos/pkg/atls"
@@ -130,6 +131,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 	// Configure TLS
 	var tlsConfig *tls.Config
+	var err error
 	contextDesc := fmt.Sprintf("context %s", ctx.ID)
 	if ctx.Name != "" {
 		contextDesc = fmt.Sprintf("%s (%s)", ctx.Name, ctx.ID)
@@ -147,15 +149,30 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 		mtls, err := ConfigureCertificateAuthorities(tlsConfig, cfg.ServerCAFile, cfg.ClientCAFile)
 		if err != nil {
-			return fmt.Errorf("failed to configure certificate authorities: %w", err)
+			return fmt.Errorf("failed to setup attested TLS: %w", err)
 		}
+		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
 
 		if mtls {
-			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested mTLS for %s", addr, contextDesc))
 		} else {
 			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested TLS for %s", addr, contextDesc))
 		}
+
+		p.started = true
+		go func() {
+			listener, listenErr := p.attestedListener(addr, tlsConfig, identity)
+			if listenErr != nil {
+				p.logger.Error(fmt.Sprintf("failed to listen: %s", listenErr))
+				return
+			}
+
+			serveErr := p.httpServer.Serve(listener)
+			if serveErr != nil && serveErr != http.ErrServerClosed {
+				p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
+			}
+		}()
+		return nil
 	} else if cfg.CertFile != "" && cfg.KeyFile != "" {
 		// Regular TLS
 		tlsSetup, err := SetupRegularTLS(cfg.CertFile, cfg.KeyFile, cfg.ServerCAFile, cfg.ClientCAFile)
@@ -197,6 +214,22 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 	}()
 
 	return nil
+}
+
+func (p *proxyServer) attestedListener(addr string, tlsConfig *tls.Config, identity tls.Certificate) (net.Listener, error) {
+	network := "tcp"
+	address := addr
+	if len(addr) > 0 && addr[0] == '/' {
+		network = "unix"
+		address = addr
+		_ = os.Remove(address)
+	}
+
+	return atls.Listen(network, address, &atls.ServerConfig{
+		TLSConfig:           tlsConfig,
+		Identity:            identity,
+		BuildLeafExtensions: p.certProvider.BuildLeafExtensions,
+	})
 }
 
 // Stop stops the proxy server.
