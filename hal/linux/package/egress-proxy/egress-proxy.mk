@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-EGRESS_PROXY_VERSION = c1cbcec851061973a22e96b6673e62dcc779206a
-EGRESS_PROXY_SITE = $(call github,sammyoina,cocos-ai,$(EGRESS_PROXY_VERSION))
+EGRESS_PROXY_VERSION = main
+EGRESS_PROXY_SITE = $(call github,ultravioletrs,cocos,$(EGRESS_PROXY_VERSION))
 
 define EGRESS_PROXY_BUILD_CMDS
 	$(MAKE) -C $(@D) egress-proxy

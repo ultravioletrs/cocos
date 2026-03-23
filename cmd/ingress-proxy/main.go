@@ -21,8 +21,8 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
-	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
 	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
 )

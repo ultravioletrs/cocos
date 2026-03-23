@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-LOG_FORWARDER_VERSION = c1cbcec851061973a22e96b6673e62dcc779206a
-LOG_FORWARDER_SITE = $(call github,sammyoina,cocos-ai,$(LOG_FORWARDER_VERSION))
+LOG_FORWARDER_VERSION = main
+LOG_FORWARDER_SITE = $(call github,ultravioletrs,cocos,$(LOG_FORWARDER_VERSION))
 
 define LOG_FORWARDER_BUILD_CMDS
 	$(MAKE) -C $(@D) log-forwarder
