@@ -110,7 +110,8 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	// Verify nonce matches
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
-	// The attestation provider truncates the 64-byte hash to 32 bytes before sending it to the TEE
+	// The attestation provider truncates the 64-byte hash to 32 bytes for the EAT token nonce claim
+	// This matches the Attestation Service API and standard cryptographic nonce sizes.
 	expectedNonce := hashNonce[:32]
 
 	// Compare nonces (EAT nonce should match our computed nonce)
