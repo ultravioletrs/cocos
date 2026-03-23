@@ -1,7 +1,7 @@
 // Copyright (c) Ultraviolet
 // SPDX-License-Identifier: Apache-2.0
 
-package server
+package ingress
 
 import (
 	"crypto/tls"
@@ -143,19 +143,4 @@ func SetupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile string) (*TLS
 	}
 
 	return &TLSSetupResult{Config: tlsConfig, MTLS: mtls}, nil
-}
-
-// BuildMTLSDescription builds a description string for mTLS configuration.
-func BuildMTLSDescription(serverCAFile, clientCAFile string) string {
-	var parts []string
-
-	if serverCAFile != "" {
-		parts = append(parts, fmt.Sprintf("root ca %s", serverCAFile))
-	}
-
-	if clientCAFile != "" {
-		parts = append(parts, fmt.Sprintf("client ca %s", clientCAFile))
-	}
-
-	return strings.Join(parts, " ")
 }

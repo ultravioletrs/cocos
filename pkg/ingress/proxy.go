@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"github.com/ultravioletrs/cocos/pkg/atls"
-	"github.com/ultravioletrs/cocos/pkg/server"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -146,7 +145,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 			NextProtos:     []string{"h2", "http/1.1"},
 		}
 
-		mtls, err := server.ConfigureCertificateAuthorities(tlsConfig, cfg.ServerCAFile, cfg.ClientCAFile)
+		mtls, err := ConfigureCertificateAuthorities(tlsConfig, cfg.ServerCAFile, cfg.ClientCAFile)
 		if err != nil {
 			return fmt.Errorf("failed to configure certificate authorities: %w", err)
 		}
@@ -159,7 +158,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		}
 	} else if cfg.CertFile != "" && cfg.KeyFile != "" {
 		// Regular TLS
-		tlsSetup, err := server.SetupRegularTLS(cfg.CertFile, cfg.KeyFile, cfg.ServerCAFile, cfg.ClientCAFile)
+		tlsSetup, err := SetupRegularTLS(cfg.CertFile, cfg.KeyFile, cfg.ServerCAFile, cfg.ClientCAFile)
 		if err != nil {
 			return fmt.Errorf("failed to setup TLS: %w", err)
 		}

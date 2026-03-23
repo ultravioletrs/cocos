@@ -243,7 +243,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
+	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1

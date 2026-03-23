@@ -4,17 +4,17 @@
 package server
 
 import (
-	context "context"
 	"fmt"
 	"log/slog"
+	"net"
+	"os"
 
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
 	"github.com/ultravioletrs/cocos/agent/auth"
-	"github.com/ultravioletrs/cocos/pkg/atls"
-	"github.com/ultravioletrs/cocos/pkg/server"
-	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -29,55 +29,68 @@ type AgentServer interface {
 }
 
 type agentServer struct {
-	gs           server.Server
-	logger       *slog.Logger
-	svc          agent.Service
-	host         string
-	certProvider atls.CertificateProvider
+	gs     *grpc.Server
+	logger *slog.Logger
+	svc    agent.Service
+	host   string
 }
 
-func NewServer(logger *slog.Logger, svc agent.Service, host string, certProvider atls.CertificateProvider) AgentServer {
+func NewServer(logger *slog.Logger, svc agent.Service, host string) AgentServer {
 	return &agentServer{
-		logger:       logger,
-		svc:          svc,
-		host:         host,
-		certProvider: certProvider,
+		logger: logger,
+		svc:    svc,
+		host:   host,
 	}
 }
 
 func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error {
-	agentGrpcServerConfig := server.AgentConfig{
-		ServerConfig: server.ServerConfig{
-			Config: server.Config{
-				Host:         defSvcGRPCSocket,
-				Port:         "",
-				CertFile:     "",
-				KeyFile:      "",
-				ServerCAFile: "",
-				ClientCAFile: "",
-			},
-		},
-		AttestedTLS: false, // The internal Unix socket must remain plaintext; Ingress Proxy handles external aTLS termination
-	}
-
-	registerAgentServiceServer := func(srv *grpc.Server) {
-		reflection.Register(srv)
-		agent.RegisterAgentServiceServer(srv, agentgrpc.NewServer(as.svc))
-	}
-
 	authSvc, err := auth.New(cmp)
 	if err != nil {
 		as.logger.WithGroup(cmp.ID).Error(fmt.Sprintf("failed to create auth service %s", err.Error()))
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	grpcServerOptions := []grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	}
 
-	as.gs = grpcserver.New(ctx, cancel, svcName, agentGrpcServerConfig, registerAgentServiceServer, as.logger, authSvc, as.certProvider)
+	// Add authentication interceptors
+	unary, stream := agentgrpc.NewAuthInterceptor(authSvc)
+	grpcServerOptions = append(grpcServerOptions, grpc.UnaryInterceptor(unary))
+	grpcServerOptions = append(grpcServerOptions, grpc.StreamInterceptor(stream))
+
+	// Internal Unix socket is pure plaintext HTTP/2; Ingress Proxy handles external aTLS termination
+	grpcServerOptions = append(grpcServerOptions, grpc.Creds(insecure.NewCredentials()))
+
+	as.gs = grpc.NewServer(grpcServerOptions...)
+
+	reflection.Register(as.gs)
+	agent.RegisterAgentServiceServer(as.gs, agentgrpc.NewServer(as.svc))
+
+	socketPath := as.host
+	if socketPath == "" || socketPath == "0.0.0.0" {
+		socketPath = defSvcGRPCSocket
+	}
+
+	var listener net.Listener
+	if socketPath[0] == '/' || socketPath[0] == '.' {
+		// Remove existing socket file if it exists
+		_ = os.Remove(socketPath)
+		listener, err = net.Listen("unix", socketPath)
+	} else {
+		listener, err = net.Listen("tcp", socketPath)
+	}
+
+	if err != nil {
+		as.logger.Error(fmt.Sprintf("failed to listen on %s: %s", socketPath, err))
+		return err
+	}
+
+	as.logger.Info(fmt.Sprintf("agent service gRPC server listening at %s without TLS", socketPath))
 
 	go func() {
-		err := as.gs.Start()
-		if err != nil {
+		err := as.gs.Serve(listener)
+		if err != nil && err != grpc.ErrServerStopped {
 			as.logger.Error(fmt.Sprintf("failed to start grpc server %s", err.Error()))
 		}
 	}()
@@ -86,8 +99,8 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 }
 
 func (as *agentServer) Stop() error {
-	if as.gs == nil {
-		return nil
+	if as.gs != nil {
+		as.gs.GracefulStop()
 	}
-	return as.gs.Stop()
+	return nil
 }

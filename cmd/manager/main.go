@@ -16,6 +16,7 @@ import (
 	"github.com/absmach/supermq/pkg/jaeger"
 	"github.com/absmach/supermq/pkg/prometheus"
 	smqserver "github.com/absmach/supermq/pkg/server"
+	grpcserver "github.com/absmach/supermq/pkg/server/grpc"
 	httpserver "github.com/absmach/supermq/pkg/server/http"
 	"github.com/absmach/supermq/pkg/uuid"
 	"github.com/caarlos0/env/v11"
@@ -26,8 +27,6 @@ import (
 	"github.com/ultravioletrs/cocos/manager/api/http"
 	"github.com/ultravioletrs/cocos/manager/qemu"
 	"github.com/ultravioletrs/cocos/manager/tracing"
-	"github.com/ultravioletrs/cocos/pkg/server"
-	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -113,7 +112,7 @@ func main() {
 	args := qemuCfg.ConstructQemuArgs()
 	logger.Info(strings.Join(args, " "))
 
-	managerGRPCConfig := server.ServerConfig{}
+	managerGRPCConfig := smqserver.Config{}
 	if err := env.ParseWithOptions(&managerGRPCConfig, env.Options{Prefix: envPrefixGRPC}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		exitCode = 1
@@ -145,7 +144,7 @@ func main() {
 		manager.RegisterManagerServiceServer(srv, managergrpc.NewServer(svc))
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger, nil, nil)
+	gs := grpcserver.NewServer(ctx, cancel, svcName, managerGRPCConfig, registerManagerServiceServer, logger)
 
 	hs := httpserver.NewServer(ctx, cancel, svcName, httpServerConfig, http.MakeHandler(chi.NewMux(), svcName, cfg.InstanceID), logger)
 
@@ -158,7 +157,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, gs, hs)
+		return smqserver.StopSignalHandler(ctx, cancel, logger, svcName, gs, hs)
 	})
 
 	if err := g.Wait(); err != nil {

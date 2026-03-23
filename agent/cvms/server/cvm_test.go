@@ -21,7 +21,7 @@ import (
 func setupTest(t *testing.T) (*slog.Logger, *mocks.Service, string, []byte) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	mockSvc := new(mocks.Service)
-	host := "localhost"
+	host := "localhost:0"
 
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	assert.NoError(t, err, "Failed to generate ECDSA key")
@@ -70,7 +70,7 @@ func TestNewServer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(tt.logger, tt.svc, tt.host, nil)
+			server := NewServer(tt.logger, tt.svc, tt.host)
 
 			assert.NotNil(t, server)
 
@@ -194,7 +194,7 @@ func TestAgentServer_Start(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMocks(svc)
 
-			server := NewServer(logger, svc, host, nil)
+			server := NewServer(logger, svc, host)
 
 			err := server.Start(tt.cfg, tt.cmp)
 
@@ -268,7 +268,7 @@ func TestAgentServer_Stop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(logger, svc, host, nil)
+			server := NewServer(logger, svc, host)
 
 			err := tt.setupServer(server)
 			if err != nil {
@@ -296,7 +296,7 @@ func TestAgentServer_Stop(t *testing.T) {
 
 func TestAgentServer_StopMultipleTimes(t *testing.T) {
 	logger, svc, host, pubKey := setupTest(t)
-	server := NewServer(logger, svc, host, nil)
+	server := NewServer(logger, svc, host)
 
 	// Start the server
 	cfg := agent.AgentConfig{}
@@ -340,7 +340,7 @@ func TestAgentServer_StopMultipleTimes(t *testing.T) {
 
 func TestAgentServer_StartAfterStop(t *testing.T) {
 	logger, svc, host, pubKey := setupTest(t)
-	server := NewServer(logger, svc, host, nil)
+	server := NewServer(logger, svc, host)
 
 	cfg := agent.AgentConfig{}
 	cmp := agent.Computation{
@@ -488,7 +488,7 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(logger, svc, host, nil)
+			server := NewServer(logger, svc, host)
 
 			err := server.Start(tt.config, tt.cmp)
 
