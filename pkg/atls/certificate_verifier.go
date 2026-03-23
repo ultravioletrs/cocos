@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -36,20 +37,35 @@ func NewCertificateVerifier(rootCAs *x509.CertPool) CertificateVerifier {
 }
 
 func (v *certificateVerifier) VerifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate, nonce []byte) error {
+	slog.Debug("Starting peer certificate verification for aTLS")
 	if len(rawCerts) == 0 {
-		return fmt.Errorf("no certificates provided")
+		err := fmt.Errorf("no certificates provided")
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
 	}
 
 	cert, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
-		return fmt.Errorf("failed to parse x509 certificate: %w", err)
+		err = fmt.Errorf("failed to parse x509 certificate: %w", err)
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
 	}
+	slog.Debug("Successfully parsed peer x509 certificate", "subject", cert.Subject.String())
 
 	if err := v.verifyCertificateSignature(cert); err != nil {
-		return fmt.Errorf("certificate signature verification failed: %w", err)
+		err = fmt.Errorf("certificate signature verification failed: %w", err)
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
 	}
+	slog.Debug("Successfully verified peer certificate signature")
 
-	return v.verifyAttestationExtension(cert, nonce)
+	err = v.verifyAttestationExtension(cert, nonce)
+	if err != nil {
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
+	}
+	slog.Debug("Successfully verified aTLS attestation extension")
+	return nil
 }
 
 func (v *certificateVerifier) verifyCertificateSignature(cert *x509.Certificate) error {
@@ -71,6 +87,7 @@ func (v *certificateVerifier) verifyCertificateSignature(cert *x509.Certificate)
 func (v *certificateVerifier) verifyAttestationExtension(cert *x509.Certificate, nonce []byte) error {
 	for _, ext := range cert.Extensions {
 		if platformType, err := platformTypeFromOID(ext.Id); err == nil {
+			slog.Debug("Found attestation extension in peer certificate", "platform_type", platformType)
 			pubKeyDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
 			if err != nil {
 				return fmt.Errorf("failed to marshal public key: %w", err)
@@ -151,6 +168,7 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 		return fmt.Errorf("failed to verify attestation with CoRIM: %w", err)
 	}
 
+	slog.Debug("CoRIM verification passed for aTLS peer certificate")
 	return nil
 }
 

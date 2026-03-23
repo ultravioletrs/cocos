@@ -402,7 +402,7 @@ func TestProxyAttestedTLSMissingProvider(t *testing.T) {
 
 	err := ps.Start(cfg, ctx)
 	assert.Error(t, err)
-	assert.Equal(t, "attested TLS requested but no certificate provider available", err.Error())
+	assert.Equal(t, "attested TLS requested for ingress proxy but no certificate provider available. Please ensure a CC platform is detected (not NoCC), aTLS is enabled, and the attestation service is running", err.Error())
 }
 
 func TestProxyMTLS(t *testing.T) {

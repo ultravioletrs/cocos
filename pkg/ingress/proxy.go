@@ -138,7 +138,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 	if cfg.AttestedTLS {
 		if p.certProvider == nil {
-			return fmt.Errorf("attested TLS requested but no certificate provider available")
+			return fmt.Errorf("attested TLS requested for ingress proxy but no certificate provider available. Please ensure a CC platform is detected (not NoCC), aTLS is enabled, and the attestation service is running")
 		}
 		tlsConfig = &tls.Config{
 			GetCertificate: p.certProvider.GetCertificate,

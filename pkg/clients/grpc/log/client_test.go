@@ -488,8 +488,8 @@ func TestClientSendLogAllRetriesFail(t *testing.T) {
 
 	grpcServer := grpc.NewServer()
 	mockServer := &retryMockLogCollectorServer{
-		failCount:    10, // Fail all attempts
-		maxFailCount: 10,
+		failCount:    20, // Fail all attempts
+		maxFailCount: 20,
 	}
 	log.RegisterLogCollectorServer(grpcServer, mockServer)
 
@@ -513,8 +513,8 @@ func TestClientSendLogAllRetriesFail(t *testing.T) {
 	// Should fail after all retries
 	err = client.SendLog(ctx, entry)
 	assert.Error(t, err)
-	// 3 retries + 1 final attempt = 4 calls
-	assert.Equal(t, 4, mockServer.callCount)
+	// 10 retries + 1 final attempt = 11 calls
+	assert.Equal(t, 11, mockServer.callCount)
 }
 
 func TestClientSendEventAllRetriesFail(t *testing.T) {
@@ -527,8 +527,8 @@ func TestClientSendEventAllRetriesFail(t *testing.T) {
 
 	grpcServer := grpc.NewServer()
 	mockServer := &retryMockLogCollectorServer{
-		failCount:    10,
-		maxFailCount: 10,
+		failCount:    20,
+		maxFailCount: 20,
 	}
 	log.RegisterLogCollectorServer(grpcServer, mockServer)
 
@@ -551,8 +551,8 @@ func TestClientSendEventAllRetriesFail(t *testing.T) {
 	// Should fail after all retries
 	err = client.SendEvent(ctx, entry)
 	assert.Error(t, err)
-	// 3 retries + 1 final attempt = 4 calls
-	assert.Equal(t, 4, mockServer.eventCallCount)
+	// 10 retries + 1 final attempt = 11 calls
+	assert.Equal(t, 11, mockServer.eventCallCount)
 }
 
 // retryMockLogCollectorServer is a mock server that fails a specified number of times.

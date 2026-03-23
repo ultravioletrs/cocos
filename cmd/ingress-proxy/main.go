@@ -5,19 +5,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/absmach/certs/sdk"
-	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	logpb "github.com/ultravioletrs/cocos/agent/log"
+	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
+	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
@@ -39,6 +43,7 @@ type config struct {
 	AgentOSBuild  string `env:"AGENT_OS_BUILD"               envDefault:"UVC"`
 	AgentOSDistro string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
 	AgentOSType   string `env:"AGENT_OS_TYPE"                envDefault:"UVC"`
+	LogForwarder  string `env:"LOG_FORWARDER_SOCKET"         envDefault:"/run/cocos/log.sock"`
 }
 
 func main() {
@@ -66,10 +71,51 @@ func main() {
 }
 
 func run(cfg config) error {
-	logger, err := mglog.New(os.Stdout, cfg.LogLevel)
-	if err != nil {
-		return fmt.Errorf("failed to create logger: %w", err)
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
+		return fmt.Errorf("invalid log level: %w", err)
 	}
+
+	logQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
+	logger := slog.New(handler)
+
+	logClient, err := logclient.NewClient(cfg.LogForwarder)
+	if err != nil {
+		logger.Warn(fmt.Sprintf("failed to connect to log-forwarder: %s. Logs will not be forwarded.", err))
+	} else {
+		defer logClient.Close()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case msg := <-logQueue:
+				if logClient == nil {
+					continue
+				}
+				switch m := msg.Message.(type) {
+				case *cvms.ClientStreamMessage_AgentLog:
+					err := logClient.SendLog(ctx, &logpb.LogEntry{
+						Message:       m.AgentLog.Message,
+						ComputationId: m.AgentLog.ComputationId,
+						Level:         m.AgentLog.Level,
+						Timestamp:     m.AgentLog.Timestamp,
+					})
+					if err != nil {
+						logger.Error("failed to send log", "error", err)
+					}
+				}
+			}
+		}
+	})
 
 	backendURL, err := url.Parse(cfg.Backend)
 	if err != nil {
@@ -110,11 +156,6 @@ func run(cfg config) error {
 	} else {
 		logger.Warn("No Confidential Computing platform detected. ATLS will not be available.")
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	g, ctx := errgroup.WithContext(ctx)
 
 	// Create proxy server (but don't start it yet - it will be started per-computation)
 	_ = ingress.NewProxyServer(logger, backendURL, certProvider)

@@ -45,7 +45,7 @@ func (c *client) SendLog(ctx context.Context, entry *log.LogEntry) error {
 	}
 
 	// Retry with exponential backoff for concurrent request handling
-	maxRetries := 3
+	maxRetries := 10
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_, err := c.client.SendLog(ctx, entry)
@@ -57,8 +57,11 @@ func (c *client) SendLog(ctx context.Context, entry *log.LogEntry) error {
 
 		// Don't retry on last attempt
 		if attempt < maxRetries-1 {
-			// Exponential backoff: 10ms, 20ms, 40ms
-			backoff := time.Duration(10*(1<<uint(attempt))) * time.Millisecond
+			// Backoff: 100ms, 200ms, 400ms... max 2s
+			backoff := time.Duration(100*(1<<uint(attempt))) * time.Millisecond
+			if backoff > 2*time.Second {
+				backoff = 2 * time.Second
+			}
 			time.Sleep(backoff)
 		}
 	}
@@ -76,7 +79,7 @@ func (c *client) SendEvent(ctx context.Context, entry *log.EventEntry) error {
 	}
 
 	// Retry with exponential backoff for concurrent request handling
-	maxRetries := 3
+	maxRetries := 10
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_, err := c.client.SendEvent(ctx, entry)
@@ -88,8 +91,11 @@ func (c *client) SendEvent(ctx context.Context, entry *log.EventEntry) error {
 
 		// Don't retry on last attempt
 		if attempt < maxRetries-1 {
-			// Exponential backoff: 10ms, 20ms, 40ms
-			backoff := time.Duration(10*(1<<uint(attempt))) * time.Millisecond
+			// Backoff: 100ms, 200ms, 400ms... max 2s
+			backoff := time.Duration(100*(1<<uint(attempt))) * time.Millisecond
+			if backoff > 2*time.Second {
+				backoff = 2 * time.Second
+			}
 			time.Sleep(backoff)
 		}
 	}

@@ -139,6 +139,7 @@ func main() {
 	})
 
 	ccPlatform := attestation.CCPlatform()
+	logger.Info(fmt.Sprintf("Detected confidential computing platform: %v", ccPlatform))
 
 	azureConfig := azure.NewEnvConfigFromAgent(
 		cfg.AgentOSBuild,
@@ -209,19 +210,26 @@ func main() {
 	}
 
 	var certProvider atls.CertificateProvider
-	if cfg.EnableATLS && ccPlatform != attestation.NoCC {
-		var certsSDK sdk.SDK
-		if cfg.CAUrl != "" {
-			certsSDK = sdk.NewSDK(sdk.Config{
-				CertsURL: cfg.CAUrl,
-			})
+	if cfg.EnableATLS {
+		if ccPlatform != attestation.NoCC {
+			logger.Info(fmt.Sprintf("Initializing aTLS for platform %v with attestation service at %s", ccPlatform, cfg.AttestationServiceSocket))
+			var certsSDK sdk.SDK
+			if cfg.CAUrl != "" {
+				certsSDK = sdk.NewSDK(sdk.Config{
+					CertsURL: cfg.CAUrl,
+				})
+			}
+			certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+			if err != nil {
+				logger.Error(fmt.Sprintf("failed to create certificate provider for aTLS: %s. Continuing without attested TLS.", err))
+			} else {
+				logger.Info("Successfully created aTLS certificate provider")
+			}
+		} else {
+			logger.Warn("aTLS is enabled but no Confidential Computing platform detected (NoCC). Certificate provider remains nil.")
 		}
-		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
-		if err != nil {
-			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
-			exitCode = 1
-			return
-		}
+	} else {
+		logger.Warn("aTLS is explicitly disabled via configuration (AGENT_ENABLE_ATLS=false). Certificate provider remains nil.")
 	}
 
 	// Create ingress proxy server

@@ -13,9 +13,12 @@ import (
 
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
+	"github.com/ultravioletrs/cocos/agent/cvms"
+	logpb "github.com/ultravioletrs/cocos/agent/log"
 	pb "github.com/ultravioletrs/cocos/agent/runner"
 	runnerevents "github.com/ultravioletrs/cocos/agent/runner/events"
 	"github.com/ultravioletrs/cocos/agent/runner/service"
+	agentlogger "github.com/ultravioletrs/cocos/internal/logger"
 	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -51,15 +54,42 @@ func main() {
 		return
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	logQueue := make(chan *cvms.ClientStreamMessage, 1000)
+	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
+	logger := slog.New(handler)
 
 	// Connect to Log Forwarder
 	logClient, err := logclient.NewClient(cfg.LogForwarder)
 	if err != nil {
-		logger.Warn(fmt.Sprintf("failed to connect to log-forwarder: %s. Events will not be forwarded.", err))
+		logger.Warn(fmt.Sprintf("failed to connect to log-forwarder: %s. Logs and events will not be forwarded.", err))
 	} else {
 		defer logClient.Close()
 	}
+
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case msg := <-logQueue:
+				if logClient == nil {
+					continue
+				}
+				switch m := msg.Message.(type) {
+				case *cvms.ClientStreamMessage_AgentLog:
+					err := logClient.SendLog(ctx, &logpb.LogEntry{
+						Message:       m.AgentLog.Message,
+						ComputationId: m.AgentLog.ComputationId,
+						Level:         m.AgentLog.Level,
+						Timestamp:     m.AgentLog.Timestamp,
+					})
+					if err != nil {
+						logger.Error("failed to send log", "error", err)
+					}
+				}
+			}
+		}
+	})
 
 	eventSvc := runnerevents.NewAdapter(logClient, svcName)
 
