@@ -51,13 +51,13 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 			Config: server.Config{
 				Host:         defSvcGRPCSocket,
 				Port:         "",
-				CertFile:     cfg.CertFile,
-				KeyFile:      cfg.KeyFile,
-				ServerCAFile: cfg.ServerCAFile,
-				ClientCAFile: cfg.ClientCAFile,
+				CertFile:     "",
+				KeyFile:      "",
+				ServerCAFile: "",
+				ClientCAFile: "",
 			},
 		},
-		AttestedTLS: cfg.AttestedTls,
+		AttestedTLS: false, // The internal Unix socket must remain plaintext; Ingress Proxy handles external aTLS termination
 	}
 
 	registerAgentServiceServer := func(srv *grpc.Server) {

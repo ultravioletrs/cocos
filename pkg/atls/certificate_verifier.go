@@ -110,22 +110,28 @@ func (v *certificateVerifier) verifyCertificateExtension(extension []byte, pubKe
 	// Verify nonce matches
 	teeNonce := append(pubKey, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
+	// The attestation provider truncates the 64-byte hash to 32 bytes before sending it to the TEE
+	expectedNonce := hashNonce[:32]
 
 	// Compare nonces (EAT nonce should match our computed nonce)
-	if len(claims.Nonce) != len(hashNonce) {
-		return fmt.Errorf("nonce length mismatch: expected %d, got %d", len(hashNonce), len(claims.Nonce))
+	if len(claims.Nonce) != len(expectedNonce) {
+		err := fmt.Errorf("nonce length mismatch: expected %d, got %d", len(expectedNonce), len(claims.Nonce))
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
 	}
 
 	nonceMatch := true
 	for i := range claims.Nonce {
-		if claims.Nonce[i] != hashNonce[i] {
+		if claims.Nonce[i] != expectedNonce[i] {
 			nonceMatch = false
 			break
 		}
 	}
 
 	if !nonceMatch {
-		return fmt.Errorf("nonce mismatch in EAT token")
+		err := fmt.Errorf("nonce mismatch in EAT token")
+		slog.Error("aTLS handshake failed", "reason", err.Error())
+		return err
 	}
 
 	// Get platform verifier
