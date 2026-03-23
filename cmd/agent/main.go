@@ -59,7 +59,6 @@ type config struct {
 	AgentOSDistro            string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
 	AgentOSType              string `env:"AGENT_OS_TYPE"                envDefault:"UVC"`
 	AttestationServiceSocket string `env:"ATTESTATION_SERVICE_SOCKET" envDefault:"/run/cocos/attestation.sock"`
-	EnableATLS               bool   `env:"AGENT_ENABLE_ATLS"          envDefault:"true"`
 }
 
 func main() {
@@ -210,26 +209,22 @@ func main() {
 	}
 
 	var certProvider atls.CertificateProvider
-	if cfg.EnableATLS {
-		if ccPlatform != attestation.NoCC {
-			logger.Info(fmt.Sprintf("Initializing aTLS for platform %v with attestation service at %s", ccPlatform, cfg.AttestationServiceSocket))
-			var certsSDK sdk.SDK
-			if cfg.CAUrl != "" {
-				certsSDK = sdk.NewSDK(sdk.Config{
-					CertsURL: cfg.CAUrl,
-				})
-			}
-			certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
-			if err != nil {
-				logger.Error(fmt.Sprintf("failed to create certificate provider for aTLS: %s. Continuing without attested TLS.", err))
-			} else {
-				logger.Info("Successfully created aTLS certificate provider")
-			}
+	if ccPlatform != attestation.NoCC {
+		logger.Info(fmt.Sprintf("Initializing aTLS for platform %v with attestation service at %s", ccPlatform, cfg.AttestationServiceSocket))
+		var certsSDK sdk.SDK
+		if cfg.CAUrl != "" {
+			certsSDK = sdk.NewSDK(sdk.Config{
+				CertsURL: cfg.CAUrl,
+			})
+		}
+		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to create certificate provider for aTLS: %s. Continuing without attested TLS.", err))
 		} else {
-			logger.Warn("aTLS is enabled but no Confidential Computing platform detected (NoCC). Certificate provider remains nil.")
+			logger.Info("Successfully created aTLS certificate provider")
 		}
 	} else {
-		logger.Warn("aTLS is explicitly disabled via configuration (AGENT_ENABLE_ATLS=false). Certificate provider remains nil.")
+		logger.Warn("No Confidential Computing platform detected (NoCC). Certificate provider remains nil; aTLS will not be available for computations.")
 	}
 
 	// Create ingress proxy server
