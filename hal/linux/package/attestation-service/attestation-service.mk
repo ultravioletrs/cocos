@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-ATTESTATION_SERVICE_VERSION = 913bbccf3a22053e1979da004c732007336fc890
-ATTESTATION_SERVICE_SITE = $(call github,sammyoina,cocos-ai,$(ATTESTATION_SERVICE_VERSION))
+ATTESTATION_SERVICE_VERSION = main
+ATTESTATION_SERVICE_SITE = $(call github,ultravioletrs,cocos,$(ATTESTATION_SERVICE_VERSION))
 
 define ATTESTATION_SERVICE_BUILD_CMDS
 	$(MAKE) -C $(@D) attestation-service

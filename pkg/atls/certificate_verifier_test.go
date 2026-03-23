@@ -79,7 +79,7 @@ func TestVerifyPeerCertificate_Success(t *testing.T) {
 	hashNonce := sha3.Sum512(teeNonce)
 
 	claims := eat.EATClaims{
-		Nonce:     hashNonce[:],
+		Nonce:     hashNonce[:32],
 		RawReport: []byte("mock-report"),
 	}
 	eatBytes, err := cbor.Marshal(claims)
@@ -155,7 +155,7 @@ func TestVerifyPeerCertificate_AzureSuccess(t *testing.T) {
 	teeNonce := append(peerPubKeyDER, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 
-	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
+	claims := eat.EATClaims{Nonce: hashNonce[:32], RawReport: []byte("rep")}
 	eatBytes, _ := cbor.Marshal(claims)
 
 	peerTemplate := &x509.Certificate{
@@ -210,7 +210,7 @@ func TestVerifyPeerCertificate_TDXSuccess(t *testing.T) {
 	teeNonce := append(peerPubKeyDER, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
 
-	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
+	claims := eat.EATClaims{Nonce: hashNonce[:32], RawReport: []byte("rep")}
 	eatBytes, _ := cbor.Marshal(claims)
 
 	peerTemplate := &x509.Certificate{
@@ -273,7 +273,7 @@ func TestVerifyPeerCertificate_Failures_More(t *testing.T) {
 	nonce := []byte("nonce")
 	teeNonce := append(peerPubKeyDER, nonce...)
 	hashNonce := sha3.Sum512(teeNonce)
-	claims := eat.EATClaims{Nonce: hashNonce[:], RawReport: []byte("rep")}
+	claims := eat.EATClaims{Nonce: hashNonce[:32], RawReport: []byte("rep")}
 	eatBytes, _ := cbor.Marshal(claims)
 	peerTemplate.ExtraExtensions = []pkix.Extension{{Id: SNPvTPMOID, Value: eatBytes}}
 	certDERWithExt, _ := x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)
@@ -323,7 +323,7 @@ func TestVerifyPeerCertificate_Failures_Ext(t *testing.T) {
 	peerPubKeyDER, _ := x509.MarshalPKIXPublicKey(&peerKey.PublicKey)
 	wrongTeeNonce := append(peerPubKeyDER, []byte("wrong-nonce")...)
 	wrongHashNonce := sha3.Sum512(wrongTeeNonce)
-	claims.Nonce = wrongHashNonce[:]
+	claims.Nonce = wrongHashNonce[:32]
 	eatBytes, _ = cbor.Marshal(claims)
 	peerTemplate.ExtraExtensions = []pkix.Extension{{Id: SNPvTPMOID, Value: eatBytes}}
 	certDER, _ = x509.CreateCertificate(rand.Reader, peerTemplate, caCert, &peerKey.PublicKey, caKey)

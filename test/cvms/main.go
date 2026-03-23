@@ -15,12 +15,12 @@ import (
 	"strings"
 
 	mglog "github.com/absmach/supermq/logger"
+	smqserver "github.com/absmach/supermq/pkg/server"
+	grpcserver "github.com/absmach/supermq/pkg/server/grpc"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	cvmsgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"
 	"github.com/ultravioletrs/cocos/internal"
-	"github.com/ultravioletrs/cocos/pkg/server"
-	grpcserver "github.com/ultravioletrs/cocos/pkg/server/grpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -314,24 +314,22 @@ func main() {
 		reflection.Register(srv)
 		cvms.RegisterServiceServer(srv, cvmsgrpc.NewServer(incomingChan, &svc{logger: logger}))
 	}
-	grpcServerConfig := server.ServerConfig{
-		Config: server.Config{
-			Port: defaultPort,
-		},
+	grpcServerConfig := smqserver.Config{
+		Port: defaultPort,
 	}
 	if err := env.ParseWithOptions(&grpcServerConfig, env.Options{}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load %s gRPC client configuration : %s", svcName, err))
 		return
 	}
 
-	gs := grpcserver.New(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger, nil, nil)
+	gs := grpcserver.NewServer(ctx, cancel, svcName, grpcServerConfig, registerAgentServiceServer, logger)
 
 	g.Go(func() error {
 		return gs.Start()
 	})
 
 	g.Go(func() error {
-		return server.StopHandler(ctx, cancel, logger, svcName, gs)
+		return smqserver.StopSignalHandler(ctx, cancel, logger, svcName, gs)
 	})
 
 	if err := g.Wait(); err != nil {

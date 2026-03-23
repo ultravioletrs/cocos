@@ -59,7 +59,6 @@ type config struct {
 	AgentOSDistro            string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
 	AgentOSType              string `env:"AGENT_OS_TYPE"                envDefault:"UVC"`
 	AttestationServiceSocket string `env:"ATTESTATION_SERVICE_SOCKET" envDefault:"/run/cocos/attestation.sock"`
-	EnableATLS               bool   `env:"AGENT_ENABLE_ATLS"          envDefault:"true"`
 }
 
 func main() {
@@ -139,6 +138,7 @@ func main() {
 	})
 
 	ccPlatform := attestation.CCPlatform()
+	logger.Info(fmt.Sprintf("Detected confidential computing platform: %v", ccPlatform))
 
 	azureConfig := azure.NewEnvConfigFromAgent(
 		cfg.AgentOSBuild,
@@ -209,7 +209,8 @@ func main() {
 	}
 
 	var certProvider atls.CertificateProvider
-	if cfg.EnableATLS && ccPlatform != attestation.NoCC {
+	if ccPlatform != attestation.NoCC {
+		logger.Info(fmt.Sprintf("Initializing aTLS for platform %v with attestation service at %s", ccPlatform, cfg.AttestationServiceSocket))
 		var certsSDK sdk.SDK
 		if cfg.CAUrl != "" {
 			certsSDK = sdk.NewSDK(sdk.Config{
@@ -218,10 +219,12 @@ func main() {
 		}
 		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to create certificate provider: %s", err))
-			exitCode = 1
-			return
+			logger.Error(fmt.Sprintf("failed to create certificate provider for aTLS: %s. Continuing without attested TLS.", err))
+		} else {
+			logger.Info("Successfully created aTLS certificate provider")
 		}
+	} else {
+		logger.Warn("No Confidential Computing platform detected (NoCC). Certificate provider remains nil; aTLS will not be available for computations.")
 	}
 
 	// Create ingress proxy server
@@ -240,7 +243,7 @@ func main() {
 		return
 	}
 
-	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost, certProvider), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
+	mc, err := cvmsapi.NewClient(pc, svc, cvmsQueue, logger, server.NewServer(logger, svc, cfg.AgentGrpcHost), ingressProxy, storageDir, reconnectFn, cvmGRPCClient)
 	if err != nil {
 		logger.Error(err.Error())
 		exitCode = 1

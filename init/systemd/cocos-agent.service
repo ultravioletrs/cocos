@@ -9,7 +9,6 @@ WorkingDirectory=/cocos
 Environment="HTTP_PROXY=http://localhost:3128"
 Environment="HTTPS_PROXY=http://localhost:3128"
 Environment="NO_PROXY=localhost,127.0.0.1,.local,/run/cocos/"
-Environment="AGENT_ENABLE_ATLS=false"
 StandardOutput=file:/var/log/cocos/agent.stdout
 StandardError=file:/var/log/cocos/agent.stderr
 EnvironmentFile=/etc/cocos/environment
