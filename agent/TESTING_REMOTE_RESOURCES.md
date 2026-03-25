@@ -92,7 +92,7 @@ EOF
 mkdir -p kbs-data/as kbs-data/rvps kbs-data/repository
 
 # Start KBS
-../target/release/kbs --config-file kbs-config.toml
+sudo ../target/release/kbs --config-file kbs-config.toml
 ```
 
 KBS will listen on `http://localhost:8080`
@@ -115,6 +115,7 @@ cat > lin_reg.py << 'EOF'
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import sys
+import os
 
 # Load dataset
 data = pd.read_csv(sys.argv[1])
@@ -126,11 +127,22 @@ model = LinearRegression()
 model.fit(X, y)
 
 # Save results
+os.makedirs("results", exist_ok=True)
+with open("results/output.txt", "w") as f:
+    f.write(f"Coefficients: {model.coef_}\n")
+    f.write(f"Intercept: {model.intercept_}\n")
+
 print(f"Coefficients: {model.coef_}")
 print(f"Intercept: {model.intercept_}")
 EOF
 
-# 2. Create a Dockerfile
+# 2. Create requirements.txt
+cat > requirements.txt << 'EOF'
+pandas
+scikit-learn
+EOF
+
+# 3. Create a Dockerfile
 cat > Dockerfile << 'EOF'
 FROM python:3.9-slim
 RUN pip install pandas scikit-learn
@@ -140,21 +152,21 @@ WORKDIR /app
 ENTRYPOINT ["python", "algorithm.py"]
 EOF
 
-# 3. Build the image
+# 4. Build the image
 docker build -t localhost:5000/lin-reg-algo:v1.0 .
 docker push localhost:5000/lin-reg-algo:v1.0
 
-# 4. Generate and store key
+# 5. Generate and store key
 openssl rand -out algo.key 32
 
-# 5. Store key in KBS using kbs-client
+# 6. Store key in KBS using kbs-client
 ../target/release/kbs-client --url http://localhost:8080 config \
   --auth-private-key kbs-admin.key \
   set-resource \
   --path default/key/algo-key \
   --resource-file algo.key
 
-# 6. Encrypt the image using Host Skopeo + Docker Keyprovider
+# 7. Encrypt the image using Host Skopeo + Docker Keyprovider
 # Start Keyprovider in background
 docker run -d --rm --name keyprovider --network host \
   -v "$PWD:/work" -w /work \
@@ -273,6 +285,7 @@ HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
   -algo-hash $ALGO_HASH \
+  -algo-args datasets/dataset_0.csv \
   -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
   -dataset-kbs-paths default/key/dataset-key \
   -dataset-hash $DATASET_HASH
