@@ -15,6 +15,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -66,6 +68,10 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 
 	reflection.Register(as.gs)
 	agent.RegisterAgentServiceServer(as.gs, agentgrpc.NewServer(as.svc))
+
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("agent", grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(as.gs, healthServer)
 
 	socketPath := as.host
 	if socketPath == "" || socketPath == "0.0.0.0" {

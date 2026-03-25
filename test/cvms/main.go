@@ -172,11 +172,16 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 			algoHashBytes = make([]byte, 32)
 		}
 
+		var algoArgs []string
+		if algoArgsString != "" {
+			algoArgs = strings.Split(algoArgsString, ",")
+		}
+
 		algorithm = &cvms.Algorithm{
 			Hash:     algoHashBytes,
 			UserKey:  pubPem.Bytes,
 			AlgoType: algoType,
-			AlgoArgs: strings.Split(algoArgsString, ","),
+			AlgoArgs: algoArgs,
 			Source: &cvms.Source{
 				Type:            "oci-image",
 				Url:             algoSourceURL,
