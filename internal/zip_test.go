@@ -4,10 +4,14 @@ package internal
 
 import (
 	"archive/zip"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestZipDirectoryToMemory(t *testing.T) {
@@ -224,6 +228,112 @@ func TestZipDirectoryToTempFile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnzipFromMemory_ErrorPaths(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "unzip_error_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a valid zip with one file
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	f, err := zw.Create("file.txt")
+	require.NoError(t, err)
+	_, err = f.Write([]byte("content"))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	t.Run("mkdir failure", func(t *testing.T) {
+		// Create a file where a directory should be
+		blockedDir := filepath.Join(tempDir, "subdir")
+		require.NoError(t, os.WriteFile(blockedDir, []byte("blocked"), 0o644))
+		defer os.Remove(blockedDir)
+
+		// Create a zip that tries to create a file in that subdir
+		var buf2 bytes.Buffer
+		zw2 := zip.NewWriter(&buf2)
+		_, err := zw2.Create("subdir/file.txt")
+		require.NoError(t, err)
+		require.NoError(t, zw2.Close())
+
+		err = UnzipFromMemory(buf2.Bytes(), tempDir)
+		assert.Error(t, err)
+	})
+
+	t.Run("create file failure", func(t *testing.T) {
+		// Create a directory where a file should be
+		blockedFile := filepath.Join(tempDir, "blocked_file.txt")
+		require.NoError(t, os.MkdirAll(blockedFile, 0o755))
+		defer os.RemoveAll(blockedFile)
+
+		var buf2 bytes.Buffer
+		zw2 := zip.NewWriter(&buf2)
+		_, err := zw2.Create("blocked_file.txt")
+		require.NoError(t, err)
+		require.NoError(t, zw2.Close())
+
+		err = UnzipFromMemory(buf2.Bytes(), tempDir)
+		assert.Error(t, err)
+	})
+}
+
+func TestZipDirectoryToMemory_ErrorPaths(t *testing.T) {
+	t.Run("non-existent directory", func(t *testing.T) {
+		_, err := ZipDirectoryToMemory("/non/existent/path")
+		assert.Error(t, err)
+	})
+}
+
+func TestZipDirectoryToTempFile_ErrorPaths(t *testing.T) {
+	t.Run("non-existent directory", func(t *testing.T) {
+		_, err := ZipDirectoryToTempFile("/non/existent/path")
+		assert.Error(t, err)
+	})
+
+	t.Run("empty source path", func(t *testing.T) {
+		_, err := ZipDirectoryToTempFile("")
+		assert.Error(t, err)
+	})
+}
+
+func TestZipDirectoryToMemory_NotADirectory(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "not_a_dir")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+	tempFile.Close()
+
+	_, err = ZipDirectoryToMemory(tempFile.Name())
+	// filepath.Walk on a file succeeds and visits only that file
+	assert.NoError(t, err)
+}
+
+func TestZipDirectoryToTempFile_NotADirectory(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "not_a_dir_tempfile")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+	tempFile.Close()
+
+	zf, err := ZipDirectoryToTempFile(tempFile.Name())
+	assert.NoError(t, err)
+	if err == nil {
+		zf.Close()
+		os.Remove(zf.Name())
+	}
+}
+
+func TestZipDirectoryToMemory_OpenError(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "open_err_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	file := filepath.Join(tempDir, "unreadable.txt")
+	require.NoError(t, os.WriteFile(file, []byte("test"), 0o000))
+
+	_, err = ZipDirectoryToMemory(tempDir)
+	assert.Error(t, err)
 }
 
 func TestZipDirectoryToTempFile_InvalidInput(t *testing.T) {

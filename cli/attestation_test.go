@@ -144,6 +144,8 @@ func TestNewGetAttestationCmd(t *testing.T) {
 			t.Cleanup(func() {
 				os.Remove(attestationFilePath)
 				os.Remove(attestationReportJson)
+				os.Remove(azureAttestResultFilePath)
+				os.Remove(azureAttestTokenFilePath)
 			})
 			mockSDK := new(mocks.SDK)
 			cli := &CLI{agentSDK: mockSDK}

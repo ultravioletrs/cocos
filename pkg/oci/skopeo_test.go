@@ -183,3 +183,19 @@ func TestSkopeoClientPullAndDecryptEncrypted(t *testing.T) {
 		assert.Contains(t, err.Error(), "skopeo copy failed")
 	})
 }
+
+func TestSkopeoClient_ToDockerArchive(t *testing.T) {
+	workDir := t.TempDir()
+	client, err := NewSkopeoClient(workDir)
+	if err != nil {
+		t.Skip("skopeo not installed, skipping test")
+	}
+
+	t.Run("invalid oci directory", func(t *testing.T) {
+		ctx := context.Background()
+		destFile := filepath.Join(t.TempDir(), "archive.tar")
+		err := client.ToDockerArchive(ctx, "/non/existent/oci/dir", destFile)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "skopeo copy to docker-archive failed")
+	})
+}

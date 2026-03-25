@@ -918,3 +918,79 @@ func TestExtractDatasetErrorPathsAdditional(t *testing.T) {
 		assert.Contains(t, err.Error(), "no dataset files found")
 	})
 }
+
+func TestExtractAlgorithmAdditionalTypes(t *testing.T) {
+	t.Run("isAlgorithmFile additional types", func(t *testing.T) {
+		assert.False(t, isAlgorithmFile("any", 0o644, "docker"))
+		assert.False(t, isAlgorithmFile("any", 0o644, "unknown"))
+	})
+}
+
+func TestExtractAlgorithmErrorPathsInternal(t *testing.T) {
+	logger := slog.Default()
+
+	t.Run("failed to create directory", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "algorithm.py", "print('hello')")
+
+		// Create a file where a directory should be
+		blockedDir := filepath.Join(destDir, "blocked")
+		require.NoError(t, os.WriteFile(blockedDir, []byte("data"), 0o644))
+
+		// Try to extract an algorithm that would need to create a directory where a file exists
+		layerPath := filepath.Join(ociDir, "blobs", "sha256", "layer123")
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(gw)
+		hdr := &tar.Header{
+			Name: "blocked/main.py",
+			Mode: 0o644,
+			Size: int64(len("print(1)")),
+		}
+		require.NoError(t, tw.WriteHeader(hdr))
+		_, _ = tw.Write([]byte("print(1)"))
+		tw.Close()
+		gw.Close()
+		require.NoError(t, os.WriteFile(layerPath, buf.Bytes(), 0o644))
+
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
+		assert.Error(t, err)
+	})
+
+	t.Run("failed to create file", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "algorithm.py", "print('hello')")
+
+		// Create a directory where a file should be
+		blockedFile := filepath.Join(destDir, "algorithm.py")
+		require.NoError(t, os.MkdirAll(blockedFile, 0o755))
+
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
+		assert.Error(t, err)
+	})
+}
+
+func TestExtractDatasetErrorPathsInternal(t *testing.T) {
+	t.Run("failed to create directory for dataset", func(t *testing.T) {
+		ociDir, destDir := setupTestOCIImage(t, "data.csv", "a,b,c")
+
+		blockedDir := filepath.Join(destDir, "blocked")
+		require.NoError(t, os.WriteFile(blockedDir, []byte("data"), 0o644))
+
+		layerPath := filepath.Join(ociDir, "blobs", "sha256", "layer123")
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(gw)
+		hdr := &tar.Header{
+			Name: "blocked/data.csv",
+			Mode: 0o644,
+			Size: int64(len("a,b")),
+		}
+		require.NoError(t, tw.WriteHeader(hdr))
+		_, _ = tw.Write([]byte("a,b"))
+		tw.Close()
+		gw.Close()
+		require.NoError(t, os.WriteFile(layerPath, buf.Bytes(), 0o644))
+
+		_, err := ExtractDataset(ociDir, destDir)
+		assert.Error(t, err)
+	})
+}

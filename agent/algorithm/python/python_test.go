@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -144,5 +145,56 @@ func TestRunWithRequirements(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "2.26.0") {
 		t.Errorf("Expected output to contain requests version 2.26.0, got %q", stdout.String())
+	}
+}
+
+func TestStop(t *testing.T) {
+	t.Run("stop nil cmd", func(t *testing.T) {
+		p := &python{}
+		err := p.Stop()
+		if err != nil {
+			t.Errorf("Expected nil error, got %v", err)
+		}
+	})
+
+	t.Run("stop with running process", func(t *testing.T) {
+		p := &python{
+			stderr: io.Discard,
+			stdout: io.Discard,
+		}
+
+		p.cmd = exec.Command("python3", "-c", "import time; time.sleep(10)")
+		if err := p.cmd.Start(); err != nil {
+			t.Fatalf("Failed to start command: %v", err)
+		}
+
+		err := p.Stop()
+		if err != nil {
+			t.Errorf("Expected nil error, got %v", err)
+		}
+
+		// Verify it actually stopped
+		_ = p.cmd.Wait()
+	})
+
+	t.Run("stop already exited", func(t *testing.T) {
+		p := &python{}
+		p.cmd = exec.Command("python3", "-c", "print(1)")
+		if err := p.cmd.Run(); err != nil {
+			t.Fatal(err)
+		}
+		err := p.Stop()
+		if err != nil {
+			t.Errorf("Expected nil error, got %v", err)
+		}
+	})
+}
+
+func TestNewAlgorithmEmptyRuntime(t *testing.T) {
+	eventsSvc := new(mocks.Service)
+	algo := NewAlgorithm(slog.Default(), eventsSvc, "", "req.txt", "algo.py", nil, "")
+	p := algo.(*python)
+	if p.runtime != PyRuntime {
+		t.Errorf("Expected default runtime %s, got %s", PyRuntime, p.runtime)
 	}
 }
