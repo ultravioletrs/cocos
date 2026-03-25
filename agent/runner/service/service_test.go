@@ -59,6 +59,9 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-1", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithPythonAlgorithm tests running a Python algorithm.
@@ -80,6 +83,9 @@ func TestRunWithPythonAlgorithm(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithPythonAlgorithmNoRequirements tests running Python without requirements.
@@ -100,6 +106,9 @@ func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python-noreq", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithWasmAlgorithm tests running a WASM algorithm.
@@ -123,6 +132,9 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 		t.Skip("wasmedge not found, skipping test")
 	}
 	assert.Equal(t, "test-wasm", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithDockerAlgorithm tests running a Docker algorithm.
@@ -146,6 +158,9 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 		t.Skip("Docker issue, skipping test")
 	}
 	assert.Equal(t, "test-docker", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithUnsupportedAlgorithmType tests running with unsupported algorithm type.
@@ -193,6 +208,9 @@ func TestRunAlreadyRunning(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "computation already running", resp.Error)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestStopWhenRunning tests stopping a running computation.
@@ -260,6 +278,9 @@ func TestConcurrentRun(t *testing.T) {
 	resp2, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	assert.Equal(t, "computation already running", resp2.Error)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }
 
 // TestRunWithMultipleArgs tests running with multiple arguments.
@@ -280,4 +301,7 @@ func TestRunWithMultipleArgs(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-multi-args", resp.ComputationId)
+	t.Cleanup(func() {
+		_ = os.Remove("algo")
+	})
 }

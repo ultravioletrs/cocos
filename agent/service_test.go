@@ -46,6 +46,11 @@ func (m *MockOCIClient) PullAndDecrypt(ctx context.Context, source oci.ResourceS
 	return args.Error(0)
 }
 
+func (m *MockOCIClient) ToDockerArchive(ctx context.Context, ociDir, destFile string) error {
+	args := m.Called(ctx, ociDir, destFile)
+	return args.Error(0)
+}
+
 var (
 	algoPath = "../test/manual/algo/lin_reg.py"
 	reqPath  = "../test/manual/algo/requirements.txt"
@@ -1122,6 +1127,56 @@ func TestDownloadAlgorithmIfRemote_Success(t *testing.T) {
 	// OR use a real-enough looking OCI layout.
 	// Since we can't easily mock oci.ExtractAlgorithm, we'll try to provide a minimal OCI layout
 	// so that oci.ExtractAlgorithm doesn't fail.
+
+	svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+
+	assert.Nil(t, svc.runError)
+	assert.True(t, svc.algoReceived)
+	sm.AssertExpectations(t)
+	mockOCI.AssertExpectations(t)
+}
+
+func TestDownloadAlgorithmIfRemote_Docker_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	sm := &smmocks.StateMachine{}
+	sm.On("SendEvent", AlgorithmReceived).Return().Once()
+
+	mockOCI := new(MockOCIClient)
+	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	
+	dummyContent := []byte("dummy docker tar")
+	dummyHash := sha3.Sum256(dummyContent)
+	
+	mockOCI.On("ToDockerArchive", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		destFile := args.String(2)
+		err := os.WriteFile(destFile, dummyContent, 0o644)
+		require.NoError(t, err)
+	}).Return(nil)
+
+	svc := newTestAgentService(sm, eventsSvc)
+	svc.ociClient = mockOCI
+
+	svc.computation = Computation{
+		Algorithm: Algorithm{
+			AlgoType: "docker",
+			Hash:     dummyHash,
+			Source: &ResourceSource{
+				Type: "oci-image",
+				URL:  "docker://test/image",
+			},
+		},
+		KBS: KBSConfig{Enabled: true},
+	}
 
 	svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
 

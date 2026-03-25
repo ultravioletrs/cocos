@@ -184,16 +184,23 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 	} else {
 		// Direct upload mode - use local file
-		if algoPath == "" {
-			s.logger.Error("algorithm path is required when not using remote source")
-			return
-		}
-		algoHash, err := internal.Checksum(algoPath)
+		fileHash, err := internal.Checksum(algoPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
 			return
 		}
-		algorithm = &cvms.Algorithm{Hash: algoHash[:], UserKey: pubPem.Bytes}
+
+		var algoArgs []string
+		if algoArgsString != "" {
+			algoArgs = strings.Split(algoArgsString, ",")
+		}
+
+		algorithm = &cvms.Algorithm{
+			Hash:     fileHash[:],
+			UserKey:  pubPem.Bytes,
+			AlgoType: algoType,
+			AlgoArgs: algoArgs,
+		}
 	}
 
 	// Build KBS config

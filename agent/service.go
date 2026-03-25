@@ -130,6 +130,7 @@ type Service interface {
 
 type OCIClient interface {
 	PullAndDecrypt(ctx context.Context, source oci.ResourceSource, destDir string) error
+	ToDockerArchive(ctx context.Context, ociDir, destFile string) error
 }
 
 type agentService struct {
@@ -295,6 +296,10 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 
 	if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
 		return fmt.Errorf("error removing results directory: %v", err)
+	}
+
+	if err := os.Remove("algo"); err != nil && !os.IsNotExist(err) {
+		as.logger.Warn("error removing algorithm file", "error", err)
 	}
 
 	as.sm.Reset(Idle)
@@ -594,14 +599,27 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 	// Extract algorithm file from OCI layers
 	extractDir := filepath.Join(os.TempDir(), "cocos-oci", "extracted", sanitizedName)
 	var algorithmPath string
+	var requirementsPath string
 	var err error
 
 	if resourceType == "algorithm" {
-		algorithmPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
+		if as.computation.Algorithm.AlgoType == string(algorithm.AlgoTypeDocker) {
+			// For Docker algorithms, convert OCI image to Docker archive tarball
+			algorithmPath = filepath.Join(extractDir, "image.tar")
+			if err := os.MkdirAll(extractDir, 0o755); err != nil {
+				return nil, fmt.Errorf("failed to create extract directory: %w", err)
+			}
+			if err := as.ociClient.ToDockerArchive(ctx, destDir, algorithmPath); err != nil {
+				return nil, fmt.Errorf("failed to convert OCI image to Docker archive: %w", err)
+			}
+			as.logger.Info("OCI image converted to Docker archive", "path", algorithmPath)
+		} else {
+			algorithmPath, requirementsPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir, as.computation.Algorithm.AlgoType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
+			}
+			as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
 		}
-		as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
 	} else {
 		// Assume dataset
 		files, err := oci.ExtractDataset(destDir, extractDir)
@@ -620,13 +638,21 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 		return nil, fmt.Errorf("failed to read algorithm file: %w", err)
 	}
 
-	// Check for requirements.txt if algorithm
+	// Read requirements file if found
 	var reqData []byte
-	if resourceType == "algorithm" {
+	if requirementsPath != "" {
+		reqData, err = os.ReadFile(requirementsPath)
+		if err != nil {
+			as.logger.Warn("failed to read requirements file", "path", requirementsPath, "error", err)
+		} else {
+			as.logger.Info("requirements.txt loaded", "size", len(reqData))
+		}
+	} else if resourceType == "algorithm" {
+		// Fallback: check if requirements.txt exists in the same directory as the algorithm
 		reqPath := filepath.Join(filepath.Dir(algorithmPath), "requirements.txt")
 		if data, err := os.ReadFile(reqPath); err == nil {
 			reqData = data
-			as.logger.Info("found requirements.txt", "size", len(data))
+			as.logger.Info("found requirements.txt via fallback", "size", len(data))
 		}
 	}
 
@@ -852,12 +878,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 		}
 	}()
 
-	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
-		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
-		as.logger.Warn(as.runError.Error())
-		as.publishEvent(Failed.String())(state)
-		return
-	}
+	// Read algo file
+	currentDir, _ := os.Getwd()
+	algoFile := filepath.Join(currentDir, "algo")
 
 	defer func() {
 		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
@@ -866,11 +889,18 @@ func (as *agentService) runComputation(state statemachine.State) {
 		if err := os.RemoveAll(algorithm.DatasetsDir); err != nil {
 			as.logger.Warn(fmt.Sprintf("error removing datasets directory and its contents: %s", err.Error()))
 		}
+		if err := os.Remove(algoFile); err != nil && !os.IsNotExist(err) {
+			as.logger.Warn(fmt.Sprintf("error removing algorithm file: %s", err.Error()))
+		}
 	}()
 
-	// Read algo file
-	currentDir, _ := os.Getwd()
-	algoFile := filepath.Join(currentDir, "algo")
+	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
+		as.logger.Warn(as.runError.Error())
+		as.publishEvent(Failed.String())(state)
+		return
+	}
+
 	algoBytes, err := os.ReadFile(algoFile)
 	if err != nil {
 		as.runError = fmt.Errorf("failed to read algo file: %w", err)

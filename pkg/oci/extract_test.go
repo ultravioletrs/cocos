@@ -24,28 +24,28 @@ func TestIsAlgorithmFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
+		mode     int64
+		algoType string
 		want     bool
 	}{
-		{"Python file", "algorithm.py", true},
-		{"WASM file", "module.wasm", true},
-		{"WAT file", "module.wat", true},
-		{"JavaScript file", "script.js", true},
-		{"Shell script", "run.sh", true},
-		{"Main python file", "main.py", true},
-		{"Execute file", "execute.py", true},
-		{"Algorithm name in path", "src/algorithm_v2.py", true},
-		{"Random python file", "helper.py", true},
-		{"CSV data file", "data.csv", false},
-		{"JSON config file", "config.json", false},
-		{"Text file", "readme.txt", false},
-		{"Binary file", "data.bin", false},
-		{"Uppercase extension", "MAIN.PY", true},
-		{"Mixed case", "Algorithm.Py", true},
+		{"Python file", "algorithm.py", 0o644, "python", true},
+		{"WASM file", "module.wasm", 0o644, "wasm", true},
+		{"WAT file", "module.wat", 0o644, "wasm", true},
+		{"Python file as bin", "algorithm.py", 0o755, "bin", false},
+		{"Main python file", "main.py", 0o644, "python", true},
+		{"Binary file with common name", "algorithm", 0o644, "bin", true},
+		{"Binary file with common name run", "run", 0o644, "bin", true},
+		{"Executable binary", "my-app", 0o755, "bin", true},
+		{"CSV data file", "data.csv", 0o755, "python", false},
+		{"JSON config file", "config.json", 0o755, "wasm", false},
+		{"Text file", "readme.txt", 0o755, "bin", false},
+		{"Uppercase extension", "MAIN.PY", 0o644, "python", true},
+		{"Mixed case", "Algorithm.Py", 0o644, "python", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isAlgorithmFile(tt.filename)
+			got := isAlgorithmFile(tt.filename, tt.mode, tt.algoType)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -83,7 +83,7 @@ func TestExtractAlgorithm(t *testing.T) {
 
 	t.Run("missing index.json", func(t *testing.T) {
 		tempDir := t.TempDir()
-		_, err := ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir())
+		_, _, err := ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to read index.json")
 	})
@@ -93,7 +93,7 @@ func TestExtractAlgorithm(t *testing.T) {
 		err := os.WriteFile(filepath.Join(tempDir, "index.json"), []byte("not json"), 0o644)
 		require.NoError(t, err)
 
-		_, err = ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir())
+		_, _, err = ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse index.json")
 	})
@@ -105,14 +105,14 @@ func TestExtractAlgorithm(t *testing.T) {
 		err := os.WriteFile(filepath.Join(tempDir, "index.json"), data, 0o644)
 		require.NoError(t, err)
 
-		_, err = ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir())
+		_, _, err = ExtractAlgorithm(context.Background(), logger, tempDir, t.TempDir(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no manifests found")
 	})
 
 	t.Run("successful extraction", func(t *testing.T) {
 		ociDir, destDir := setupTestOCIImage(t, "algorithm.py", testPythonScript)
-		algoPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		algoPath, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
 		require.NoError(t, err)
 		assert.NotEmpty(t, algoPath)
 		assert.Contains(t, algoPath, "algorithm.py")
@@ -471,7 +471,7 @@ func TestExtractAlgorithmWithRequirements(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		algoPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		algoPath, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
 		require.NoError(t, err)
 		assert.Contains(t, algoPath, "main.py")
 
@@ -537,7 +537,7 @@ func TestExtractAlgorithmNoAlgoFile(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		_, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no algorithm file found")
 	})
@@ -626,7 +626,7 @@ func TestExtractAlgorithmInvalidManifest(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		_, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse manifest")
 	})
@@ -654,7 +654,7 @@ func TestExtractAlgorithmMissingManifest(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		_, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to read manifest")
 	})
@@ -723,7 +723,7 @@ func TestExtractAlgorithmWithDirectory(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		algoPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		algoPath, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
 		require.NoError(t, err)
 		assert.Contains(t, algoPath, "main.py")
 	})
@@ -795,7 +795,7 @@ func TestExtractAlgorithmPathTraversal(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		algoPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		algoPath, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
 		require.NoError(t, err)
 		assert.Contains(t, algoPath, "algorithm.py")
 
@@ -815,7 +815,7 @@ func TestExtractAlgorithmErrorPathsAdditional(t *testing.T) {
 		err := os.WriteFile(layerPath, []byte("not gzip"), 0o644)
 		require.NoError(t, err)
 
-		_, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no algorithm file found")
 	})
@@ -833,7 +833,7 @@ func TestExtractAlgorithmErrorPathsAdditional(t *testing.T) {
 		err = os.WriteFile(layerPath, buf.Bytes(), 0o644)
 		require.NoError(t, err)
 
-		_, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err = ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no algorithm file found")
 	})
@@ -867,7 +867,7 @@ func TestExtractAlgorithmErrorPathsAdditional(t *testing.T) {
 		indexData, _ := json.Marshal(index)
 		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
-		_, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir)
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no algorithm file found")
 	})
