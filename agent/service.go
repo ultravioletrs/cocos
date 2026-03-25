@@ -602,6 +602,7 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 	var requirementsPath string
 	var err error
 
+	var files []string
 	if resourceType == "algorithm" {
 		if as.computation.Algorithm.AlgoType == string(algorithm.AlgoTypeDocker) {
 			// For Docker algorithms, convert OCI image to Docker archive tarball
@@ -613,55 +614,69 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 				return nil, fmt.Errorf("failed to convert OCI image to Docker archive: %w", err)
 			}
 			as.logger.Info("OCI image converted to Docker archive", "path", algorithmPath)
+			files = []string{algorithmPath}
 		} else {
 			algorithmPath, requirementsPath, err = oci.ExtractAlgorithm(ctx, as.logger, destDir, extractDir, as.computation.Algorithm.AlgoType)
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract algorithm from OCI image: %w", err)
 			}
 			as.logger.Info("algorithm extracted from OCI image", "path", algorithmPath)
+			files = []string{algorithmPath}
 		}
 	} else {
 		// Assume dataset
-		files, err := oci.ExtractDataset(destDir, extractDir)
+		files, err = oci.ExtractDataset(destDir, extractDir)
 		if err != nil || len(files) == 0 {
 			return nil, fmt.Errorf("failed to extract dataset from OCI image: %w", err)
 		}
-		// For now, take the first file found.
-		// nolint:godox // TODO: Handle multiple files / directory structure if needed.
+		// Set algorithmPath to the first file for SourceDir calculation later
 		algorithmPath = files[0]
-		as.logger.Info("dataset extracted from OCI image", "path", algorithmPath)
+		as.logger.Info("dataset extracted from OCI image", "num_files", len(files))
 	}
 
-	// Read algorithm file
-	algorithmData, err := os.ReadFile(algorithmPath)
+	// Determine which path to hash based on extraction results
+	var hashPath string
+	// For algorithms, we always hash the specific algorithm file found.
+	// For datasets, if there's only one file, hash it directly.
+	// If multiple files, hash the directory (which zips it).
+	if len(files) == 1 {
+		hashPath = files[0]
+	} else {
+		hashPath = extractDir
+	}
+
+	// Calculate digest (matches internal.Checksum logic)
+	resourceData, _, err := internal.Digest(hashPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read algorithm file: %w", err)
+		return nil, fmt.Errorf("failed to calculate resource digest: %w", err)
 	}
 
-	// Read requirements file if found
+	// Read requirements file if found (only for algorithms)
 	var reqData []byte
-	if requirementsPath != "" {
-		reqData, err = os.ReadFile(requirementsPath)
-		if err != nil {
-			as.logger.Warn("failed to read requirements file", "path", requirementsPath, "error", err)
+	if resourceType == "algorithm" {
+		if requirementsPath != "" {
+			reqData, err = os.ReadFile(requirementsPath)
+			if err != nil {
+				as.logger.Warn("failed to read requirements file", "path", requirementsPath, "error", err)
+			} else {
+				as.logger.Info("requirements.txt loaded", "size", len(reqData))
+			}
 		} else {
-			as.logger.Info("requirements.txt loaded", "size", len(reqData))
-		}
-	} else if resourceType == "algorithm" {
-		// Fallback: check if requirements.txt exists in the same directory as the algorithm
-		reqPath := filepath.Join(filepath.Dir(algorithmPath), "requirements.txt")
-		if data, err := os.ReadFile(reqPath); err == nil {
-			reqData = data
-			as.logger.Info("found requirements.txt via fallback", "size", len(data))
+			// Fallback: check if requirements.txt exists in the same directory as the algorithm
+			reqPath := filepath.Join(filepath.Dir(algorithmPath), "requirements.txt")
+			if data, err := os.ReadFile(reqPath); err == nil {
+				reqData = data
+				as.logger.Info("found requirements.txt via fallback", "size", len(data))
+			}
 		}
 	}
 
-	as.logger.Info("algorithm loaded", "size", len(algorithmData))
+	as.logger.Info("resource loaded from OCI", "type", resourceType, "size", len(resourceData), "hash_path", hashPath)
 
 	return &DecryptedResource{
-		Data:         algorithmData,
+		Data:         resourceData,
 		Requirements: reqData,
-		SourceDir:    filepath.Dir(algorithmPath),
+		SourceDir:    extractDir,
 	}, nil
 }
 

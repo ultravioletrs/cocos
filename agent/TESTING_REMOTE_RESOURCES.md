@@ -135,6 +135,7 @@ cat > Dockerfile << 'EOF'
 FROM python:3.9-slim
 RUN pip install pandas scikit-learn
 COPY lin_reg.py /app/algorithm.py
+COPY requirements.txt /app/requirements.txt
 WORKDIR /app
 ENTRYPOINT ["python", "algorithm.py"]
 EOF
@@ -255,10 +256,12 @@ HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.
 
 Start CVMS server:
 ```bash
-# Calculate SHA3-256 of decrypted files using cocos-cli
+# Calculate SHA3-256 of decrypted files using cocos-cli or cvms-test
 # NOTE: We use the hash of the original plaintext files, as the Agent validates the decrypted content.
-# Redirect stderr to stdout (2>&1) because cocos-cli prints to stderr
+# For single files, use the file hash. For directories, use the hash of the directory (which the tools zip deterministically).
+
 ALGO_HASH=$(./build/cocos-cli checksum lin_reg.py 2>&1 | awk '{print $NF}')
+
 DATASET_HASH=$(./build/cocos-cli checksum iris.csv 2>&1 | awk '{print $NF}')
 
 go build -o build/cvms-test ./test/cvms/main.go
@@ -266,11 +269,10 @@ HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -public-key-path ./public.pem \
   -attested-tls-bool false \
   -kbs-url http://$HOST_IP:8080 \
-  -algo-type oci-image \
+  -algo-type python \
   -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
   -algo-hash $ALGO_HASH \
-  -dataset-type oci-image \
   -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
   -dataset-kbs-paths default/key/dataset-key \
   -dataset-hash $DATASET_HASH

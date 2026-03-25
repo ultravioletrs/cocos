@@ -140,13 +140,15 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				s.logger.Error(fmt.Sprintf("data file does not exist: %s", dataPath))
 				return
 			}
-			dataHash, err := internal.Checksum(dataPath)
+			dataHash, err := internal.ChecksumHex(dataPath)
 			if err != nil {
 				s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
 				return
 			}
+			s.logger.Info("local dataset checksum", "path", dataPath, "hash", dataHash)
 
-			datasets = append(datasets, &cvms.Dataset{Hash: dataHash[:], UserKey: pubPem.Bytes})
+			hashBytes, _ := hex.DecodeString(dataHash)
+			datasets = append(datasets, &cvms.Dataset{Hash: hashBytes, UserKey: pubPem.Bytes})
 		}
 	}
 
@@ -184,19 +186,21 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 	} else {
 		// Direct upload mode - use local file
-		fileHash, err := internal.Checksum(algoPath)
+		fileHash, err := internal.ChecksumHex(algoPath)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to calculate checksum: %s", err))
 			return
 		}
+		s.logger.Info("local algorithm checksum", "path", algoPath, "hash", fileHash)
 
 		var algoArgs []string
 		if algoArgsString != "" {
 			algoArgs = strings.Split(algoArgsString, ",")
 		}
 
+		hashBytes, _ := hex.DecodeString(fileHash)
 		algorithm = &cvms.Algorithm{
-			Hash:     fileHash[:],
+			Hash:     hashBytes,
 			UserKey:  pubPem.Bytes,
 			AlgoType: algoType,
 			AlgoArgs: algoArgs,

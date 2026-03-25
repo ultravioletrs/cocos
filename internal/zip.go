@@ -8,49 +8,63 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 )
 
 func ZipDirectoryToMemory(sourceDir string) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
+	var files []string
 	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		if info.IsDir() {
-			return nil
+	sort.Strings(files)
+
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, err
 		}
 
 		relPath, err := filepath.Rel(sourceDir, path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		zipHeader, err := zip.FileInfoHeader(info)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		zipHeader.Name = relPath
+		zipHeader.Modified = time.Unix(0, 0) // Deterministic timestamp
 
 		zipWriterEntry, err := zipWriter.CreateHeader(zipHeader)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		fileToZip, err := os.Open(path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer fileToZip.Close()
 
 		_, err = io.Copy(zipWriterEntry, fileToZip)
-		return err
-	})
-	if err != nil {
-		zipWriter.Close()
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := zipWriter.Close(); err != nil {
@@ -68,43 +82,62 @@ func ZipDirectoryToTempFile(sourceDir string) (*os.File, error) {
 
 	zipWriter := zip.NewWriter(tmpFile)
 
+	var files []string
 	err = filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-
-		if info.IsDir() {
-			return nil
+		if !info.IsDir() {
+			files = append(files, path)
 		}
-
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return err
-		}
-
-		zipHeader, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return err
-		}
-		zipHeader.Name = relPath
-
-		zipWriterEntry, err := zipWriter.CreateHeader(zipHeader)
-		if err != nil {
-			return err
-		}
-
-		fileToZip, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer fileToZip.Close()
-
-		_, err = io.Copy(zipWriterEntry, fileToZip)
-		return err
+		return nil
 	})
 	if err != nil {
 		zipWriter.Close()
 		return nil, err
+	}
+
+	sort.Strings(files)
+
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
+
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
+
+		zipHeader, err := zip.FileInfoHeader(info)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
+		zipHeader.Name = relPath
+		zipHeader.Modified = time.Unix(0, 0) // Deterministic timestamp
+
+		zipWriterEntry, err := zipWriter.CreateHeader(zipHeader)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
+
+		fileToZip, err := os.Open(path)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
+		defer fileToZip.Close()
+
+		_, err = io.Copy(zipWriterEntry, fileToZip)
+		if err != nil {
+			zipWriter.Close()
+			return nil, err
+		}
 	}
 
 	if err := zipWriter.Close(); err != nil {
