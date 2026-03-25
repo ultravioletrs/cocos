@@ -62,7 +62,7 @@ func (p *python) Run() error {
 	venvPath := "venv"
 	defer func() {
 		if err := os.RemoveAll(venvPath); err != nil {
-			p.stderr.Write([]byte(fmt.Sprintf("error removing virtual environment: %v\n", err)))
+			_, _ = p.stderr.Write([]byte(fmt.Sprintf("error removing virtual environment: %v\n", err)))
 		}
 	}()
 

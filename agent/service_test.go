@@ -1153,10 +1153,10 @@ func TestDownloadAlgorithmIfRemote_Docker_Success(t *testing.T) {
 
 	mockOCI := new(MockOCIClient)
 	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	
+
 	dummyContent := []byte("dummy docker tar")
 	dummyHash := sha3.Sum256(dummyContent)
-	
+
 	mockOCI.On("ToDockerArchive", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		destFile := args.String(2)
 		err := os.WriteFile(destFile, dummyContent, 0o644)
