@@ -1,3 +1,6 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
 package ea
 
 const handshakeHeaderLen = 4 // 1 byte type + 3 byte uint24 len
