@@ -19,6 +19,8 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+const unix = "unix"
+
 // ProxyConfig contains configuration for starting a proxy instance.
 type ProxyConfig struct {
 	Port         string
@@ -82,12 +84,12 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 	var rp *httputil.ReverseProxy
 
 	// Check if backend is Unix socket or TCP
-	if p.backendURL.Scheme == "unix" {
+	if p.backendURL.Scheme == unix {
 		// For Unix socket backend, we need to manually configure the reverse proxy
 		// because NewSingleHostReverseProxy doesn't support unix:// scheme
 		targetURL := &url.URL{
 			Scheme: "http",
-			Host:   "unix",
+			Host:   unix,
 		}
 		rp = httputil.NewSingleHostReverseProxy(targetURL)
 
@@ -97,7 +99,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 			originalDirector(req)
 			// Set the URL to point to the backend service
 			req.URL.Scheme = "http"
-			req.URL.Host = "unix"
+			req.URL.Host = unix
 		}
 
 		// Configure Transport for Unix socket with HTTP/2
@@ -106,7 +108,7 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
 				var d net.Dialer
 				// Use Unix socket path from URL
-				return d.DialContext(ctx, "unix", p.backendURL.Path)
+				return d.DialContext(ctx, unix, p.backendURL.Path)
 			},
 		}
 	} else {
@@ -213,7 +215,7 @@ func (p *proxyServer) attestedListener(addr string, tlsConfig *tls.Config, ident
 	network := "tcp"
 	address := addr
 	if len(addr) > 0 && addr[0] == '/' {
-		network = "unix"
+		network = unix
 		address = addr
 		_ = os.Remove(address)
 	}

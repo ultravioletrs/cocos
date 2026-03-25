@@ -8,11 +8,13 @@ import (
 	"encoding/asn1"
 )
 
-const SignatureAlgorithmsExtensionType uint16 = 0x000d
-const ServerNameExtensionType uint16 = 0x0000
-const CertificateAuthoritiesExtensionType uint16 = 0x002f
-const OIDFiltersExtensionType uint16 = 0x0030
-const SignatureAlgorithmsCertExtensionType uint16 = 0x0032
+const (
+	SignatureAlgorithmsExtensionType     uint16 = 0x000d
+	ServerNameExtensionType              uint16 = 0x0000
+	CertificateAuthoritiesExtensionType  uint16 = 0x002f
+	OIDFiltersExtensionType              uint16 = 0x0030
+	SignatureAlgorithmsCertExtensionType uint16 = 0x0032
+)
 
 type AuthenticatorRequest struct {
 	Type       uint8

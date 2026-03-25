@@ -14,8 +14,11 @@ import (
 )
 
 type Conn = internaltransport.Conn
+
 type Listener = internaltransport.Listener
+
 type ClientConfig = internaltransport.ClientConfig
+
 type ServerConfig = internaltransport.ServerConfig
 
 func Dial(network, address string, cfg *ClientConfig) (*Conn, error) {

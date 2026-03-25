@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"math/big"
 	"time"
-
-	"github.com/ultravioletrs/cocos/pkg/server"
 )
 
 // BuildServerTLSConfig prepares the base TLS configuration used by the EA/aTLS
@@ -22,12 +20,12 @@ import (
 // ephemeral self-signed identity bound by the exported authenticator.
 func BuildServerTLSConfig(certFile, keyFile, serverCAFile, clientCAFile string) (*tls.Config, tls.Certificate, bool, error) {
 	if certFile != "" || keyFile != "" {
-		tlsSetup, err := server.SetupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile)
+		tlsSetup, err := setupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile)
 		if err != nil {
 			return nil, tls.Certificate{}, false, err
 		}
-		tlsSetup.Config.MinVersion = tls.VersionTLS13
-		return tlsSetup.Config, tlsSetup.Config.Certificates[0], tlsSetup.MTLS, nil
+		tlsSetup.config.MinVersion = tls.VersionTLS13
+		return tlsSetup.config, tlsSetup.config.Certificates[0], tlsSetup.mtls, nil
 	}
 
 	identity, err := generateEphemeralIdentity()
@@ -41,7 +39,7 @@ func BuildServerTLSConfig(certFile, keyFile, serverCAFile, clientCAFile string) 
 		Certificates: []tls.Certificate{identity},
 	}
 
-	mtls, err := server.ConfigureCertificateAuthorities(tlsConfig, serverCAFile, clientCAFile)
+	mtls, err := configureCertificateAuthorities(tlsConfig, serverCAFile, clientCAFile)
 	if err != nil {
 		return nil, tls.Certificate{}, false, err
 	}
