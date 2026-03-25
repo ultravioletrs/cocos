@@ -62,7 +62,7 @@ func makeCert(t *testing.T) (tls.Certificate, *x509.Certificate) {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: priv}, leaf
 }
 
-func tls13Client(t *testing.T, cert tls.Certificate) *tls.Conn {
+func tls13Client(t *testing.T, cert tls.Certificate) (*tls.Conn, *tls.Conn) {
 	t.Helper()
 	srvConf := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13}
 	cliConf := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13}
@@ -77,13 +77,13 @@ func tls13Client(t *testing.T, cert tls.Certificate) *tls.Conn {
 			t.Fatalf("handshake: %v", err)
 		}
 	}
-	_ = srv
-	return cli
+	return srv, cli
 }
 
 func TestComputeBindingDeterministic(t *testing.T) {
 	cert, leaf := makeCert(t)
-	cli := tls13Client(t, cert)
+	srv, cli := tls13Client(t, cert)
+	defer srv.Close()
 	defer cli.Close()
 
 	st := cli.ConnectionState()
@@ -136,7 +136,8 @@ func TestPayloadRoundTrip(t *testing.T) {
 
 func TestVerifyPayloadSuccess(t *testing.T) {
 	cert, leaf := makeCert(t)
-	cli := tls13Client(t, cert)
+	srv, cli := tls13Client(t, cert)
+	defer srv.Close()
 	defer cli.Close()
 
 	st := cli.ConnectionState()
@@ -176,7 +177,8 @@ func TestVerifyPayloadSuccess(t *testing.T) {
 
 func TestVerifyBinderRejectsMismatch(t *testing.T) {
 	cert, leaf := makeCert(t)
-	cli := tls13Client(t, cert)
+	srv, cli := tls13Client(t, cert)
+	defer srv.Close()
 	defer cli.Close()
 
 	st := cli.ConnectionState()

@@ -4,6 +4,7 @@
 package atls
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
@@ -23,6 +24,10 @@ type ServerConfig = internaltransport.ServerConfig
 
 func Dial(network, address string, cfg *ClientConfig) (*Conn, error) {
 	return internaltransport.Dial(network, address, cfg)
+}
+
+func DialContext(ctx context.Context, network, address string, cfg *ClientConfig) (*Conn, error) {
+	return internaltransport.DialContext(ctx, network, address, cfg)
 }
 
 func DialWithDialer(dialer *net.Dialer, network, address string, cfg *ClientConfig) (*Conn, error) {
@@ -57,7 +62,7 @@ func NewRequest(context []byte) (*ea.AuthenticatorRequest, error) {
 }
 
 func VerifyOptionsFromTLSConfig(cfg *tls.Config) *x509.VerifyOptions {
-	if cfg == nil {
+	if cfg == nil || cfg.InsecureSkipVerify || cfg.RootCAs == nil {
 		return nil
 	}
 	return &x509.VerifyOptions{Roots: cfg.RootCAs}

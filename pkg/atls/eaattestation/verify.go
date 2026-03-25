@@ -4,6 +4,7 @@
 package attestation
 
 import (
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 )
@@ -70,13 +71,5 @@ func VerifyBinder(st *tls.ConnectionState, label string, certificateRequestConte
 }
 
 func equalBytes(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return subtle.ConstantTimeCompare(a, b) == 1
 }

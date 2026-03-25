@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +114,9 @@ func TestProxyStartWithoutPort(t *testing.T) {
 	ctx := ProxyContext{ID: "test-2"}
 
 	err := ps.Start(cfg, ctx)
+	if err != nil && strings.Contains(err.Error(), "address already in use") {
+		t.Skip("default ingress port 7002 is already in use")
+	}
 	require.NoError(t, err)
 	defer func() { _ = ps.Stop() }()
 	time.Sleep(100 * time.Millisecond)
@@ -139,6 +143,33 @@ func TestProxyStartAlreadyStarted(t *testing.T) {
 	err = ps.Start(cfg, ctx)
 	assert.Error(t, err)
 	assert.Equal(t, "proxy server already started", err.Error())
+}
+
+func TestProxyStartReturnsListenerError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ps := NewProxyServer(logger, getBackendURL(), nil).(*proxyServer)
+
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer occupied.Close()
+
+	port := occupied.Addr().(*net.TCPAddr).Port
+	cfg := ProxyConfig{Port: fmt.Sprintf("%d", port)}
+	ctx := ProxyContext{ID: "test-bind-failure"}
+
+	err = ps.Start(cfg, ctx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to listen")
+	assert.False(t, ps.started)
+
+	retry, retryErr := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, retryErr)
+	retryPort := retry.Addr().(*net.TCPAddr).Port
+	retry.Close()
+
+	err = ps.Start(ProxyConfig{Port: fmt.Sprintf("%d", retryPort)}, ctx)
+	require.NoError(t, err)
+	defer func() { _ = ps.Stop() }()
 }
 
 // TestProxyStartAfterStopped tests error when starting after stop.

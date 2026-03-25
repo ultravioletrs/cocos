@@ -12,9 +12,13 @@ import (
 const (
 	frameTypeRequest uint8 = iota + 1
 	frameTypeAuthenticator
+	maxFramePayloadLen = 16 << 20 // 16 MiB
 )
 
 func writeFrame(w io.Writer, typ uint8, payload []byte) error {
+	if len(payload) > maxFramePayloadLen {
+		return fmt.Errorf("atls: frame payload too large: %d", len(payload))
+	}
 	header := make([]byte, 5)
 	header[0] = typ
 	binary.BigEndian.PutUint32(header[1:5], uint32(len(payload)))
@@ -47,6 +51,9 @@ func readFrame(r io.Reader) (uint8, []byte, error) {
 		return 0, nil, fmt.Errorf("atls: invalid frame type")
 	}
 	n := binary.BigEndian.Uint32(header[1:5])
+	if n > maxFramePayloadLen {
+		return 0, nil, fmt.Errorf("atls: frame payload too large: %d", n)
+	}
 	payload := make([]byte, n)
 	if _, err := io.ReadFull(r, payload); err != nil {
 		return 0, nil, err

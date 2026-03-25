@@ -36,6 +36,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 		_ = tlsConn.Close()
 		return nil, err
 	}
+
 	return conn, nil
 }
 

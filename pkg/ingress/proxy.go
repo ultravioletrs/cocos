@@ -133,6 +133,8 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 	// Configure TLS
 	var tlsConfig *tls.Config
+	var listener net.Listener
+	var err error
 	contextDesc := fmt.Sprintf("context %s", ctx.ID)
 	if ctx.Name != "" {
 		contextDesc = fmt.Sprintf("%s (%s)", ctx.Name, ctx.ID)
@@ -148,14 +150,13 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		}
 		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
 
+		listener, err = p.attestedListener(addr, tlsConfig, identity)
+		if err != nil {
+			return fmt.Errorf("failed to listen: %w", err)
+		}
+
 		p.started = true
 		go func() {
-			listener, listenErr := p.attestedListener(addr, tlsConfig, identity)
-			if listenErr != nil {
-				p.logger.Error(fmt.Sprintf("failed to listen: %s", listenErr))
-				return
-			}
-
 			serveErr := p.httpServer.Serve(listener)
 			if serveErr != nil && serveErr != http.ErrServerClosed {
 				p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
@@ -186,25 +187,26 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s without TLS for %s", addr, contextDesc))
 	}
 
+	if tlsConfig != nil {
+		tcpListener, listenErr := net.Listen("tcp", addr)
+		if listenErr != nil {
+			return fmt.Errorf("failed to listen: %w", listenErr)
+		}
+		listener = tls.NewListener(tcpListener, tlsConfig)
+	} else {
+		listener, err = net.Listen("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("failed to listen: %w", err)
+		}
+	}
+
 	p.started = true
 
 	// Start server in goroutine
 	go func() {
-		var err error
-		if tlsConfig != nil {
-			ln, listenErr := net.Listen("tcp", addr)
-			if listenErr != nil {
-				p.logger.Error(fmt.Sprintf("failed to listen: %s", listenErr))
-				return
-			}
-			tlsLn := tls.NewListener(ln, tlsConfig)
-			err = p.httpServer.Serve(tlsLn)
-		} else {
-			err = p.httpServer.ListenAndServe()
-		}
-
-		if err != nil && err != http.ErrServerClosed {
-			p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", err))
+		serveErr := p.httpServer.Serve(listener)
+		if serveErr != nil && serveErr != http.ErrServerClosed {
+			p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
 		}
 	}()
 

@@ -87,6 +87,7 @@ func setupRegularTLS(certFile, keyFile, serverCAFile, clientCAFile string) (*tls
 	}
 
 	tlsConfig := &tls.Config{
+		MinVersion:   tls.VersionTLS13,
 		ClientAuth:   tls.NoClientCert,
 		Certificates: []tls.Certificate{certificate},
 	}

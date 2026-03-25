@@ -80,10 +80,14 @@ func generateEphemeralIdentity() (tls.Certificate, error) {
 	if err != nil {
 		return tls.Certificate{}, err
 	}
+	leaf, err := x509.ParseCertificate(der)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
 
 	return tls.Certificate{
 		Certificate: [][]byte{der},
 		PrivateKey:  priv,
-		Leaf:        template,
+		Leaf:        leaf,
 	}, nil
 }

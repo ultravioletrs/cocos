@@ -4,10 +4,12 @@
 package internaltransport
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ultravioletrs/cocos/pkg/atls/ea"
 	eaattestation "github.com/ultravioletrs/cocos/pkg/atls/eaattestation"
@@ -39,14 +41,20 @@ func Dial(network, address string, cfg *ClientConfig) (*Conn, error) {
 	return DialWithDialer(new(net.Dialer), network, address, cfg)
 }
 
+func DialContext(ctx context.Context, network, address string, cfg *ClientConfig) (*Conn, error) {
+	return DialContextWithDialer(ctx, new(net.Dialer), network, address, cfg)
+}
+
 func DialWithDialer(d *net.Dialer, network, address string, cfg *ClientConfig) (*Conn, error) {
 	if cfg == nil || cfg.TLSConfig == nil {
 		return nil, fmt.Errorf("atls: missing client TLS config")
 	}
+
 	rawConn, err := d.Dial(network, address)
 	if err != nil {
 		return nil, err
 	}
+
 	tlsConn := tls.Client(rawConn, cfg.TLSConfig.Clone())
 	conn, err := Client(tlsConn, cfg)
 	if err != nil {
@@ -56,52 +64,96 @@ func DialWithDialer(d *net.Dialer, network, address string, cfg *ClientConfig) (
 	return conn, nil
 }
 
+func DialContextWithDialer(ctx context.Context, d *net.Dialer, network, address string, cfg *ClientConfig) (*Conn, error) {
+	if cfg == nil || cfg.TLSConfig == nil {
+		return nil, fmt.Errorf("atls: missing client TLS config")
+	}
+	if ctx == nil {
+		return nil, fmt.Errorf("atls: missing client context")
+	}
+
+	rawConn, err := d.DialContext(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConn := tls.Client(rawConn, cfg.TLSConfig.Clone())
+	conn, err := ClientContext(ctx, tlsConn, cfg)
+	if err != nil {
+		_ = tlsConn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
 func Client(tlsConn *tls.Conn, cfg *ClientConfig) (*Conn, error) {
+	return ClientContext(context.Background(), tlsConn, cfg)
+}
+
+func ClientContext(ctx context.Context, tlsConn *tls.Conn, cfg *ClientConfig) (*Conn, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("atls: missing client config")
 	}
-	if err := tlsConn.Handshake(); err != nil {
-		return nil, err
+	if ctx == nil {
+		return nil, fmt.Errorf("atls: missing client context")
 	}
-	req, err := buildRequest(cfg)
+	var res *Conn
+	err := withConnContext(ctx, tlsConn, func() error {
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			return err
+		}
+
+		req, err := buildRequest(cfg)
+		if err != nil {
+			return err
+		}
+		reqBytes, err := req.Marshal()
+		if err != nil {
+			return err
+		}
+
+		if err := writeFrame(tlsConn, frameTypeRequest, reqBytes); err != nil {
+			return err
+		}
+		frameType, authBytes, err := readFrame(tlsConn)
+		if err != nil {
+			return err
+		}
+
+		if frameType != frameTypeAuthenticator {
+			return fmt.Errorf("atls: unexpected frame type %d", frameType)
+		}
+
+		st := tlsConn.ConnectionState()
+		var validation *ea.ValidationResult
+		if cfg.Session != nil {
+			validation, err = cfg.Session.ValidateAuthenticatorWithAttestation(&st, ea.RoleServer, req, authBytes, cfg.VerifyOptions, cfg.AttestationPolicy)
+		} else {
+			validation, err = ea.ValidateAuthenticatorWithAttestation(&st, ea.RoleServer, req, authBytes, cfg.VerifyOptions, cfg.AttestationPolicy)
+		}
+		if err != nil {
+			return err
+		}
+
+		res = &Conn{Conn: tlsConn, Request: req, ValidationResult: validation}
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-	reqBytes, err := req.Marshal()
-	if err != nil {
-		return nil, err
-	}
-	if err := writeFrame(tlsConn, frameTypeRequest, reqBytes); err != nil {
-		return nil, err
-	}
-	frameType, authBytes, err := readFrame(tlsConn)
-	if err != nil {
-		return nil, err
-	}
-	if frameType != frameTypeAuthenticator {
-		return nil, fmt.Errorf("atls: unexpected frame type %d", frameType)
 	}
 
-	st := tlsConn.ConnectionState()
-	var res *ea.ValidationResult
-	if cfg.Session != nil {
-		res, err = cfg.Session.ValidateAuthenticatorWithAttestation(&st, ea.RoleServer, req, authBytes, cfg.VerifyOptions, cfg.AttestationPolicy)
-	} else {
-		res, err = ea.ValidateAuthenticatorWithAttestation(&st, ea.RoleServer, req, authBytes, cfg.VerifyOptions, cfg.AttestationPolicy)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &Conn{Conn: tlsConn, Request: req, ValidationResult: res}, nil
+	return res, nil
 }
 
 func Server(tlsConn *tls.Conn, cfg *ServerConfig) (*Conn, error) {
-	if cfg == nil || cfg.TLSConfig == nil {
+	if cfg == nil {
 		return nil, fmt.Errorf("atls: missing server config")
 	}
+
 	if err := tlsConn.Handshake(); err != nil {
 		return nil, err
 	}
+
 	frameType, reqBytes, err := readFrame(tlsConn)
 	if err != nil {
 		return nil, err
@@ -136,9 +188,11 @@ func Server(tlsConn *tls.Conn, cfg *ServerConfig) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if err := writeFrame(tlsConn, frameTypeAuthenticator, authBytes); err != nil {
 		return nil, err
 	}
+
 	return &Conn{Conn: tlsConn, Request: &req}, nil
 }
 
@@ -189,4 +243,38 @@ func buildServerExtensions(cfg *ServerConfig, st *tls.ConnectionState, req *ea.A
 		return nil, err
 	}
 	return cfg.BuildLeafExtensions(st, req, leaf)
+}
+
+func withConnContext(ctx context.Context, conn interface{ SetDeadline(time.Time) error }, fn func() error) error {
+	if ctx == nil {
+		return fn()
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return err
+		}
+		defer func() {
+			_ = conn.SetDeadline(time.Time{})
+		}()
+	} else {
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = conn.SetDeadline(time.Now())
+			case <-done:
+			}
+		}()
+		defer func() {
+			close(done)
+			_ = conn.SetDeadline(time.Time{})
+		}()
+	}
+
+	err := fn()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	return err
 }

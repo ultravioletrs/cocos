@@ -97,8 +97,12 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, tls.Security, e
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 				network, target := dialTarget(addr)
-				_ = ctx
-				return atls.Dial(network, target, atlsConfig)
+				conn, err := atls.DialContext(ctx, network, target, atlsConfig)
+				if err != nil {
+					return nil, err
+				}
+
+				return conn, nil
 			}),
 		)
 		security = result.Security

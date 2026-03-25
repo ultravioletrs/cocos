@@ -360,6 +360,45 @@ func TestEmptyAuthenticatorRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRejectCertificateMessageWithEmptyEntries(t *testing.T) {
+	cert := selfSignedCert(t)
+	srv, cli := tlsPair(t, cert)
+	defer srv.Close()
+	defer cli.Close()
+
+	ctx, _ := NewRandomContext(10)
+	req := &AuthenticatorRequest{
+		Type:    HandshakeTypeClientCertificateRequest,
+		Context: ctx,
+		Extensions: []Extension{
+			{Type: SignatureAlgorithmsExtensionType, Data: []byte{0x00, 0x02, 0x04, 0x03}},
+		},
+	}
+
+	certBytes, err := (CertificateMessage{Context: ctx}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cvBytes, err := (CertificateVerifyMessage{
+		Algorithm: uint16(tls.ECDSAWithP256AndSHA256),
+		Signature: []byte{0x01},
+	}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	finBytes, err := (FinishedMessage{VerifyData: []byte{0x01}}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	auth := append(append(certBytes, cvBytes...), finBytes...)
+
+	cliState := cli.ConnectionState()
+	if _, err := ValidateAuthenticator(&cliState, RoleServer, req, auth, nil); err != ErrUnsupportedHandshakeType {
+		t.Fatalf("got %v, want %v", err, ErrUnsupportedHandshakeType)
+	}
+}
+
 func TestRejectSpontaneousClientAuthenticator(t *testing.T) {
 	cert := selfSignedCert(t)
 	srv, cli := tlsPair(t, cert)

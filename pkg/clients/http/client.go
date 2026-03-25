@@ -85,8 +85,7 @@ func createTransport(cfg clients.ClientConfiguration) (*http.Transport, tls.Secu
 
 		transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dialNetwork, target := httpDialTarget(network, addr)
-			_ = ctx
-			return atls.Dial(dialNetwork, target, atlsConfig)
+			return atls.DialContext(ctx, dialNetwork, target, atlsConfig)
 		}
 		security = result.Security
 	} else {

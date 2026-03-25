@@ -268,13 +268,10 @@ func validateAuthenticator(session *Session, st *tls.ConnectionState, role Role,
 		return nil, ErrContextMismatch
 	}
 	if len(certMsg.Entries) == 0 {
-		if err := session.MarkContextUsed(certMsg.Context); err != nil {
-			return nil, err
-		}
-		return &ValidationResult{
-			Context: append([]byte(nil), certMsg.Context...),
-			Empty:   true,
-		}, nil
+		// Empty authenticators are encoded as Finished-only. A Certificate
+		// message with zero entries followed by CertificateVerify/Finished is
+		// malformed and must not be accepted as an empty authenticator.
+		return nil, ErrUnsupportedHandshakeType
 	}
 	if err := ValidateCMWAttestationPlacement(certMsg.Entries); err != nil {
 		return nil, err
@@ -357,6 +354,9 @@ func validateAuthenticator(session *Session, st *tls.ConnectionState, role Role,
 			return nil, err
 		}
 		var verifierPolicy eaattestation.VerificationPolicy
+		// A nil attestation policy is intentional: VerifyPayload then fails closed
+		// for any payload that carries evidence or attestation results without
+		// explicit verifiers being configured.
 		if attPolicy != nil {
 			verifierPolicy = *attPolicy
 		}
