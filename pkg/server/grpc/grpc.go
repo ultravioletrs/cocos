@@ -50,7 +50,6 @@ func New(
 	registerService serviceRegister, logger *slog.Logger, authSvc auth.Authenticator, certProvider atls.CertificateProvider,
 ) server.Server {
 	base := config.GetBaseConfig()
-	listenFullAddress := fmt.Sprintf("%s:%s", base.Host, base.Port)
 
 	var attestedTLS bool
 
@@ -63,14 +62,7 @@ func New(
 	}
 
 	return &Server{
-		BaseServer: server.BaseServer{
-			Ctx:     ctx,
-			Cancel:  cancel,
-			Name:    name,
-			Address: listenFullAddress,
-			Config:  config,
-			Logger:  logger,
-		},
+		BaseServer:         server.NewBaseServer(ctx, cancel, name, base, logger),
 		registerService:    registerService,
 		authSvc:            authSvc,
 		certProvider:       certProvider,
@@ -140,21 +132,21 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) configureTransport() (net.Listener, []grpc.ServerOption, error) {
-	baseConfig := s.Config.GetBaseConfig()
+	baseConfig := s.Config
 	network, address := s.listenNetworkAddress(baseConfig)
 
 	if s.shouldUseAttestedTLS() {
 		if network == "unix" {
 			_ = os.Remove(address)
 		}
-		listener, err := s.configureAttestedTLS(network, address, baseConfig.Config)
+		listener, err := s.configureAttestedTLS(network, address, baseConfig)
 		if err != nil {
 			return nil, nil, err
 		}
 		return listener, []grpc.ServerOption{grpc.Creds(insecure.NewCredentials())}, nil
 	}
 
-	if s.shouldUseRegularTLS(baseConfig.Config) {
+	if s.shouldUseRegularTLS(baseConfig) {
 		if network == "unix" {
 			_ = os.Remove(address)
 		}
@@ -163,7 +155,7 @@ func (s *Server) configureTransport() (net.Listener, []grpc.ServerOption, error)
 			return nil, nil, s.listenError(network, address, err)
 		}
 
-		creds, err := s.configureRegularTLS(baseConfig.Config)
+		creds, err := s.configureRegularTLS(baseConfig)
 		if err != nil {
 			_ = listener.Close()
 			return nil, nil, err
@@ -242,7 +234,7 @@ func (s *Server) configureRegularTLS(config server.Config) (grpc.ServerOption, e
 	return grpc.Creds(credentials.NewTLS(tlsSetup.Config)), nil
 }
 
-func (s *Server) listenNetworkAddress(baseConfig server.ServerConfig) (string, string) {
+func (s *Server) listenNetworkAddress(baseConfig server.Config) (string, string) {
 	if len(baseConfig.Host) > 0 && baseConfig.Host[0] == '/' {
 		return "unix", baseConfig.Host
 	}

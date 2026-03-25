@@ -131,7 +131,6 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 	// Configure TLS
 	var tlsConfig *tls.Config
-	var err error
 	contextDesc := fmt.Sprintf("context %s", ctx.ID)
 	if ctx.Name != "" {
 		contextDesc = fmt.Sprintf("%s (%s)", ctx.Name, ctx.ID)
@@ -141,23 +140,11 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		if p.certProvider == nil {
 			return fmt.Errorf("attested TLS requested for ingress proxy but no certificate provider available. Please ensure a CC platform is detected (not NoCC), aTLS is enabled, and the attestation service is running")
 		}
-		tlsConfig = &tls.Config{
-			GetCertificate: p.certProvider.GetCertificate,
-			ClientAuth:     tls.NoClientCert,
-			NextProtos:     []string{"h2", "http/1.1"},
-		}
-
-		mtls, err := ConfigureCertificateAuthorities(tlsConfig, cfg.ServerCAFile, cfg.ClientCAFile)
+		tlsConfig, identity, mtls, err := atls.BuildServerTLSConfig(cfg.CertFile, cfg.KeyFile, cfg.ServerCAFile, cfg.ClientCAFile)
 		if err != nil {
 			return fmt.Errorf("failed to setup attested TLS: %w", err)
 		}
 		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
-
-		if mtls {
-			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested mTLS for %s", addr, contextDesc))
-		} else {
-			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested TLS for %s", addr, contextDesc))
-		}
 
 		p.started = true
 		go func() {
@@ -172,6 +159,12 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 				p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
 			}
 		}()
+
+		if mtls {
+			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested mTLS for %s", addr, contextDesc))
+		} else {
+			p.logger.Info(fmt.Sprintf("ingress-proxy listening at %s with Attested TLS for %s", addr, contextDesc))
+		}
 		return nil
 	} else if cfg.CertFile != "" && cfg.KeyFile != "" {
 		// Regular TLS

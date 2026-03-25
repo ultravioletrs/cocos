@@ -36,7 +36,8 @@ func NewServer(
 	ctx context.Context, cancel context.CancelFunc, name string, config cocosserver.ServerConfiguration,
 	handler http.Handler, logger *slog.Logger, certProvider atls.CertificateProvider,
 ) cocosserver.Server {
-	baseServer := cocosserver.NewBaseServer(ctx, cancel, name, config, logger)
+	baseConfig := config.GetBaseConfig()
+	baseServer := cocosserver.NewBaseServer(ctx, cancel, name, baseConfig, logger)
 	hserver := &http.Server{Addr: baseServer.Address, Handler: handler}
 
 	var attestedTLS bool
@@ -92,11 +93,11 @@ func (s *httpServer) shouldUseAttestedTLS() bool {
 }
 
 func (s *httpServer) shouldUseRegularTLS() bool {
-	return s.Config.GetBaseConfig().CertFile != "" || s.Config.GetBaseConfig().KeyFile != ""
+	return s.Config.CertFile != "" || s.Config.KeyFile != ""
 }
 
 func (s *httpServer) startWithAttestedTLS() error {
-	baseConfig := s.Config.GetBaseConfig()
+	baseConfig := s.Config
 	tlsConfig, identity, mtls, err := atls.BuildServerTLSConfig(baseConfig.CertFile, baseConfig.KeyFile, baseConfig.ServerCAFile, baseConfig.ClientCAFile)
 	if err != nil {
 		return fmt.Errorf("failed to setup attested TLS: %w", err)
@@ -115,7 +116,7 @@ func (s *httpServer) startWithAttestedTLS() error {
 }
 
 func (s *httpServer) startWithRegularTLS() error {
-	baseConfig := s.Config.GetBaseConfig()
+	baseConfig := s.Config
 	tlsSetup, err := cocosserver.SetupRegularTLS(baseConfig.CertFile, baseConfig.KeyFile, baseConfig.ServerCAFile, baseConfig.ClientCAFile)
 	if err != nil {
 		return fmt.Errorf("failed to setup TLS: %w", err)
@@ -142,7 +143,7 @@ func (s *httpServer) logAttestedTLSStart(mtls bool) {
 }
 
 func (s *httpServer) logRegularTLSStart(mtls bool) {
-	baseConfig := s.Config.GetBaseConfig()
+	baseConfig := s.Config
 	if mtls {
 		s.Logger.Info(fmt.Sprintf(
 			"%s service %s server listening at %s with TLS/mTLS cert %s , key %s and CAs %s, %s",
@@ -159,7 +160,7 @@ func (s *httpServer) listenAndServe(useTLS bool) error {
 
 	go func() {
 		if useTLS {
-			cfg := s.Config.GetBaseConfig()
+			cfg := s.Config
 			errCh <- s.server.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile)
 		} else {
 			errCh <- s.server.ListenAndServe()
@@ -190,7 +191,7 @@ func (s *httpServer) serveListener(listener net.Listener) error {
 }
 
 func (s *httpServer) attestedListener(tlsConfig *tls.Config, identity tls.Certificate) (net.Listener, error) {
-	baseConfig := s.Config.GetBaseConfig()
+	baseConfig := s.Config
 	network, address := s.listenNetworkAddress(baseConfig)
 	if network == "unix" {
 		_ = os.Remove(address)
@@ -209,7 +210,7 @@ func (s *httpServer) attestedListener(tlsConfig *tls.Config, identity tls.Certif
 	return listener, nil
 }
 
-func (s *httpServer) listenNetworkAddress(baseConfig cocosserver.ServerConfig) (string, string) {
+func (s *httpServer) listenNetworkAddress(baseConfig cocosserver.Config) (string, string) {
 	if len(baseConfig.Host) > 0 && baseConfig.Host[0] == '/' {
 		return "unix", baseConfig.Host
 	}
