@@ -4,15 +4,12 @@
 package tls
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"os"
 
 	"github.com/absmach/supermq/pkg/errors"
-	"github.com/ultravioletrs/cocos/pkg/atls"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 
@@ -125,21 +122,12 @@ func LoadATLSConfig(attestationPolicy, serverCAFile, clientCert, clientKey strin
 		security = WithMATLS
 	}
 
-	nonce := make([]byte, 64)
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, errors.Wrap(errors.New("failed to generate nonce"), err)
-	}
-
-	encoded := hex.EncodeToString(nonce)
-	sni := encoded + ".nonce"
-
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		RootCAs:            rootCAs,
-		ServerName:         sni,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return atls.NewCertificateVerifier(rootCAs).VerifyPeerCertificate(rawCerts, verifiedChains, nonce)
-		},
+		MinVersion: tls.VersionTLS13,
+		RootCAs:    rootCAs,
+	}
+	if rootCAs == nil {
+		tlsConfig.InsecureSkipVerify = true
 	}
 
 	if clientCert != "" || clientKey != "" {

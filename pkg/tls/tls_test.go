@@ -6,6 +6,7 @@ package tls
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	stdtls "crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -296,10 +297,11 @@ func TestLoadATLSConfig(t *testing.T) {
 			assert.NotNil(t, result.Config)
 
 			// Verify TLS config properties
-			assert.True(t, result.Config.InsecureSkipVerify)
-			assert.NotNil(t, result.Config.VerifyPeerCertificate)
-			assert.NotEmpty(t, result.Config.ServerName)
-			assert.Contains(t, result.Config.ServerName, ".nonce")
+			assert.Equal(t, tt.serverCAFile == "", result.Config.InsecureSkipVerify)
+			assert.Equal(t, uint16(stdtls.VersionTLS13), result.Config.MinVersion)
+			if tt.serverCAFile != "" {
+				assert.NotNil(t, result.Config.RootCAs)
+			}
 		})
 	}
 }

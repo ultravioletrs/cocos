@@ -5,6 +5,7 @@ package http
 
 import (
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -208,6 +209,62 @@ func TestCreateTransport_ATLSError(t *testing.T) {
 	assert.Nil(t, transport)
 	assert.Equal(t, tls.WithoutTLS, security)
 	assert.Contains(t, err.Error(), "failed to stat attestation policy")
+}
+
+func TestCreateTransport_ATLSCustomRequestContext(t *testing.T) {
+	policyFile, err := os.CreateTemp("", "attestation_policy.json")
+	assert.NoError(t, err)
+	_, err = policyFile.WriteString("{}")
+	assert.NoError(t, err)
+	assert.NoError(t, policyFile.Close())
+	t.Cleanup(func() {
+		_ = os.Remove(policyFile.Name())
+	})
+
+	config := &clients.AttestedClientConfig{
+		StandardClientConfig: clients.StandardClientConfig{
+			URL:     "https://agent.example.com",
+			Timeout: 60 * time.Second,
+		},
+		AttestationPolicy:            policyFile.Name(),
+		AttestedTLS:                  true,
+		AttestationRequestContextHex: "01020304",
+	}
+
+	transport, security, err := createTransport(config)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, transport)
+	assert.Equal(t, tls.WithATLS, security)
+	assert.NotNil(t, transport.DialTLSContext)
+}
+
+func TestCreateTransport_ATLSInvalidRequestContext(t *testing.T) {
+	policyFile, err := os.CreateTemp("", "attestation_policy.json")
+	assert.NoError(t, err)
+	_, err = policyFile.WriteString("{}")
+	assert.NoError(t, err)
+	assert.NoError(t, policyFile.Close())
+	t.Cleanup(func() {
+		_ = os.Remove(policyFile.Name())
+	})
+
+	config := &clients.AttestedClientConfig{
+		StandardClientConfig: clients.StandardClientConfig{
+			URL:     "https://agent.example.com",
+			Timeout: 60 * time.Second,
+		},
+		AttestationPolicy:            policyFile.Name(),
+		AttestedTLS:                  true,
+		AttestationRequestContextHex: "xyz",
+	}
+
+	transport, security, err := createTransport(config)
+
+	assert.Error(t, err)
+	assert.Nil(t, transport)
+	assert.Equal(t, tls.WithoutTLS, security)
+	assert.Contains(t, err.Error(), "invalid attestation request context")
 }
 
 func TestCreateTransport_BasicTLSError(t *testing.T) {
