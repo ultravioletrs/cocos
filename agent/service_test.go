@@ -1484,3 +1484,142 @@ func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
 		sm.AssertExpectations(t)
 	})
 }
+func TestAlgo_RemoteSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	sm := &smmocks.StateMachine{}
+	sm.On("GetState").Return(ReceivingAlgorithm)
+	sm.On("SendEvent", AlgorithmReceived).Return().Once()
+
+	mockOCI := new(MockOCIClient)
+	algoContent := []byte("print('remote algo')")
+	algoHash := sha3.Sum256(algoContent)
+
+	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		destDir := args.String(2)
+		setupMinimalOCI(t, destDir, "main.py", algoContent)
+	}).Return(nil)
+
+	svc := &agentService{
+		logger:    slog.Default(),
+		eventSvc:  eventsSvc,
+		sm:        sm,
+		ociClient: mockOCI,
+		computation: Computation{
+			Algorithm: Algorithm{
+				Hash:     algoHash,
+				AlgoType: "python",
+				Source: &ResourceSource{
+					Type: "oci-image",
+					URL:  "docker://test/algo",
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		},
+	}
+
+	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(algorithm.AlgoTypeKey, "python"))
+	err := svc.Algo(ctx, Algorithm{})
+	assert.NoError(t, err)
+	assert.True(t, svc.algoReceived)
+	sm.AssertExpectations(t)
+	mockOCI.AssertExpectations(t)
+}
+
+func TestData_RemoteSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	sm := &smmocks.StateMachine{}
+	sm.On("GetState").Return(ReceivingData)
+	sm.On("SendEvent", DataReceived).Return().Once()
+
+	mockOCI := new(MockOCIClient)
+	dataContent := []byte("remote data")
+	dataHash := sha3.Sum256(dataContent)
+
+	mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		destDir := args.String(2)
+		setupMinimalOCI(t, destDir, "data.csv", dataContent)
+	}).Return(nil)
+
+	svc := &agentService{
+		logger:    slog.Default(),
+		eventSvc:  eventsSvc,
+		sm:        sm,
+		ociClient: mockOCI,
+		computation: Computation{
+			Datasets: []Dataset{
+				{
+					Filename: "data.csv",
+					Hash:     dataHash,
+					Source: &ResourceSource{
+						Type: "oci-image",
+						URL:  "docker://test/data",
+					},
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		},
+	}
+
+	err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = svc.Data(ctx, Dataset{})
+	assert.NoError(t, err)
+	assert.Len(t, svc.computation.Datasets, 0)
+	sm.AssertExpectations(t)
+	mockOCI.AssertExpectations(t)
+}
+
+func TestRunComputation_Success(t *testing.T) {
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
+	// Write a dummy algo file
+	require.NoError(t, os.WriteFile("algo", []byte("#!/bin/sh\necho ok\n"), 0o755))
+
+	runnerCli := new(runnermocks.Client)
+	runnerCli.On("Run", mock.Anything, mock.Anything).Return(&runnerpb.RunResponse{}, nil)
+
+	eventsSvc := new(mocks.Service)
+	eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+	sm := &smmocks.StateMachine{}
+	sm.On("SendEvent", RunComplete).Return().Once()
+
+	svc := &agentService{
+		logger:       slog.Default(),
+		eventSvc:     eventsSvc,
+		sm:           sm,
+		runnerClient: runnerCli,
+		computation:  Computation{ID: "test-run"},
+	}
+
+	svc.runComputation(Running)
+
+	assert.Nil(t, svc.runError)
+	sm.AssertExpectations(t)
+	runnerCli.AssertExpectations(t)
+}

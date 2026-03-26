@@ -350,7 +350,6 @@ func TestZipDirectoryToTempFile_InvalidInput(t *testing.T) {
 			sourceDir: "",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ZipDirectoryToTempFile(tt.sourceDir)
@@ -359,4 +358,43 @@ func TestZipDirectoryToTempFile_InvalidInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestZipDirectoryToTempFile_InternalErrorPaths(t *testing.T) {
+	t.Run("unreadable file in directory", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "unreadable_zip_temp")
+		require.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+
+		file := filepath.Join(tempDir, "unreadable.txt")
+		require.NoError(t, os.WriteFile(file, []byte("test"), 0o000))
+
+		_, err = ZipDirectoryToTempFile(tempDir)
+		assert.Error(t, err)
+	})
+}
+
+func TestUnzipFromMemory_MoreEdgeCases(t *testing.T) {
+	t.Run("empty zip data", func(t *testing.T) {
+		err := UnzipFromMemory([]byte{}, t.TempDir())
+		assert.Error(t, err)
+	})
+
+	t.Run("zip with absolute paths", func(t *testing.T) {
+		// This tests if UnzipFromMemory handles files with names like "/tmp/hacker.txt"
+		// zip.NewReader usually doesn't allow absolute paths easily, but let's see.
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+		_, err := zw.Create("/tmp/test.txt")
+		require.NoError(t, err)
+		require.NoError(t, zw.Close())
+
+		tempDir := t.TempDir()
+		err = UnzipFromMemory(buf.Bytes(), tempDir)
+		assert.NoError(t, err)
+		// It should be joined with tempDir, not written to /tmp/test.txt
+		expectedPath := filepath.Join(tempDir, "/tmp/test.txt")
+		_, err = os.Stat(expectedPath)
+		assert.NoError(t, err)
+	})
 }

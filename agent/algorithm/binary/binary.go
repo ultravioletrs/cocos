@@ -14,6 +14,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 )
 
+var execCommand = exec.Command
+
 var _ algorithm.Algorithm = (*binary)(nil)
 
 type binary struct {
@@ -36,7 +38,7 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 
 func (b *binary) Run() error {
 	b.mu.Lock()
-	b.cmd = exec.Command(b.algoFile, b.args...)
+	b.cmd = execCommand(b.algoFile, b.args...)
 	b.cmd.Stderr = b.stderr
 	b.cmd.Stdout = b.stdout
 

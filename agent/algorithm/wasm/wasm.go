@@ -14,6 +14,8 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 )
 
+var execCommand = exec.Command
+
 const wasmRuntime = "wasmedge"
 
 var mapDirOption = []string{"--dir", ".:" + algorithm.ResultsDir}
@@ -42,7 +44,7 @@ func (w *wasm) Run() error {
 	args := append(mapDirOption, w.algoFile)
 	args = append(args, w.args...)
 	w.mu.Lock()
-	w.cmd = exec.Command(wasmRuntime, args...)
+	w.cmd = execCommand(wasmRuntime, args...)
 	w.cmd.Stderr = w.stderr
 	w.cmd.Stdout = w.stdout
 

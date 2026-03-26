@@ -994,3 +994,100 @@ func TestExtractDatasetErrorPathsInternal(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+func TestExtractAlgorithm_PythonNoRequirements(t *testing.T) {
+	logger := slog.Default()
+	ociDir, destDir := setupTestOCIImage(t, "main.py", testPythonScript)
+	algoPath, reqPath, err := ExtractAlgorithm(context.Background(), logger, ociDir, destDir, "python")
+	require.NoError(t, err)
+	assert.NotEmpty(t, algoPath)
+	assert.Empty(t, reqPath)
+}
+
+func TestExtractDataset_MultipleLayers(t *testing.T) {
+	ociDir := t.TempDir()
+	destDir := t.TempDir()
+	blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+	require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+	createLayer := func(name, filename, content string) string {
+		path := filepath.Join(blobsDir, name)
+		f, _ := os.Create(path)
+		gw := gzip.NewWriter(f)
+		tw := tar.NewWriter(gw)
+		hdr := &tar.Header{Name: filename, Mode: 0o644, Size: int64(len(content))}
+		tw.WriteHeader(hdr)
+		tw.Write([]byte(content))
+		tw.Close()
+		gw.Close()
+		f.Close()
+		return "sha256:" + name
+	}
+
+	layer1 := createLayer("l1", "data1.csv", "1,2")
+	layer2 := createLayer("l2", "data2.csv", "3,4")
+
+	manifest := struct {
+		Layers []struct {
+			Digest string `json:"digest"`
+		} `json:"layers"`
+	}{
+		Layers: []struct {
+			Digest string `json:"digest"`
+		}{{Digest: layer1}, {Digest: layer2}},
+	}
+	manifestData, _ := json.Marshal(manifest)
+	require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "m1"), manifestData, 0o644))
+
+	index := OCIIndex{
+		SchemaVersion: 2,
+		Manifests: []struct {
+			MediaType string `json:"mediaType"`
+			Digest    string `json:"digest"`
+			Size      int    `json:"size"`
+		}{{Digest: "sha256:m1", Size: len(manifestData)}},
+	}
+	indexData, _ := json.Marshal(index)
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+	files, err := ExtractDataset(ociDir, destDir)
+	require.NoError(t, err)
+	assert.Len(t, files, 2)
+}
+
+func TestExtractAlgorithm_ErrorPaths(t *testing.T) {
+	logger := slog.Default()
+
+	t.Run("invalid layer gzip", func(t *testing.T) {
+		ociDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "l1"), []byte("not gzip"), 0o644))
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:l1"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "m1"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:m1", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		_, _, err := ExtractAlgorithm(context.Background(), logger, ociDir, t.TempDir(), "bin")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no algorithm file found")
+	})
+}

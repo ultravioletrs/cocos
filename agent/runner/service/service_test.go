@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -43,6 +44,11 @@ func TestNewRunnerService(t *testing.T) {
 
 // TestRunWithBinaryAlgorithm tests running a binary algorithm.
 func TestRunWithBinaryAlgorithm(t *testing.T) {
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
@@ -59,9 +65,6 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-1", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithPythonAlgorithm tests running a Python algorithm.
@@ -326,3 +329,20 @@ func TestRunWithMultipleArgs(t *testing.T) {
 		_ = os.Remove("algo")
 	})
 }
+
+func TestStopFailure(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	eventSvc := &MockEventService{}
+	rs := New(logger, eventSvc)
+
+	// Mock an algorithm that fails on Stop
+	rs.currentAlgo = &MockAlgorithmStopFail{}
+
+	_, err := rs.Stop(context.Background(), &pb.StopRequest{})
+	assert.Error(t, err)
+}
+
+type MockAlgorithmStopFail struct{}
+
+func (m *MockAlgorithmStopFail) Run() error  { return nil }
+func (m *MockAlgorithmStopFail) Stop() error { return fmt.Errorf("stop failed") }

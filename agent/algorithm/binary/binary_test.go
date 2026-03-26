@@ -4,10 +4,14 @@ package binary
 
 import (
 	"bytes"
+	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 )
@@ -73,6 +77,7 @@ func TestBinaryRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 			eventsSvc := new(mocks.Service)
+			eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 
 			b := NewAlgorithm(logger, eventsSvc, tt.algoFile, tt.args, "").(*binary)
 
@@ -97,4 +102,77 @@ func TestBinaryRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStop(t *testing.T) {
+	t.Run("stop nil cmd", func(t *testing.T) {
+		b := &binary{}
+		err := b.Stop()
+		assert.NoError(t, err)
+	})
+
+	t.Run("stop with running process", func(t *testing.T) {
+		b := &binary{
+			algoFile: "sleep",
+			args:     []string{"10"},
+		}
+		if err := b.Run(); err != nil {
+			t.Fatalf("Failed to start command: %v", err)
+		}
+
+		err := b.Stop()
+		assert.NoError(t, err)
+
+		// Verify it actually stopped
+		_ = b.cmd.Wait()
+	})
+
+	t.Run("stop already exited", func(t *testing.T) {
+		b := &binary{
+			algoFile: "echo",
+			args:     []string{"test"},
+			stdout:   io.Discard,
+			stderr:   io.Discard,
+		}
+		if err := b.Run(); err != nil {
+			t.Fatal(err)
+		}
+		err := b.Stop()
+		assert.NoError(t, err)
+	})
+}
+
+func TestRunError(t *testing.T) {
+	// Mock execCommand to return an error on Start
+	oldExecCommand := execCommand
+	execCommand = mockExecCommandError
+	defer func() { execCommand = oldExecCommand }()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	eventsSvc := new(mocks.Service)
+	eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	b := NewAlgorithm(logger, eventsSvc, "test", nil, "").(*binary)
+
+	err := b.Run()
+	assert.Error(t, err)
+}
+
+func mockExecCommand(command string, args ...string) *exec.Cmd {
+	cs := []string{"-test.run=TestHelperProcess", "--", command}
+	cs = append(cs, args...)
+	cmd := execCommand(os.Args[0], cs...)
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	return cmd
+}
+
+func mockExecCommandError(command string, args ...string) *exec.Cmd {
+	// This will make Start() fail if we use a non-existent binary
+	return exec.Command("non_existent_binary_for_sure_12345")
+}
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	os.Exit(0)
 }
