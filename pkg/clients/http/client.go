@@ -82,6 +82,21 @@ func createTransport(cfg clients.ClientConfiguration) (*http.Transport, tls.Secu
 			VerifyOptions:     atls.VerifyOptionsFromTLSConfig(tlsConfig),
 			AttestationPolicy: atls.VerificationPolicyFromEvidenceVerifier(atls.NewEvidenceVerifier(agcfg.AttestationPolicy)),
 		}
+		requestContext, err := agcfg.RequestContext()
+		if err != nil {
+			return nil, security, err
+		}
+		if len(requestContext) > 0 {
+			req, err := atls.NewRequest(requestContext)
+			if err != nil {
+				return nil, security, err
+			}
+			atlsConfig.Request = req
+		} else {
+			atlsConfig.RequestBuilder = func() (*atls.AuthenticatorRequest, error) {
+				return atls.NewRandomRequest(32)
+			}
+		}
 
 		transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dialNetwork, target := httpDialTarget(network, addr)

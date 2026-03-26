@@ -22,6 +22,8 @@ type ClientConfig = internaltransport.ClientConfig
 
 type ServerConfig = internaltransport.ServerConfig
 
+type AuthenticatorRequest = ea.AuthenticatorRequest
+
 func Dial(network, address string, cfg *ClientConfig) (*Conn, error) {
 	return internaltransport.Dial(network, address, cfg)
 }
@@ -59,6 +61,14 @@ func NewRequest(context []byte) (*ea.AuthenticatorRequest, error) {
 			ea.CMWAttestationOfferExtension(),
 		},
 	}, nil
+}
+
+func NewRandomRequest(contextLen int) (*ea.AuthenticatorRequest, error) {
+	context, err := ea.NewRandomContext(contextLen)
+	if err != nil {
+		return nil, err
+	}
+	return NewRequest(context)
 }
 
 func VerifyOptionsFromTLSConfig(cfg *tls.Config) *x509.VerifyOptions {

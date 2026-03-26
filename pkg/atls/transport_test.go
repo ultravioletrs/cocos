@@ -49,3 +49,30 @@ func TestVerifyOptionsFromTLSConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestNewRandomRequest(t *testing.T) {
+	req1, err := NewRandomRequest(32)
+	if err != nil {
+		t.Fatalf("first request failed: %v", err)
+	}
+	req2, err := NewRandomRequest(32)
+	if err != nil {
+		t.Fatalf("second request failed: %v", err)
+	}
+
+	if len(req1.Context) != 32 {
+		t.Fatalf("expected first request context length 32, got %d", len(req1.Context))
+	}
+	if len(req2.Context) != 32 {
+		t.Fatalf("expected second request context length 32, got %d", len(req2.Context))
+	}
+	if len(req1.Extensions) == 0 {
+		t.Fatal("expected first request to carry extensions")
+	}
+	if len(req2.Extensions) == 0 {
+		t.Fatal("expected second request to carry extensions")
+	}
+	if string(req1.Context) == string(req2.Context) {
+		t.Fatal("expected random request contexts to differ")
+	}
+}

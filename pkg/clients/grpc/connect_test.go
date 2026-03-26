@@ -104,6 +104,22 @@ func TestNewClient(t *testing.T) {
 			err:     nil,
 		},
 		{
+			name: "Success agent client with aTLS and custom request context",
+			agentCfg: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
+					URL:          "localhost:7001",
+					ServerCAFile: caCertFile,
+					ClientCert:   clientCertFile,
+					ClientKey:    clientKeyFile,
+				},
+				AttestedTLS:                  true,
+				AttestationPolicy:            policyFile.Name(),
+				AttestationRequestContextHex: "01020304",
+			},
+			wantErr: false,
+			err:     nil,
+		},
+		{
 			name: "Failed agent client with aTLS",
 			agentCfg: clients.AttestedClientConfig{
 				StandardClientConfig: clients.StandardClientConfig{
@@ -117,6 +133,22 @@ func TestNewClient(t *testing.T) {
 			},
 			wantErr: true,
 			err:     fmt.Errorf("failed to stat attestation policy file"),
+		},
+		{
+			name: "Failed agent client with invalid attestation request context",
+			agentCfg: clients.AttestedClientConfig{
+				StandardClientConfig: clients.StandardClientConfig{
+					URL:          "localhost:7001",
+					ServerCAFile: caCertFile,
+					ClientCert:   clientCertFile,
+					ClientKey:    clientKeyFile,
+				},
+				AttestedTLS:                  true,
+				AttestationPolicy:            policyFile.Name(),
+				AttestationRequestContextHex: "xyz",
+			},
+			wantErr: true,
+			err:     clients.ErrInvalidAttestationRequestContext,
 		},
 		{
 			name: "Fail with invalid ServerCAFile",

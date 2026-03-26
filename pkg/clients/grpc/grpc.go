@@ -92,6 +92,21 @@ func connect(cfg clients.ClientConfiguration) (*grpc.ClientConn, tls.Security, e
 			VerifyOptions:     atls.VerifyOptionsFromTLSConfig(tlsConfig),
 			AttestationPolicy: atls.VerificationPolicyFromEvidenceVerifier(atls.NewEvidenceVerifier(agcfg.AttestationPolicy)),
 		}
+		requestContext, err := agcfg.RequestContext()
+		if err != nil {
+			return nil, security, err
+		}
+		if len(requestContext) > 0 {
+			req, err := atls.NewRequest(requestContext)
+			if err != nil {
+				return nil, security, err
+			}
+			atlsConfig.Request = req
+		} else {
+			atlsConfig.RequestBuilder = func() (*atls.AuthenticatorRequest, error) {
+				return atls.NewRandomRequest(32)
+			}
+		}
 
 		opts = append(opts,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
