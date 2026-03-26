@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
+	"sync"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
@@ -25,6 +26,7 @@ type wasm struct {
 	stdout   io.Writer
 	args     []string
 	cmd      *exec.Cmd
+	mu       sync.Mutex
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, args []string, algoFile, cmpID string) algorithm.Algorithm {
@@ -39,13 +41,16 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, args []string, 
 func (w *wasm) Run() error {
 	args := append(mapDirOption, w.algoFile)
 	args = append(args, w.args...)
+	w.mu.Lock()
 	w.cmd = exec.Command(wasmRuntime, args...)
 	w.cmd.Stderr = w.stderr
 	w.cmd.Stdout = w.stdout
 
 	if err := w.cmd.Start(); err != nil {
+		w.mu.Unlock()
 		return fmt.Errorf("error starting algorithm: %v", err)
 	}
+	w.mu.Unlock()
 
 	if err := w.cmd.Wait(); err != nil {
 		return fmt.Errorf("algorithm execution error: %v", err)
@@ -55,6 +60,9 @@ func (w *wasm) Run() error {
 }
 
 func (w *wasm) Stop() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if w.cmd == nil {
 		return nil
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
+	"sync"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
@@ -21,6 +22,7 @@ type binary struct {
 	stdout   io.Writer
 	args     []string
 	cmd      *exec.Cmd
+	mu       sync.Mutex
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string, args []string, cmpID string) algorithm.Algorithm {
@@ -33,13 +35,16 @@ func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, algoFile string
 }
 
 func (b *binary) Run() error {
+	b.mu.Lock()
 	b.cmd = exec.Command(b.algoFile, b.args...)
 	b.cmd.Stderr = b.stderr
 	b.cmd.Stdout = b.stdout
 
 	if err := b.cmd.Start(); err != nil {
+		b.mu.Unlock()
 		return fmt.Errorf("error starting algorithm: %v", err)
 	}
+	b.mu.Unlock()
 
 	if err := b.cmd.Wait(); err != nil {
 		return fmt.Errorf("algorithm execution error: %v", err)
@@ -49,6 +54,9 @@ func (b *binary) Run() error {
 }
 
 func (b *binary) Stop() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if b.cmd == nil {
 		return nil
 	}

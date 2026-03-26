@@ -356,7 +356,7 @@ func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 
 // isDataFile checks if a file is likely a dataset file.
 func isDataFile(filename string) bool {
-	dataExts := []string{".csv", ".json", ".txt", ".parquet", ".arrow", ".dat"}
+	dataExts := []string{".csv", ".json", ".txt", ".parquet", ".arrow", ".dat", ".zip", ".tar", ".gz", ".tgz", ".tar.gz"}
 
 	baseLower := strings.ToLower(filepath.Base(filename))
 

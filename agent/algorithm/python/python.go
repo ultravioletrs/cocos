@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
@@ -40,6 +41,7 @@ type python struct {
 	requirementsFile string
 	args             []string
 	cmd              *exec.Cmd
+	mu               sync.Mutex
 }
 
 func NewAlgorithm(logger *slog.Logger, eventsSvc events.Service, runtime, requirementsFile, algoFile string, args []string, cmpID string) algorithm.Algorithm {
@@ -92,13 +94,16 @@ func (p *python) Run() error {
 	}
 
 	args := append([]string{p.algoFile}, p.args...)
+	p.mu.Lock()
 	p.cmd = exec.Command(pythonPath, args...)
 	p.cmd.Stderr = p.stderr
 	p.cmd.Stdout = p.stdout
 
 	if err := p.cmd.Start(); err != nil {
+		p.mu.Unlock()
 		return fmt.Errorf("error starting algorithm: %v", err)
 	}
+	p.mu.Unlock()
 
 	if err := p.cmd.Wait(); err != nil {
 		return fmt.Errorf("algorithm execution error: %v", err)
@@ -108,6 +113,9 @@ func (p *python) Run() error {
 }
 
 func (p *python) Stop() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.cmd == nil {
 		return nil
 	}
