@@ -9,15 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 )
 
+const testWasm = "test.wasm"
+
 func TestNewAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventsSvc := new(mocks.Service)
-	algoFile := "test.wasm"
+	algoFile := testWasm
 	args := []string{"arg1", "arg2"}
 
 	algo := NewAlgorithm(logger, eventsSvc, args, algoFile, "")
@@ -51,15 +52,18 @@ func TestRunError(t *testing.T) {
 	execCommand = mockExecCommandError
 	defer func() { execCommand = exec.Command }()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	eventsSvc := new(mocks.Service)
-	eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
-	algoFile := "test.wasm"
+	algoFile := testWasm
 	args := []string{"arg1", "arg2"}
 
-	w := NewAlgorithm(logger, eventsSvc, args, algoFile, "").(*wasm)
+	w := &wasm{
+		algoFile: algoFile,
+		args:     args,
+		stderr:   os.Stderr, // Use real stderr or io.Discard
+		stdout:   os.Stdout,
+	}
 
 	err := w.Run()
+
 	if err == nil {
 		t.Errorf("Run() should have returned an error")
 	}
@@ -79,19 +83,6 @@ func mockExecCommandError(command string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	if os.Getenv("GO_WANT_HELPER_PROCESS_SLEEP") == "1" {
-		time.Sleep(10 * time.Second)
-	}
-	if os.Getenv("GO_WANT_HELPER_PROCESS_ERROR") == "1" {
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
 func TestStop(t *testing.T) {
 	t.Run("stop nil cmd", func(t *testing.T) {
 		w := &wasm{}
@@ -107,7 +98,7 @@ func TestStop(t *testing.T) {
 		defer func() { execCommand = oldExecCommand }()
 
 		w := &wasm{
-			algoFile: "test.wasm",
+			algoFile: testWasm,
 			stdout:   os.Stdout,
 			stderr:   os.Stderr,
 		}
@@ -131,8 +122,50 @@ func TestStop(t *testing.T) {
 	})
 }
 
-// Update TestHelperProcess to handle sleep.
-func TestHelperProcessSleep(t *testing.T) {
+func TestStopAlreadyExited(t *testing.T) {
+	oldExecCommand := execCommand
+	execCommand = mockExecCommand
+	defer func() { execCommand = oldExecCommand }()
+
+	w := &wasm{
+		algoFile: testWasm,
+		stdout:   os.Stdout,
+		stderr:   os.Stderr,
+	}
+
+	w.cmd = mockExecCommand("true")
+	if err := w.cmd.Run(); err != nil {
+		t.Fatalf("Failed to run command: %v", err)
+	}
+
+	err := w.Stop()
+	if err != nil {
+		t.Errorf("Expected nil error, got %v", err)
+	}
+}
+
+func TestRunSuccess(t *testing.T) {
+	oldExecCommand := execCommand
+	execCommand = mockExecCommand
+	defer func() { execCommand = oldExecCommand }()
+
+	algoFile := testWasm
+	args := []string{"arg1", "arg2"}
+
+	w := &wasm{
+		algoFile: algoFile,
+		args:     args,
+		stderr:   os.Stderr,
+		stdout:   os.Stdout,
+	}
+
+	err := w.Run()
+	if err != nil {
+		t.Errorf("Run() returned unexpected error: %v", err)
+	}
+}
+
+func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}

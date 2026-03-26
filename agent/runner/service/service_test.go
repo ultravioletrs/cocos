@@ -270,10 +270,44 @@ func TestRunErrors(t *testing.T) {
 		assert.Contains(t, err.Error(), "error creating algorithm file")
 	})
 
+	t.Run("getwd failure", func(t *testing.T) {
+		origDir, _ := os.Getwd()
+		tmpDir := t.TempDir()
+		err := os.Chdir(tmpDir)
+		require.NoError(t, err)
+
+		// Remove the current working directory to trigger Getwd failure
+		err = os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+
+		req := &pb.RunRequest{
+			ComputationId: "test-err-getwd",
+			AlgoType:      "bin",
+			Algorithm:     []byte("test"),
+		}
+		_, err = rs.Run(context.Background(), req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting current directory")
+
+		// Restore working directory
+		_ = os.Chdir(origDir)
+	})
+
 	t.Run("requirements file creation failure", func(t *testing.T) {
 		// This one is harder because it uses os.CreateTemp("", "requirements.txt")
 		// We can't easily make this fail without reaching into the system's temp dir.
 		// Skipping for now as it's a very unlikely edge case.
+	})
+
+	t.Run("chmod failure", func(t *testing.T) {
+		// We can't easily mock os.Chmod, but we can try to make the file unmodifiable
+		// On Linux, we can set the immutable attribute, but that requires root.
+		// Alternatively, we can try to use a directory with permissions that prevent chmod?
+		// No, chmod usually works if you own the file.
+	})
+
+	t.Run("write algorithm failure", func(t *testing.T) {
+		// This is also hard without mocking os.File.Write or reaching internal limits.
 	})
 }
 

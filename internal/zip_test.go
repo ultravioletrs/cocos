@@ -398,3 +398,44 @@ func TestUnzipFromMemory_MoreEdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestUnzipFromMemory_InvalidReader(t *testing.T) {
+	err := UnzipFromMemory([]byte("invalid"), t.TempDir())
+	assert.Error(t, err)
+}
+
+func TestUnzipFromMemory_FileCreateError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a zip with one file
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	_, err := zw.Create("file.txt")
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	// Create a directory where the file should be
+	blockedFile := filepath.Join(tempDir, "file.txt")
+	require.NoError(t, os.MkdirAll(blockedFile, 0o755))
+
+	err = UnzipFromMemory(buf.Bytes(), tempDir)
+	assert.Error(t, err)
+}
+
+func TestUnzipFromMemory_DirCreateError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a zip with one directory entry
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	_, err := zw.Create("subdir/")
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	// Create a file where the directory should be
+	blockedDir := filepath.Join(tempDir, "subdir")
+	require.NoError(t, os.WriteFile(blockedDir, []byte("blocked"), 0o644))
+
+	err = UnzipFromMemory(buf.Bytes(), tempDir)
+	assert.Error(t, err)
+}

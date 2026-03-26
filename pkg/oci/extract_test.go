@@ -600,6 +600,41 @@ func TestExtractDatasetNoDataFiles(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no dataset files found")
 	})
+
+	t.Run("corrupt layer file", func(t *testing.T) {
+		ociDir := t.TempDir()
+		blobsDir := filepath.Join(ociDir, "blobs", "sha256")
+		require.NoError(t, os.MkdirAll(blobsDir, 0o755))
+
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "layer123"), []byte("not a gzip"), 0o644))
+
+		manifest := struct {
+			Layers []struct {
+				Digest string `json:"digest"`
+			} `json:"layers"`
+		}{
+			Layers: []struct {
+				Digest string `json:"digest"`
+			}{{Digest: "sha256:layer123"}},
+		}
+		manifestData, _ := json.Marshal(manifest)
+		require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "manifest123"), manifestData, 0o644))
+
+		index := OCIIndex{
+			SchemaVersion: 2,
+			Manifests: []struct {
+				MediaType string `json:"mediaType"`
+				Digest    string `json:"digest"`
+				Size      int    `json:"size"`
+			}{{Digest: "sha256:manifest123", Size: len(manifestData)}},
+		}
+		indexData, _ := json.Marshal(index)
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
+
+		// ExtractDataset logs a warning and continues if a layer fails, but if ALL fail it errors
+		_, err := ExtractDataset(ociDir, t.TempDir())
+		assert.Error(t, err)
+	})
 }
 
 func TestExtractAlgorithmInvalidManifest(t *testing.T) {

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/ultravioletrs/cocos/agent/algorithm/logging"
 	"github.com/ultravioletrs/cocos/agent/events/mocks"
 	"google.golang.org/grpc/metadata"
@@ -187,6 +189,43 @@ func TestStop(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected nil error, got %v", err)
 		}
+	})
+}
+
+func TestRun_Errors(t *testing.T) {
+	t.Run("invalid runtime error", func(t *testing.T) {
+		algo := &python{
+			algoFile: "algo.py",
+			runtime:  "non-existent-python",
+			stderr:   io.Discard,
+			stdout:   io.Discard,
+		}
+		err := algo.Run()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error creating virtual environment")
+	})
+
+	t.Run("pip install failure", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "python-err-test")
+		require.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		scriptPath := filepath.Join(tmpDir, "test.py")
+		require.NoError(t, os.WriteFile(scriptPath, []byte("print(1)"), 0o644))
+
+		reqPath := filepath.Join(tmpDir, "requirements.txt")
+		require.NoError(t, os.WriteFile(reqPath, []byte("non-existent-package==9.9.9"), 0o644))
+
+		algo := &python{
+			algoFile:         scriptPath,
+			requirementsFile: reqPath,
+			runtime:          "python3",
+			stderr:           io.Discard,
+			stdout:           io.Discard,
+		}
+		err = algo.Run()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error installing requirements")
 	})
 }
 

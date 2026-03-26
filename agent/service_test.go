@@ -1119,7 +1119,7 @@ func TestDownloadAlgorithmIfRemote_Success(t *testing.T) {
 			AlgoType: "python",
 			Source: &ResourceSource{
 				Type: "oci-image",
-				URL:  "docker://test/image",
+				URL:  "docker://test/algo-success",
 			},
 		},
 		KBS: KBSConfig{Enabled: true},
@@ -1174,7 +1174,7 @@ func TestDownloadAlgorithmIfRemote_Docker_Success(t *testing.T) {
 			Hash:     dummyHash,
 			Source: &ResourceSource{
 				Type: "oci-image",
-				URL:  "docker://test/image",
+				URL:  "docker://test/algo-docker-success",
 			},
 		},
 		KBS: KBSConfig{Enabled: true},
@@ -1275,7 +1275,7 @@ func TestDownloadDatasetsIfRemote_Success(t *testing.T) {
 				Hash:     dataHash,
 				Source: &ResourceSource{
 					Type: "oci-image",
-					URL:  "docker://test/image",
+					URL:  "docker://test/data-success",
 				},
 			},
 		},
@@ -1339,7 +1339,7 @@ func TestDownloadDatasetsIfRemote_Decompress(t *testing.T) {
 				Decompress: true,
 				Source: &ResourceSource{
 					Type: "oci-image",
-					URL:  "docker://test/image",
+					URL:  "docker://test/data-decompress",
 				},
 			},
 		},
@@ -1390,7 +1390,7 @@ func TestDownloadAlgorithmIfRemote_ErrorPathsInternal(t *testing.T) {
 				AlgoType: "python",
 				Source: &ResourceSource{
 					Type: "oci-image",
-					URL:  "docker://test/image",
+					URL:  "docker://test/algo-hash-mismatch",
 				},
 			},
 			KBS: KBSConfig{Enabled: true},
@@ -1426,7 +1426,7 @@ func TestDownloadAlgorithmIfRemote_ErrorPathsInternal(t *testing.T) {
 				AlgoType: "python",
 				Source: &ResourceSource{
 					Type: "oci-image",
-					URL:  "docker://test/image",
+					URL:  "docker://test/algo-create-fail",
 				},
 			},
 			KBS: KBSConfig{Enabled: true},
@@ -1437,6 +1437,38 @@ func TestDownloadAlgorithmIfRemote_ErrorPathsInternal(t *testing.T) {
 		assert.Contains(t, svc.runError.Error(), "error creating algorithm file")
 		sm.AssertExpectations(t)
 	})
+	t.Run("extraction failure", func(t *testing.T) {
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		mockOCI := new(MockOCIClient)
+		mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			destDir := args.String(2)
+			// Setup OCI with NO main.py or any algorithm file
+			require.NoError(t, os.MkdirAll(filepath.Join(destDir, "blobs"), 0o755))
+			// Create a legit-looking but empty index.json
+			require.NoError(t, os.WriteFile(filepath.Join(destDir, "index.json"), []byte(`{"schemaVersion":2,"manifests":[]}`), 0o644))
+		}).Return(nil)
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.ociClient = mockOCI
+
+		svc.computation = Computation{
+			Algorithm: Algorithm{
+				AlgoType: "python",
+				Source: &ResourceSource{
+					Type: "oci-image",
+					URL:  "docker://test/image",
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		svc.downloadAlgorithmIfRemote(ReceivingAlgorithm)
+		assert.Error(t, svc.runError)
+		assert.Contains(t, svc.runError.Error(), "no manifests found")
+		sm.AssertExpectations(t)
+	})
 }
 
 func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
@@ -1445,10 +1477,11 @@ func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	defer func() { require.NoError(t, os.Chdir(origDir)) }()
 
-	eventsSvc := new(mocks.Service)
-	eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	// Use a fresh mock in each subtest to avoid state pollution
 
 	t.Run("dataset create file failure", func(t *testing.T) {
+		eventsSvc := mocks.NewService(t)
+		eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(json.RawMessage) bool { return true })).Return().Maybe()
 		sm := &smmocks.StateMachine{}
 		sm.On("SendEvent", RunFailed).Return().Once()
 
@@ -1473,7 +1506,7 @@ func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
 					Hash:     sha3.Sum256([]byte(dataContent)),
 					Source: &ResourceSource{
 						Type: "oci-image",
-						URL:  "docker://test/image",
+						URL:  "docker://test/data-create-fail",
 					},
 				},
 			},
@@ -1481,6 +1514,100 @@ func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
 		}
 
 		svc.downloadDatasetsIfRemote(ReceivingData)
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("dataset hash mismatch", func(t *testing.T) {
+		eventsSvc := mocks.NewService(t)
+		eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(json.RawMessage) bool { return true })).Return().Maybe()
+		origDir, _ := os.Getwd()
+		tmpDir := t.TempDir()
+		require.NoError(t, os.Chdir(tmpDir))
+		defer func() { _ = os.Chdir(origDir) }()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		mockOCI := new(MockOCIClient)
+		dataContent := "wrong content"
+		mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			destDir := args.String(2)
+			setupMinimalOCI(t, destDir, "data.csv", []byte(dataContent))
+		}).Return(nil)
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.ociClient = mockOCI
+
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{
+					Filename: "data.csv",
+					Hash:     sha3.Sum256([]byte("expected content")),
+					Source: &ResourceSource{
+						Type: "oci-image",
+						URL:  "docker://test/data-mismatch",
+					},
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
+		require.NoError(t, err)
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		if svc.runError == nil {
+			t.Fatalf("runError should not be nil in hash mismatch test")
+		}
+		assert.Contains(t, svc.runError.Error(), "dataset data.csv hash mismatch")
+		sm.AssertExpectations(t)
+	})
+
+	t.Run("dataset unzip failure", func(t *testing.T) {
+		eventsSvc := mocks.NewService(t)
+		eventsSvc.On("SendEvent", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(json.RawMessage) bool { return true })).Return().Maybe()
+		origDir, _ := os.Getwd()
+		tmpDir := t.TempDir()
+		require.NoError(t, os.Chdir(tmpDir))
+		defer func() { _ = os.Chdir(origDir) }()
+
+		sm := &smmocks.StateMachine{}
+		sm.On("SendEvent", RunFailed).Return().Once()
+
+		mockOCI := new(MockOCIClient)
+		// Provide invalid zip content
+		dataContent := "not a zip file"
+		mockOCI.On("PullAndDecrypt", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			destDir := args.String(2)
+			setupMinimalOCI(t, destDir, "data.zip", []byte(dataContent))
+		}).Return(nil)
+
+		svc := newTestAgentService(sm, eventsSvc)
+		svc.ociClient = mockOCI
+
+		svc.computation = Computation{
+			Datasets: []Dataset{
+				{
+					Filename:   "data.zip",
+					Hash:       sha3.Sum256([]byte(dataContent)),
+					Decompress: true,
+					Source: &ResourceSource{
+						Type: "oci-image",
+						URL:  "docker://test/data-unzip-fail",
+					},
+				},
+			},
+			KBS: KBSConfig{Enabled: true},
+		}
+
+		err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
+		require.NoError(t, err)
+
+		svc.downloadDatasetsIfRemote(ReceivingData)
+		if svc.runError == nil {
+			t.Fatalf("runError should not be nil in unzip failure test")
+		}
+		assert.Contains(t, svc.runError.Error(), "failed to unzip dataset")
 		sm.AssertExpectations(t)
 	})
 }
@@ -1521,7 +1648,7 @@ func TestAlgo_RemoteSource(t *testing.T) {
 				AlgoType: "python",
 				Source: &ResourceSource{
 					Type: "oci-image",
-					URL:  "docker://test/algo",
+					URL:  "docker://test/algo-remote",
 				},
 			},
 			KBS: KBSConfig{Enabled: true},
@@ -1573,7 +1700,7 @@ func TestData_RemoteSource(t *testing.T) {
 					Hash:     dataHash,
 					Source: &ResourceSource{
 						Type: "oci-image",
-						URL:  "docker://test/data",
+						URL:  "docker://test/data-remote",
 					},
 				},
 			},
