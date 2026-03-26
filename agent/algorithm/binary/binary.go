@@ -3,9 +3,11 @@
 package binary
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -63,15 +65,11 @@ func (b *binary) Stop() error {
 		return nil
 	}
 
-	if b.cmd.ProcessState != nil && b.cmd.ProcessState.Exited() {
-		return nil
-	}
-
 	if b.cmd.Process == nil {
 		return nil
 	}
 
-	if err := b.cmd.Process.Kill(); err != nil {
+	if err := b.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
 

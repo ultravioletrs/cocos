@@ -4,6 +4,7 @@ package python
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -120,15 +121,11 @@ func (p *python) Stop() error {
 		return nil
 	}
 
-	if p.cmd.ProcessState != nil && p.cmd.ProcessState.Exited() {
-		return nil
-	}
-
 	if p.cmd.Process == nil {
 		return nil
 	}
 
-	if err := p.cmd.Process.Kill(); err != nil {
+	if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
 

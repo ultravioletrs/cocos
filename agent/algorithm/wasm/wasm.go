@@ -3,9 +3,11 @@
 package wasm
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -69,15 +71,11 @@ func (w *wasm) Stop() error {
 		return nil
 	}
 
-	if w.cmd.ProcessState != nil && w.cmd.ProcessState.Exited() {
-		return nil
-	}
-
 	if w.cmd.Process == nil {
 		return nil
 	}
 
-	if err := w.cmd.Process.Kill(); err != nil {
+	if err := w.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("error stopping algorithm: %v", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/ultravioletrs/cocos/agent"
 	agentgrpc "github.com/ultravioletrs/cocos/agent/api/grpc"
@@ -31,6 +32,7 @@ type AgentServer interface {
 }
 
 type agentServer struct {
+	mu     sync.Mutex
 	gs     *grpc.Server
 	logger *slog.Logger
 	svc    agent.Service
@@ -64,14 +66,17 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 	// Internal Unix socket is pure plaintext HTTP/2; Ingress Proxy handles external aTLS termination
 	grpcServerOptions = append(grpcServerOptions, grpc.Creds(insecure.NewCredentials()))
 
+	as.mu.Lock()
 	as.gs = grpc.NewServer(grpcServerOptions...)
+	gs := as.gs
+	as.mu.Unlock()
 
-	reflection.Register(as.gs)
-	agent.RegisterAgentServiceServer(as.gs, agentgrpc.NewServer(as.svc))
+	reflection.Register(gs)
+	agent.RegisterAgentServiceServer(gs, agentgrpc.NewServer(as.svc))
 
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("agent", grpc_health_v1.HealthCheckResponse_SERVING)
-	grpc_health_v1.RegisterHealthServer(as.gs, healthServer)
+	grpc_health_v1.RegisterHealthServer(gs, healthServer)
 
 	socketPath := as.host
 	if socketPath == "" || socketPath == "0.0.0.0" {
@@ -95,7 +100,7 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 	as.logger.Info(fmt.Sprintf("agent service gRPC server listening at %s without TLS", socketPath))
 
 	go func() {
-		err := as.gs.Serve(listener)
+		err := gs.Serve(listener)
 		if err != nil && err != grpc.ErrServerStopped {
 			as.logger.Error(fmt.Sprintf("failed to start grpc server %s", err.Error()))
 		}
@@ -105,6 +110,8 @@ func (as *agentServer) Start(cfg agent.AgentConfig, cmp agent.Computation) error
 }
 
 func (as *agentServer) Stop() error {
+	as.mu.Lock()
+	defer as.mu.Unlock()
 	if as.gs != nil {
 		as.gs.GracefulStop()
 	}

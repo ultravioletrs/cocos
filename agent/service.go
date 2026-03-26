@@ -482,7 +482,8 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 
 			res, err := as.downloadAndDecryptResource(ctx, d.Source, "dataset")
 			if err != nil {
-				as.logger.Error("failed to download and decrypt dataset", "error", err, "filename", d.Filename)
+				as.runError = fmt.Errorf("failed to download and decrypt dataset %s: %w", d.Filename, err)
+				as.logger.Error(as.runError.Error())
 				as.sm.SendEvent(RunFailed)
 				return
 			}
@@ -490,7 +491,8 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 			// Verify hash
 			hash := sha3.Sum256(res.Data)
 			if hash != d.Hash {
-				as.logger.Error("dataset hash mismatch", "filename", d.Filename)
+				as.runError = fmt.Errorf("dataset %s hash mismatch: expected %x, got %x", d.Filename, d.Hash, hash)
+				as.logger.Error(as.runError.Error())
 				as.sm.SendEvent(RunFailed)
 				return
 			}
@@ -505,7 +507,8 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 
 			if d.Decompress {
 				if err := internal.UnzipFromMemory(res.Data, algorithm.DatasetsDir); err != nil {
-					as.logger.Error("error decompressing dataset", "error", err, "filename", d.Filename)
+					as.runError = fmt.Errorf("failed to unzip dataset %s: %w", d.Filename, err)
+					as.logger.Error(as.runError.Error())
 					as.sm.SendEvent(RunFailed)
 					return
 				}
@@ -886,6 +889,8 @@ func (as *agentService) runComputation(state statemachine.State) {
 	as.publishEvent(Starting.String())(state)
 	as.logger.Debug("computation run started")
 	defer func() {
+		as.mu.Lock()
+		defer as.mu.Unlock()
 		if as.runError != nil {
 			as.sm.SendEvent(RunFailed)
 		} else {
@@ -910,7 +915,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 	}()
 
 	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+		as.mu.Lock()
 		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
+		as.mu.Unlock()
 		as.logger.Warn(as.runError.Error())
 		as.publishEvent(Failed.String())(state)
 		return
@@ -918,7 +925,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 
 	algoBytes, err := os.ReadFile(algoFile)
 	if err != nil {
+		as.mu.Lock()
 		as.runError = fmt.Errorf("failed to read algo file: %w", err)
+		as.mu.Unlock()
 		as.logger.Warn(as.runError.Error())
 		as.publishEvent(Failed.String())(state)
 		return
@@ -936,14 +945,18 @@ func (as *agentService) runComputation(state statemachine.State) {
 		// Datasets implicit on shared FS
 	})
 	if err != nil {
+		as.mu.Lock()
 		as.runError = err
+		as.mu.Unlock()
 		as.logger.Warn(fmt.Sprintf("failed to run computation: %s", err.Error()))
 		as.publishEvent(Failed.String())(state)
 		return
 	}
 
 	if resp.Error != "" {
+		as.mu.Lock()
 		as.runError = errors.New(resp.Error)
+		as.mu.Unlock()
 		as.logger.Warn(fmt.Sprintf("failed to run computation: %s", resp.Error))
 		as.publishEvent(Failed.String())(state)
 		return
@@ -951,7 +964,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 
 	results, err := internal.ZipDirectoryToMemory(algorithm.ResultsDir)
 	if err != nil {
+		as.mu.Lock()
 		as.runError = err
+		as.mu.Unlock()
 		as.logger.Warn(fmt.Sprintf("failed to zip results: %s", err.Error()))
 		as.publishEvent(Failed.String())(state)
 		return
