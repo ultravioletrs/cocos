@@ -1484,6 +1484,7 @@ func TestDownloadDatasetsIfRemote_ErrorPathsInternal(t *testing.T) {
 		sm.AssertExpectations(t)
 	})
 }
+
 func TestAlgo_RemoteSource(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")

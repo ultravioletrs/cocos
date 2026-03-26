@@ -994,6 +994,7 @@ func TestExtractDatasetErrorPathsInternal(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
 func TestExtractAlgorithm_PythonNoRequirements(t *testing.T) {
 	logger := slog.Default()
 	ociDir, destDir := setupTestOCIImage(t, "main.py", testPythonScript)
@@ -1011,15 +1012,21 @@ func TestExtractDataset_MultipleLayers(t *testing.T) {
 
 	createLayer := func(name, filename, content string) string {
 		path := filepath.Join(blobsDir, name)
-		f, _ := os.Create(path)
+		f, err := os.Create(path)
+		require.NoError(t, err)
 		gw := gzip.NewWriter(f)
 		tw := tar.NewWriter(gw)
 		hdr := &tar.Header{Name: filename, Mode: 0o644, Size: int64(len(content))}
-		tw.WriteHeader(hdr)
-		tw.Write([]byte(content))
-		tw.Close()
-		gw.Close()
-		f.Close()
+		err = tw.WriteHeader(hdr)
+		require.NoError(t, err)
+		_, err = tw.Write([]byte(content))
+		require.NoError(t, err)
+		err = tw.Close()
+		require.NoError(t, err)
+		err = gw.Close()
+		require.NoError(t, err)
+		err = f.Close()
+		require.NoError(t, err)
 		return "sha256:" + name
 	}
 
@@ -1035,7 +1042,8 @@ func TestExtractDataset_MultipleLayers(t *testing.T) {
 			Digest string `json:"digest"`
 		}{{Digest: layer1}, {Digest: layer2}},
 	}
-	manifestData, _ := json.Marshal(manifest)
+	manifestData, err := json.Marshal(manifest)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(blobsDir, "m1"), manifestData, 0o644))
 
 	index := OCIIndex{
@@ -1046,7 +1054,8 @@ func TestExtractDataset_MultipleLayers(t *testing.T) {
 			Size      int    `json:"size"`
 		}{{Digest: "sha256:m1", Size: len(manifestData)}},
 	}
-	indexData, _ := json.Marshal(index)
+	indexData, err := json.Marshal(index)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "index.json"), indexData, 0o644))
 
 	files, err := ExtractDataset(ociDir, destDir)

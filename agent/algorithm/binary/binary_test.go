@@ -157,14 +157,6 @@ func TestRunError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func mockExecCommand(command string, args ...string) *exec.Cmd {
-	cs := []string{"-test.run=TestHelperProcess", "--", command}
-	cs = append(cs, args...)
-	cmd := execCommand(os.Args[0], cs...)
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-	return cmd
-}
-
 func mockExecCommandError(command string, args ...string) *exec.Cmd {
 	// This will make Start() fail if we use a non-existent binary
 	return exec.Command("non_existent_binary_for_sure_12345")

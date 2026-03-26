@@ -116,7 +116,7 @@ func TestStop(t *testing.T) {
 		// mockExecCommand returns a command that runs TestHelperProcess.
 		// If we don't call Wait(), it keeps running? No, TestHelperProcess exits immediately.
 		// Let's modify TestHelperProcess to sleep if an env var is set.
-		
+
 		w.cmd = mockExecCommand("sleep", "10")
 		w.cmd.Env = append(w.cmd.Env, "GO_WANT_HELPER_PROCESS_SLEEP=1")
 		if err := w.cmd.Start(); err != nil {
@@ -131,7 +131,7 @@ func TestStop(t *testing.T) {
 	})
 }
 
-// Update TestHelperProcess to handle sleep
+// Update TestHelperProcess to handle sleep.
 func TestHelperProcessSleep(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
