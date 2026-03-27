@@ -95,12 +95,12 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
-				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				cli.printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
 			}
 
 			if err := cobra.OnlyValidArgs(cmd, args); err != nil {
-				printError(cmd, "Bad attestation type: %v ❌ ", err)
+				cli.printError(cmd, "Bad attestation type: %v ❌ ", err)
 				return
 			}
 
@@ -180,7 +180,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 
 			attestationFile, err := os.Create(filename)
 			if err != nil {
-				printError(cmd, "Error creating attestation file: %v ❌ ", err)
+				cli.printError(cmd, "Error creating attestation file: %v ❌ ", err)
 				return
 			}
 
@@ -189,27 +189,27 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			if attestationType == AzureToken {
 				err := cli.agentSDK.AttestationToken(cmd.Context(), fixedVtpmNonceByte, int(attType), attestationFile)
 				if err != nil {
-					printError(cmd, "Failed to get attestation token due to error: %v ❌", err)
+					cli.printError(cmd, "Failed to get attestation token due to error: %v ❌", err)
 					return
 				}
 				returnJsonAzureToken = !getAzureTokenJWT
 			} else {
 				err := cli.agentSDK.Attestation(cmd.Context(), fixedReportData, fixedVtpmNonceByte, int(attType), attestationFile)
 				if err != nil {
-					printError(cmd, "Failed to get attestation due to error: %v ❌", err)
+					cli.printError(cmd, "Failed to get attestation due to error: %v ❌", err)
 					return
 				}
 			}
 
 			if err := attestationFile.Close(); err != nil {
-				printError(cmd, "Error closing attestation file: %v ❌ ", err)
+				cli.printError(cmd, "Error closing attestation file: %v ❌ ", err)
 				return
 			}
 
 			if getTextProtoAttestationReport || returnJsonAzureToken {
 				result, err := os.ReadFile(filename)
 				if err != nil {
-					printError(cmd, "Error reading attestation file: %v ❌ ", err)
+					cli.printError(cmd, "Error reading attestation file: %v ❌ ", err)
 					return
 				}
 
@@ -217,7 +217,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				case SNP:
 					result, err = attestationToJSON(result)
 					if err != nil {
-						printError(cmd, "Error converting SNP attestation to JSON: %v ❌", err)
+						cli.printError(cmd, "Error converting SNP attestation to JSON: %v ❌", err)
 						return
 					}
 
@@ -229,7 +229,7 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 					var attvTPM tpmAttest.Attestation
 					err = proto.Unmarshal(result, &attvTPM)
 					if err != nil {
-						printError(cmd, "Failed to unmarshal the attestation report: %v ❌", err)
+						cli.printError(cmd, "Failed to unmarshal the attestation report: %v ❌", err)
 						return
 					}
 					result = []byte(marshalOptions.Format(&attvTPM))
@@ -237,13 +237,13 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 				case AzureToken:
 					result, err = decodeJWTToJSON(result)
 					if err != nil {
-						printError(cmd, "Error decoding Azure token: %v ❌", err)
+						cli.printError(cmd, "Error decoding Azure token: %v ❌", err)
 						return
 					}
 				}
 
 				if err := os.WriteFile(filename, result, 0o644); err != nil {
-					printError(cmd, "Error writing attestation file: %v ❌ ", err)
+					cli.printError(cmd, "Error writing attestation file: %v ❌ ", err)
 					return
 				}
 			}

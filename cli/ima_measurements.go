@@ -25,7 +25,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 		Example: "ima-measurements <optional_file_name>",
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
-				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				cli.printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
 			}
 
@@ -38,14 +38,14 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 
 			imaMeasurementsFile, err := os.Create(filename)
 			if err != nil {
-				printError(cmd, "Error creating imaMeasurements file: %v ❌ ", err)
+				cli.printError(cmd, "Error creating imaMeasurements file: %v ❌ ", err)
 				return
 			}
 			defer imaMeasurementsFile.Close()
 
 			pcr10, err := cli.agentSDK.IMAMeasurements(cmd.Context(), imaMeasurementsFile)
 			if err != nil {
-				printError(cmd, "Error retrieving Linux IMA measurements file: %v ❌ ", err)
+				cli.printError(cmd, "Error retrieving Linux IMA measurements file: %v ❌ ", err)
 				return
 			}
 
@@ -55,7 +55,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 
 			file, err := os.Open(filename)
 			if err != nil {
-				printError(cmd, "Failed to open file: %v ❌ ", err)
+				cli.printError(cmd, "Failed to open file: %v ❌ ", err)
 			}
 			defer file.Close()
 
@@ -76,7 +76,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 
 				digest, err := hex.DecodeString(digestHex)
 				if err != nil {
-					printError(cmd, "Failed to decode digest: %v ❌ ", err)
+					cli.printError(cmd, "Failed to decode digest: %v ❌ ", err)
 					continue
 				}
 
@@ -87,7 +87,7 @@ func (cli *CLI) NewIMAMeasurementsCmd() *cobra.Command {
 			}
 
 			if hex.EncodeToString(pcr10) != hex.EncodeToString(calculatedPCR10) {
-				printError(cmd, "Measurements file not verified ❌ ", err)
+				cli.printError(cmd, "Measurements file not verified ❌ ", err)
 			} else {
 				cmd.Println(color.New(color.FgGreen).Sprintf("Measurements file verified!"))
 			}

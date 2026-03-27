@@ -826,7 +826,6 @@ type ComputationRunReq struct {
 	Algorithm       *Algorithm             `protobuf:"bytes,5,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	ResultConsumers []*ResultConsumer      `protobuf:"bytes,6,rep,name=result_consumers,json=resultConsumers,proto3" json:"result_consumers,omitempty"`
 	AgentConfig     *AgentConfig           `protobuf:"bytes,7,opt,name=agent_config,json=agentConfig,proto3" json:"agent_config,omitempty"`
-	Kbs             *KBSConfig             `protobuf:"bytes,8,opt,name=kbs,proto3" json:"kbs,omitempty"` // Optional KBS configuration for remote resources
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -910,13 +909,6 @@ func (x *ComputationRunReq) GetAgentConfig() *AgentConfig {
 	return nil
 }
 
-func (x *ComputationRunReq) GetKbs() *KBSConfig {
-	if x != nil {
-		return x.Kbs
-	}
-	return nil
-}
-
 type ResultConsumer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserKey       []byte                 `protobuf:"bytes,1,opt,name=userKey,proto3" json:"userKey,omitempty"`
@@ -968,6 +960,7 @@ type Dataset struct {
 	Filename      string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
 	Source        *Source                `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted dataset
 	Decompress    bool                   `protobuf:"varint,5,opt,name=decompress,proto3" json:"decompress,omitempty"`
+	Kbs           *KBSConfig             `protobuf:"bytes,6,opt,name=kbs,proto3" json:"kbs,omitempty"` // Optional KBS configuration override
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1037,6 +1030,13 @@ func (x *Dataset) GetDecompress() bool {
 	return false
 }
 
+func (x *Dataset) GetKbs() *KBSConfig {
+	if x != nil {
+		return x.Kbs
+	}
+	return nil
+}
+
 type Algorithm struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hash          []byte                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"` // should be sha3.Sum256, 32 byte length.
@@ -1044,6 +1044,7 @@ type Algorithm struct {
 	Source        *Source                `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"` // Optional remote source for encrypted algorithm
 	AlgoType      string                 `protobuf:"bytes,4,opt,name=algo_type,json=algoType,proto3" json:"algo_type,omitempty"`
 	AlgoArgs      []string               `protobuf:"bytes,5,rep,name=algo_args,json=algoArgs,proto3" json:"algo_args,omitempty"`
+	Kbs           *KBSConfig             `protobuf:"bytes,6,opt,name=kbs,proto3" json:"kbs,omitempty"` // Optional KBS configuration override
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1109,6 +1110,13 @@ func (x *Algorithm) GetAlgoType() string {
 func (x *Algorithm) GetAlgoArgs() []string {
 	if x != nil {
 		return x.AlgoArgs
+	}
+	return nil
+}
+
+func (x *Algorithm) GetKbs() *KBSConfig {
+	if x != nil {
+		return x.Kbs
 	}
 	return nil
 }
@@ -1485,7 +1493,7 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\fRunReqChunks\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x17\n" +
-	"\ais_last\x18\x03 \x01(\bR\x06isLast\"\xcd\x02\n" +
+	"\ais_last\x18\x03 \x01(\bR\x06isLast\"\xaa\x02\n" +
 	"\x11ComputationRunReq\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1493,10 +1501,9 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\bdatasets\x18\x04 \x03(\v2\r.cvms.DatasetR\bdatasets\x12-\n" +
 	"\talgorithm\x18\x05 \x01(\v2\x0f.cvms.AlgorithmR\talgorithm\x12?\n" +
 	"\x10result_consumers\x18\x06 \x03(\v2\x14.cvms.ResultConsumerR\x0fresultConsumers\x124\n" +
-	"\fagent_config\x18\a \x01(\v2\x11.cvms.AgentConfigR\vagentConfig\x12!\n" +
-	"\x03kbs\x18\b \x01(\v2\x0f.cvms.KBSConfigR\x03kbs\"*\n" +
+	"\fagent_config\x18\a \x01(\v2\x11.cvms.AgentConfigR\vagentConfig\"*\n" +
 	"\x0eResultConsumer\x12\x18\n" +
-	"\auserKey\x18\x01 \x01(\fR\auserKey\"\x99\x01\n" +
+	"\auserKey\x18\x01 \x01(\fR\auserKey\"\xbc\x01\n" +
 	"\aDataset\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12\x1a\n" +
@@ -1504,13 +1511,15 @@ const file_agent_cvms_cvms_proto_rawDesc = "" +
 	"\x06source\x18\x04 \x01(\v2\f.cvms.SourceR\x06source\x12\x1e\n" +
 	"\n" +
 	"decompress\x18\x05 \x01(\bR\n" +
-	"decompress\"\x99\x01\n" +
+	"decompress\x12!\n" +
+	"\x03kbs\x18\x06 \x01(\v2\x0f.cvms.KBSConfigR\x03kbs\"\xbc\x01\n" +
 	"\tAlgorithm\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x18\n" +
 	"\auserKey\x18\x02 \x01(\fR\auserKey\x12$\n" +
 	"\x06source\x18\x03 \x01(\v2\f.cvms.SourceR\x06source\x12\x1b\n" +
 	"\talgo_type\x18\x04 \x01(\tR\balgoType\x12\x1b\n" +
-	"\talgo_args\x18\x05 \x03(\tR\balgoArgs\"x\n" +
+	"\talgo_args\x18\x05 \x03(\tR\balgoArgs\x12!\n" +
+	"\x03kbs\x18\x06 \x01(\v2\x0f.cvms.KBSConfigR\x03kbs\"x\n" +
 	"\x06Source\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12*\n" +
@@ -1591,16 +1600,17 @@ var file_agent_cvms_cvms_proto_depIdxs = []int32{
 	14, // 15: cvms.ComputationRunReq.algorithm:type_name -> cvms.Algorithm
 	12, // 16: cvms.ComputationRunReq.result_consumers:type_name -> cvms.ResultConsumer
 	17, // 17: cvms.ComputationRunReq.agent_config:type_name -> cvms.AgentConfig
-	16, // 18: cvms.ComputationRunReq.kbs:type_name -> cvms.KBSConfig
-	15, // 19: cvms.Dataset.source:type_name -> cvms.Source
+	15, // 18: cvms.Dataset.source:type_name -> cvms.Source
+	16, // 19: cvms.Dataset.kbs:type_name -> cvms.KBSConfig
 	15, // 20: cvms.Algorithm.source:type_name -> cvms.Source
-	7,  // 21: cvms.Service.Process:input_type -> cvms.ClientStreamMessage
-	8,  // 22: cvms.Service.Process:output_type -> cvms.ServerStreamMessage
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	16, // 21: cvms.Algorithm.kbs:type_name -> cvms.KBSConfig
+	7,  // 22: cvms.Service.Process:input_type -> cvms.ClientStreamMessage
+	8,  // 23: cvms.Service.Process:output_type -> cvms.ServerStreamMessage
+	23, // [23:24] is the sub-list for method output_type
+	22, // [22:23] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_agent_cvms_cvms_proto_init() }

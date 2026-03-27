@@ -58,7 +58,11 @@ func (s *SkopeoClient) PullAndDecrypt(ctx context.Context, source ResourceSource
 
 	// Add decryption key if image is encrypted
 	if source.Encrypted {
-		args = append(args, "--decryption-key", DecryptionKeyProvider)
+		decryptionKey := DecryptionKeyProvider
+		if source.KBSURL != "" {
+			decryptionKey = fmt.Sprintf("provider:attestation-agent:type=kbs,url=%s", source.KBSURL)
+		}
+		args = append(args, "--decryption-key", decryptionKey)
 	}
 
 	// Add insecure policy for testing (TODO: use proper policy in production)

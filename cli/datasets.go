@@ -27,7 +27,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
-				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				cli.printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
 			}
 
@@ -37,7 +37,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			f, err := os.Stat(datasetPath)
 			if err != nil {
-				printError(cmd, "Error reading dataset file: %v ❌ ", err)
+				cli.printError(cmd, "Error reading dataset file: %v ❌ ", err)
 				return
 			}
 
@@ -47,7 +47,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 				cmd.Println("Detected directory, zipping dataset...")
 				dataset, err = internal.ZipDirectoryToTempFile(datasetPath)
 				if err != nil {
-					printError(cmd, "Error zipping dataset directory: %v ❌ ", err)
+					cli.printError(cmd, "Error zipping dataset directory: %v ❌ ", err)
 					return
 				}
 				defer dataset.Close()
@@ -55,7 +55,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 			} else {
 				dataset, err = os.Open(datasetPath)
 				if err != nil {
-					printError(cmd, "Error reading dataset file: %v ❌ ", err)
+					cli.printError(cmd, "Error reading dataset file: %v ❌ ", err)
 					return
 				}
 				defer dataset.Close()
@@ -63,7 +63,7 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[1])
 			if err != nil {
-				printError(cmd, "Error reading private key file: %v ❌ ", err)
+				cli.printError(cmd, "Error reading private key file: %v ❌ ", err)
 				return
 			}
 
@@ -71,13 +71,13 @@ func (cli *CLI) NewDatasetsCmd() *cobra.Command {
 
 			privKey, err := decodeKey(pemBlock)
 			if err != nil {
-				printError(cmd, "Error decoding private key: %v ❌ ", err)
+				cli.printError(cmd, "Error decoding private key: %v ❌ ", err)
 				return
 			}
 
 			ctx := metadata.NewOutgoingContext(cmd.Context(), metadata.New(make(map[string]string)))
 			if err := cli.agentSDK.Data(addDatasetMetadata(ctx), dataset, path.Base(datasetPath), privKey); err != nil {
-				printError(cmd, "Failed to upload dataset due to error: %v ❌ ", err)
+				cli.printError(cmd, "Failed to upload dataset due to error: %v ❌ ", err)
 				return
 			}
 

@@ -44,7 +44,7 @@ func TestAuthenticateUser(t *testing.T) {
 	manifest := agent.Computation{
 		ResultConsumers: []agent.ResultConsumer{{UserKey: resultConsumerPubKey}},
 		Datasets:        []agent.Dataset{{UserKey: dataProviderPubKey}},
-		Algorithm:       agent.Algorithm{UserKey: algorithmProviderPubKey},
+		Algorithm:       &agent.Algorithm{UserKey: algorithmProviderPubKey},
 	}
 
 	auth, err := New(manifest)

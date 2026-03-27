@@ -280,16 +280,21 @@ go build -o build/cvms-test ./test/cvms/main.go
 HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -public-key-path ./public.pem \
   -attested-tls-bool false \
-  -kbs-url http://$HOST_IP:8080 \
   -algo-type python \
   -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
+  -algo-kbs-url http://$HOST_IP:8080 \
   -algo-hash $ALGO_HASH \
   -algo-args datasets/dataset_0.csv \
   -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
   -dataset-kbs-paths default/key/dataset-key \
+  -dataset-kbs-urls http://$HOST_IP:8080 \
   -dataset-hash $DATASET_HASH
 ```
+
+> [!NOTE]
+> You must specify the KBS URL for each encrypted resource using `-algo-kbs-url` and `-dataset-kbs-urls`. A global KBS is no longer supported.
+
 
 ### 3. Create VM via CLI (Host)
 
@@ -356,17 +361,31 @@ The CVMS server sends this manifest to the agent:
     "type": "oci-image",
     "uri": "docker://localhost:5000/encrypted-lin-reg:v1.0",
     "encrypted": true,
-    "kbs_resource_path": "default/key/algo-key"
+    "kbs_resource_path": "default/key/algo-key",
+    "kbs": {
+      "url": "http://192.168.100.15:8080",
+      "enabled": true
+    }
   },
   "datasets": [
     {
-      "type": "oci-image",
-      "uri": "docker://localhost:5000/encrypted-iris:v1.0",
-      "encrypted": true,
-      "kbs_resource_path": "default/key/dataset-key"
+      "filename": "iris.csv",
+      "source": {
+        "type": "oci-image",
+        "url": "docker://localhost:5000/encrypted-iris:v1.0",
+        "encrypted": true,
+        "kbs_resource_path": "default/key/dataset-key"
+      },
+      "kbs": {
+        "url": "http://192.168.100.20:8080",
+        "enabled": true
+      }
     }
   ],
-  "kbs_url": "http://192.168.100.15:8080"
+  "kbs": {
+    "url": "http://192.168.100.15:8080",
+    "enabled": true
+  }
 }
 ```
 

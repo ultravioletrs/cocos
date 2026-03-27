@@ -95,12 +95,12 @@ func TestPrintError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Verbose = tt.verbose
+			c := &CLI{Verbose: tt.verbose}
 			cmd := &cobra.Command{}
 			buf := new(bytes.Buffer)
 			cmd.SetOut(buf)
 
-			printError(cmd, tt.message, tt.err)
+			c.printError(cmd, tt.message, tt.err)
 
 			if got := buf.String(); got != tt.expected {
 				t.Errorf("printError() output = %q, want %q", got, tt.expected)

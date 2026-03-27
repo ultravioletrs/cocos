@@ -234,9 +234,10 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 	}
 
 	if runReq.Algorithm != nil {
-		ac.Algorithm = agent.Algorithm{
-			Hash:    [32]byte(runReq.Algorithm.Hash),
-			UserKey: runReq.Algorithm.UserKey,
+		ac.Algorithm = &agent.Algorithm{
+			Hash:     [32]byte(runReq.Algorithm.Hash),
+			UserKey:  runReq.Algorithm.UserKey,
+			AlgoType: runReq.Algorithm.AlgoType,
 		}
 		// Copy remote source if configured
 		if runReq.Algorithm.Source != nil {
@@ -246,8 +247,13 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 				Encrypted:       runReq.Algorithm.Source.Encrypted,
 			}
 		}
-		ac.Algorithm.AlgoType = runReq.Algorithm.AlgoType
 		ac.Algorithm.AlgoArgs = runReq.Algorithm.AlgoArgs
+		if runReq.Algorithm.Kbs != nil {
+			ac.Algorithm.KBS = &agent.KBSConfig{
+				URL:     runReq.Algorithm.Kbs.Url,
+				Enabled: runReq.Algorithm.Kbs.Enabled,
+			}
+		}
 	}
 
 	for _, ds := range runReq.Datasets {
@@ -265,6 +271,12 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 			}
 		}
 		dataset.Decompress = ds.Decompress
+		if ds.Kbs != nil {
+			dataset.KBS = &agent.KBSConfig{
+				URL:     ds.Kbs.Url,
+				Enabled: ds.Kbs.Enabled,
+			}
+		}
 		ac.Datasets = append(ac.Datasets, dataset)
 	}
 
@@ -272,14 +284,6 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 		ac.ResultConsumers = append(ac.ResultConsumers, agent.ResultConsumer{
 			UserKey: rc.UserKey,
 		})
-	}
-
-	// Copy KBS configuration
-	if runReq.Kbs != nil {
-		ac.KBS = agent.KBSConfig{
-			URL:     runReq.Kbs.Url,
-			Enabled: runReq.Kbs.Enabled,
-		}
 	}
 
 	// Check if the agent is in the correct state to initialize a new computation.

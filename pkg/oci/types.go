@@ -25,6 +25,9 @@ type ResourceSource struct {
 	// KBSResourcePath is the KBS resource path for the decryption key
 	// (e.g., "default/key/algo-key")
 	KBSResourcePath string `json:"kbs_resource_path,omitempty"`
+
+	// KBSURL is the KBS endpoint URL for this specific resource
+	KBSURL string `json:"kbs_url,omitempty"`
 }
 
 // ImageManifest represents basic OCI image manifest information.
