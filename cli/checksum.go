@@ -14,7 +14,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-
 func (cli *CLI) NewFileHashCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "checksum",
@@ -41,7 +40,7 @@ func (cli *CLI) NewFileHashCmd() *cobra.Command {
 
 			hash, err := internal.ChecksumHex(path)
 			if err != nil {
-					cli.printError(cmd, "Error computing hash: %v ❌ ", err)
+				cli.printError(cmd, "Error computing hash: %v ❌ ", err)
 				return
 			}
 

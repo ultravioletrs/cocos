@@ -16,7 +16,6 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
-
 type CLI struct {
 	agentSDK           sdk.SDK
 	agentConfig        clients.AttestedClientConfig

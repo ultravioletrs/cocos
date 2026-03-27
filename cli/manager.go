@@ -20,7 +20,6 @@ const (
 	ttlFlag   = "ttl"
 )
 
-
 func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-vm",
