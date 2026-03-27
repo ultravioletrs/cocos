@@ -862,7 +862,6 @@ func TestDownloadDatasetsIfRemote(t *testing.T) {
 			Datasets: []Dataset{
 				{Hash: dataHash, Filename: "data.csv"},
 			},
-			
 		}
 
 		svc.downloadDatasetsIfRemote(ReceivingData)
@@ -1279,7 +1278,6 @@ func TestDownloadDatasetsIfRemote_Success(t *testing.T) {
 				KBS: &KBSConfig{Enabled: true, URL: "https://kbs.example.com"},
 			},
 		},
-		
 	}
 
 	err := os.MkdirAll(algorithm.DatasetsDir, 0o755)
@@ -1344,7 +1342,6 @@ func TestDownloadDatasetsIfRemote_Decompress(t *testing.T) {
 				KBS: &KBSConfig{Enabled: true},
 			},
 		},
-		
 	}
 
 	err = os.MkdirAll(algorithm.DatasetsDir, 0o755)
