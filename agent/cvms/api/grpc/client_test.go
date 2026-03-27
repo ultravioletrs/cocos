@@ -554,11 +554,12 @@ func TestManagerClient_handleRunReqChunksWithRemoteSource(t *testing.T) {
 				KbsResourcePath: "default/key/algo-key",
 				Encrypted:       true,
 			},
+			Kbs: &cvms.KBSConfig{
+				Url:     "https://kbs.example.com:8080",
+				Enabled: true,
+			},
 		},
-		Kbs: &cvms.KBSConfig{
-			Url:     "https://kbs.example.com:8080",
-			Enabled: true,
-		},
+
 		ResultConsumers: []*cvms.ResultConsumer{
 			{
 				UserKey: []byte("test-consumer"),
@@ -577,8 +578,8 @@ func TestManagerClient_handleRunReqChunksWithRemoteSource(t *testing.T) {
 
 	mockSvc.On("State").Return("ReceivingManifest")
 	mockSvc.On("InitComputation", mock.Anything, mock.MatchedBy(func(c agent.Computation) bool {
-		// Verify KBS config is passed
-		if !c.KBS.Enabled || c.KBS.URL != "https://kbs.example.com:8080" {
+		// Verify Algorithm KBS config is passed
+		if c.Algorithm.KBS == nil || !c.Algorithm.KBS.Enabled || c.Algorithm.KBS.URL != "https://kbs.example.com:8080" {
 			return false
 		}
 		// Verify algorithm source is passed

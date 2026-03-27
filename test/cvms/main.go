@@ -43,9 +43,10 @@ var (
 	pubKeyFile        string
 	clientCAFile      string
 	// Remote resource configuration.
-	kbsURL              string
+	algoKBSURL          string
 	algoSourceURL       string
 	algoKBSResourcePath string
+	datasetKBSURLs      string
 	datasetSourceURLs   string
 	datasetKBSPaths     string
 	algoType            string
@@ -76,11 +77,15 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 	// Check if using remote datasets
 	var datasetURLs []string
 	var datasetKBSPathsList []string
+	var datasetKBSURLsList []string
 	if datasetSourceURLs != "" {
 		datasetURLs = strings.Split(datasetSourceURLs, ",")
 	}
 	if datasetKBSPaths != "" {
 		datasetKBSPathsList = strings.Split(datasetKBSPaths, ",")
+	}
+	if datasetKBSURLs != "" {
+		datasetKBSURLsList = strings.Split(datasetKBSURLs, ",")
 	}
 
 	var datasetDecompressList []bool
@@ -118,7 +123,7 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 
 		for i := 0; i < len(datasetURLs); i++ {
-			datasets = append(datasets, &cvms.Dataset{
+			d := &cvms.Dataset{
 				Hash:     dataHashBytes,
 				UserKey:  pubPem.Bytes,
 				Filename: fmt.Sprintf("dataset_%d.csv", i),
@@ -128,7 +133,14 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 					KbsResourcePath: datasetKBSPathsList[i],
 					Encrypted:       datasetKBSPathsList[i] != "",
 				},
-			})
+			}
+			if len(datasetKBSURLsList) > i && datasetKBSURLsList[i] != "" {
+				d.Kbs = &cvms.KBSConfig{
+					Url:     datasetKBSURLsList[i],
+					Enabled: true,
+				}
+			}
+			datasets = append(datasets, d)
 			if len(datasetDecompressList) > i {
 				datasets[len(datasets)-1].Decompress = datasetDecompressList[i]
 			}
@@ -189,6 +201,12 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 				Encrypted:       algoKBSResourcePath != "",
 			},
 		}
+		if algoKBSURL != "" {
+			algorithm.Kbs = &cvms.KBSConfig{
+				Url:     algoKBSURL,
+				Enabled: true,
+			}
+		}
 	} else {
 		// Direct upload mode - use local file
 		fileHash, err := internal.ChecksumHex(algoPath)
@@ -212,15 +230,6 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 		}
 	}
 
-	// Build KBS config
-	var kbsConfig *cvms.KBSConfig
-	if kbsURL != "" {
-		kbsConfig = &cvms.KBSConfig{
-			Url:     kbsURL,
-			Enabled: true,
-		}
-	}
-
 	s.logger.Debug("sending computation run request")
 	if err := sendMessage(&cvms.ServerStreamMessage{
 		Message: &cvms.ServerStreamMessage_RunReq{
@@ -236,7 +245,6 @@ func (s *svc) Run(ctx context.Context, ipAddress string, sendMessage cvmsgrpc.Se
 					AttestedTls:  attestedTLS,
 					ClientCaFile: clientCAFile,
 				},
-				Kbs: kbsConfig,
 			},
 		},
 	}); err != nil {
@@ -258,12 +266,13 @@ func main() {
 	flagSet.StringVar(&dataPathString, "data-paths", "", "Paths to data sources, list of string separated with commas (for direct upload mode)")
 	flagSet.StringVar(&clientCAFile, "client-ca-file", "", "Client CA root certificate file path")
 	// Remote resource flags
-	flagSet.StringVar(&kbsURL, "kbs-url", "", "KBS endpoint URL (e.g., 'http://localhost:8080')")
-	flagSet.StringVar(&algoSourceURL, "algo-source-url", "", "Algorithm source URL (s3://bucket/key or https://...)")
-	flagSet.StringVar(&algoKBSResourcePath, "algo-kbs-path", "", "Algorithm KBS resource path (e.g., 'default/key/algo-key')")
+	flagSet.StringVar(&algoKBSURL, "algo-kbs-url", "", "Algorithm-specific KBS endpoint URL")
+	flagSet.StringVar(&algoSourceURL, "algo-source-url", "", "Algorithm source URL (oci-image only)")
+	flagSet.StringVar(&algoKBSResourcePath, "algo-kbs-path", "", "Algorithm KBS resource path")
+	flagSet.StringVar(&datasetKBSURLs, "dataset-kbs-urls", "", "Dataset-specific KBS endpoint URLs, comma-separated")
 	flagSet.StringVar(&datasetSourceURLs, "dataset-source-urls", "", "Dataset source URLs, comma-separated")
 	flagSet.StringVar(&datasetKBSPaths, "dataset-kbs-paths", "", "Dataset KBS resource paths, comma-separated")
-	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm execution type (e.g. binary, python)")
+	flagSet.StringVar(&algoType, "algo-type", "", "Algorithm execution type")
 	flagSet.StringVar(&algoArgsString, "algo-args", "", "Algorithm arguments, comma-separated")
 	flagSet.StringVar(&algoHash, "algo-hash", "", "Algorithm SHA256 hash (hex string)")
 	flagSet.StringVar(&datasetTypeString, "dataset-type", "", "Dataset source type, comma-separated (deprecated, always oci-image)")
