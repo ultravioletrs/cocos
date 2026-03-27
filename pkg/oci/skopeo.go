@@ -109,6 +109,23 @@ func (s *SkopeoClient) Inspect(ctx context.Context, imageRef string) (*ImageMani
 	}, nil
 }
 
+// ToDockerArchive converts an OCI directory to a Docker archive tarball.
+func (s *SkopeoClient) ToDockerArchive(ctx context.Context, ociDir, destFile string) error {
+	args := []string{"copy", "--insecure-policy", "--src-tls-verify=false", "--dest-tls-verify=false", "oci:" + ociDir, "docker-archive:" + destFile}
+
+	cmd := exec.CommandContext(ctx, s.skopeoPath, args...)
+	cmd.Env = append(os.Environ(),
+		OCICryptKeyproviderConfig+"="+DefaultOCICryptConfig)
+	cmd.Dir = s.workDir
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("skopeo copy to docker-archive failed: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
+}
+
 // GetLocalImagePath returns the path to a local OCI image directory.
 func (s *SkopeoClient) GetLocalImagePath(name string) string {
 	return filepath.Join(s.workDir, name)

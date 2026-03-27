@@ -78,6 +78,11 @@ func (s *RunnerService) Run(ctx context.Context, req *pb.RunRequest) (*pb.RunRes
 	if err := f.Close(); err != nil {
 		return nil, fmt.Errorf("error closing file: %v", err)
 	}
+	defer func() {
+		if err := os.Remove(algoPath); err != nil {
+			s.logger.Warn("error removing algorithm file", "error", err)
+		}
+	}()
 
 	var algo algorithm.Algorithm
 
@@ -91,6 +96,11 @@ func (s *RunnerService) Run(ctx context.Context, req *pb.RunRequest) (*pb.RunRes
 			if err != nil {
 				return nil, fmt.Errorf("error creating requirments file: %v", err)
 			}
+			defer func() {
+				if err := os.Remove(fr.Name()); err != nil {
+					s.logger.Warn("error removing requirements file", "error", err)
+				}
+			}()
 			if _, err := fr.Write(req.Requirements); err != nil {
 				return nil, fmt.Errorf("error writing requirements to file: %v", err)
 			}

@@ -52,27 +52,29 @@ func DeleteFilesInDir(dirPath string) error {
 
 // Checksum calculates the SHA3-256 checksum of the file or directory at path.
 func Checksum(path string) ([]byte, error) {
+	_, sum, err := Digest(path)
+	return sum, err
+}
+
+// Digest returns the data used for checksumming and the checksum itself.
+func Digest(path string) ([]byte, []byte, error) {
 	file, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var data []byte
 	if file.IsDir() {
-		f, err := ZipDirectoryToMemory(path)
-		if err != nil {
-			return nil, err
-		}
-		sum := sha3.Sum256(f)
-		return sum[:], nil
+		data, err = ZipDirectoryToMemory(path)
 	} else {
-		f, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-
-		sum := sha3.Sum256(f)
-		return sum[:], nil
+		data, err = os.ReadFile(path)
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sum := sha3.Sum256(data)
+	return data, sum[:], nil
 }
 
 // ChecksumHex calculates the SHA3-256 checksum of the file or directory at path and returns it as a hex-encoded string.

@@ -31,22 +31,22 @@ type OCIIndex struct {
 	} `json:"manifests"`
 }
 
-// ExtractAlgorithm extracts the algorithm file from an OCI image directory.
-func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath string) (string, error) {
+// ExtractAlgorithm extracts the algorithm file and optionally requirements.txt from an OCI image directory.
+func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath, algoType string) (string, string, error) {
 	// Read index.json to find manifest
 	indexPath := filepath.Join(ociDir, "index.json")
 	indexData, err := os.ReadFile(indexPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read index.json: %w", err)
+		return "", "", fmt.Errorf("failed to read index.json: %w", err)
 	}
 
 	var index OCIIndex
 	if err := json.Unmarshal(indexData, &index); err != nil {
-		return "", fmt.Errorf("failed to parse index.json: %w", err)
+		return "", "", fmt.Errorf("failed to parse index.json: %w", err)
 	}
 
 	if len(index.Manifests) == 0 {
-		return "", fmt.Errorf("no manifests found in index.json")
+		return "", "", fmt.Errorf("no manifests found in index.json")
 	}
 
 	// Get the first manifest digest
@@ -56,7 +56,7 @@ func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath
 	// Read manifest to find layers
 	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read manifest: %w", err)
+		return "", "", fmt.Errorf("failed to read manifest: %w", err)
 	}
 
 	var manifest struct {
@@ -65,50 +65,64 @@ func ExtractAlgorithm(ctx context.Context, logger *slog.Logger, ociDir, destPath
 		} `json:"layers"`
 	}
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return "", fmt.Errorf("failed to parse manifest: %w", err)
+		return "", "", fmt.Errorf("failed to parse manifest: %w", err)
 	}
 
 	// Extract layers to find algorithm files
 	logger.Debug("found layers in manifest", "count", len(manifest.Layers))
+	var algorithmPath string
+	var requirementsPath string
 	var allSeenFiles []string
 
-	// Iterate layers in reverse order to find user code first (usually in top layers)
+	// Process layers in reverse order (top layers first)
 	for i := len(manifest.Layers) - 1; i >= 0; i-- {
 		layer := manifest.Layers[i]
 		layerPath := filepath.Join(ociDir, "blobs", strings.Replace(layer.Digest, ":", "/", 1))
 
 		// Try to extract and find algorithm file
-		algoPath, seenFiles, err := extractLayerAndFindAlgorithm(logger, layerPath, destPath)
+		algoP, reqP, seenFiles, err := extractLayerAndFindAlgorithm(logger, layerPath, destPath, algoType)
 		if len(seenFiles) > 0 {
 			allSeenFiles = append(allSeenFiles, seenFiles...)
 		}
 
 		if err != nil {
-			logger.Warn(fmt.Sprintf("error extracting layer %s: %v", layer.Digest, err))
+			logger.Warn("failed to extract layer", "digest", layer.Digest, "error", err)
 			continue
 		}
 
-		if algoPath != "" {
-			return algoPath, nil
+		if algoP != "" && algorithmPath == "" {
+			algorithmPath = algoP
+		}
+		if reqP != "" && requirementsPath == "" {
+			requirementsPath = reqP
+		}
+
+		// If we found both, we can stop
+		if algorithmPath != "" && (algoType != "python" || requirementsPath != "") {
+			break
 		}
 	}
 
-	return "", fmt.Errorf("no algorithm file found in OCI image layers (seen: %v)", allSeenFiles)
+	if algorithmPath == "" {
+		return "", "", fmt.Errorf("no algorithm file found. Seen files: %v", allSeenFiles)
+	}
+
+	return algorithmPath, requirementsPath, nil
 }
 
 // extractLayerAndFindAlgorithm extracts a layer and searches for algorithm files.
-func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath string) (string, []string, error) {
+func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath, algoType string) (string, string, []string, error) {
 	// Open layer file
 	layerFile, err := os.Open(layerPath)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to open layer: %w", err)
+		return "", "", nil, fmt.Errorf("failed to open layer: %w", err)
 	}
 	defer layerFile.Close()
 
 	// Decompress gzip
 	gzReader, err := gzip.NewReader(layerFile)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		return "", "", nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 	defer gzReader.Close()
 
@@ -116,7 +130,8 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 	tarReader := tar.NewReader(gzReader)
 
 	var algorithmPath string
-	var seenFiles []string
+	var requirementsPath string
+	seenFiles := []string{}
 
 	for {
 		header, err := tarReader.Next()
@@ -124,7 +139,7 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 			break
 		}
 		if err != nil {
-			return "", seenFiles, fmt.Errorf("failed to read tar header: %w", err)
+			return "", "", seenFiles, fmt.Errorf("failed to read tar header: %w", err)
 		}
 
 		logger.Debug("inspecting file in layer", "name", header.Name, "type", header.Typeflag)
@@ -137,7 +152,7 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 		seenFiles = append(seenFiles, header.Name)
 
 		// Check if this is an algorithm file or requirements.txt
-		isAlgo := isAlgorithmFile(header.Name)
+		isAlgo := isAlgorithmFile(header.Name, header.Mode, algoType)
 		isReq := filepath.Base(header.Name) == "requirements.txt"
 
 		if isAlgo || isReq {
@@ -151,56 +166,69 @@ func extractLayerAndFindAlgorithm(logger *slog.Logger, layerPath, destPath strin
 			targetPath := filepath.Join(destPath, cleanName)
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-				return "", seenFiles, fmt.Errorf("failed to create dir: %w", err)
+				return "", "", seenFiles, fmt.Errorf("failed to create dir: %w", err)
 			}
 
 			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
-				return "", seenFiles, fmt.Errorf("failed to create file: %w", err)
+				return "", "", seenFiles, fmt.Errorf("failed to create file: %w", err)
 			}
 
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				outFile.Close()
-				return "", seenFiles, fmt.Errorf("failed to write file: %w", err)
+				return "", "", seenFiles, fmt.Errorf("failed to write file: %w", err)
 			}
 			outFile.Close()
 
-			if isAlgo {
+			if isAlgo && algorithmPath == "" {
 				algorithmPath = targetPath
 			}
-			// Continue scanning to extract other files (like requirements.txt)
+			if isReq && requirementsPath == "" {
+				requirementsPath = targetPath
+			}
 		}
 	}
 
-	return algorithmPath, seenFiles, nil
+	return algorithmPath, requirementsPath, seenFiles, nil
 }
 
-// isAlgorithmFile checks if a file is likely an algorithm file.
-func isAlgorithmFile(filename string) bool {
-	// Common algorithm file extensions
-	algorithmExts := []string{".py", ".wasm", ".wat", ".js", ".sh"}
+// isAlgorithmFile checks if a file is likely an algorithm file based on its name, mode and expected algorithm type.
+func isAlgorithmFile(filename string, mode int64, algoType string) bool {
+	base := filepath.Base(filename)
+	baseLower := strings.ToLower(base)
 
 	// Common algorithm file names
 	algorithmNames := []string{"algorithm", "main", "run", "execute"}
 
-	base := filepath.Base(filename)
-	baseLower := strings.ToLower(base)
-
-	// Check extensions
-	for _, ext := range algorithmExts {
-		if strings.HasSuffix(baseLower, ext) {
-			return true
+	switch algoType {
+	case "python":
+		return strings.HasSuffix(baseLower, ".py")
+	case "wasm":
+		return strings.HasSuffix(baseLower, ".wasm") || strings.HasSuffix(baseLower, ".wat")
+	case "bin":
+		// Ensure it doesn't have a known non-binary extension
+		nonBinExts := []string{".py", ".wasm", ".wat", ".js", ".sh", ".csv", ".json", ".txt", ".md"}
+		for _, ext := range nonBinExts {
+			if strings.HasSuffix(baseLower, ext) {
+				return false
+			}
 		}
-	}
 
-	// Check common names
-	for _, name := range algorithmNames {
-		if strings.Contains(baseLower, name) {
-			return true
+		// Check for common names
+		for _, name := range algorithmNames {
+			if strings.Contains(baseLower, name) {
+				return true
+			}
 		}
+		// Check if it's executable (at least one 'x' bit set)
+		return mode&0o111 != 0
+	case "docker":
+		// Docker algorithms are the whole image, this function shouldn't be used for them
+		return false
+	default:
+		// Unknown or empty algoType - no generic fallback to ensure explicit type usage
+		return false
 	}
-
-	return false
 }
 
 // ExtractDataset extracts dataset files from an OCI image directory.
@@ -328,7 +356,7 @@ func extractLayerDataFiles(layerPath, destPath string) ([]string, error) {
 
 // isDataFile checks if a file is likely a dataset file.
 func isDataFile(filename string) bool {
-	dataExts := []string{".csv", ".json", ".txt", ".parquet", ".arrow", ".dat"}
+	dataExts := []string{".csv", ".json", ".txt", ".parquet", ".arrow", ".dat", ".zip", ".tar", ".gz", ".tgz", ".tar.gz"}
 
 	baseLower := strings.ToLower(filepath.Base(filename))
 

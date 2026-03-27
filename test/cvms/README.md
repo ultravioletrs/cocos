@@ -40,6 +40,11 @@ The service is configured using environment variables from the following table. 
 | `-algo-kbs-path` | Algorithm KBS resource path (e.g., 'default/key/algo-key') |
 | `-dataset-source-urls` | Comma-separated dataset source URLs |
 | `-dataset-kbs-paths` | Comma-separated dataset KBS resource paths |
+| `-algo-type` | Algorithm execution type (binary, python, docker, etc.) |
+| `-algo-args` | Comma-separated algorithm arguments |
+| `-algo-hash` | Expected SHA3-256 hash of decrypted algorithm (hex) |
+| `-dataset-hash` | Expected SHA3-256 hash of decrypted dataset (hex) |
+| `-dataset-decompress` | Whether to decompress datasets (true,false) |
 
 ### Optional Flags
 
@@ -114,11 +119,12 @@ go run ./test/cvms/main.go \
 
 ## Notes
 
-- **Either** `-algo-path` **OR** (`-algo-source-url` AND `-algo-kbs-path`) must be provided
-- When using remote datasets, `-dataset-source-urls` and `-dataset-kbs-paths` must have the same number of comma-separated values
-- The `-kbs-url` flag should be provided when using any remote resources
-- For remote resources, the hash values in the manifest are currently placeholders (all zeros). In production, these should be the actual hashes of the **decrypted** data
-- See [TESTING_REMOTE_RESOURCES.md](../TESTING_REMOTE_RESOURCES.md) for a complete guide on testing remote resource downloads with KBS attestation
+- **Either** `-algo-path` **OR** (`-algo-source-url` AND `-algo-kbs-path`) must be provided.
+- When using remote datasets, `-dataset-source-urls` and `-dataset-kbs-paths` must have the same number of comma-separated values.
+- The `-kbs-url` flag should be provided when using any remote resources.
+- **Checksum Verification**: For remote resources, you must provide the actual SHA3-256 hash of the **decrypted plaintext** content via `-algo-hash` and `-dataset-hash`. The Agent will verify this hash after downloading and decrypting the resource.
+- **Calculating Hashes**: Use `cocos-cli checksum <path>` on your local source files (or directories) to generate the correct hash for the manifest.
+- See [TESTING_REMOTE_RESOURCES.md](../../agent/TESTING_REMOTE_RESOURCES.md) for a complete guide on testing remote resource downloads with KBS attestation.
 
 ## Architecture
 

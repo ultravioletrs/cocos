@@ -92,7 +92,7 @@ EOF
 mkdir -p kbs-data/as kbs-data/rvps kbs-data/repository
 
 # Start KBS
-../target/release/kbs --config-file kbs-config.toml
+sudo ../target/release/kbs --config-file kbs-config.toml
 ```
 
 KBS will listen on `http://localhost:8080`
@@ -115,6 +115,7 @@ cat > lin_reg.py << 'EOF'
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import sys
+import os
 
 # Load dataset
 data = pd.read_csv(sys.argv[1])
@@ -126,34 +127,46 @@ model = LinearRegression()
 model.fit(X, y)
 
 # Save results
+os.makedirs("results", exist_ok=True)
+with open("results/output.txt", "w") as f:
+    f.write(f"Coefficients: {model.coef_}\n")
+    f.write(f"Intercept: {model.intercept_}\n")
+
 print(f"Coefficients: {model.coef_}")
 print(f"Intercept: {model.intercept_}")
 EOF
 
-# 2. Create a Dockerfile
+# 2. Create requirements.txt
+cat > requirements.txt << 'EOF'
+pandas
+scikit-learn
+EOF
+
+# 3. Create a Dockerfile
 cat > Dockerfile << 'EOF'
 FROM python:3.9-slim
 RUN pip install pandas scikit-learn
 COPY lin_reg.py /app/algorithm.py
+COPY requirements.txt /app/requirements.txt
 WORKDIR /app
 ENTRYPOINT ["python", "algorithm.py"]
 EOF
 
-# 3. Build the image
+# 4. Build the image
 docker build -t localhost:5000/lin-reg-algo:v1.0 .
 docker push localhost:5000/lin-reg-algo:v1.0
 
-# 4. Generate and store key
+# 5. Generate and store key
 openssl rand -out algo.key 32
 
-# 5. Store key in KBS using kbs-client
+# 6. Store key in KBS using kbs-client
 ../target/release/kbs-client --url http://localhost:8080 config \
   --auth-private-key kbs-admin.key \
   set-resource \
   --path default/key/algo-key \
   --resource-file algo.key
 
-# 6. Encrypt the image using Host Skopeo + Docker Keyprovider
+# 7. Encrypt the image using Host Skopeo + Docker Keyprovider
 # Start Keyprovider in background
 docker run -d --rm --name keyprovider --network host \
   -v "$PWD:/work" -w /work \
@@ -255,10 +268,12 @@ HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.
 
 Start CVMS server:
 ```bash
-# Calculate SHA3-256 of decrypted files using cocos-cli
+# Calculate SHA3-256 of decrypted files using cocos-cli or cvms-test
 # NOTE: We use the hash of the original plaintext files, as the Agent validates the decrypted content.
-# Redirect stderr to stdout (2>&1) because cocos-cli prints to stderr
+# For single files, use the file hash. For directories, use the hash of the directory (which the tools zip deterministically).
+
 ALGO_HASH=$(./build/cocos-cli checksum lin_reg.py 2>&1 | awk '{print $NF}')
+
 DATASET_HASH=$(./build/cocos-cli checksum iris.csv 2>&1 | awk '{print $NF}')
 
 go build -o build/cvms-test ./test/cvms/main.go
@@ -266,11 +281,11 @@ HOST=$HOST_IP PORT=7001 ./build/cvms-test \
   -public-key-path ./public.pem \
   -attested-tls-bool false \
   -kbs-url http://$HOST_IP:8080 \
-  -algo-type oci-image \
+  -algo-type python \
   -algo-source-url docker://$HOST_IP:5000/encrypted-lin-reg:v1.0 \
   -algo-kbs-path default/key/algo-key \
   -algo-hash $ALGO_HASH \
-  -dataset-type oci-image \
+  -algo-args datasets/dataset_0.csv \
   -dataset-source-urls docker://$HOST_IP:5000/encrypted-iris:v1.0 \
   -dataset-kbs-paths default/key/dataset-key \
   -dataset-hash $DATASET_HASH

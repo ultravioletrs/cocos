@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCopyFile(t *testing.T) {
@@ -147,6 +150,59 @@ func TestChecksumHex(t *testing.T) {
 	if checksumHex != expectedChecksumHex {
 		t.Errorf("ChecksumHex mismatch. Got %s, want %s", checksumHex, expectedChecksumHex)
 	}
+}
+
+func TestCopyFile_ErrorPaths(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "copyfile_err_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	srcPath := filepath.Join(tempDir, "src.txt")
+	require.NoError(t, os.WriteFile(srcPath, []byte("test"), 0o644))
+
+	t.Run("destination folder creation failure", func(t *testing.T) {
+		// Create a file where a directory should be
+		blockedDir := filepath.Join(tempDir, "blocked_dir")
+		require.NoError(t, os.WriteFile(blockedDir, []byte("file"), 0o644))
+
+		dstPath := filepath.Join(blockedDir, "dst.txt")
+		err := CopyFile(srcPath, dstPath)
+		assert.Error(t, err)
+	})
+
+	t.Run("source file open failure", func(t *testing.T) {
+		err := CopyFile("/non/existent/src", filepath.Join(tempDir, "dst.txt"))
+		assert.Error(t, err)
+	})
+}
+
+func TestDeleteFilesInDir_ErrorPaths(t *testing.T) {
+	t.Run("non-existent directory", func(t *testing.T) {
+		err := DeleteFilesInDir("/non/existent/path")
+		// os.ReadDir on non-existent path returns error, but function returns nil
+		assert.NoError(t, err)
+	})
+}
+
+func TestDigest_ErrorPaths(t *testing.T) {
+	t.Run("non-existent file", func(t *testing.T) {
+		_, _, err := Digest("/non/existent/path")
+		assert.Error(t, err)
+	})
+
+	t.Run("directory digest failure", func(t *testing.T) {
+		// This happens if some file inside the directory cannot be read
+		tempDir, err := os.MkdirTemp("", "digest_err_test")
+		require.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+
+		blockedFile := filepath.Join(tempDir, "blocked.txt")
+		require.NoError(t, os.WriteFile(blockedFile, []byte("test"), 0o000)) // No permissions
+
+		_, _, err = Digest(tempDir)
+		// ZipDirectoryToMemory should fail due to permission error
+		assert.Error(t, err)
+	})
 }
 
 func TestChecksumHex_NonExistentFile(t *testing.T) {
