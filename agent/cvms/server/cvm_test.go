@@ -107,7 +107,7 @@ func TestAgentServer_Start(t *testing.T) {
 				ID:          "test-computation-1",
 				Name:        "Test Computation",
 				Description: "A test computation",
-				Algorithm: agent.Algorithm{
+				Algorithm: &agent.Algorithm{
 					Hash:    [32]byte{0x01, 0x02, 0x03},
 					UserKey: pubKey,
 				},
@@ -140,7 +140,7 @@ func TestAgentServer_Start(t *testing.T) {
 				ID:          "test-computation-2",
 				Name:        "Test Computation 2",
 				Description: "Another test computation",
-				Algorithm: agent.Algorithm{
+				Algorithm: &agent.Algorithm{
 					Hash:    [32]byte{0x07, 0x08, 0x09},
 					UserKey: pubKey,
 				},
@@ -168,7 +168,7 @@ func TestAgentServer_Start(t *testing.T) {
 			cmp: agent.Computation{
 				ID:   "test-computation-3",
 				Name: "Minimal Test",
-				Algorithm: agent.Algorithm{
+				Algorithm: &agent.Algorithm{
 					Hash:    [32]byte{0x0d, 0x0e, 0x0f},
 					UserKey: pubKey,
 				},
@@ -244,7 +244,7 @@ func TestAgentServer_Stop(t *testing.T) {
 				cmp := agent.Computation{
 					ID:   "test-stop-computation",
 					Name: "Stop Test",
-					Algorithm: agent.Algorithm{
+					Algorithm: &agent.Algorithm{
 						Hash:    [32]byte{0x19, 0x1a, 0x1b},
 						UserKey: pubKey,
 					},
@@ -303,7 +303,7 @@ func TestAgentServer_StopMultipleTimes(t *testing.T) {
 	cmp := agent.Computation{
 		ID:   "test-multiple-stop",
 		Name: "Multiple Stop Test",
-		Algorithm: agent.Algorithm{
+		Algorithm: &agent.Algorithm{
 			Hash:    [32]byte{0x1f, 0x20, 0x21},
 			UserKey: pubKey,
 		},
@@ -346,7 +346,7 @@ func TestAgentServer_StartAfterStop(t *testing.T) {
 	cmp := agent.Computation{
 		ID:   "test-restart",
 		Name: "Restart Test",
-		Algorithm: agent.Algorithm{
+		Algorithm: &agent.Algorithm{
 			Hash:    [32]byte{0x25, 0x26, 0x27},
 			UserKey: pubKey,
 		},
@@ -377,7 +377,7 @@ func TestAgentServer_StartAfterStop(t *testing.T) {
 	cmp2 := agent.Computation{
 		ID:   "test-restart-2",
 		Name: "Restart Test 2",
-		Algorithm: agent.Algorithm{
+		Algorithm: &agent.Algorithm{
 			Hash:    [32]byte{0x2b, 0x2c, 0x2d},
 			UserKey: pubKey,
 		},
@@ -426,7 +426,7 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			cmp: agent.Computation{
 				ID:   "valid-config-test",
 				Name: "Valid Config Test",
-				Algorithm: agent.Algorithm{
+				Algorithm: &agent.Algorithm{
 					Hash:    [32]byte{0x31, 0x32, 0x33},
 					UserKey: pubKey,
 				},
@@ -450,7 +450,7 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			cmp: agent.Computation{
 				ID:   "minimal-config-test",
 				Name: "Minimal Config Test",
-				Algorithm: agent.Algorithm{
+				Algorithm: &agent.Algorithm{
 					Hash:    [32]byte{0x37, 0x38, 0x39},
 					UserKey: pubKey,
 				},
@@ -474,7 +474,7 @@ func TestAgentServer_ConfigValidation(t *testing.T) {
 			cmp: agent.Computation{
 				ID:        "default-port-test",
 				Name:      "Default Port Test",
-				Algorithm: agent.Algorithm{Hash: [32]byte{0x3d, 0x3e, 0x3f}, UserKey: pubKey},
+				Algorithm: &agent.Algorithm{Hash: [32]byte{0x3d, 0x3e, 0x3f}, UserKey: pubKey},
 				Datasets: []agent.Dataset{
 					{Hash: [32]byte{0x40, 0x41, 0x42}, UserKey: pubKey},
 				},

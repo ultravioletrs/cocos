@@ -234,9 +234,10 @@ func (client *CVMSClient) executeRun(ctx context.Context, runReq *cvms.Computati
 	}
 
 	if runReq.Algorithm != nil {
-		ac.Algorithm = agent.Algorithm{
-			Hash:    [32]byte(runReq.Algorithm.Hash),
-			UserKey: runReq.Algorithm.UserKey,
+		ac.Algorithm = &agent.Algorithm{
+			Hash:     [32]byte(runReq.Algorithm.Hash),
+			UserKey:  runReq.Algorithm.UserKey,
+			AlgoType: runReq.Algorithm.AlgoType,
 		}
 		// Copy remote source if configured
 		if runReq.Algorithm.Source != nil {

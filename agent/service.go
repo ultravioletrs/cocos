@@ -89,6 +89,8 @@ var (
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
 	// ErrUndeclaredAlgorithm indicates algorithm was not declared in computation manifest.
+	ErrUndeclaredAlgorithm = errors.New("algorithm not declared in computation manifest")
+	// ErrUndeclaredDataset indicates dataset was not declared in computation manifest.
 	ErrUndeclaredDataset = errors.New("dataset not declared in computation manifest")
 	// ErrAllManifestItemsReceived indicates no new computation manifest items expected.
 	ErrAllManifestItemsReceived = errors.New("all expected manifest Items have been received")
@@ -229,32 +231,37 @@ func (as *agentService) InitComputation(ctx context.Context, cmp Computation) er
 
 	as.computation = cmp
 
-	// Debug: Log manifest details
-	as.logger.Info("received computation manifest",
-		"computation_id", cmp.ID,
-		"algo_has_source", cmp.Algorithm.Source != nil,
-		"algo_kbs_enabled", cmp.Algorithm.KBS != nil && cmp.Algorithm.KBS.Enabled,
-		"algo_kbs_url", func() string {
-			if cmp.Algorithm.KBS != nil {
-				return cmp.Algorithm.KBS.URL
-			}
-			return ""
-		}(),
-		"dataset_count", len(cmp.Datasets))
-
-	if cmp.Algorithm.Source != nil {
-		as.logger.Info("algorithm remote source configured",
-			"url", cmp.Algorithm.Source.URL,
-			"kbs_resource_path", cmp.Algorithm.Source.KBSResourcePath,
-			"kbs_enabled", cmp.Algorithm.KBS != nil && cmp.Algorithm.KBS.Enabled,
-			"kbs_url", func() string {
+	if cmp.Algorithm != nil {
+		as.logger.Info("received computation manifest",
+			"computation_id", cmp.ID,
+			"algo_has_source", cmp.Algorithm.Source != nil,
+			"algo_kbs_enabled", cmp.Algorithm.KBS != nil && cmp.Algorithm.KBS.Enabled,
+			"algo_kbs_url", func() string {
 				if cmp.Algorithm.KBS != nil {
 					return cmp.Algorithm.KBS.URL
 				}
 				return ""
-			}())
+			}(),
+			"dataset_count", len(cmp.Datasets))
+
+		if cmp.Algorithm.Source != nil {
+			as.logger.Info("algorithm remote source configured",
+				"url", cmp.Algorithm.Source.URL,
+				"kbs_resource_path", cmp.Algorithm.Source.KBSResourcePath,
+				"kbs_enabled", cmp.Algorithm.KBS != nil && cmp.Algorithm.KBS.Enabled,
+				"kbs_url", func() string {
+					if cmp.Algorithm.KBS != nil {
+						return cmp.Algorithm.KBS.URL
+					}
+					return ""
+				}())
+		} else {
+			as.logger.Info("algorithm remote source NOT configured - will wait for direct upload")
+		}
 	} else {
-		as.logger.Info("algorithm remote source NOT configured - will wait for direct upload")
+		as.logger.Info("received computation manifest (no algorithm)",
+			"computation_id", cmp.ID,
+			"dataset_count", len(cmp.Datasets))
 	}
 
 	as.logger.Info("Global KBS is NOT USED (per-resource configuration only)")
@@ -354,7 +361,11 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 	defer as.mu.Unlock()
 
 	// Check if algorithm should be downloaded from remote source
-	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm == nil {
+		as.logger.Info("algorithm automatic download not triggered, (no algorithm in manifest)")
+		return
+	}
+
 	kbsEnabled := as.computation.Algorithm.KBS != nil && as.computation.Algorithm.KBS.Enabled
 	kbsURL := ""
 	if as.computation.Algorithm.KBS != nil {
@@ -637,7 +648,7 @@ func (as *agentService) downloadAndDecryptOCIImage(ctx context.Context, source *
 	var err error
 
 	var files []string
-	if resourceType == "algorithm" {
+	if resourceType == "algorithm" && as.computation.Algorithm != nil {
 		if as.computation.Algorithm.AlgoType == string(algorithm.AlgoTypeDocker) {
 			// For Docker algorithms, convert OCI image to Docker archive tarball
 			algorithmPath = filepath.Join(extractDir, "image.tar")
@@ -727,6 +738,10 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	var algoData []byte
 
 	// Check if algorithm should be downloaded from remote source
+	if as.computation.Algorithm == nil {
+		return ErrUndeclaredAlgorithm
+	}
+
 	kbsEnabled := as.computation.Algorithm.KBS != nil && as.computation.Algorithm.KBS.Enabled
 	kbsURL := ""
 	if as.computation.Algorithm.KBS != nil {

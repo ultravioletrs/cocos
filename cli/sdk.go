@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/ultravioletrs/cocos/manager"
@@ -15,16 +16,31 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/sdk"
 )
 
-var Verbose bool
 
 type CLI struct {
-	agentSDK      sdk.SDK
-	agentConfig   clients.AttestedClientConfig
-	managerConfig clients.StandardClientConfig
-	client        grpc.Client
-	managerClient manager.ManagerServiceClient
-	connectErr    error
-	measurement   cmdconfig.MeasurementProvider
+	agentSDK           sdk.SDK
+	agentConfig        clients.AttestedClientConfig
+	managerConfig      clients.StandardClientConfig
+	client             grpc.Client
+	managerClient      manager.ManagerServiceClient
+	connectErr         error
+	measurement        cmdconfig.MeasurementProvider
+	Verbose            bool
+	IsManifest         bool
+	ToBase64           bool
+	KeyType            string
+	AgentCVMServerUrl  string
+	AgentCVMServerCA   string
+	AgentCVMClientKey  string
+	AgentCVMClientCrt  string
+	AgentCVMCaUrl      string
+	AgentLogLevel      string
+	Ttl                time.Duration
+	AwsAccessKeyId     string
+	AwsSecretAccessKey string
+	AwsEndpointUrl     string
+	AwsRegion          string
+	AaKbsParams        string
 }
 
 func New(agentConfig clients.AttestedClientConfig, managerConfig clients.StandardClientConfig, measurement cmdconfig.MeasurementProvider) *CLI {

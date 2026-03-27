@@ -27,7 +27,6 @@ const (
 	ED25519        = "ed25519"
 )
 
-var KeyType string
 
 func (cli *CLI) NewKeysCmd() *cobra.Command {
 	return &cobra.Command{
@@ -38,60 +37,60 @@ func (cli *CLI) NewKeysCmd() *cobra.Command {
 		Example: "./build/cocos-cli keys -k rsa",
 		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			switch KeyType {
+			switch cli.KeyType {
 			case ECDSA:
 				privEcdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				if err != nil {
-					printError(cmd, "Error generating keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating keys: %v ❌ ", err)
 					return
 				}
 
 				pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privEcdsaKey.PublicKey)
 				if err != nil {
-					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+				cli.printError(cmd, "Error marshalling public key: %v ❌ ", err)
 					return
 				}
 
 				if err := generateAndWriteKeys(privEcdsaKey, pubKeyBytes, ecdsaKeyType); err != nil {
-					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating and writing keys: %v ❌ ", err)
 					return
 				}
 
 			case ED25519:
 				pubEd25519Key, privEd25519Key, err := ed25519.GenerateKey(rand.Reader)
 				if err != nil {
-					printError(cmd, "Error generating keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating keys: %v ❌ ", err)
 					return
 				}
 				pubKey, err := x509.MarshalPKIXPublicKey(pubEd25519Key)
 				if err != nil {
-					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+				cli.printError(cmd, "Error marshalling public key: %v ❌ ", err)
 					return
 				}
 				if err := generateAndWriteKeys(privEd25519Key, pubKey, ed25519KeyType); err != nil {
-					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating and writing keys: %v ❌ ", err)
 					return
 				}
 
 			default:
 				privKey, err := rsa.GenerateKey(rand.Reader, keyBitSize)
 				if err != nil {
-					printError(cmd, "Error generating keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating keys: %v ❌ ", err)
 					return
 				}
 
 				pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
 				if err != nil {
-					printError(cmd, "Error marshalling public key: %v ❌ ", err)
+				cli.printError(cmd, "Error marshalling public key: %v ❌ ", err)
 					return
 				}
 				if err := generateAndWriteKeys(privKey, pubKeyBytes, rsaKeyType); err != nil {
-					printError(cmd, "Error generating and writing keys: %v ❌ ", err)
+				cli.printError(cmd, "Error generating and writing keys: %v ❌ ", err)
 					return
 				}
 			}
 
-			cmd.Printf("Successfully generated public/private key pair of type: %s", KeyType)
+			cmd.Printf("Successfully generated public/private key pair of type: %s", cli.KeyType)
 		},
 	}
 }

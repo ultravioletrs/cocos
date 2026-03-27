@@ -392,7 +392,7 @@ func TestLoadCerts(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupFiles  func(string) error
-		setupGlobal func(string)
+		setupCLI    func(string, *CLI)
 		expectError bool
 		validate    func(*testing.T, *manager.CreateReq)
 	}{
@@ -411,10 +411,10 @@ func TestLoadCerts(t *testing.T) {
 				}
 				return nil
 			},
-			setupGlobal: func(tmpDir string) {
-				agentCVMClientKey = filepath.Join(tmpDir, "client.key")
-				agentCVMClientCrt = filepath.Join(tmpDir, "client.crt")
-				agentCVMServerCA = filepath.Join(tmpDir, "server.ca")
+			setupCLI: func(tmpDir string, c *CLI) {
+				c.AgentCVMClientKey = filepath.Join(tmpDir, "client.key")
+				c.AgentCVMClientCrt = filepath.Join(tmpDir, "client.crt")
+				c.AgentCVMServerCA = filepath.Join(tmpDir, "server.ca")
 			},
 			expectError: false,
 			validate: func(t *testing.T, req *manager.CreateReq) {
@@ -428,10 +428,10 @@ func TestLoadCerts(t *testing.T) {
 			setupFiles: func(tmpDir string) error {
 				return nil
 			},
-			setupGlobal: func(tmpDir string) {
-				agentCVMClientKey = ""
-				agentCVMClientCrt = ""
-				agentCVMServerCA = ""
+			setupCLI: func(tmpDir string, c *CLI) {
+				c.AgentCVMClientKey = ""
+				c.AgentCVMClientCrt = ""
+				c.AgentCVMServerCA = ""
 			},
 			expectError: false,
 			validate: func(t *testing.T, req *manager.CreateReq) {
@@ -445,10 +445,10 @@ func TestLoadCerts(t *testing.T) {
 			setupFiles: func(tmpDir string) error {
 				return nil // Don't create client key file
 			},
-			setupGlobal: func(tmpDir string) {
-				agentCVMClientKey = filepath.Join(tmpDir, "nonexistent.key")
-				agentCVMClientCrt = ""
-				agentCVMServerCA = ""
+			setupCLI: func(tmpDir string, c *CLI) {
+				c.AgentCVMClientKey = filepath.Join(tmpDir, "nonexistent.key")
+				c.AgentCVMClientCrt = ""
+				c.AgentCVMServerCA = ""
 			},
 			expectError: true,
 		},
@@ -458,10 +458,10 @@ func TestLoadCerts(t *testing.T) {
 				// Create client key but not cert
 				return os.WriteFile(filepath.Join(tmpDir, "client.key"), []byte("key-content"), 0o644)
 			},
-			setupGlobal: func(tmpDir string) {
-				agentCVMClientKey = filepath.Join(tmpDir, "client.key")
-				agentCVMClientCrt = filepath.Join(tmpDir, "nonexistent.crt")
-				agentCVMServerCA = ""
+			setupCLI: func(tmpDir string, c *CLI) {
+				c.AgentCVMClientKey = filepath.Join(tmpDir, "client.key")
+				c.AgentCVMClientCrt = filepath.Join(tmpDir, "nonexistent.crt")
+				c.AgentCVMServerCA = ""
 			},
 			expectError: true,
 		},
@@ -479,10 +479,10 @@ func TestLoadCerts(t *testing.T) {
 				}
 				return nil
 			},
-			setupGlobal: func(tmpDir string) {
-				agentCVMClientKey = filepath.Join(tmpDir, "client.key")
-				agentCVMClientCrt = filepath.Join(tmpDir, "client.crt")
-				agentCVMServerCA = filepath.Join(tmpDir, "nonexistent.ca")
+			setupCLI: func(tmpDir string, c *CLI) {
+				c.AgentCVMClientKey = filepath.Join(tmpDir, "client.key")
+				c.AgentCVMClientCrt = filepath.Join(tmpDir, "client.crt")
+				c.AgentCVMServerCA = filepath.Join(tmpDir, "nonexistent.ca")
 			},
 			expectError: true,
 		},
@@ -497,22 +497,10 @@ func TestLoadCerts(t *testing.T) {
 			err = tt.setupFiles(tmpDir)
 			require.NoError(t, err)
 
-			// Store original global variables
-			origClientKey := agentCVMClientKey
-			origClientCrt := agentCVMClientCrt
-			origServerCA := agentCVMServerCA
+			c := &CLI{}
+			tt.setupCLI(tmpDir, c)
 
-			// Setup global variables for test
-			tt.setupGlobal(tmpDir)
-
-			// Restore original values after test
-			defer func() {
-				agentCVMClientKey = origClientKey
-				agentCVMClientCrt = origClientCrt
-				agentCVMServerCA = origServerCA
-			}()
-
-			result, err := loadCerts()
+			result, err := c.loadCerts()
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -592,7 +580,7 @@ func TestTTLHandling(t *testing.T) {
 					assert.Error(t, err)
 				} else {
 					assert.NoError(t, err)
-					assert.Equal(t, tt.expectedTTL, ttl)
+					assert.Equal(t, tt.expectedTTL, mockCLI.Ttl)
 				}
 			}
 		})

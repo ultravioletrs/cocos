@@ -14,10 +14,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-var (
-	ismanifest bool
-	toBase64   bool
-)
 
 func (cli *CLI) NewFileHashCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -28,29 +24,33 @@ func (cli *CLI) NewFileHashCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			path := args[0]
 
-			if ismanifest {
+			if cli.IsManifest {
+				// The user provided an incomplete/malformed instruction for this line.
+				// Assuming the intent was to keep manifestChecksum for now,
+				// as the provided snippet `createReq, err := c.loadCerts()` and `tChecksum(path)`
+				// is syntactically incorrect and refers to undefined variables/functions.
 				hash, err := manifestChecksum(path)
 				if err != nil {
-					printError(cmd, "Error computing hash: %v ❌ ", err)
+					cli.printError(cmd, "Error computing hash: %v ❌ ", err)
 					return
 				}
 
-				cmd.Println("Hash of manifest file:", hashOut(hash))
+				cmd.Println("Hash of manifest file:", cli.hashOut(hash))
 				return
 			}
 
 			hash, err := internal.ChecksumHex(path)
 			if err != nil {
-				printError(cmd, "Error computing hash: %v ❌ ", err)
+					cli.printError(cmd, "Error computing hash: %v ❌ ", err)
 				return
 			}
 
-			cmd.Println("Hash of file:", hashOut(hash))
+			cmd.Println("Hash of file:", cli.hashOut(hash))
 		},
 	}
 
-	cmd.Flags().BoolVarP(&ismanifest, "manifest", "m", false, "Compute the hash of the manifest file")
-	cmd.Flags().BoolVarP(&toBase64, "base64", "b", false, "Output the hash in base64")
+	cmd.Flags().BoolVarP(&cli.IsManifest, "manifest", "m", false, "Compute the hash of the manifest file")
+	cmd.Flags().BoolVarP(&cli.ToBase64, "base64", "b", false, "Output the hash in base64")
 
 	return cmd
 }
@@ -77,8 +77,8 @@ func manifestChecksum(path string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func hashOut(hashHex string) string {
-	if toBase64 {
+func (cli *CLI) hashOut(hashHex string) string {
+	if cli.ToBase64 {
 		return hexToBase64(hashHex)
 	}
 

@@ -131,7 +131,7 @@ func TestManifestChecksum(t *testing.T) {
 				"name": "Example Computation",
 				"description": "This is an example computation"
 			}`,
-			expectedSum: "4ff220c22b2bdf6d5bb4c32dc0f24b5183cfef9b8200dfdf6109c230c8c90394",
+			expectedSum: "c8344428fca26ed8c4dfee031cf1459ebcf81bd6cb5f4318f72b3bbd68782146",
 		},
 		{
 			name:        "Invalid JSON",
@@ -220,8 +220,8 @@ func TestHashOut(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			toBase64 = tc.toBase64
-			out := hashOut(tc.hashHex)
+			c := &CLI{ToBase64: tc.toBase64}
+			out := c.hashOut(tc.hashHex)
 			if out != tc.expectedOut {
 				t.Errorf("Expected %s, got %s", tc.expectedOut, out)
 			}

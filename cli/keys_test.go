@@ -37,8 +37,8 @@ func TestGenerateAndWriteKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			KeyType = tt.keyType
-			cmd := (&CLI{}).NewKeysCmd()
+			c := &CLI{KeyType: tt.keyType}
+			cmd := c.NewKeysCmd()
 			cmd.Run(cmd, []string{})
 
 			if _, err := os.Stat(privateKeyFile); os.IsNotExist(err) {

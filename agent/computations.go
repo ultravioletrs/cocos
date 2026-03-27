@@ -45,7 +45,7 @@ type Computation struct {
 	Name            string           `json:"name,omitempty"`
 	Description     string           `json:"description,omitempty"`
 	Datasets        Datasets         `json:"datasets,omitempty"`
-	Algorithm       Algorithm        `json:"algorithm,omitempty"`
+	Algorithm       *Algorithm       `json:"algorithm,omitempty"`
 	ResultConsumers []ResultConsumer `json:"result_consumers,omitempty"`
 }
 

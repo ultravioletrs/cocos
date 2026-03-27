@@ -40,8 +40,8 @@ func decodeErros(err error) error {
 	}
 }
 
-func printError(cmd *cobra.Command, message string, err error) {
-	if !Verbose {
+func (c *CLI) printError(cmd *cobra.Command, message string, err error) {
+	if !c.Verbose {
 		err = decodeErros(err)
 	}
 	msg := color.New(color.FgRed).Sprintf(message, err)

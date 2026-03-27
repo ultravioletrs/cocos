@@ -4,7 +4,6 @@ package cli
 
 import (
 	"os"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -21,20 +20,6 @@ const (
 	ttlFlag   = "ttl"
 )
 
-var (
-	agentCVMServerUrl  string
-	agentCVMServerCA   string
-	agentCVMClientKey  string
-	agentCVMClientCrt  string
-	agentCVMCaUrl      string
-	agentLogLevel      string
-	ttl                time.Duration
-	awsAccessKeyId     string
-	awsSecretAccessKey string
-	awsEndpointUrl     string
-	awsRegion          string
-	aaKbsParams        string
-)
 
 func (c *CLI) NewCreateVMCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -44,41 +29,41 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			if c.connectErr != nil {
-				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+				c.printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
 				return
 			}
 			if c.managerClient == nil {
 				if err := c.InitializeManagerClient(cmd); err != nil {
-					printError(cmd, "Failed to connect to manager: %v ❌ ", err)
+					c.printError(cmd, "Failed to connect to manager: %v ❌ ", err)
 					return
 				}
 			}
 			defer c.Close()
 
-			createReq, err := loadCerts()
+			createReq, err := c.loadCerts()
 			if err != nil {
-				printError(cmd, "Error loading certs: %v ❌ ", err)
+				c.printError(cmd, "Error loading certs: %v ❌ ", err)
 				return
 			}
 
-			createReq.AgentCvmServerUrl = agentCVMServerUrl
-			createReq.AgentLogLevel = agentLogLevel
-			createReq.AgentCvmCaUrl = agentCVMCaUrl
-			createReq.AwsAccessKeyId = awsAccessKeyId
-			createReq.AwsSecretAccessKey = awsSecretAccessKey
-			createReq.AwsEndpointUrl = awsEndpointUrl
-			createReq.AwsRegion = awsRegion
-			createReq.AaKbsParams = aaKbsParams
+			createReq.AgentCvmServerUrl = c.AgentCVMServerUrl
+			createReq.AgentLogLevel = c.AgentLogLevel
+			createReq.AgentCvmCaUrl = c.AgentCVMCaUrl
+			createReq.AwsAccessKeyId = c.AwsAccessKeyId
+			createReq.AwsSecretAccessKey = c.AwsSecretAccessKey
+			createReq.AwsEndpointUrl = c.AwsEndpointUrl
+			createReq.AwsRegion = c.AwsRegion
+			createReq.AaKbsParams = c.AaKbsParams
 
-			if ttl > 0 {
-				createReq.Ttl = ttl.String()
+			if c.Ttl > 0 {
+				createReq.Ttl = c.Ttl.String()
 			}
 
 			cmd.Println("🔗 Creating a new virtual machine")
 
 			res, err := c.managerClient.CreateVm(cmd.Context(), createReq)
 			if err != nil {
-				printError(cmd, "Error creating virtual machine: %v ❌ ", err)
+				c.printError(cmd, "Error creating virtual machine: %v ❌ ", err)
 				return
 			}
 
@@ -86,20 +71,20 @@ func (c *CLI) NewCreateVMCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&agentCVMServerUrl, serverURL, "", "CVM server URL")
-	cmd.Flags().StringVar(&agentCVMServerCA, serverCA, "", "CVM server CA")
-	cmd.Flags().StringVar(&agentCVMClientKey, clientKey, "", "CVM client key")
-	cmd.Flags().StringVar(&agentCVMClientCrt, clientCrt, "", "CVM client crt")
-	cmd.Flags().StringVar(&agentCVMCaUrl, caUrl, "", "CVM CA service URL")
-	cmd.Flags().StringVar(&agentLogLevel, logLevel, "", "Agent Log level")
-	cmd.Flags().DurationVar(&ttl, ttlFlag, 0, "TTL for the VM")
-	cmd.Flags().StringVar(&awsAccessKeyId, "aws-access-key-id", "", "AWS Access Key ID for S3/MinIO")
-	cmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key for S3/MinIO")
-	cmd.Flags().StringVar(&awsEndpointUrl, "aws-endpoint-url", "", "AWS Endpoint URL (for MinIO or custom S3)")
-	cmd.Flags().StringVar(&awsRegion, "aws-region", "", "AWS Region")
-	cmd.Flags().StringVar(&aaKbsParams, "aa-kbs-params", "", "Attestation Agent KBS Parameters (e.g. protocol=http,type=kbs,url=http://... or just type=sample)")
+	cmd.Flags().StringVar(&c.AgentCVMServerUrl, serverURL, "", "CVM server URL")
+	cmd.Flags().StringVar(&c.AgentCVMServerCA, serverCA, "", "CVM server CA")
+	cmd.Flags().StringVar(&c.AgentCVMClientKey, clientKey, "", "CVM client key")
+	cmd.Flags().StringVar(&c.AgentCVMClientCrt, clientCrt, "", "CVM client crt")
+	cmd.Flags().StringVar(&c.AgentCVMCaUrl, caUrl, "", "CVM CA service URL")
+	cmd.Flags().StringVar(&c.AgentLogLevel, logLevel, "", "Agent Log level")
+	cmd.Flags().DurationVar(&c.Ttl, ttlFlag, 0, "TTL for the VM")
+	cmd.Flags().StringVar(&c.AwsAccessKeyId, "aws-access-key-id", "", "AWS Access Key ID for S3/MinIO")
+	cmd.Flags().StringVar(&c.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key for S3/MinIO")
+	cmd.Flags().StringVar(&c.AwsEndpointUrl, "aws-endpoint-url", "", "AWS Endpoint URL (for MinIO or custom S3)")
+	cmd.Flags().StringVar(&c.AwsRegion, "aws-region", "", "AWS Region")
+	cmd.Flags().StringVar(&c.AaKbsParams, "aa-kbs-params", "", "Attestation Agent KBS Parameters (e.g. protocol=http,type=kbs,url=http://... or just type=sample)")
 	if err := cmd.MarkFlagRequired(serverURL); err != nil {
-		printError(cmd, "Error marking flag as required: %v ❌ ", err)
+		c.printError(cmd, "Error marking flag as required: %v ❌ ", err)
 		return cmd
 	}
 
@@ -114,12 +99,12 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if c.connectErr != nil {
-				printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
+				c.printError(cmd, "Failed to connect to manager: %v ❌ ", c.connectErr)
 				return
 			}
 			if c.managerClient == nil {
 				if err := c.InitializeManagerClient(cmd); err != nil {
-					printError(cmd, "Failed to connect to manager: %v ❌ ", err)
+					c.printError(cmd, "Failed to connect to manager: %v ❌ ", err)
 					return
 				}
 			}
@@ -129,7 +114,7 @@ func (c *CLI) NewRemoveVMCmd() *cobra.Command {
 
 			_, err := c.managerClient.RemoveVm(cmd.Context(), &manager.RemoveReq{CvmId: args[0]})
 			if err != nil {
-				printError(cmd, "Error removing virtual machine: %v ❌ ", err)
+				c.printError(cmd, "Error removing virtual machine: %v ❌ ", err)
 				return
 			}
 
@@ -146,18 +131,18 @@ func fileReader(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func loadCerts() (*manager.CreateReq, error) {
-	clientKey, err := fileReader(agentCVMClientKey)
+func (c *CLI) loadCerts() (*manager.CreateReq, error) {
+	clientKey, err := fileReader(c.AgentCVMClientKey)
 	if err != nil {
 		return nil, err
 	}
 
-	clientCrt, err := fileReader(agentCVMClientCrt)
+	clientCrt, err := fileReader(c.AgentCVMClientCrt)
 	if err != nil {
 		return nil, err
 	}
 
-	serverCA, err := fileReader(agentCVMServerCA)
+	serverCA, err := fileReader(c.AgentCVMServerCA)
 	if err != nil {
 		return nil, err
 	}

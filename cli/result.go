@@ -24,7 +24,7 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if cli.connectErr != nil {
-				printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
+				cli.printError(cmd, "Failed to connect to agent: %v ❌ ", cli.connectErr)
 				return
 			}
 
@@ -32,14 +32,14 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			privKeyFile, err := os.ReadFile(args[0])
 			if err != nil {
-				printError(cmd, "Error reading private key file: %v ❌ ", err)
+				cli.printError(cmd, "Error reading private key file: %v ❌ ", err)
 				return
 			}
 
 			var outputPath string
 			if outputDir != "" {
 				if err := os.MkdirAll(outputDir, 0o755); err != nil {
-					printError(cmd, "Error creating output directory: %v ❌ ", err)
+					cli.printError(cmd, "Error creating output directory: %v ❌ ", err)
 					return
 				}
 				outputPath = filepath.Join(outputDir, filename)
@@ -56,19 +56,19 @@ func (cli *CLI) NewResultsCmd() *cobra.Command {
 
 			privKey, err := decodeKey(pemBlock)
 			if err != nil {
-				printError(cmd, "Error decoding private key: %v ❌ ", err)
+				cli.printError(cmd, "Error decoding private key: %v ❌ ", err)
 				return
 			}
 
 			resultFile, err := os.Create(outputPath)
 			if err != nil {
-				printError(cmd, "Error creating result file: %v ❌ ", err)
+				cli.printError(cmd, "Error creating result file: %v ❌ ", err)
 				return
 			}
 			defer resultFile.Close()
 
 			if err = cli.agentSDK.Result(cmd.Context(), privKey, resultFile); err != nil {
-				printError(cmd, "Error retrieving computation result: %v ❌ ", err)
+				cli.printError(cmd, "Error retrieving computation result: %v ❌ ", err)
 				return
 			}
 

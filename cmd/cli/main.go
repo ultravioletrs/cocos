@@ -122,7 +122,7 @@ func main() {
 		defer cliSVC.Close()
 	}
 
-	rootCmd.PersistentFlags().BoolVarP(&cli.Verbose, "verbose", "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&cliSVC.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	keysCmd := cliSVC.NewKeysCmd()
 	attestationCmd := cliSVC.NewAttestationCmd()
@@ -151,7 +151,7 @@ func main() {
 
 	// Flags
 	keysCmd.PersistentFlags().StringVarP(
-		&cli.KeyType,
+		&cliSVC.KeyType,
 		"key-type",
 		"k",
 		"rsa",
