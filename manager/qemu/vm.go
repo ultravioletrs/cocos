@@ -19,13 +19,14 @@ import (
 )
 
 const (
-	firmwareVars    = "OVMF_VARS"
-	KernelFile      = "bzImage"
-	rootfsFile      = "rootfs.cpio"
-	tmpDir          = "/tmp"
-	diskDstName     = "cvmDisk"
-	interval        = 5 * time.Second
-	shutdownTimeout = 30 * time.Second
+	firmwareVars             = "OVMF_VARS"
+	KernelFile               = "bzImage"
+	rootfsFile               = "rootfs.cpio"
+	tmpDir                   = "/tmp"
+	diskDstName              = "cvmDisk"
+	interval                 = 5 * time.Second
+	shutdownTimeout          = 30 * time.Second
+	luksHeaderIncreaseSizeGB = 1
 )
 
 type VMInfo struct {
@@ -88,7 +89,7 @@ func (v *qemuVM) Start() (err error) {
 		}
 
 		dstDiskFile := fmt.Sprintf("%s/%s-%s.qcow2", tmpDir, diskDstName, id)
-		sizeArg := fmt.Sprintf("%dG", sizeGB)
+		sizeArg := fmt.Sprintf("%dG", sizeGB+luksHeaderIncreaseSizeGB)
 
 		cmd := exec.Command("qemu-img", "create", "-f", "qcow2", dstDiskFile, sizeArg)
 		if out, err := cmd.CombinedOutput(); err != nil {

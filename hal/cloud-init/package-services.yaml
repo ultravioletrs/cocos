@@ -1,0 +1,677 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+disable_root: false
+ssh_pwauth: true
+
+users:
+  - default
+  - name: root
+    lock_passwd: false
+
+chpasswd:
+  expire: false
+  users:
+    - name: root
+      password: coolpass
+      type: text
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - make
+  - build-essential
+  - cloud-guest-utils
+  - golang-go
+  - cargo
+  - rustc
+  - pkg-config
+  - net-tools
+  - skopeo
+  - libssl-dev
+  - protobuf-compiler
+  - libprotobuf-dev
+  - libtss2-dev
+
+growpart:
+  mode: auto
+  devices:
+    - /
+
+resize_rootfs: true
+
+write_files:
+  - path: /etc/cocos/environment
+    permissions: "0644"
+    content: |
+      COCOS_LOG_LEVEL=debug
+
+  - path: /etc/default/coco-keyprovider
+    permissions: "0644"
+    content: |
+      # CoCo Keyprovider Environment Variables
+      COCO_KP_SOCKET=127.0.0.1:50011
+      RUST_LOG=info
+
+  - path: /etc/ocicrypt_keyprovider.conf
+    permissions: "0644"
+    content: |
+      {"key-providers": {"attestation-agent": {"grpc": "127.0.0.1:50011"}}}
+
+  - path: /etc/modules-load.d/cocos-9p.conf
+    permissions: "0644"
+    content: |
+      9p
+      9pnet
+      9pnet_virtio
+
+  - path: /etc/default/cocos-package-selection
+    permissions: "0644"
+    content: |
+      # Package toggles rendered by create-seed-iso.sh.
+      # If left unrendered, the cloud-init scripts treat them as enabled.
+      COCOS_INSTALL_AGENT=__COCOS_INSTALL_AGENT__
+      COCOS_INSTALL_ATTESTATION_SERVICE=__COCOS_INSTALL_ATTESTATION_SERVICE__
+      COCOS_INSTALL_CC_ATTESTATION_AGENT=__COCOS_INSTALL_CC_ATTESTATION_AGENT__
+      COCOS_INSTALL_COCO_KEYPROVIDER=__COCOS_INSTALL_COCO_KEYPROVIDER__
+      COCOS_INSTALL_COMPUTATION_RUNNER=__COCOS_INSTALL_COMPUTATION_RUNNER__
+      COCOS_INSTALL_EGRESS_PROXY=__COCOS_INSTALL_EGRESS_PROXY__
+      COCOS_INSTALL_INGRESS_PROXY=__COCOS_INSTALL_INGRESS_PROXY__
+      COCOS_INSTALL_LOG_FORWARDER=__COCOS_INSTALL_LOG_FORWARDER__
+      COCOS_INSTALL_WASMEDGE=__COCOS_INSTALL_WASMEDGE__
+
+  - path: /etc/systemd/system/cocos-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Cocos AI agent
+      After=network.target attestation-service.service log-forwarder.service computation-runner.service egress-proxy.service
+      Requires=log-forwarder.service computation-runner.service egress-proxy.service
+      Before=docker.service
+
+      [Service]
+      WorkingDirectory=/cocos
+      Environment="HTTP_PROXY=http://localhost:3128"
+      Environment="HTTPS_PROXY=http://localhost:3128"
+      Environment="NO_PROXY=localhost,127.0.0.1,.local,/run/cocos/"
+      StandardOutput=file:/var/log/cocos/agent.stdout
+      StandardError=file:/var/log/cocos/agent.stderr
+      EnvironmentFile=/etc/cocos/environment
+      ExecStart=/cocos_init/agent_start_script.sh
+      Restart=always
+      RestartSec=5s
+
+      [Install]
+      WantedBy=default.target
+
+  - path: /etc/systemd/system/log-forwarder.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Cocos AI Log Forwarder
+      After=network.target
+      Before=cocos-agent.service
+
+      [Service]
+      WorkingDirectory=/cocos
+      StandardOutput=file:/var/log/cocos/log-forwarder.stdout
+      StandardError=file:/var/log/cocos/log-forwarder.stderr
+      EnvironmentFile=/etc/cocos/environment
+      ExecStartPre=/cocos_init/agent_setup.sh
+      ExecStart=/usr/bin/log-forwarder
+      Restart=always
+      RestartSec=5s
+
+      [Install]
+      WantedBy=default.target
+
+  - path: /etc/systemd/system/computation-runner.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Cocos AI Computation Runner
+      After=network.target log-forwarder.service
+      Before=cocos-agent.service
+      Requires=log-forwarder.service
+
+      [Service]
+      WorkingDirectory=/cocos
+      StandardOutput=file:/var/log/cocos/runner.stdout
+      StandardError=file:/var/log/cocos/runner.stderr
+      EnvironmentFile=/etc/cocos/environment
+      Environment="HTTP_PROXY=http://localhost:3128"
+      Environment="HTTPS_PROXY=http://localhost:3128"
+      Environment="NO_PROXY=localhost,127.0.0.1,.local,/run/cocos/"
+      ExecStart=/usr/bin/computation-runner --socket-path=/run/cocos/runner.sock
+      Restart=always
+      RestartSec=5s
+
+      [Install]
+      WantedBy=default.target
+
+  - path: /etc/systemd/system/egress-proxy.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Cocos Egress Proxy Service
+      After=network.target
+
+      [Service]
+      EnvironmentFile=/etc/cocos/environment
+      Environment="COCOS_LOG_LEVEL=debug"
+      ExecStart=/usr/bin/egress-proxy --port=3128
+      Restart=always
+      RestartSec=5
+      User=root
+      Group=root
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/attestation-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Confidential Containers Attestation Agent (gRPC)
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/attestation-agent --attestation_sock 127.0.0.1:50002
+      Restart=always
+      RestartSec=5
+      Environment=RUST_LOG=info
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/attestation-service.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Cocos Attestation Service
+      After=network.target
+      Wants=attestation-agent.service
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/attestation-service
+      Restart=always
+      RestartSec=5
+      StandardOutput=file:/var/log/cocos/attestation-service.stdout
+      StandardError=file:/var/log/cocos/attestation-service.stderr
+      Environment=ATTESTATION_LOG_LEVEL=debug
+      Environment=ATTESTATION_SERVICE_SOCKET=/run/cocos/attestation.sock
+      Environment=ATTESTATION_VMPL=2
+      Environment=ATTESTATION_EAT_FORMAT=CBOR
+      Environment=USE_CC_ATTESTATION_AGENT=true
+      Environment=CC_AGENT_ADDRESS=127.0.0.1:50002
+      ExecStartPre=/cocos_init/attestation_setup.sh
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/coco-keyprovider.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=CoCo Keyprovider for Confidential Containers
+      Documentation=https://github.com/confidential-containers/guest-components
+      After=network-online.target attestation-agent.service
+      Wants=network-online.target
+      Requires=attestation-agent.service
+
+      [Service]
+      Type=simple
+      EnvironmentFile=/etc/default/coco-keyprovider
+      RuntimeDirectory=coco-keyprovider
+      ExecStart=/usr/local/bin/coco-keyprovider-setup.sh
+      Restart=on-failure
+      RestartSec=5s
+      StandardOutput=journal
+      StandardError=journal
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectSystem=strict
+      ProtectHome=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /cocos_init/agent_setup.sh
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      WORK_DIR="/cocos"
+      IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')
+
+      for IFACE in $IFACES; do
+          STATE=$(ip link show "$IFACE" | grep DOWN || true)
+          if [ -n "$STATE" ]; then
+              ip link set "$IFACE" up
+          fi
+
+          IP_ADDR=$(ip addr show "$IFACE" | grep 'inet ' || true)
+          if [ -z "$IP_ADDR" ] && command -v dhclient >/dev/null 2>&1; then
+              dhclient "$IFACE" || true
+          fi
+      done
+
+      mkdir -p "$WORK_DIR"
+
+  - path: /cocos_init/agent_start_script.sh
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      mkdir -p /etc/systemd/system/docker.service.d
+
+      tee /etc/systemd/system/docker.service.d/override.conf > /dev/null <<EOF
+      [Service]
+      Environment=DOCKER_RAMDISK=true
+      EOF
+
+      systemctl daemon-reload
+
+      NUM_OF_PERMITED_IFACE=1
+      NUM_OF_IFACE=$(ip route | grep -Eo 'dev [a-z0-9]+' | awk '{ print $2 }' | grep -v '^docker' | sort | uniq | wc -l)
+
+      if [ "$NUM_OF_IFACE" -gt "$NUM_OF_PERMITED_IFACE" ]; then
+          echo "More than one network interface in the VM"
+          exit 1
+      fi
+
+      # The external guest endpoint is served by ingress-proxy on TCP :7002.
+      # The agent backend itself should stay on the internal Unix socket.
+      export AGENT_GRPC_HOST=/run/cocos/agent.sock
+
+      exec /bin/cocos-agent
+
+  - path: /usr/local/bin/coco-keyprovider-setup.sh
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      CMDLINE=$(cat /proc/cmdline)
+      PARAMS=$(echo "$CMDLINE" | tr ' ' '\n' | grep '^agent.aa_kbc_params=' | cut -d= -f2- || true)
+      KBS_ARG=""
+
+      if [ -n "$PARAMS" ]; then
+          KBS_URL="${PARAMS#*::}"
+          if [ -n "$KBS_URL" ]; then
+              echo "[coco-keyprovider-setup] Detected KBS URL from kernel cmdline: $KBS_URL"
+              KBS_ARG="--kbs $KBS_URL"
+          fi
+      else
+          echo "[coco-keyprovider-setup] No agent.aa_kbc_params found in kernel cmdline. Starting without --kbs."
+      fi
+
+      if [ -z "${COCO_KP_SOCKET:-}" ]; then
+          COCO_KP_SOCKET="127.0.0.1:50011"
+      fi
+
+      echo "[coco-keyprovider-setup] Starting coco_keyprovider listening on $COCO_KP_SOCKET $KBS_ARG"
+      exec /usr/local/bin/coco_keyprovider --socket "$COCO_KP_SOCKET" $KBS_ARG
+
+  - path: /cocos_init/attestation_setup.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e
+
+      mkdir -p /run/cocos
+      chmod 755 /run/cocos
+
+  - path: /cocos_init/setup_9p_mounts.sh
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      mkdir -p /etc/certs /etc/cocos
+
+      if [ ! -f /etc/fstab ]; then
+          touch /etc/fstab
+      fi
+
+      if ! grep -qE '^certs_share[[:space:]]+/etc/certs[[:space:]]+9p[[:space:]]' /etc/fstab; then
+          printf '%s\n' 'certs_share /etc/certs 9p trans=virtio,version=9p2000.L,cache=mmap,nofail,_netdev 0 0' >> /etc/fstab
+      fi
+
+      if ! grep -qE '^env_share[[:space:]]+/etc/cocos[[:space:]]+9p[[:space:]]' /etc/fstab; then
+          printf '%s\n' 'env_share /etc/cocos 9p trans=virtio,version=9p2000.L,cache=mmap,nofail,_netdev 0 0' >> /etc/fstab
+      fi
+
+  - path: /cocos_init/expand_root_disk.sh
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      ROOT_SOURCE="$(findmnt -n -o SOURCE /)"
+      ROOT_FSTYPE="$(findmnt -n -o FSTYPE /)"
+
+      case "$ROOT_SOURCE" in
+          /dev/nvme*n*p[0-9]*)
+              ROOT_DISK="${ROOT_SOURCE%p[0-9]*}"
+              ROOT_PART="${ROOT_SOURCE##*p}"
+              ;;
+          /dev/*[0-9])
+              ROOT_DISK="${ROOT_SOURCE%[0-9]*}"
+              ROOT_PART="${ROOT_SOURCE##*[!0-9]}"
+              ;;
+          *)
+              echo "[expand-root-disk] Unsupported root device: $ROOT_SOURCE"
+              exit 0
+              ;;
+      esac
+
+      if ! command -v growpart >/dev/null 2>&1; then
+          echo "[expand-root-disk] growpart is not available; skipping manual resize."
+          exit 0
+      fi
+
+      growpart "$ROOT_DISK" "$ROOT_PART" || true
+      partprobe "$ROOT_DISK" || true
+      udevadm settle || true
+
+      case "$ROOT_FSTYPE" in
+          ext2|ext3|ext4)
+              resize2fs "$ROOT_SOURCE"
+              ;;
+          xfs)
+              xfs_growfs /
+              ;;
+          btrfs)
+              btrfs filesystem resize max /
+              ;;
+          *)
+              echo "[expand-root-disk] Unsupported root filesystem: $ROOT_FSTYPE"
+              ;;
+      esac
+
+  - path: /cocos_init/build_cocos_packages.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euxo pipefail
+
+      COCOS_DIR=/usr/local/src/cocos
+      GUEST_COMPONENTS_DIR=/usr/local/src/guest-components
+      COCOS_BRANCH="${COCOS_BRANCH:-main}"
+      GUEST_COMPONENTS_BRANCH="${GUEST_COMPONENTS_BRANCH:-mvp-runner}"
+      export HOME="${HOME:-/root}"
+      export GOPATH="${GOPATH:-$HOME/go}"
+      export GOMODCACHE="${GOMODCACHE:-$GOPATH/pkg/mod}"
+      export GOCACHE="${GOCACHE:-$HOME/.cache/go-build}"
+      export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+
+      mkdir -p \
+          "$HOME" \
+          "$GOPATH" \
+          "$GOMODCACHE" \
+          "$GOCACHE" \
+          "$CARGO_HOME" \
+          "$HOME/.cache"
+
+      # shellcheck disable=SC1091
+      source /etc/default/cocos-package-selection
+
+      normalize_toggle() {
+          local value="${1:-}"
+
+          case "$value" in
+              ""|__*__)
+                  printf '%s\n' true
+                  ;;
+              1|true|TRUE|True|yes|YES|Yes|on|ON|On|y|Y)
+                  printf '%s\n' true
+                  ;;
+              0|false|FALSE|False|no|NO|No|off|OFF|Off|n|N)
+                  printf '%s\n' false
+                  ;;
+              *)
+                  echo "[build-cocos-packages] Invalid toggle value: $value" >&2
+                  exit 1
+                  ;;
+          esac
+      }
+
+      default_toggle_for() {
+          case "$1" in
+              COCOS_INSTALL_CC_ATTESTATION_AGENT|COCOS_INSTALL_COCO_KEYPROVIDER)
+                  printf '%s\n' false
+                  ;;
+              *)
+                  printf '%s\n' true
+                  ;;
+          esac
+      }
+
+      for toggle in \
+          AGENT \
+          ATTESTATION_SERVICE \
+          CC_ATTESTATION_AGENT \
+          COCO_KEYPROVIDER \
+          COMPUTATION_RUNNER \
+          EGRESS_PROXY \
+          INGRESS_PROXY \
+          LOG_FORWARDER \
+          WASMEDGE; do
+          var_name="COCOS_INSTALL_${toggle}"
+          if [ -n "${!var_name:-}" ] && ! [[ "${!var_name}" == __*__ ]]; then
+              printf -v "$var_name" '%s' "$(normalize_toggle "${!var_name:-}")"
+          else
+              printf -v "$var_name" '%s' "$(default_toggle_for "$var_name")"
+          fi
+      done
+
+      if [ "$COCOS_INSTALL_AGENT" = "true" ]; then
+          COCOS_INSTALL_ATTESTATION_SERVICE=true
+          COCOS_INSTALL_LOG_FORWARDER=true
+          COCOS_INSTALL_COMPUTATION_RUNNER=true
+          COCOS_INSTALL_INGRESS_PROXY=true
+          COCOS_INSTALL_EGRESS_PROXY=true
+      fi
+
+      if [ "$COCOS_INSTALL_COMPUTATION_RUNNER" = "true" ]; then
+          COCOS_INSTALL_LOG_FORWARDER=true
+      fi
+
+      if [ "$COCOS_INSTALL_COCO_KEYPROVIDER" = "true" ]; then
+          COCOS_INSTALL_CC_ATTESTATION_AGENT=true
+      fi
+
+      echo "[build-cocos-packages] Effective package selection:"
+      echo "  agent=$COCOS_INSTALL_AGENT"
+      echo "  attestation-service=$COCOS_INSTALL_ATTESTATION_SERVICE"
+      echo "  cc-attestation-agent=$COCOS_INSTALL_CC_ATTESTATION_AGENT"
+      echo "  coco-keyprovider=$COCOS_INSTALL_COCO_KEYPROVIDER"
+      echo "  computation-runner=$COCOS_INSTALL_COMPUTATION_RUNNER"
+      echo "  egress-proxy=$COCOS_INSTALL_EGRESS_PROXY"
+      echo "  ingress-proxy=$COCOS_INSTALL_INGRESS_PROXY"
+      echo "  log-forwarder=$COCOS_INSTALL_LOG_FORWARDER"
+      echo "  wasmedge=$COCOS_INSTALL_WASMEDGE"
+
+      install_release_binary() {
+          local repo_dir="$1"
+          local binary_name="$2"
+          local destination="$3"
+          local mode="$4"
+          local source_path
+
+          source_path="$(find "$repo_dir/target" -type f -path "*/release/$binary_name" | head -n 1)"
+          if [ -z "$source_path" ]; then
+              echo "Failed to locate built binary: $binary_name" >&2
+              exit 1
+          fi
+
+          install -D -m "$mode" "$source_path" "$destination"
+      }
+
+      mkdir -p /usr/local/src /cocos /cocos_init /etc/cocos /run/cocos /var/log/cocos
+
+      if [ "$COCOS_INSTALL_ATTESTATION_SERVICE" = "true" ] && [ "$COCOS_INSTALL_CC_ATTESTATION_AGENT" != "true" ]; then
+          sed -i 's/USE_CC_ATTESTATION_AGENT=true/USE_CC_ATTESTATION_AGENT=false/' /etc/systemd/system/attestation-service.service
+          sed -i '/Wants=attestation-agent.service/d' /etc/systemd/system/attestation-service.service
+          sed -i '/Environment=CC_AGENT_ADDRESS=/d' /etc/systemd/system/attestation-service.service
+      fi
+
+      needs_cocos_repo=false
+      needs_guest_components_repo=false
+
+      if [ "$COCOS_INSTALL_AGENT" = "true" ] || \
+         [ "$COCOS_INSTALL_ATTESTATION_SERVICE" = "true" ] || \
+         [ "$COCOS_INSTALL_COMPUTATION_RUNNER" = "true" ] || \
+         [ "$COCOS_INSTALL_EGRESS_PROXY" = "true" ] || \
+         [ "$COCOS_INSTALL_INGRESS_PROXY" = "true" ] || \
+         [ "$COCOS_INSTALL_LOG_FORWARDER" = "true" ]; then
+          needs_cocos_repo=true
+      fi
+
+      if [ "$COCOS_INSTALL_CC_ATTESTATION_AGENT" = "true" ] || \
+         [ "$COCOS_INSTALL_COCO_KEYPROVIDER" = "true" ]; then
+          needs_guest_components_repo=true
+      fi
+
+      if [ "$needs_cocos_repo" = "true" ]; then
+          if [ ! -d "$COCOS_DIR/.git" ]; then
+              git clone --depth 1 --branch "$COCOS_BRANCH" https://github.com/ultravioletrs/cocos "$COCOS_DIR"
+          else
+              git -C "$COCOS_DIR" fetch --depth 1 origin "$COCOS_BRANCH"
+              git -C "$COCOS_DIR" checkout "$COCOS_BRANCH"
+              git -C "$COCOS_DIR" pull --ff-only origin "$COCOS_BRANCH"
+          fi
+      fi
+
+      if [ "$needs_guest_components_repo" = "true" ]; then
+          if [ ! -d "$GUEST_COMPONENTS_DIR/.git" ]; then
+              git clone --depth 1 --branch "$GUEST_COMPONENTS_BRANCH" https://github.com/rodneyosodo/guest-components "$GUEST_COMPONENTS_DIR"
+          else
+              git -C "$GUEST_COMPONENTS_DIR" fetch --depth 1 origin "$GUEST_COMPONENTS_BRANCH"
+              git -C "$GUEST_COMPONENTS_DIR" checkout "$GUEST_COMPONENTS_BRANCH"
+              git -C "$GUEST_COMPONENTS_DIR" pull --ff-only origin "$GUEST_COMPONENTS_BRANCH"
+          fi
+      fi
+
+      cocos_targets=()
+      if [ "$COCOS_INSTALL_AGENT" = "true" ]; then
+          cocos_targets+=(agent)
+      fi
+      if [ "$COCOS_INSTALL_LOG_FORWARDER" = "true" ]; then
+          cocos_targets+=(log-forwarder)
+      fi
+      if [ "$COCOS_INSTALL_COMPUTATION_RUNNER" = "true" ]; then
+          cocos_targets+=(computation-runner)
+      fi
+      if [ "$COCOS_INSTALL_EGRESS_PROXY" = "true" ]; then
+          cocos_targets+=(egress-proxy)
+      fi
+      if [ "$COCOS_INSTALL_INGRESS_PROXY" = "true" ]; then
+          cocos_targets+=(ingress-proxy)
+      fi
+      if [ "$COCOS_INSTALL_ATTESTATION_SERVICE" = "true" ]; then
+          cocos_targets+=(attestation-service)
+      fi
+
+      if [ "${#cocos_targets[@]}" -gt 0 ]; then
+          make -C "$COCOS_DIR" "${cocos_targets[@]}"
+      fi
+
+      if [ "$COCOS_INSTALL_AGENT" = "true" ]; then
+          install -D -m 0750 "$COCOS_DIR/build/cocos-agent" /bin/cocos-agent
+      fi
+      if [ "$COCOS_INSTALL_LOG_FORWARDER" = "true" ]; then
+          install -D -m 0750 "$COCOS_DIR/build/cocos-log-forwarder" /usr/bin/log-forwarder
+      fi
+      if [ "$COCOS_INSTALL_COMPUTATION_RUNNER" = "true" ]; then
+          install -D -m 0750 "$COCOS_DIR/build/cocos-computation-runner" /usr/bin/computation-runner
+      fi
+      if [ "$COCOS_INSTALL_EGRESS_PROXY" = "true" ]; then
+          install -D -m 0755 "$COCOS_DIR/build/cocos-egress-proxy" /usr/bin/egress-proxy
+      fi
+      if [ "$COCOS_INSTALL_INGRESS_PROXY" = "true" ]; then
+          install -D -m 0750 "$COCOS_DIR/build/cocos-ingress-proxy" /usr/bin/ingress-proxy
+      fi
+      if [ "$COCOS_INSTALL_ATTESTATION_SERVICE" = "true" ]; then
+          install -D -m 0755 "$COCOS_DIR/build/cocos-attestation-service" /usr/bin/attestation-service
+      fi
+
+      if [ "$COCOS_INSTALL_CC_ATTESTATION_AGENT" = "true" ]; then
+          make -C "$GUEST_COMPONENTS_DIR/attestation-agent" ATTESTER=all-attesters ttrpc=false
+          install_release_binary "$GUEST_COMPONENTS_DIR" attestation-agent /usr/bin/attestation-agent 0755
+      fi
+
+      if [ "$COCOS_INSTALL_COCO_KEYPROVIDER" = "true" ]; then
+          cargo build --manifest-path "$GUEST_COMPONENTS_DIR/attestation-agent/coco_keyprovider/Cargo.toml" --release
+          install_release_binary "$GUEST_COMPONENTS_DIR" coco_keyprovider /usr/local/bin/coco_keyprovider 0755
+      fi
+
+      if [ "$COCOS_INSTALL_WASMEDGE" = "true" ]; then
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr -v 0.14.1
+          if ! grep -qxF 'source /usr/env' /etc/profile; then
+              echo 'source /usr/env' >> /etc/profile
+          fi
+      fi
+
+      enable_units=()
+      restart_units=()
+
+      systemctl daemon-reload
+
+      if [ "$COCOS_INSTALL_LOG_FORWARDER" = "true" ]; then
+          enable_units+=(log-forwarder.service)
+          restart_units+=(log-forwarder.service)
+      fi
+      if [ "$COCOS_INSTALL_EGRESS_PROXY" = "true" ]; then
+          enable_units+=(egress-proxy.service)
+          restart_units+=(egress-proxy.service)
+      fi
+      if [ "$COCOS_INSTALL_COMPUTATION_RUNNER" = "true" ]; then
+          enable_units+=(computation-runner.service)
+          restart_units+=(computation-runner.service)
+      fi
+      if [ "$COCOS_INSTALL_CC_ATTESTATION_AGENT" = "true" ]; then
+          enable_units+=(attestation-agent.service)
+          restart_units+=(attestation-agent.service)
+      fi
+      if [ "$COCOS_INSTALL_ATTESTATION_SERVICE" = "true" ]; then
+          enable_units+=(attestation-service.service)
+          restart_units+=(attestation-service.service)
+      fi
+      if [ "$COCOS_INSTALL_COCO_KEYPROVIDER" = "true" ]; then
+          enable_units+=(coco-keyprovider.service)
+          restart_units+=(coco-keyprovider.service)
+      fi
+      if [ "$COCOS_INSTALL_AGENT" = "true" ]; then
+          enable_units+=(cocos-agent.service)
+          restart_units+=(cocos-agent.service)
+      fi
+
+      if [ "${#enable_units[@]}" -gt 0 ]; then
+          systemctl enable "${enable_units[@]}"
+      fi
+
+      if [ "${#restart_units[@]}" -gt 0 ]; then
+          systemctl restart "${restart_units[@]}"
+      fi
+
+runcmd:
+  - mkdir -p /cocos_init /etc/cocos /run/cocos /var/log/cocos /cocos
+  - sh /cocos_init/setup_9p_mounts.sh
+  - sh /cocos_init/expand_root_disk.sh
+  - bash /cocos_init/build_cocos_packages.sh
+
+final_message: "Cocos package services installed, 9P mounts prepared, and the root disk was resized if extra space was available."
+
+power_state:
+  delay: "now"
+  mode: poweroff
+  message: "Cloud-init provisioning finished. Powering off prepared qcow2 image."
+  timeout: 60
+  condition: true

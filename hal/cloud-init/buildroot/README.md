@@ -1,6 +1,6 @@
-# Hardware Abstraction Layer (HAL) for Confidential Computing
+# Buildroot External Tree for Cloud-Init
 
-Cocos HAL for Linux is framework for building custom in-enclave Linux distribution.
+Cocos HAL for Linux is framework for building custom in-enclave Linux distribution that can be used with disk.
 
 ## Usage
 
@@ -11,7 +11,7 @@ git clone git@github.com:ultravioletrs/cocos.git
 git clone git@github.com:buildroot/buildroot.git
 cd buildroot
 git checkout 2025.11
-make BR2_EXTERNAL=../cocos/hal/linux cocos_defconfig
+make BR2_EXTERNAL=../cocos/hal/cloud-init/buildroot cocos_defconfig
 # Execute 'make menuconfig' only if you want to make additional configuration changes to Buildroot.
 make menuconfig
 make
