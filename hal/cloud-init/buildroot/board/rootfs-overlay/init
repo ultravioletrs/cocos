@@ -36,6 +36,11 @@ fi
 mount -t sysfs -o nodev,noexec,nosuid sysfs /sys
 mount -t proc -o nodev,noexec,nosuid proc /proc
 
+mkdir -p /sys/kernel/config
+if ! grep -q ' /sys/kernel/config ' /proc/mounts; then
+    mount -t configfs configfs /sys/kernel/config 2>/dev/null || true
+fi
+
 mount -t devtmpfs -o nosuid,mode=0755 udev /dev
 mkdir /dev/pts
 mount -t devpts -o noexec,nosuid,gid=5,mode=0620 devpts /dev/pts || true
@@ -55,6 +60,36 @@ ROOTFS_TYPE="ext4"
 LUKS_PARAMS="--cipher aes-xts-plain64"
 HASH256=/hash_rootimg.sha256
 HASH384=/hash_rootimg.sha384
+
+vtpm_present() {
+    if ! command -v tpm2_pcrextend >/dev/null 2>&1; then
+        echo "[init] tpm2_pcrextend is not available, skipping PCR extension"
+        return 1
+    fi
+
+    for TPM_DEV in /dev/tpmrm[0-9]* /dev/tpm[0-9]*; do
+        [ -e "$TPM_DEV" ] || continue
+        [ -c "$TPM_DEV" ] || continue
+        echo "[init] Found TPM device: $TPM_DEV"
+        return 0
+    done
+
+    return 1
+}
+
+tdx_rtmr_present() {
+    if ! command -v tdx-rtmr-extend >/dev/null 2>&1; then
+        echo "[init] tdx-rtmr-extend is not available, skipping RTMR extension"
+        return 1
+    fi
+
+    if [ ! -d /sys/kernel/config/tsm/report ] || [ ! -d /sys/kernel/config/tsm/rtmrs ]; then
+        echo "[init] TDX configfs RTMR interface not present, skipping RTMR extension"
+        return 1
+    fi
+
+    return 0
+}
 
 # Parse kernel command line for src_ip, src_port
 # Example usage: append 'src_ip=10.172.192.30 src_port=10809'
@@ -187,19 +222,29 @@ DISK_HASH384=$(cut -d' ' -f1 "$HASH384")
 echo "[init] Computed SHA-256: $DISK_HASH256"
 echo "[init] Computed SHA-384: $DISK_HASH384"
 
-# Extend TPM PCR with disk hash
-if [ -e /dev/tpm0 ] && [ -e /dev/sev-guest ]; then
-    echo "[init] vTPM and SEV-SNP devices present, extending PCR16..."
-    
-    # Build the command with optional SHA-384
-    PCR_EXTEND_CMD="tpm2_pcrextend 16:sha256=$DISK_HASH256"
-    [ -n "$DISK_HASH384" ] && PCR_EXTEND_CMD="$PCR_EXTEND_CMD 16:sha384=$DISK_HASH384"
-    
-    eval "$PCR_EXTEND_CMD" || {
-        echo "[init] Warning: PCR extension failed"
-    }
+# Extend vTPM PCR with disk hash when a guest TPM is present.
+if vtpm_present; then
+    echo "[init] vTPM present, extending PCR16..."
+
+    if [ -n "$DISK_HASH384" ]; then
+        tpm2_pcrextend "16:sha256=$DISK_HASH256" "16:sha384=$DISK_HASH384" || {
+            echo "[init] Warning: PCR extension failed"
+        }
+    else
+        tpm2_pcrextend "16:sha256=$DISK_HASH256" || {
+            echo "[init] Warning: PCR extension failed"
+        }
+    fi
 else
-    echo "[init] vTPM or SEV-SNP device missing, skipping PCR extension"
+    echo "[init] vTPM not present, skipping PCR extension"
+fi
+
+# Extend TDX RTMR[3] with the copied disk SHA-384 digest when running in TDX.
+if tdx_rtmr_present; then
+    echo "[init] TDX RTMR interface present, extending RTMR3..."
+    tdx-rtmr-extend -rtmr 3 -sha384 "$DISK_HASH384" || {
+        echo "[init] Warning: RTMR3 extension failed"
+    }
 fi
 
 echo "[init] Triggering partition scan on $MAPPER..."
