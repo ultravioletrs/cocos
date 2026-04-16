@@ -1,0 +1,344 @@
+#!/bin/sh
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+if (exec 0</dev/console) 2>/dev/null; then
+    exec 0</dev/console
+    exec 1>/dev/console
+    exec 2>/dev/console
+fi
+
+[ -d /dev ] || mkdir -m 0755 /dev
+[ -d /etc ] || mkdir -m 0755 /etc
+[ -d /root ] || mkdir -m 0700 /root
+[ -d /run ] || mkdir -m 0755 /run
+[ -d /sys ] || mkdir /sys
+[ -d /proc ] || mkdir /proc
+[ -d /tmp ] || mkdir /tmp
+
+if [ -L /etc/resolv.conf ]; then
+    RESOLV_TARGET="$(readlink /etc/resolv.conf)"
+    case "$RESOLV_TARGET" in
+        /*)
+            RESOLV_PATH="$RESOLV_TARGET"
+            ;;
+        *)
+            RESOLV_PATH="/etc/$RESOLV_TARGET"
+            ;;
+    esac
+
+    mkdir -p "$(dirname "$RESOLV_PATH")"
+    [ -e "$RESOLV_PATH" ] || : > "$RESOLV_PATH"
+else
+    [ -e /etc/resolv.conf ] || : > /etc/resolv.conf
+fi
+
+mount -t sysfs -o nodev,noexec,nosuid sysfs /sys
+mount -t proc -o nodev,noexec,nosuid proc /proc
+
+mkdir -p /sys/kernel/config
+if ! grep -q ' /sys/kernel/config ' /proc/mounts; then
+    mount -t configfs configfs /sys/kernel/config 2>/dev/null || true
+fi
+
+mount -t devtmpfs -o nosuid,mode=0755 udev /dev
+mkdir /dev/pts
+mount -t devpts -o noexec,nosuid,gid=5,mode=0620 devpts /dev/pts || true
+
+MNT_DIR=/root
+BASE=$(pwd)
+
+SRC=/dev/nbd2
+DST=/dev/sda
+MAP="$(basename $DST)_crypt"
+MAPPER="/dev/mapper/$MAP"
+
+ROOT_PART=""
+ROOT_PART_CANDIDATE1="/dev/mapper/${MAP}p1"
+ROOT_PART_CANDIDATE2="/dev/mapper/${MAP}1"
+ROOTFS_TYPE="ext4"
+LUKS_PARAMS="--cipher aes-xts-plain64"
+HASH256=/hash_rootimg.sha256
+HASH384=/hash_rootimg.sha384
+
+vtpm_present() {
+    if ! command -v tpm2_pcrextend >/dev/null 2>&1; then
+        echo "[init] tpm2_pcrextend is not available, skipping PCR extension"
+        return 1
+    fi
+
+    for TPM_DEV in /dev/tpmrm[0-9]* /dev/tpm[0-9]*; do
+        [ -e "$TPM_DEV" ] || continue
+        [ -c "$TPM_DEV" ] || continue
+        echo "[init] Found TPM device: $TPM_DEV"
+        return 0
+    done
+
+    return 1
+}
+
+tdx_rtmr_present() {
+    if ! command -v tdx-rtmr-extend >/dev/null 2>&1; then
+        echo "[init] tdx-rtmr-extend is not available, skipping RTMR extension"
+        return 1
+    fi
+
+    if [ ! -d /sys/kernel/config/tsm/report ] || [ ! -d /sys/kernel/config/tsm/rtmrs ]; then
+        echo "[init] TDX configfs RTMR interface not present, skipping RTMR extension"
+        return 1
+    fi
+
+    return 0
+}
+
+# Parse kernel command line for src_ip, src_port
+# Example usage: append 'src_ip=10.172.192.30 src_port=10809'
+SRC_IP=""
+SRC_PORT="10809"
+
+for param in $(cat /proc/cmdline); do
+    case "$param" in
+        src_ip=*)
+            SRC_IP="${param#src_ip=}"
+            ;;
+        src_port=*)
+            SRC_PORT="${param#src_port=}"
+            ;;
+    esac
+done
+
+# Validate required parameters
+if [ -z "$SRC_IP" ]; then
+    echo "[init] FATAL: src_ip not provided in kernel command line"
+    echo "[init] Usage: append 'src_ip=10.172.192.30' to kernel cmdline"
+    echo "[init] Dropping to shell."
+    exec /bin/sh
+fi
+
+echo "[init] Starting disk encryption..."
+echo "[init] Source IP: $SRC_IP"
+echo "[init] Source Port: $SRC_PORT"
+
+echo "[init] Assign IP address..."
+udhcpc || {
+    echo "[init] FATAL: Failed to obtain IP address"
+    exec /bin/sh
+}
+
+echo "[init] Connecting NBD service..."
+timeout 30 nbd-client -N src "$SRC_IP" "$SRC_PORT" "$SRC" || {
+    echo "[init] FATAL: NBD connection failed or timed out"
+    exec /bin/sh
+}
+
+echo "[init] Generating keyslot key..."
+dd if=/dev/urandom of=kk.bin bs=64 count=1 || {
+    echo "[init] FATAL: Failed to generate encryption key"
+    nbd-client -d "$SRC" 2>/dev/null
+    exec /bin/sh
+}
+KK_BIN=$BASE/kk.bin
+
+echo "[init] Creating LUKS container and opening it..."
+cryptsetup luksFormat "$DST" --type luks2 $LUKS_PARAMS --key-file="$KK_BIN" -q || {
+    echo "[init] FATAL: LUKS format failed"
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    nbd-client -d "$SRC" 2>/dev/null
+    exec /bin/sh
+}
+
+cryptsetup open "$DST" "$MAP" --key-file="$KK_BIN" || {
+    echo "[init] FATAL: Failed to open LUKS container"
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    nbd-client -d "$SRC" 2>/dev/null
+    exec /bin/sh
+}
+
+echo "[clone] Copying raw blocks from $SRC → $MAPPER ..."
+
+# Copy the data
+dd if="$SRC" bs=16M iflag=fullblock of="$MAPPER" oflag=direct conv=fsync || {
+    echo "[init] FATAL: Disk copy failed"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    nbd-client -d "$SRC" 2>/dev/null
+    exec /bin/sh
+}
+
+sync
+
+# Hash the destination in a single pass.
+echo "[init] Computing SHA-256 and SHA-384..."
+HASH256_PIPE="$BASE/hash256.pipe"
+HASH384_PIPE="$BASE/hash384.pipe"
+
+rm -f "$HASH256_PIPE" "$HASH384_PIPE"
+mkfifo "$HASH256_PIPE" "$HASH384_PIPE" || {
+    echo "[init] FATAL: Failed to create hash FIFOs"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+sha256sum < "$HASH256_PIPE" | cut -d' ' -f1 > "$HASH256" &
+SHA256_PID=$!
+sha384sum < "$HASH384_PIPE" | cut -d' ' -f1 > "$HASH384" &
+SHA384_PID=$!
+
+dd if="$MAPPER" bs=16M iflag=fullblock 2>/dev/null | tee "$HASH256_PIPE" "$HASH384_PIPE" > /dev/null || {
+    echo "[init] FATAL: Failed while hashing destination"
+    kill "$SHA256_PID" "$SHA384_PID" 2>/dev/null || true
+    rm -f "$HASH256_PIPE" "$HASH384_PIPE"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+wait "$SHA256_PID" || {
+    echo "[init] FATAL: SHA-256 computation failed"
+    rm -f "$HASH256_PIPE" "$HASH384_PIPE"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+wait "$SHA384_PID" || {
+    echo "[init] FATAL: SHA-384 computation failed"
+    rm -f "$HASH256_PIPE" "$HASH384_PIPE"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+rm -f "$HASH256_PIPE" "$HASH384_PIPE"
+
+echo "[init] Disconnecting NBD..."
+nbd-client -d "$SRC" 2>&1 || echo "[init] Warning: NBD disconnect failed"
+
+# Extract and verify hashes
+DISK_HASH256=$(cut -d' ' -f1 "$HASH256")
+DISK_HASH384=$(cut -d' ' -f1 "$HASH384")
+
+echo "[init] Computed SHA-256: $DISK_HASH256"
+echo "[init] Computed SHA-384: $DISK_HASH384"
+
+# Extend vTPM PCR with disk hash when a guest TPM is present.
+if vtpm_present; then
+    echo "[init] vTPM present, extending PCR16..."
+
+    if [ -n "$DISK_HASH384" ]; then
+        tpm2_pcrextend "16:sha256=$DISK_HASH256" "16:sha384=$DISK_HASH384" || {
+            echo "[init] Warning: PCR extension failed"
+        }
+    else
+        tpm2_pcrextend "16:sha256=$DISK_HASH256" || {
+            echo "[init] Warning: PCR extension failed"
+        }
+    fi
+else
+    echo "[init] vTPM not present, skipping PCR extension"
+fi
+
+# Extend TDX RTMR[3] with the copied disk SHA-384 digest when running in TDX.
+if tdx_rtmr_present; then
+    echo "[init] TDX RTMR interface present, extending RTMR3..."
+    tdx-rtmr-extend -rtmr 3 -sha384 "$DISK_HASH384" || {
+        echo "[init] Warning: RTMR3 extension failed"
+    }
+fi
+
+echo "[init] Triggering partition scan on $MAPPER..."
+kpartx -av $MAPPER || {
+    echo "[init] FATAL: kpartx failed"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+# Wait for device to settle instead of arbitrary sleep
+echo "[init] Waiting for devices to settle..."
+if command -v udevadm >/dev/null 2>&1; then
+    udevadm settle --timeout=10 || sleep 2
+else
+    sleep 2
+fi
+
+# Detect root partition node created by kernel
+if [ -b "$ROOT_PART_CANDIDATE1" ]; then
+  ROOT_PART="$ROOT_PART_CANDIDATE1"
+elif [ -b "$ROOT_PART_CANDIDATE2" ]; then
+  ROOT_PART="$ROOT_PART_CANDIDATE2"
+else
+  echo "[init] Could not find root partition as ${ROOT_PART_CANDIDATE1} or ${ROOT_PART_CANDIDATE2}"
+  echo "[init] Available block devices:"
+  lsblk || ls -la /dev/mapper/ || true
+  echo "[init] Dropping to shell."
+  cryptsetup close "$MAP" 2>/dev/null
+  shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+  exec /bin/sh
+fi
+
+echo "[init] Using root partition: $ROOT_PART"
+
+echo "[init] Mounting $ROOT_PART to $MNT_DIR..."
+mount -t "$ROOTFS_TYPE" "$ROOT_PART" $MNT_DIR || {
+    echo "[init] FATAL: Failed to mount root partition"
+    cryptsetup close "$MAP" 2>/dev/null
+    shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+    exec /bin/sh
+}
+
+mount --move /proc $MNT_DIR/proc
+mount --move /sys $MNT_DIR/sys
+
+# Backup old fstab and create new one for encrypted root
+FSTAB="$MNT_DIR/etc/fstab"
+FSTAB_BAK="$MNT_DIR/etc/fstab.bak"
+
+mkdir -p "$MNT_DIR/etc/certs" "$MNT_DIR/etc/cocos"
+
+if [ -f "$FSTAB" ]; then
+    mv "$FSTAB" "$FSTAB_BAK"
+fi
+
+# Generate basic fstab for encrypted root
+cat > "$FSTAB" << EOF
+# Generated by init script for encrypted root
+$ROOT_PART / $ROOTFS_TYPE defaults 0 1
+EOF
+
+append_9p_entry() {
+    pattern="$1"
+    default_entry="$2"
+    existing_entry=""
+
+    if [ -f "$FSTAB_BAK" ]; then
+        existing_entry="$(grep -E "$pattern" "$FSTAB_BAK" | head -n 1 || true)"
+    fi
+
+    if [ -n "$existing_entry" ]; then
+        printf '%s\n' "$existing_entry" >> "$FSTAB"
+    else
+        printf '%s\n' "$default_entry" >> "$FSTAB"
+    fi
+}
+
+append_9p_entry \
+    '^certs_share[[:space:]]+/etc/certs[[:space:]]+9p([[:space:]]|$)' \
+    'certs_share /etc/certs 9p trans=virtio,version=9p2000.L,cache=mmap,nofail,_netdev 0 0'
+
+append_9p_entry \
+    '^env_share[[:space:]]+/etc/cocos[[:space:]]+9p([[:space:]]|$)' \
+    'env_share /etc/cocos 9p trans=virtio,version=9p2000.L,cache=mmap,nofail,_netdev 0 0'
+
+# Securely wipe the encryption key before switching root
+echo "[init] Securely wiping encryption key..."
+shred -vfz -n 3 "$KK_BIN" 2>/dev/null || dd if=/dev/zero of="$KK_BIN" bs=64 count=1
+rm -f "$KK_BIN"
+
+echo "[init] Switching to real root..."
+exec switch_root $MNT_DIR/ /sbin/init
+
+# If switch_root somehow returns:
+echo "[init] switch_root failed, dropping to shell"
+exec /bin/sh

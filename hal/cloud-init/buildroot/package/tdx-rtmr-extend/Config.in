@@ -1,0 +1,7 @@
+config BR2_PACKAGE_TDX_RTMR_EXTEND
+	bool "tdx-rtmr-extend"
+	depends on BR2_PACKAGE_HOST_GO_TARGET_ARCH_SUPPORTS
+	help
+	  Small helper used by the early initramfs to extend Intel TDX
+	  RTMR registers through Linux configfs-tsm using the
+	  github.com/google/go-tdx-guest RTMR library.
