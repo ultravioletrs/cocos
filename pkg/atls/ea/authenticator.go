@@ -347,18 +347,21 @@ func validateAuthenticator(session *Session, st *tls.ConnectionState, role Role,
 		Context: append([]byte(nil), certMsg.Context...),
 		Chain:   chain,
 	}
+	var verifierPolicy eaattestation.VerificationPolicy
+	// A nil attestation policy is intentional: VerifyPayload then fails closed
+	// for any payload that carries evidence or attestation results without
+	// explicit verifiers being configured.
+	if attPolicy != nil {
+		verifierPolicy = *attPolicy
+	}
+	if !present && verifierPolicy.RequiresAttestation() {
+		return nil, eaattestation.ErrMissingAttestation
+	}
 	if present {
 		res.CMWAttestation = extracted
 		parsed, err := eaattestation.ParsePayload(extracted)
 		if err != nil {
 			return nil, err
-		}
-		var verifierPolicy eaattestation.VerificationPolicy
-		// A nil attestation policy is intentional: VerifyPayload then fails closed
-		// for any payload that carries evidence or attestation results without
-		// explicit verifiers being configured.
-		if attPolicy != nil {
-			verifierPolicy = *attPolicy
 		}
 		verified, err := eaattestation.VerifyPayload(st, eaattestation.ExporterLabelAttestation, certMsg.Context, leaf, parsed, verifierPolicy)
 		if err != nil {

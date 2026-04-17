@@ -64,6 +64,8 @@ type acceptEvidenceVerifier struct{}
 
 func (acceptEvidenceVerifier) VerifyEvidence(evidence []byte) error { return nil }
 
+const alternateExporterLabel = "Attestation Binding"
+
 func TestDummyAttestationRoundTrip(t *testing.T) {
 	cert := selfSignedCert(t)
 	srv, cli := tlsPair(t, cert)
@@ -124,6 +126,63 @@ func TestDummyAttestationRoundTrip(t *testing.T) {
 	}
 	if res.Attestation == nil || !res.Attestation.BindingVerified || !res.Attestation.EvidenceVerified {
 		t.Fatalf("expected verified attestation result")
+	}
+}
+
+func TestDummyAttestationRoundTripRejectsAlternateExporterLabel(t *testing.T) {
+	cert := selfSignedCert(t)
+	srv, cli := tlsPair(t, cert)
+	defer srv.Close()
+	defer cli.Close()
+
+	ctx, _ := NewRandomContext(16)
+	req := &AuthenticatorRequest{
+		Type:    HandshakeTypeClientCertificateRequest,
+		Context: ctx,
+		Extensions: []Extension{
+			{Type: SignatureAlgorithmsExtensionType, Data: []byte{0x00, 0x02, 0x04, 0x03}},
+			CMWAttestationOfferExtension(),
+		},
+	}
+
+	leaf, _ := x509.ParseCertificate(cert.Certificate[0])
+	srvState := srv.ConnectionState()
+	_, aikPubHash, binding, err := attestation.ComputeBinding(&srvState, alternateExporterLabel, ctx, leaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payloadBytes, err := attestation.MarshalPayload(attestation.Payload{
+		Version:   1,
+		Evidence:  []byte("dummy-attestation-report"),
+		MediaType: "application/eat+cwt",
+		Binder: attestation.AttestationBinder{
+			ExporterLabel: alternateExporterLabel,
+			AIKPubHash:    aikPubHash,
+			Binding:       binding,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ext, err := CMWAttestationDataExtension(payloadBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	auth, err := CreateAuthenticator(&srvState, RoleServer, req, cert, []Extension{ext})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cliState := cli.ConnectionState()
+	roots := x509.NewCertPool()
+	roots.AddCert(leaf)
+
+	_, err = ValidateAuthenticatorWithAttestation(&cliState, RoleServer, req, auth, &x509.VerifyOptions{Roots: roots}, attestation.VerificationPolicy{
+		EvidenceVerifier: acceptEvidenceVerifier{},
+	})
+	if err != attestation.ErrUnexpectedExporterLabel {
+		t.Fatalf("got %v, want %v", err, attestation.ErrUnexpectedExporterLabel)
 	}
 }
 
@@ -196,6 +255,44 @@ func TestAttestationFailsClosedWithoutVerifier(t *testing.T) {
 	cliState := cli.ConnectionState()
 	if _, err := ValidateAuthenticator(&cliState, RoleServer, req, auth, nil); err != attestation.ErrEvidenceVerificationMissing {
 		t.Fatalf("got %v, want %v", err, attestation.ErrEvidenceVerificationMissing)
+	}
+}
+
+func TestValidateAuthenticatorRejectsMissingOfferedAttestation(t *testing.T) {
+	cert := selfSignedCert(t)
+	srv, cli := tlsPair(t, cert)
+	defer srv.Close()
+	defer cli.Close()
+
+	ctx, _ := NewRandomContext(16)
+	req := &AuthenticatorRequest{
+		Type:    HandshakeTypeClientCertificateRequest,
+		Context: ctx,
+		Extensions: []Extension{
+			{Type: SignatureAlgorithmsExtensionType, Data: []byte{0x00, 0x02, 0x04, 0x03}},
+			CMWAttestationOfferExtension(),
+		},
+	}
+
+	srvState := srv.ConnectionState()
+	auth, err := CreateAuthenticator(&srvState, RoleServer, req, cert, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cliState := cli.ConnectionState()
+	roots := x509.NewCertPool()
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(leaf)
+
+	_, err = ValidateAuthenticatorWithAttestation(&cliState, RoleServer, req, auth, &x509.VerifyOptions{Roots: roots}, attestation.VerificationPolicy{
+		EvidenceVerifier: acceptEvidenceVerifier{},
+	})
+	if err != attestation.ErrMissingAttestation {
+		t.Fatalf("got %v, want %v", err, attestation.ErrMissingAttestation)
 	}
 }
 

@@ -22,15 +22,27 @@ type VerificationPolicy struct {
 	ResultsVerifier  ResultsVerifier
 }
 
+func (p VerificationPolicy) RequiresAttestation() bool {
+	return p.EvidenceVerifier != nil || p.ResultsVerifier != nil
+}
+
 func VerifyPayload(st *tls.ConnectionState, defaultLabel string, certificateRequestContext []byte, leaf *x509.Certificate, payload *Payload, policy VerificationPolicy) (*VerifiedPayload, error) {
 	if err := payload.Validate(); err != nil {
+		return nil, err
+	}
+	if err := payload.VerifyExporterLabel(defaultLabel); err != nil {
 		return nil, err
 	}
 
 	verified := &VerifiedPayload{
 		Payload:           payload,
-		UsedExporterLabel: payload.NormalizedExporterLabel(defaultLabel),
+		UsedExporterLabel: defaultLabel,
 	}
+
+	if err := VerifyBinder(st, verified.UsedExporterLabel, certificateRequestContext, leaf, payload.Binder); err != nil {
+		return nil, err
+	}
+	verified.BindingVerified = true
 
 	if len(payload.Evidence) > 0 && policy.EvidenceVerifier != nil {
 		if err := policy.EvidenceVerifier.VerifyEvidence(payload.Evidence); err != nil {
@@ -48,10 +60,6 @@ func VerifyPayload(st *tls.ConnectionState, defaultLabel string, certificateRequ
 	} else if len(payload.AttestationResults) > 0 {
 		return nil, ErrResultsVerificationMissing
 	}
-	if err := VerifyBinder(st, verified.UsedExporterLabel, certificateRequestContext, leaf, payload.Binder); err != nil {
-		return nil, err
-	}
-	verified.BindingVerified = true
 	return verified, nil
 }
 

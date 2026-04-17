@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+const alternateExporterLabel = "Attestation Binding"
+
 type stubEvidenceVerifier struct {
 	called bool
 	err    error
@@ -175,6 +177,37 @@ func TestVerifyPayloadSuccess(t *testing.T) {
 	}
 }
 
+func TestVerifyPayloadRejectsAlternateExporterLabel(t *testing.T) {
+	cert, leaf := makeCert(t)
+	srv, cli := tls13Client(t, cert)
+	defer srv.Close()
+	defer cli.Close()
+
+	st := cli.ConnectionState()
+	ctx := []byte{1, 2, 3, 4}
+	_, aik, binding, err := ComputeBinding(&st, alternateExporterLabel, ctx, leaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	payload := &Payload{
+		Version:  1,
+		Evidence: []byte("evidence"),
+		Binder: AttestationBinder{
+			ExporterLabel: alternateExporterLabel,
+			AIKPubHash:    aik,
+			Binding:       binding,
+		},
+	}
+
+	_, err = VerifyPayload(&st, ExporterLabelAttestation, ctx, leaf, payload, VerificationPolicy{
+		EvidenceVerifier: &stubEvidenceVerifier{},
+	})
+	if err != ErrUnexpectedExporterLabel {
+		t.Fatalf("got %v, want %v", err, ErrUnexpectedExporterLabel)
+	}
+}
+
 func TestVerifyBinderRejectsMismatch(t *testing.T) {
 	cert, leaf := makeCert(t)
 	srv, cli := tls13Client(t, cert)
@@ -195,5 +228,41 @@ func TestVerifyBinderRejectsMismatch(t *testing.T) {
 	})
 	if err != ErrBindingMismatch {
 		t.Fatalf("got %v, want %v", err, ErrBindingMismatch)
+	}
+}
+
+func TestVerifyPayloadRejectsBadBinderBeforeEvidenceVerification(t *testing.T) {
+	cert, leaf := makeCert(t)
+	srv, cli := tls13Client(t, cert)
+	defer srv.Close()
+	defer cli.Close()
+
+	st := cli.ConnectionState()
+	ctx := []byte{1, 2, 3, 4}
+	_, aik, binding, err := ComputeBinding(&st, ExporterLabelAttestation, ctx, leaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding[0] ^= 0xff
+
+	ev := &stubEvidenceVerifier{}
+	payload := &Payload{
+		Version:  1,
+		Evidence: []byte("evidence"),
+		Binder: AttestationBinder{
+			ExporterLabel: ExporterLabelAttestation,
+			AIKPubHash:    aik,
+			Binding:       binding,
+		},
+	}
+
+	_, err = VerifyPayload(&st, ExporterLabelAttestation, ctx, leaf, payload, VerificationPolicy{
+		EvidenceVerifier: ev,
+	})
+	if err != ErrBindingMismatch {
+		t.Fatalf("got %v, want %v", err, ErrBindingMismatch)
+	}
+	if ev.called {
+		t.Fatalf("evidence verifier should not be called before binder verification succeeds")
 	}
 }

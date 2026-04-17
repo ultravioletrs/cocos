@@ -3,19 +3,22 @@
 
 package ea
 
-const CMWAttestationExtensionType uint16 = 0xFF00
+const (
+	CMWAttestationExtensionType uint16 = 0xFF00
+	cmwAttestationLengthBytes          = 2
+)
 
 func CMWAttestationOfferExtension() Extension {
 	return Extension{Type: CMWAttestationExtensionType, Data: nil}
 }
 
 func CMWAttestationDataExtension(cmw []byte) (Extension, error) {
-	if len(cmw) == 0 || len(cmw) > 0xFFFF {
+	if len(cmw) == 0 || len(cmw)+cmwAttestationLengthBytes > 0xFFFF {
 		return Extension{}, ErrInvalidLength
 	}
-	data := make([]byte, 2+len(cmw))
+	data := make([]byte, cmwAttestationLengthBytes+len(cmw))
 	putUint16(data[0:2], uint16(len(cmw)))
-	copy(data[2:], cmw)
+	copy(data[cmwAttestationLengthBytes:], cmw)
 	return Extension{Type: CMWAttestationExtensionType, Data: data}, nil
 }
 

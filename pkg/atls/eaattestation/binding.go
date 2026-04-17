@@ -12,11 +12,9 @@ import (
 )
 
 const (
-	ExporterLabelAttestation        = "Attestation"
-	ExporterLabelAttestationBinding = "Attestation Binding"
+	ExporterLabelAttestation    = "Attestation"
+	ExportedAttestationValueLen = 32
 )
-
-const ExportedAttestationValueLen = 32
 
 var errNotTLS13 = errors.New("attestation: not TLS 1.3")
 
