@@ -168,6 +168,9 @@ func Server(tlsConn *tls.Conn, cfg *ServerConfig) (*Conn, error) {
 	if len(rest) != 0 {
 		return nil, fmt.Errorf("atls: trailing request bytes")
 	}
+	if cfg.BuildLeafExtensions != nil && !ea.RequestPermitsCertificateExtension(&req, ea.CMWAttestationExtensionType) {
+		return nil, fmt.Errorf("atls: cmw_attestation extension not offered")
+	}
 
 	st := tlsConn.ConnectionState()
 	identity, err := resolveIdentity(cfg)

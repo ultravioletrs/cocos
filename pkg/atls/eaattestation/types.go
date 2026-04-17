@@ -14,6 +14,8 @@ var (
 	ErrMissingBinder               = errors.New("attestation: missing attestation binder")
 	ErrAIKPubHashMismatch          = errors.New("attestation: AIK public key hash mismatch")
 	ErrBindingMismatch             = errors.New("attestation: attestation binding mismatch")
+	ErrUnexpectedExporterLabel     = errors.New("attestation: unexpected exporter label")
+	ErrMissingAttestation          = errors.New("attestation: missing attestation payload")
 	ErrEvidenceVerificationMissing = errors.New("attestation: evidence verifier not configured")
 	ErrResultsVerificationMissing  = errors.New("attestation: attestation results verifier not configured")
 )
@@ -60,6 +62,16 @@ func (p *Payload) NormalizedExporterLabel(defaultLabel string) string {
 		return defaultLabel
 	}
 	return p.Binder.ExporterLabel
+}
+
+func (p *Payload) VerifyExporterLabel(expectedLabel string) error {
+	if p == nil {
+		return ErrMalformedPayload
+	}
+	if p.Binder.ExporterLabel != "" && p.Binder.ExporterLabel != expectedLabel {
+		return ErrUnexpectedExporterLabel
+	}
+	return nil
 }
 
 func MarshalPayload(p Payload) ([]byte, error) {
