@@ -16,12 +16,11 @@ The connection to the Manager is configured via the standard `AGENT_CVM_GRPC_*` 
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `AGENT_CVM_GRPC_HOST` | Manager gRPC host | `""` |
-| `AGENT_CVM_GRPC_PORT` | Manager gRPC port | `7001` |
-| `AGENT_CVM_GRPC_SERVER_CERT` | Path to Manager gRPC server certificate (PEM) | `""` |
-| `AGENT_CVM_GRPC_SERVER_KEY` | Path to Manager gRPC server key (PEM) | `""` |
-| `AGENT_CVM_GRPC_SERVER_CA_CERTS` | Path to Manager gRPC CA certificate | `""` |
-| `AGENT_CVM_GRPC_CLIENT_CA_CERTS` | Path to Manager gRPC client CA certificate | `""` |
+| `AGENT_CVM_GRPC_URL` | Manager gRPC endpoint | `localhost:7001` |
+| `AGENT_CVM_GRPC_TIMEOUT` | Timeout for Manager gRPC requests | `60s` |
+| `AGENT_CVM_GRPC_CLIENT_CERT` | Path to client certificate (PEM) used when connecting to the Manager | `""` |
+| `AGENT_CVM_GRPC_CLIENT_KEY` | Path to client key (PEM) used when connecting to the Manager | `""` |
+| `AGENT_CVM_GRPC_SERVER_CA_CERTS` | Path to CA bundle used to verify the Manager | `""` |
 
 ## Deployment
 

@@ -12,21 +12,26 @@ The service is configured using environment variables. Unset variables fall back
 | --- | --- | --- |
 | `AGENT_LOG_LEVEL` | Log level (`debug`, `info`, `warn`, `error`) | `debug` |
 | `AGENT_VMPL` | Virtual Machine Privilege Level for AMD SEV-SNP attestation (0–3) | `2` |
-| `AGENT_GRPC_HOST` | gRPC server listen address | `0.0.0.0` |
-| `AGENT_CVM_GRPC_HOST` | gRPC host reported to the Manager | `""` |
-| `AGENT_CVM_GRPC_PORT` | gRPC listen port | `7001` |
+| `AGENT_GRPC_HOST` | Agent gRPC listen target. `0.0.0.0` uses the default Unix socket at `/run/cocos/agent.sock`; set a TCP address such as `127.0.0.1:7002` to listen on TCP instead | `0.0.0.0` |
 | `AGENT_CVM_ID` | Unique identifier for this CVM | `""` |
 | `AGENT_CERTS_TOKEN` | Authentication token for the certificate service | `""` |
-| `AGENT_ENABLE_ATLS` | Enable Attestation TLS for secure communication | `true` |
+
+### Manager gRPC Client
+
+These variables are parsed from `clients.StandardClientConfig` with the `AGENT_CVM_GRPC_` prefix. They configure how the Agent connects back to the Manager/CVM control stream.
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `AGENT_CVM_GRPC_URL` | Manager gRPC endpoint | `localhost:7001` |
+| `AGENT_CVM_GRPC_TIMEOUT` | Timeout for Manager gRPC requests | `60s` |
+| `AGENT_CVM_GRPC_CLIENT_CERT` | Path to client certificate (PEM) used when connecting to the Manager | `""` |
+| `AGENT_CVM_GRPC_CLIENT_KEY` | Path to client key (PEM) used when connecting to the Manager | `""` |
+| `AGENT_CVM_GRPC_SERVER_CA_CERTS` | Path to CA bundle used to verify the Manager | `""` |
 
 ### TLS / Certificates
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `AGENT_CVM_GRPC_SERVER_CERT` | Path to gRPC server certificate (PEM) | `""` |
-| `AGENT_CVM_GRPC_SERVER_KEY` | Path to gRPC server key (PEM) | `""` |
-| `AGENT_CVM_GRPC_SERVER_CA_CERTS` | Path to gRPC server CA certificate | `""` |
-| `AGENT_CVM_GRPC_CLIENT_CA_CERTS` | Path to gRPC client CA certificate | `""` |
 | `AGENT_CVM_CA_URL` | CA service URL for certificate generation (used with aTLS) | `""` |
 
 ### Attestation
@@ -56,7 +61,9 @@ The Agent can download encrypted algorithms and datasets from remote registries 
 
 ### gRPC
 
-The Agent exposes a gRPC API on port `7001` (configurable via `AGENT_CVM_GRPC_PORT`).
+The Agent's internal gRPC server listens on the Unix socket `/run/cocos/agent.sock` by default. If `AGENT_GRPC_HOST` is set to a TCP address such as `127.0.0.1:7002`, it listens there instead.
+
+When computations are exposed outside the CVM, that traffic is typically served through the ingress proxy on port `7002`.
 
 | Service | Method | Description |
 | --- | --- | --- |
@@ -76,7 +83,8 @@ make agent
 
 # Run with minimal configuration
 AGENT_LOG_LEVEL=info \
-AGENT_CVM_GRPC_PORT=7002 \
+AGENT_GRPC_HOST=127.0.0.1:7002 \
+AGENT_CVM_GRPC_URL=localhost:7001 \
 ./build/cocos-agent
 ```
 
@@ -91,7 +99,10 @@ Upload an algorithm, upload a dataset, then retrieve the result using the CLI:
 openssl genpkey -algorithm ed25519 -out private.pem
 openssl pkey -in private.pem -pubout -out public.pem
 
-# Upload the algorithm (agent address defaults to localhost:7002)
+# Point the CLI at the Agent ingress endpoint
+export AGENT_GRPC_URL=localhost:7002
+
+# Upload the algorithm
 ./build/cocos-cli algo ./my_algorithm.py private.pem \
   --algorithm python \
   --requirements ./requirements.txt
