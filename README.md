@@ -1,80 +1,145 @@
 <div align="center">
 
-# Cocos AI 🥥
+# Cocos AI
 
 **Confidential Computing System for AI**
 
-**Made with ❤️ by [Ultraviolet](https://ultraviolet.rs/)**
+Made with ❤️ by [Ultraviolet](https://ultraviolet.rs/)
 
+[![CI](https://github.com/ultravioletrs/cocos/actions/workflows/main.yaml/badge.svg)](https://github.com/ultravioletrs/cocos/actions/workflows/main.yaml)
 [![codecov](https://codecov.io/gh/ultravioletrs/cocos/graph/badge.svg?token=HX01LR01K9)](https://codecov.io/gh/ultravioletrs/cocos)
-[![Go report card](https://goreportcard.com/badge/github.com/ultravioletrs/cocos)](https://goreportcard.com/report/github.com/ultravioletrs/cocos)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ultravioletrs/cocos)](https://goreportcard.com/report/github.com/ultravioletrs/cocos)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-### [Guide](https://docs.cocos.ultraviolet.rs) | [Contributing](CONTRIBUTING.md) | [Website](https://cocos.ai/)
+[Documentation](https://docs.cocos.ultraviolet.rs) | [Contributing](CONTRIBUTING.md) | [Website](https://cocos.ai/)
 
 </div>
 
-## Introduction 🚀
+## Overview
 
-Cocos AI is a **cutting-edge platform** designed to enable secure multiparty computation (SMPC) using **Confidential Computing** and **Trusted Execution Environments (TEEs)**.
-
-It empowers organizations to collaboratively process sensitive data for AI/ML workloads while ensuring:
-
-- 🔒 **Data Privacy**: Your data stays encrypted and secure throughout the computation.
-- 🛡️ **Trust and Integrity**: Protected by hardware enclaves with robust remote attestation protocols.
-- 🤝 **Seamless Collaboration**: Multiple organizations can work together without exposing sensitive information.
+Cocos AI is a platform for secure multiparty computation (SMPC) using **Confidential Computing** and **Trusted Execution Environments (TEEs)**. It enables organizations to collaboratively run AI/ML workloads on sensitive data while cryptographically guaranteeing that data remains private and computation results are trustworthy.
 
 <p align="center">
-  <img src="https://cocos.ai/images/Collaborative%20AI.drawio.svg" alt="Cocos AI Illustration" width="400" height="400">
+  <img src="https://cocos.ai/images/Collaborative%20AI.drawio.svg" alt="Cocos AI Architecture" width="500">
 </p>
 
-## Features 🛠️
+## Features
 
-Cocos AI provides essential features for secure and efficient collaborative AI/ML:
+- 🖥️ **TEE Enablement and Monitoring** — Deploy and monitor workloads inside AMD SEV-SNP and Intel TDX enclaves
+- 🛡️ **Hardware Abstraction Layer (HAL)** — Hardened Linux kernel, secure bootloader, and minimal root filesystem (minimal TCB)
+- 🕵️ **In-Enclave Agent** — System software managing secure workloads and networking inside the CVM
+- 🔒 **Encrypted Data Transfer** — Asynchronous upload and result delivery with end-to-end encryption
+- ✅ **Remote Attestation** — Hardware- and software-backed attestation with SEV-SNP, TDX, vTPM, and Azure MAA support
+- 🤝 **Multi-Party Computation** — Multiple data owners can contribute without exposing raw data to each other or the operator
+- 🛠️ **Programmatic API** — gRPC and HTTP APIs for full workload lifecycle management
+- 🖱️ **CLI** — Command-line interface for attestation, algorithm/dataset upload, and result retrieval
+- 📦 **OCI Support** — Run container workloads as confidential computations
+- 📡 **Proxy Networking** — Ingress and egress proxy services with allowlist-based network control
+- 📊 **Observability** — OpenTelemetry tracing (Jaeger), structured logging, and Prometheus/Grafana monitoring
 
-- 🖥️ **TEE Enablement and Monitoring**: Secure VM management for deploying and monitoring workloads.
-- 🛡️ **Hardware Abstraction Layer (HAL)**: Built on a hardened Linux kernel, secure bootloader, and minimal root filesystem (minimal TCB).
-- 🕵️ **In-Enclave Agent and Networking Controller**: Essential system software for managing secure workloads.
-- 🔒 **Encrypted Data Transfer**: Asynchronous data transfer and secure result delivery.
-- 🛠️ **API for Platform Manipulation**: Programmatic control for managing workloads.
-- ✅ **Attestation and Verification Tools**: Hardware- and software-supported attestation for integrity assurance.
-- 🖱️ **Command-Line Interface (CLI)**: A user-friendly CLI for system interaction.
+## Architecture
 
-## 🚀 Quick Start
+Cocos consists of three primary binaries and five supporting services:
 
-### Clone the Repository and Build Binaries
+| Component | Role | Default Port | README |
+| --- | --- | --- | --- |
+| `cocos-manager` | Orchestrates VM lifecycle on the TEE host; accepts workload requests | gRPC `7001`, HTTP `7003` | [manager/README.md](manager/README.md) |
+| `cocos-agent` | Runs inside the CVM; accepts algorithm/dataset uploads and executes computations | gRPC `7002` | [agent/README.md](agent/README.md) |
+| `cocos-cli` | Client tool for operators and data owners | — | [cli/README.md](cli/README.md) |
+| `attestation-service` | Retrieves and wraps hardware attestation reports (SEV-SNP, TDX, vTPM) | Unix socket `/run/cocos/attestation.sock` | [cmd/attestation-service/README.md](cmd/attestation-service/README.md) |
+| `computation-runner` | Executes computation payloads (binary, Python, WASM, Docker) | Unix socket `/run/cocos/runner.sock` | [cmd/computation-runner/README.md](cmd/computation-runner/README.md) |
+| `egress-proxy` | Controls outbound network access from inside the CVM | `3128` | [cmd/egress-proxy/README.md](cmd/egress-proxy/README.md) |
+| `ingress-proxy` | Controls inbound network access into the CVM with aTLS | — | [cmd/ingress-proxy/README.md](cmd/ingress-proxy/README.md) |
+| `log-forwarder` | Collects logs from in-CVM services and forwards them to the Manager | Unix socket `/run/cocos/log.sock` | [cmd/log-forwarder/README.md](cmd/log-forwarder/README.md) |
+
+The HAL provides the in-enclave OS:
+
+| Component | Role | README |
+| --- | --- | --- |
+| HAL Linux | Buildroot-based custom in-enclave Linux distribution | [hal/linux/README.md](hal/linux/README.md) |
+| HAL Cloud | Cloud-init setup for Ubuntu-based agent deployment | [hal/cloud/README.md](hal/cloud/README.md) |
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.22+
+- Linux x86-64 host
+- For hardware TEE: AMD EPYC processor with SEV-SNP support **or** Intel TDX-capable CPU
+- QEMU-KVM (for Manager): `sudo apt install qemu-kvm`
+
+### Build
+
 ```bash
 git clone git@github.com:ultravioletrs/cocos.git
+cd cocos
 make
 ```
 
-This will generate three binaries:
-```bash
-ls build/
-# cocos-agent  cocos-cli  cocos-manager
+This produces three binaries in `build/`:
+
+```text
+build/
+├── cocos-agent      # In-enclave agent
+├── cocos-cli        # CLI tool
+└── cocos-manager    # Host-side workload orchestrator
 ```
 
-### Deployment Overview:
-- **Manager**: Deploy on the AMD SEV-SNP host to orchestrate workloads.
-- **Agent**: Build into the [EOS](https://github.com/ultravioletrs/eos)-based HAL for secure enclave management.
-- **CLI**: Interact with remote agents to control operations.
+To build individual components:
 
-## 📚 Documentation
+```bash
+make manager
+make agent
+make cli
+```
 
-Comprehensive documentation is available at the [official documentation page](https://docs.cocos.ultraviolet.rs).  
-For CLI usage details, visit the [CLI Documentation](https://docs.cocos.ultraviolet.rs/cli).
+### Deployment Overview
 
-Documentation is automatically generated from the [docs repository](https://github.com/ultravioletrs/docs). Contributions to documentation are welcome!
+**Manager** runs on the AMD SEV-SNP or Intel TDX host and manages VM lifecycle:
 
-## 🛡️ License
+```bash
+# Basic start (KVM, no hardware TEE)
+./build/cocos-manager
 
-Cocos AI is published under the permissive open-source [Apache-2.0](LICENSE) license. Contributions are encouraged and appreciated!
+# AMD SEV-SNP
+MANAGER_QEMU_ENABLE_SEV_SNP=true \
+MANAGER_QEMU_IGVM_FILE=/etc/cocos/coconut-qemu.igvm \
+MANAGER_QEMU_BIN_PATH=/usr/bin/qemu-system-x86_64 \
+./build/cocos-manager
 
-## 🌐 Links and Resources
+# Intel TDX
+MANAGER_QEMU_ENABLE_TDX=true \
+MANAGER_QEMU_CPU=host \
+MANAGER_QEMU_OVMF_FILE=/path/to/OVMF.fd \
+MANAGER_QEMU_BIN_PATH=/usr/bin/qemu-system-x86_64 \
+./build/cocos-manager
+```
 
-- [Cocos AI Website](https://cocos.ai/)
-- [Official Releases](https://github.com/ultravioletrs/cocos/releases)
-- [Confidential Computing Overview](https://confidentialcomputing.io/white-papers-reports/)
-- [Trusted Execution Environments (TEEs)](https://en.wikipedia.org/wiki/Trusted_execution_environment)
+**Agent** is built into the [EOS](https://github.com/ultravioletrs/eos)-based HAL and starts automatically inside the CVM.
 
->This work has been partially supported by the [ELASTIC](https://elasticproject.eu/) and [CONFIDENTIAL6G](https://confidential6g.eu/), which received funding from the Smart Networks and Services Joint Undertaking (SNS JU) under the European Union’s Horizon Europe research and innovation programme under [Grant Agreement No. 101139067](https://cordis.europa.eu/project/id/101139067) and [Grant Agreement No. 101096435](https://cordis.europa.eu/project/id/101096435). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union. Neither the European Union nor the granting authority can be held responsible for them.
+**CLI** connects to a running Agent or Manager:
+
+```bash
+# Upload an algorithm and retrieve the result
+./build/cocos-cli algo /path/to/algorithm private_key.pem
+./build/cocos-cli result private_key.pem
+```
+
+## Documentation
+
+Full documentation is available at [docs.cocos.ultraviolet.rs](https://docs.cocos.ultraviolet.rs).
+
+- [CLI Reference](https://docs.cocos.ultraviolet.rs/cli)
+- [Documentation source](https://github.com/ultravioletrs/docs)
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## License
+
+Cocos AI is published under the [Apache-2.0](LICENSE) license.
+
+## Acknowledgements
+
+> This work has been partially supported by the [ELASTIC](https://elasticproject.eu/) and [CONFIDENTIAL6G](https://confidential6g.eu/) projects, which received funding from the Smart Networks and Services Joint Undertaking (SNS JU) under the European Union's Horizon Europe research and innovation programme under [Grant Agreement No. 101139067](https://cordis.europa.eu/project/id/101139067) and [Grant Agreement No. 101096435](https://cordis.europa.eu/project/id/101096435). Views and opinions expressed are those of the author(s) only and do not necessarily reflect those of the European Union or the granting authority.
