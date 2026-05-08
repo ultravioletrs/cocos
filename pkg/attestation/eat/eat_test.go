@@ -202,3 +202,24 @@ func TestNewEATClaims_Platforms(t *testing.T) {
 		})
 	}
 }
+
+func TestNewEATClaims_WithGPU(t *testing.T) {
+	gpuEvidence := &GPUExtensions{
+		Vendor:         "nvidia",
+		EvidenceFormat: "nvat-json",
+		Nonce:          []byte("gpu-nonce"),
+		EvidenceJSON:   []byte(`{"evidence":"gpu"}`),
+	}
+
+	claims, err := NewEATClaims(
+		[]byte("dummy report"),
+		[]byte("12345678"),
+		attestation.NoCC,
+		WithGPU(gpuEvidence),
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims.GPUExtensions)
+	assert.Equal(t, gpuEvidence, claims.GPUExtensions)
+	assert.Contains(t, claims.Submods, "gpu")
+	assert.Equal(t, gpuEvidence, claims.Submods["gpu"])
+}

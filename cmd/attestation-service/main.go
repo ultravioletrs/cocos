@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	mglog "github.com/absmach/supermq/logger"
 	"github.com/caarlos0/env/v11"
@@ -22,6 +23,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/azure"
 	"github.com/ultravioletrs/cocos/pkg/attestation/ccaa"
 	"github.com/ultravioletrs/cocos/pkg/attestation/eat"
+	attestationgpu "github.com/ultravioletrs/cocos/pkg/attestation/gpu"
 	"github.com/ultravioletrs/cocos/pkg/attestation/tdx"
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	logclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/log"
@@ -35,16 +37,29 @@ const (
 )
 
 type config struct {
-	LogLevel              string `env:"ATTESTATION_LOG_LEVEL"    envDefault:"debug"`
-	Vmpl                  int    `env:"ATTESTATION_VMPL"         envDefault:"2"`
-	AgentMaaURL           string `env:"AGENT_MAA_URL"            envDefault:"https://sharedeus2.eus2.attest.azure.net"`
-	AgentOSBuild          string `env:"AGENT_OS_BUILD"           envDefault:"UVC"`
-	AgentOSDistro         string `env:"AGENT_OS_DISTRO"          envDefault:"UVC"`
-	AgentOSType           string `env:"AGENT_OS_TYPE"            envDefault:"UVC"`
-	EATFormat             string `env:"ATTESTATION_EAT_FORMAT"   envDefault:"CBOR"` // JWT or CBOR
-	EATIssuer             string `env:"ATTESTATION_EAT_ISSUER"   envDefault:"cocos-attestation-service"`
-	UseCCAttestationAgent bool   `env:"USE_CC_ATTESTATION_AGENT" envDefault:"false"`
-	CCAgentAddress        string `env:"CC_AGENT_ADDRESS"         envDefault:"127.0.0.1:50002"`
+	LogLevel              string        `env:"ATTESTATION_LOG_LEVEL"    envDefault:"debug"`
+	Vmpl                  int           `env:"ATTESTATION_VMPL"         envDefault:"2"`
+	AgentMaaURL           string        `env:"AGENT_MAA_URL"            envDefault:"https://sharedeus2.eus2.attest.azure.net"`
+	AgentOSBuild          string        `env:"AGENT_OS_BUILD"           envDefault:"UVC"`
+	AgentOSDistro         string        `env:"AGENT_OS_DISTRO"          envDefault:"UVC"`
+	AgentOSType           string        `env:"AGENT_OS_TYPE"            envDefault:"UVC"`
+	EATFormat             string        `env:"ATTESTATION_EAT_FORMAT"   envDefault:"CBOR"` // JWT or CBOR
+	EATIssuer             string        `env:"ATTESTATION_EAT_ISSUER"   envDefault:"cocos-attestation-service"`
+	UseCCAttestationAgent bool          `env:"USE_CC_ATTESTATION_AGENT" envDefault:"false"`
+	CCAgentAddress        string        `env:"CC_AGENT_ADDRESS"         envDefault:"127.0.0.1:50002"`
+	GPUHelperPath         string        `env:"ATTESTATION_GPU_HELPER_PATH" envDefault:""`
+	GPUHelperTimeout      time.Duration `env:"ATTESTATION_GPU_HELPER_TIMEOUT" envDefault:"30s"`
+
+	// Future KBS Integration Configuration
+	// When KBS support is added, these fields will enable:
+	// - Remote attestation verification via KBS
+	// - Encrypted algorithm/dataset retrieval
+	// - Per-computation secret provisioning
+	//
+	// Example future fields:
+	// KBSEndpoint   string `env:"KBS_ENDPOINT"            envDefault:""` // Optional KBS URL
+	// KBSEnabled    bool   `env:"KBS_ENABLED"             envDefault:"false"`
+	// KBSTimeout    int    `env:"KBS_TIMEOUT_SECONDS"     envDefault:"30"`
 }
 
 func main() {
@@ -218,13 +233,24 @@ func main() {
 		return
 	}
 
+	gpuCollector, err := newGPUCollector(cfg)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to configure GPU attestation collector: %s", err))
+		exitCode = 1
+		return
+	}
+	if gpuCollector != nil {
+		logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] GPU evidence collection enabled via helper %s", cfg.GPUHelperPath))
+	}
+
 	grpcServer := grpc.NewServer()
 	svc := &service{
-		provider:   provider,
-		logger:     logger,
-		signingKey: signingKey,
-		eatFormat:  cfg.EATFormat,
-		eatIssuer:  cfg.EATIssuer,
+		provider:     provider,
+		logger:       logger,
+		signingKey:   signingKey,
+		eatFormat:    cfg.EATFormat,
+		eatIssuer:    cfg.EATIssuer,
+		gpuCollector: gpuCollector,
 	}
 	attestationpb.RegisterAttestationServiceServer(grpcServer, svc)
 
@@ -256,11 +282,12 @@ func main() {
 
 type service struct {
 	attestationpb.UnimplementedAttestationServiceServer
-	provider   attestation.Provider
-	logger     *slog.Logger
-	signingKey *ecdsa.PrivateKey
-	eatFormat  string
-	eatIssuer  string
+	provider     attestation.Provider
+	logger       *slog.Logger
+	signingKey   *ecdsa.PrivateKey
+	eatFormat    string
+	eatIssuer    string
+	gpuCollector attestationgpu.Collector
 }
 
 func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.AttestationRequest) (*attestationpb.AttestationResponse, error) {
@@ -319,12 +346,14 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 	}
 
 	// Create EAT claims from binary report
-	nonce := req.ReportData
-	if len(req.Nonce) > 0 {
-		nonce = req.Nonce
+	nonce := requestNonce(req)
+
+	claimOpts, err := s.claimOptions(ctx, req, platformType)
+	if err != nil {
+		return nil, err
 	}
 
-	claims, err := eat.NewEATClaims(binaryReport, nonce, platformType)
+	claims, err := eat.NewEATClaims(binaryReport, nonce, platformType, claimOpts...)
 	if err != nil {
 		s.logger.Error(fmt.Sprintf("failed to create EAT claims: %s", err))
 		return nil, fmt.Errorf("failed to create EAT claims: %w", err)

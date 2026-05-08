@@ -39,6 +39,7 @@ type EATClaims struct {
 	SNPExtensions  *SNPExtensions  `json:"x-cocos-sevsnp,omitempty"`
 	TDXExtensions  *TDXExtensions  `json:"x-cocos-tdx,omitempty"`
 	VTPMExtensions *VTPMExtensions `json:"x-cocos-vtpm,omitempty"`
+	GPUExtensions  *GPUExtensions  `json:"x-cocos-gpu,omitempty"`
 
 	// Original binary report (for verification)
 	RawReport []byte `json:"raw_report,omitempty"`
@@ -94,6 +95,36 @@ type VTPMExtensions struct {
 	Quote    []byte            `json:"quote,omitempty"`     // TPM quote
 }
 
+// GPUExtensions contains optional GPU attestation evidence that is bound to the
+// same attestation session as the root TEE evidence.
+type GPUExtensions struct {
+	Vendor         string `json:"vendor,omitempty" cbor:"vendor,omitempty"`
+	EvidenceFormat string `json:"evidence_format,omitempty" cbor:"evidence_format,omitempty"`
+	Nonce          []byte `json:"nonce,omitempty" cbor:"nonce,omitempty"`
+	EvidenceJSON   []byte `json:"evidence_json,omitempty" cbor:"evidence_json,omitempty"`
+}
+
+// ClaimsOption customizes EAT claims after the root platform claims are
+// extracted.
+type ClaimsOption func(*EATClaims) error
+
+// WithGPU attaches GPU evidence both as a typed extension and as an EAT submod.
+func WithGPU(gpu *GPUExtensions) ClaimsOption {
+	return func(claims *EATClaims) error {
+		if gpu == nil {
+			return nil
+		}
+
+		claims.GPUExtensions = gpu
+		if claims.Submods == nil {
+			claims.Submods = map[string]interface{}{}
+		}
+		claims.Submods["gpu"] = gpu
+
+		return nil
+	}
+}
+
 // DebugStatus constants (RFC 9711 Section 4.2.6).
 const (
 	DebugEnabled              = 0 // Debug is enabled
@@ -112,7 +143,7 @@ const (
 const MinNonceLength = 8
 
 // NewEATClaims creates EAT claims from binary attestation report.
-func NewEATClaims(report []byte, nonce []byte, platformType attestation.PlatformType) (*EATClaims, error) {
+func NewEATClaims(report []byte, nonce []byte, platformType attestation.PlatformType, opts ...ClaimsOption) (*EATClaims, error) {
 	if len(nonce) < MinNonceLength {
 		return nil, errors.New("eat_nonce must be at least 8 bytes long")
 	}
@@ -127,6 +158,15 @@ func NewEATClaims(report []byte, nonce []byte, platformType attestation.Platform
 	// Extract platform-specific claims
 	if err := extractPlatformClaims(claims, report, platformType); err != nil {
 		return nil, err
+	}
+
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		if err := opt(claims); err != nil {
+			return nil, err
+		}
 	}
 
 	return claims, nil

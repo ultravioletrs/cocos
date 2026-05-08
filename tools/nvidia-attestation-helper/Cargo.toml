@@ -1,0 +1,11 @@
+[package]
+name = "nvidia-attestation-helper"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1"
+nv-attestation-sdk = { git = "https://github.com/NVIDIA/attestation-sdk", rev = "82d29930f5cbc9d689393844132ac0d733b1f499" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
