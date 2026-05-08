@@ -3,10 +3,12 @@
 package qemu
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -18,12 +20,15 @@ import (
 )
 
 const (
-	firmwareVars    = "OVMF_VARS"
-	KernelFile      = "bzImage"
-	rootfsFile      = "rootfs.cpio"
-	tmpDir          = "/tmp"
-	interval        = 5 * time.Second
-	shutdownTimeout = 30 * time.Second
+	firmwareVars                  = "OVMF_VARS"
+	KernelFile                    = "bzImage"
+	rootfsFile                    = "rootfs.cpio"
+	tmpDir                        = "/tmp"
+	diskDstName                   = "cvmDisk"
+	interval                      = 5 * time.Second
+	shutdownTimeout               = 30 * time.Second
+	encryptedPartitionSizeDeltaGB = 1
+	sourceDiskFormat              = "qcow2"
 )
 
 type VMInfo struct {
@@ -37,6 +42,10 @@ type qemuVM struct {
 	cvmId  string
 	logger *slog.Logger
 	vm.StateMachine
+}
+
+type qemuInfo struct {
+	VirtualSize int64 `json:"virtual-size"`
 }
 
 func NewVM(config any, cvmId string, logger *slog.Logger) vm.VM {
@@ -75,6 +84,44 @@ func (v *qemuVM) Start() (err error) {
 		v.vmi.Config.OVMFVarsConfig.File = dstFile
 	}
 
+	if v.vmi.Config.EnableDisk {
+		srcDiskFile, err := filepath.Abs(v.vmi.Config.SrcFile)
+		if err != nil {
+			return err
+		}
+
+		sizeGB, err := GetVirtualSizeGB(srcDiskFile)
+		if err != nil {
+			return err
+		}
+
+		dstDiskFile := fmt.Sprintf("%s/%s-%s.%s", tmpDir, diskDstName, id, v.vmi.Config.DiskConfig.Format)
+		sizeArg := fmt.Sprintf("%dG", sizeGB+encryptedPartitionSizeDeltaGB)
+
+		cmd := exec.Command(
+			"qemu-img",
+			"convert",
+			"-f", sourceDiskFormat,
+			"-O", v.vmi.Config.DiskConfig.Format,
+			srcDiskFile,
+			dstDiskFile,
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("qemu-img convert failed: %w: %s", err, string(out))
+		}
+
+		cmd = exec.Command(
+			"qemu-img",
+			"resize",
+			dstDiskFile,
+			sizeArg,
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("qemu-img resize failed: %w: %s", err, string(out))
+		}
+		v.vmi.Config.DstFile = dstDiskFile
+	}
+
 	exe, args, err := v.executableAndArgs()
 	if err != nil {
 		return err
@@ -108,6 +155,14 @@ func (v *qemuVM) Stop() error {
 	if v.vmi.Config.EnvMount != "" {
 		if err := os.RemoveAll(v.vmi.Config.EnvMount); err != nil {
 			return fmt.Errorf("failed to remove env mount: %v", err)
+		}
+	}
+
+	if v.vmi.Config.EnableDisk {
+		if v.vmi.Config.DstFile != "" {
+			if err := os.RemoveAll(v.vmi.Config.DstFile); err != nil {
+				return fmt.Errorf("failed to remove disk file: %v", err)
+			}
 		}
 	}
 
@@ -153,6 +208,10 @@ func (v *qemuVM) GetProcess() int {
 func (v *qemuVM) executableAndArgs() (string, []string, error) {
 	exe, err := exec.LookPath(v.vmi.Config.QemuBinPath)
 	if err != nil {
+		return "", nil, err
+	}
+
+	if err := v.vmi.Config.ValidateBootConfig(); err != nil {
 		return "", nil, err
 	}
 
@@ -230,4 +289,33 @@ func TDXEnabledOnHost() bool {
 	}
 
 	return TDXEnabled(string(cpuinfo), string(kernelParam))
+}
+
+func GetVirtualSizeBytes(path string) (int64, error) {
+	cmd := exec.Command("qemu-img", "info", "--output=json", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("qemu-img info failed: %w", err)
+	}
+
+	var info qemuInfo
+	if err := json.Unmarshal(out, &info); err != nil {
+		return 0, fmt.Errorf("failed to parse qemu-img JSON: %w", err)
+	}
+
+	if info.VirtualSize <= 0 {
+		return 0, fmt.Errorf("invalid virtual size: %d", info.VirtualSize)
+	}
+
+	return info.VirtualSize, nil
+}
+
+func GetVirtualSizeGB(path string) (int, error) {
+	bytes, err := GetVirtualSizeBytes(path)
+	if err != nil {
+		return 0, err
+	}
+
+	gb := (bytes + (1<<30 - 1)) >> 30
+	return int(gb), nil
 }

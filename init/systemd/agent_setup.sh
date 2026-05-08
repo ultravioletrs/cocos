@@ -22,5 +22,8 @@ if [ ! -d "$WORK_DIR" ]; then
     mkdir -p $WORK_DIR
 fi
 
-# Resize the root file system to 100%
-mount -o remount,size=100% /
+# RAM-only agent images use tmpfs as the root filesystem
+ROOT_FSTYPE=$(awk '$2 == "/" { print $3; exit }' /proc/mounts)
+if [ "$ROOT_FSTYPE" = "tmpfs" ]; then
+    mount -o remount,size=100% /
+fi

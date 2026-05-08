@@ -51,7 +51,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
@@ -115,7 +115,7 @@ func TestConstructQemuArgs(t *testing.T) {
 					IOMMUPlatform: true,
 					Addr:          "0x2",
 				},
-				DiskImgConfig: DiskImgConfig{
+				KernelConfig: KernelConfig{
 					KernelFile: "img/bzImage",
 					RootFsFile: "img/rootfs.cpio.gz",
 				},
@@ -192,5 +192,156 @@ func TestConstructQemuArgs_HostData(t *testing.T) {
 
 	if !found {
 		t.Errorf("ConstructQemuArgs() did not contain expected SEV-SNP configuration with host data")
+	}
+}
+
+func TestConstructQemuArgs_TDX(t *testing.T) {
+	config := Config{
+		EnableKVM: true,
+		EnableTDX: true,
+		Machine:   "q35",
+		CPU:       "EPYC",
+		SMPCount:  4,
+		MaxCPUs:   64,
+		MemID:     "ram1",
+		MemoryConfig: MemoryConfig{
+			Size:  "4096M",
+			Slots: 8,
+			Max:   "64G",
+		},
+		NetDevConfig: NetDevConfig{
+			ID:            "vmnic",
+			HostFwdAgent:  7020,
+			GuestFwdAgent: 7002,
+		},
+		VirtioNetPciConfig: VirtioNetPciConfig{
+			DisableLegacy: "on",
+			IOMMUPlatform: true,
+			Addr:          "0x2",
+		},
+		TDXConfig: TDXConfig{
+			ID:                  "tdx0",
+			QuoteGenerationPort: 4050,
+			OVMF:                "/usr/share/ovmf/OVMF.fd",
+		},
+		KernelConfig: KernelConfig{
+			KernelFile: "img/bzImage",
+			RootFsFile: "img/rootfs.cpio.gz",
+		},
+		KernelCommandLine: "quiet console=null",
+		NoGraphic:         true,
+		Monitor:           "pty",
+	}
+
+	expected := []string{
+		"-enable-kvm",
+		"-machine", "q35",
+		"-cpu", "EPYC",
+		"-smp", "4,maxcpus=64",
+		"-m", "4096M,slots=8,maxmem=64G",
+		"-netdev", "user,id=vmnic,hostfwd=tcp::7020-:7002",
+		"-device", "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,addr=0x2,romfile=",
+		"-object", "{\"qom-type\":\"tdx-guest\",\"id\":\"tdx0\",\"quote-generation-socket\":{\"type\": \"vsock\", \"cid\":\"2\",\"port\":\"4050\"}}",
+		"-machine", "confidential-guest-support=tdx0,memory-backend=ram1,hpet=off",
+		"-object", "memory-backend-memfd,id=ram1,size=4096M,share=true,prealloc=false",
+		"-bios", "/usr/share/ovmf/OVMF.fd",
+		"-nodefaults",
+		"-kernel", "img/bzImage",
+		"-append", "quiet console=null",
+		"-initrd", "img/rootfs.cpio.gz",
+		"-nographic",
+		"-monitor", "pty",
+	}
+
+	result := config.ConstructQemuArgs()
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("ConstructQemuArgs() = %v, want %v", result, expected)
+	}
+}
+
+func TestConstructQemuArgs_DiskBootSkipsKernelAndInitrd(t *testing.T) {
+	config := Config{
+		EnableKVM:  true,
+		EnableDisk: true,
+		Machine:    "q35",
+		CPU:        "EPYC",
+		SMPCount:   4,
+		MaxCPUs:    64,
+		MemID:      "ram1",
+		MemoryConfig: MemoryConfig{
+			Size:  "2048M",
+			Slots: 5,
+			Max:   "30G",
+		},
+		NetDevConfig: NetDevConfig{
+			ID:            "vmnic",
+			HostFwdAgent:  7020,
+			GuestFwdAgent: 7002,
+		},
+		VirtioNetPciConfig: VirtioNetPciConfig{
+			DisableLegacy: "on",
+			IOMMUPlatform: true,
+			Addr:          "0x2",
+		},
+		DiskConfig: DiskConfig{
+			DstFile: "img/disk.img",
+			ID:      "disk0",
+			Format:  "qcow2",
+			SCSIID:  "scsi0",
+		},
+		KernelConfig: KernelConfig{
+			KernelFile: "img/bzImage",
+			RootFsFile: "img/rootfs.cpio.gz",
+		},
+		NoGraphic: true,
+		Monitor:   "pty",
+	}
+
+	result := config.ConstructQemuArgs()
+
+	for _, forbidden := range []string{"-kernel", "-append", "-initrd"} {
+		for _, arg := range result {
+			if arg == forbidden {
+				t.Fatalf("ConstructQemuArgs() unexpectedly contained %s during disk boot: %v", forbidden, result)
+			}
+		}
+	}
+}
+
+func TestConstructQemuArgs_EnableDisk(t *testing.T) {
+	config := Config{
+		EnableDisk: true,
+		DiskConfig: DiskConfig{
+			SrcFile: "img/enc_os.qcow2",
+			DstFile: "img/enc_os_dst.qcow2",
+			ID:      "disk0",
+			Format:  "qcow2",
+			SCSIID:  "scsi0",
+		},
+	}
+
+	result := config.ConstructQemuArgs()
+
+	expected := []string{
+		"-drive", "file=img/enc_os_dst.qcow2,if=none,id=disk0,format=qcow2",
+		"-device", "virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true",
+		"-device", "scsi-hd,drive=disk0,bus=scsi0.0",
+	}
+
+	var found []bool = make([]bool, len(expected))
+	for i, arg := range result {
+		for j := 0; j < len(expected); j += 2 {
+			if arg == expected[j] && i+1 < len(result) && result[i+1] == expected[j+1] {
+				found[j] = true
+				found[j+1] = true
+				break
+			}
+		}
+	}
+
+	for j, f := range found {
+		if !f {
+			t.Errorf("ConstructQemuArgs() did not contain expected disk configuration: %s", expected[j])
+		}
 	}
 }

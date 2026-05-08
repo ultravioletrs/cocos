@@ -1,0 +1,265 @@
+#!/bin/sh
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+if (exec 0</dev/console) 2>/dev/null; then
+    exec 0</dev/console
+    exec 1>/dev/console
+    exec 2>/dev/console
+fi
+
+echo "Welcome to the Cocos FDE test VM initramfs!"
+echo "This is a minimal initramfs environment used for testing the FDE provisioning flow."
+echo "If you see this message, the initramfs was loaded and executed successfully."
+echo "The initramfs will now attempt to provision the disk and mount the real root filesystem."
+echo "If any step fails, it will drop to a shell for debugging."
+
+[ -d /dev ] || mkdir -m 0755 /dev
+[ -d /etc ] || mkdir -m 0755 /etc
+[ -d /root ] || mkdir -m 0700 /root
+[ -d /run ] || mkdir -m 0755 /run
+[ -d /sys ] || mkdir /sys
+[ -d /proc ] || mkdir /proc
+[ -d /tmp ] || mkdir /tmp
+
+if [ -L /etc/resolv.conf ]; then
+    RESOLV_TARGET="$(readlink /etc/resolv.conf)"
+    case "$RESOLV_TARGET" in
+        /*)
+            RESOLV_PATH="$RESOLV_TARGET"
+            ;;
+        *)
+            RESOLV_PATH="/etc/$RESOLV_TARGET"
+            ;;
+    esac
+
+    mkdir -p "$(dirname "$RESOLV_PATH")"
+    [ -e "$RESOLV_PATH" ] || : > "$RESOLV_PATH"
+else
+    [ -e /etc/resolv.conf ] || : > /etc/resolv.conf
+fi
+
+mount -t sysfs -o nodev,noexec,nosuid sysfs /sys
+mount -t proc -o nodev,noexec,nosuid proc /proc
+
+mkdir -p /sys/kernel/config
+if ! grep -q ' /sys/kernel/config ' /proc/mounts; then
+    mount -t configfs configfs /sys/kernel/config 2>/dev/null || true
+fi
+
+mount -t devtmpfs -o nosuid,mode=0755 udev /dev
+mkdir /dev/pts
+mount -t devpts -o noexec,nosuid,gid=5,mode=0620 devpts /dev/pts || true
+
+MNT_DIR=/root
+BASE=$(pwd)
+
+DST=/dev/sda
+ROOTFS_TYPE="ext4"
+ROOT_VERITY_MAP=root_verity
+ROOT_VERITY_MAPPER="/dev/mapper/$ROOT_VERITY_MAP"
+COCOS_MOUNT=/cocos
+COCOS_MAP=cocos_crypt
+COCOS_MAPPER="/dev/mapper/$COCOS_MAP"
+LUKS_PARAMS="--cipher aes-gcm-random --integrity aead"
+
+settle_devices() {
+    echo "[init] Waiting for devices to settle..."
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm settle --timeout=10 || sleep 2
+    else
+        sleep 2
+    fi
+}
+
+wipe_file() {
+    file_path="$1"
+    if [ -z "$file_path" ] || [ ! -e "$file_path" ]; then
+        return 0
+    fi
+
+    shred -vfz -n 3 "$file_path" 2>/dev/null || dd if=/dev/zero of="$file_path" bs=64 count=1
+    rm -f "$file_path"
+}
+
+partition_path() {
+    disk="$1"
+    partition="$2"
+
+    case "$disk" in
+        *[0-9])
+            printf '%sp%s\n' "$disk" "$partition"
+            ;;
+        *)
+            printf '%s%s\n' "$disk" "$partition"
+            ;;
+    esac
+}
+
+append_9p_entry() {
+    pattern="$1"
+    default_entry="$2"
+    existing_entry=""
+
+    if [ -f "$FSTAB_BAK" ]; then
+        existing_entry="$(grep -E "$pattern" "$FSTAB_BAK" | head -n 1 || true)"
+    fi
+
+    if [ -n "$existing_entry" ]; then
+        printf '%s\n' "$existing_entry" >> "$FSTAB"
+    else
+        printf '%s\n' "$default_entry" >> "$FSTAB"
+    fi
+}
+
+cmdline_arg() {
+    key="$1"
+    for arg in $(cat /proc/cmdline); do
+        case "$arg" in
+            "$key="*)
+                printf '%s\n' "${arg#*=}"
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
+echo "[init] Starting disk provisioning..."
+ROOT_PART="$(partition_path "$DST" 2)"
+VERITY_PART="$(partition_path "$DST" 3)"
+COCOS_PART="$(partition_path "$DST" 4)"
+ROOT_HASH="$(cmdline_arg roothash)"
+
+if [ -z "$ROOT_HASH" ]; then
+    echo "[init] FATAL: Missing roothash= on kernel command line"
+    exec /bin/sh
+fi
+
+settle_devices
+
+for part in "$ROOT_PART" "$VERITY_PART" "$COCOS_PART"; do
+    if [ ! -b "$part" ]; then
+        echo "[init] FATAL: Could not find partition $part"
+        echo "[init] Available block devices:"
+        lsblk || ls -la /dev/ || true
+        echo "[init] Dropping to shell."
+        exec /bin/sh
+    fi
+done
+
+echo "[init] Opening dm-verity root mapping..."
+veritysetup open "$ROOT_PART" "$ROOT_VERITY_MAP" "$VERITY_PART" "$ROOT_HASH" || {
+    echo "[init] FATAL: Failed to open dm-verity mapping for root"
+    exec /bin/sh
+}
+
+echo "[init] Mounting root at $MNT_DIR (read-only)..."
+mount -o ro -t "$ROOTFS_TYPE" "$ROOT_VERITY_MAPPER" "$MNT_DIR" || {
+    echo "[init] FATAL: Failed to mount verity root"
+    veritysetup close "$ROOT_VERITY_MAP" 2>/dev/null || true
+    exec /bin/sh
+}
+
+echo "[init] Generating ephemeral key for $COCOS_MOUNT..."
+dd if=/dev/urandom of=kk.bin bs=64 count=1 || {
+    echo "[init] FATAL: Failed to generate encryption key"
+    umount "$MNT_DIR" 2>/dev/null || true
+    exec /bin/sh
+}
+KK_BIN=$BASE/kk.bin
+
+cryptsetup luksFormat "$COCOS_PART" --type luks2 $LUKS_PARAMS --key-file="$KK_BIN" -q || {
+    echo "[init] FATAL: LUKS format failed"
+    umount "$MNT_DIR" 2>/dev/null || true
+    veritysetup close "$ROOT_VERITY_MAP" 2>/dev/null || true
+    wipe_file "$KK_BIN"
+    exec /bin/sh
+}
+
+cryptsetup open "$COCOS_PART" "$COCOS_MAP" --key-file="$KK_BIN" || {
+    echo "[init] FATAL: Failed to open LUKS container for $COCOS_MOUNT"
+    umount "$MNT_DIR" 2>/dev/null || true
+    veritysetup close "$ROOT_VERITY_MAP" 2>/dev/null || true
+    wipe_file "$KK_BIN"
+    exec /bin/sh
+}
+
+mkfs.ext4 -F -m 0 "$COCOS_MAPPER" >/dev/null || {
+    echo "[init] FATAL: Failed to create ext4 filesystem for $COCOS_MOUNT"
+    cryptsetup close "$COCOS_MAP" 2>/dev/null || true
+    umount "$MNT_DIR" 2>/dev/null || true
+    veritysetup close "$ROOT_VERITY_MAP" 2>/dev/null || true
+    wipe_file "$KK_BIN"
+    exec /bin/sh
+}
+
+echo "[init] Mounting encrypted $COCOS_MOUNT..."
+mkdir -p "$MNT_DIR$COCOS_MOUNT"
+mount -t ext4 "$COCOS_MAPPER" "$MNT_DIR$COCOS_MOUNT" || {
+    echo "[init] FATAL: Failed to mount encrypted $COCOS_MOUNT filesystem"
+    cryptsetup close "$COCOS_MAP" 2>/dev/null || true
+    umount "$MNT_DIR" 2>/dev/null || true
+    veritysetup close "$ROOT_VERITY_MAP" 2>/dev/null || true
+    wipe_file "$KK_BIN"
+    exec /bin/sh
+}
+
+mkdir -p \
+    "$MNT_DIR$COCOS_MOUNT/.cache/oci" \
+    "$MNT_DIR$COCOS_MOUNT/datasets" \
+    "$MNT_DIR$COCOS_MOUNT/docker" \
+    "$MNT_DIR$COCOS_MOUNT/cocos_init"
+
+# The root is read-only; provide tmpfs for writable system directories.
+mount -t tmpfs tmpfs "$MNT_DIR/tmp"
+mount -t tmpfs -o mode=0755 tmpfs "$MNT_DIR/var"
+
+# Bind Docker's data root onto /cocos so large images don't exhaust RAM.
+mkdir -p "$MNT_DIR/var/lib/docker"
+mount --bind "$MNT_DIR$COCOS_MOUNT/docker" "$MNT_DIR/var/lib/docker"
+
+# /cocos_init is on the read-only root; shadow it with a writable
+# copy on /cocos so agent setup scripts can write state alongside the scripts.
+if [ -d "$MNT_DIR/cocos_init" ]; then
+    cp -a "$MNT_DIR/cocos_init/." "$MNT_DIR$COCOS_MOUNT/cocos_init/" 2>/dev/null || true
+    mount --bind "$MNT_DIR$COCOS_MOUNT/cocos_init" "$MNT_DIR/cocos_init" || true
+fi
+
+mount --move /proc $MNT_DIR/proc
+mount --move /sys $MNT_DIR/sys
+
+FSTAB="$MNT_DIR/etc/fstab"
+FSTAB_BAK="$MNT_DIR/etc/fstab.bak"
+
+mkdir -p "$MNT_DIR/etc/certs" "$MNT_DIR/etc/cocos" 2>/dev/null || true
+
+if [ -f "$FSTAB" ]; then
+    mv "$FSTAB" "$FSTAB_BAK"
+fi
+
+cat > "$FSTAB" << EOF
+# Generated by init script
+$ROOT_VERITY_MAPPER / $ROOTFS_TYPE ro,defaults 0 0
+EOF
+
+append_9p_entry \
+    '^certs_share[[:space:]]+/etc/certs[[:space:]]+9p([[:space:]]|$)' \
+    'certs_share /etc/certs 9p trans=virtio,version=9p2000.L,cache=mmap,nofail 0 0'
+
+append_9p_entry \
+    '^env_share[[:space:]]+/etc/cocos[[:space:]]+9p([[:space:]]|$)' \
+    'env_share /etc/cocos 9p trans=virtio,version=9p2000.L,cache=mmap,nofail 0 0'
+
+printf '%s\n' '# /cocos is mounted by the FDE initramfs using an ephemeral LUKS key.' >> "$FSTAB"
+
+# Securely wipe the encryption key before switching root.
+echo "[init] Securely wiping the $COCOS_MOUNT encryption key..."
+wipe_file "$KK_BIN"
+
+echo "[init] Switching to real root..."
+exec switch_root $MNT_DIR/ /sbin/init
+
+# If switch_root somehow returns:
+echo "[init] switch_root failed, dropping to shell"
+exec /bin/sh

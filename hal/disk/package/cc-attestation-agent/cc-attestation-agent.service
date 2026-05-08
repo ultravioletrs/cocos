@@ -1,0 +1,13 @@
+[Unit]
+Description=Confidential Containers Attestation Agent (gRPC)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/attestation-agent --attestation_sock 127.0.0.1:50002
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target

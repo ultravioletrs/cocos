@@ -85,6 +85,29 @@ var (
 	ImaPcrIndex             = 10
 )
 
+func ensureDir(path string, mode os.FileMode) error {
+	info, err := os.Stat(path)
+	switch {
+	case err == nil:
+		if info.IsDir() {
+			return nil
+		}
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("removing non-directory path %q: %w", path, err)
+		}
+	case os.IsNotExist(err):
+		// Continue and create it below.
+	default:
+		return fmt.Errorf("stating path %q: %w", path, err)
+	}
+
+	if err := os.MkdirAll(path, mode); err != nil {
+		return fmt.Errorf("creating directory %q: %w", path, err)
+	}
+
+	return nil
+}
+
 var (
 	// ErrMalformedEntity indicates malformed entity specification (e.g.
 	// invalid username or password).
@@ -478,8 +501,8 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		as.algoReceived = true
 		as.algoRequirements = res.Requirements // Store requirements for installation
 
-		// Create datasets directory
-		if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+		// The initramfs may have already provisioned /cocos/datasets.
+		if err := ensureDir(algorithm.DatasetsDir, 0o755); err != nil {
 			as.runError = fmt.Errorf("error creating datasets directory: %w", err)
 			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
@@ -976,7 +999,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	as.algoRequirements = algo.Requirements
 	as.algoReceived = true
 
-	if err := os.Mkdir(algorithm.DatasetsDir, 0o755); err != nil {
+	if err := ensureDir(algorithm.DatasetsDir, 0o755); err != nil {
 		return fmt.Errorf("error creating datasets directory: %v", err)
 	}
 
@@ -1145,7 +1168,7 @@ func (as *agentService) runComputation(state statemachine.State) {
 		}
 	}()
 
-	if err := os.Mkdir(algorithm.ResultsDir, 0o755); err != nil {
+	if err := ensureDir(algorithm.ResultsDir, 0o755); err != nil {
 		as.mu.Lock()
 		as.runError = fmt.Errorf("error creating results directory: %s", err.Error())
 		as.mu.Unlock()

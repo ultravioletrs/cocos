@@ -49,6 +49,12 @@ The service is configured using the environment variables from the following tab
 | MANAGER_QEMU_VIRTIO_NET_PCI_ROMFILE        | The file path for the ROM image for the virtio-net PCI device.                                                   |                                |
 | MANAGER_QEMU_DISK_IMG_KERNEL_FILE          | The file path for the kernel image.                                                                              | img/bzImage                    |
 | MANAGER_QEMU_DISK_IMG_ROOTFS_FILE          | The file path for the root filesystem image.                                                                     | img/rootfs.cpio.gz             |
+| MANAGER_QEMU_ENABLE_DISK                   | Whether to attach a writable qcow2 disk to the CVM.                                                              | false                          |
+| MANAGER_QEMU_SRC_DISK_FILE                 | Path to a qcow2 image whose virtual size is used to size the per-VM writable disk.                               | img/enc_os.qcow2               |
+| MANAGER_QEMU_DST_DISK_FILE                 | Runtime path of the per-VM writable disk created by the manager.                                                 |                                |
+| MANAGER_QEMU_DISK_ID                       | The QEMU drive identifier for the attached disk.                                                                 | disk0                          |
+| MANAGER_QEMU_DISK_FORMAT                   | The format of the attached disk image.                                                                           | qcow2                          |
+| MANAGER_QEMU_DISK_SCSI_ID                  | The SCSI controller identifier used for the attached disk.                                                       | scsi0                          |
 | MANAGER_QEMU_SEV_SNP_ID                    | The ID for the Secure Encrypted Virtualization (SEV-SNP) device.                                                 | sev0                           |
 | MANAGER_QEMU_SEV_SNP_CBITPOS               | The position of the C-bit in the physical address.                                                               | 51                             |
 | MANAGER_QEMU_SEV_SNP_REDUCED_PHYS_BITS     | The number of reduced physical address bits for SEV-SNP.                                                         | 1                              |
@@ -111,6 +117,20 @@ Cocos HAL for Linux is framework for building custom in-enclave Linux distributi
 Once the image is built copy the kernel and rootfs image to `cmd/manager/img` from `buildroot/output/images/bzImage` and `buildroot/output/images/rootfs.cpio.gz` respectively.
 
 Another option is to use release versions of EOS that can be downloaded from the [Cocos GitHub repository](https://github.com/ultravioletrs/cocos/releases).
+
+#### Optional writable disk
+
+If you want the manager to attach a writable disk to each CVM, place a qcow2 reference image at `cmd/manager/img/enc_os.qcow2`, or point `MANAGER_QEMU_SRC_DISK_FILE` to another qcow2 file.
+
+When `MANAGER_QEMU_ENABLE_DISK=true`, the manager:
+
+- reads the virtual size of `MANAGER_QEMU_SRC_DISK_FILE` with `qemu-img info`
+- creates a per-VM qcow2 disk under `/tmp/cvmDisk-<uuid>.qcow2`
+- sizes the disk to the source image size plus 1 GiB, leaving room for the LUKS header
+- attaches the disk through a virtio-scsi controller
+- removes the temporary disk again when the VM stops
+
+`MANAGER_QEMU_DST_DISK_FILE` is primarily a runtime value. In the normal manager flow it is populated automatically and usually does not need to be set manually.
 
 #### Test VM creation
 
@@ -207,7 +227,7 @@ nc -zv localhost 7020
 
 #### Conclusion
 
-Now you are able to use `Manager` with `Agent`. Namely, `Manager` will create a VM with a separate OVMF variables file on manager `/run` request.
+Now you are able to use `Manager` with `Agent`. On each manager `/run` request, the manager creates a VM with a separate OVMF variables file and, when enabled, a per-VM writable qcow2 disk.
 
 ### OVMF
 
@@ -284,6 +304,18 @@ MANAGER_QEMU_OVMF_FILE=<path to OVMF file> \
 ./build/cocos-manager
 ```
 
+To enable writable disk support, start manager like this
+
+```sh
+MANAGER_GRPC_URL=localhost:7001 \
+MANAGER_LOG_LEVEL=debug \
+MANAGER_QEMU_ENABLE_DISK=true \
+MANAGER_QEMU_SRC_DISK_FILE=<path to reference qcow2 image> \
+./build/cocos-manager
+```
+
+The reference qcow2 image is used to determine the disk size. The manager creates a fresh writable qcow2 disk for each VM under `/tmp` and deletes it on shutdown.
+
 ### Troubleshooting
 
 If the `ps aux | grep qemu-system-x86_64` give you something like this
@@ -294,16 +326,16 @@ darko      13913  0.0  0.0      0     0 pts/2    Z+   20:17   0:00 [qemu-system-
 
 means that the a QEMU virtual machine that is currently defunct, meaning that it is no longer running. More precisely, the defunct process in the output is also known as a ["zombie" process](https://en.wikipedia.org/wiki/Zombie_process).
 
-You can troubleshoot the VM launch procedure by running directly `qemu-system-x86_64` command. When you run `manager` with `MANAGER_LOG_LEVEL=info` env var set, it prints out the entire command used to launch a VM. The relevant part of the log might look like this
+You can troubleshoot the VM launch procedure by running directly `qemu-system-x86_64` command. When you run `manager` with `MANAGER_LOG_LEVEL=info` env var set, it prints out the entire command used to launch a VM. When writable disk support is enabled, the relevant part of the log might look like this
 
 ```
-{"level":"info","message":"/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty","ts":"2023-08-14T18:29:19.2653908Z"}
+{"level":"info","message":"/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=/tmp/OVMF_VARS-<uuid>.fd -netdev user,id=vmnic-<uuid>,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic-<uuid>,addr=0x2,romfile= -drive file=/tmp/cvmDisk-<uuid>.qcow2,if=none,id=disk0,format=qcow2 -device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true -device scsi-hd,drive=disk0,bus=scsi0.0 -kernel img/bzImage -append quiet console=null -initrd img/rootfs.cpio.gz -nographic -monitor pty","ts":"2026-04-27T00:00:00Z"}
 ```
 
 You can run the command - the value of the `"message"` key - directly in the terminal:
 
 ```sh
-/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=img/OVMF_VARS.fd -device virtio-scsi-pci,id=scsi,disable-legacy=on,iommu_platform=true -drive file=img/focal-server-cloudimg-amd64.img,if=none,id=disk0,format=qcow2 -device scsi-hd,drive=disk0 -netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9301-:9031,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile= -nographic -monitor pty
+/usr/bin/qemu-system-x86_64 -enable-kvm -machine q35 -cpu EPYC -smp 4,maxcpus=64 -m 4096M,slots=5,maxmem=30G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=/tmp/OVMF_VARS-<uuid>.fd -netdev user,id=vmnic-<uuid>,hostfwd=tcp::7020-:7002 -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic-<uuid>,addr=0x2,romfile= -drive file=/tmp/cvmDisk-<uuid>.qcow2,if=none,id=disk0,format=qcow2 -device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true -device scsi-hd,drive=disk0,bus=scsi0.0 -kernel img/bzImage -append "quiet console=null" -initrd img/rootfs.cpio.gz -nographic -monitor pty
 ```
 
 and look for the possible problems. This problems can usually be solved by using the adequate env var assignments. Look in the `manager/qemu/config.go` file to see the recognized env vars. Don't forget to prepend `MANAGER_QEMU_` to the name of the env vars.

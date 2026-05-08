@@ -4,6 +4,7 @@ package qemu
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/caarlos0/env/v10"
 )
@@ -48,7 +49,7 @@ type VirtioNetPciConfig struct {
 	ROMFile       string `env:"VIRTIO_NET_PCI_ROMFILE"`
 }
 
-type DiskImgConfig struct {
+type KernelConfig struct {
 	KernelFile string `env:"DISK_IMG_KERNEL_FILE" envDefault:"img/bzImage"`
 	RootFsFile string `env:"DISK_IMG_ROOTFS_FILE" envDefault:"img/rootfs.cpio.gz"`
 }
@@ -72,9 +73,18 @@ type IGVMConfig struct {
 	File string `env:"IGVM_FILE"      envDefault:"/root/coconut-qemu.igvm"`
 }
 
+type DiskConfig struct {
+	SrcFile string `env:"SRC_DISK_FILE"   envDefault:"img/enc_os.qcow2"`
+	DstFile string `env:"DST_DISK_FILE"   envDefault:""`
+	ID      string `env:"DISK_ID"     envDefault:"disk0"`
+	Format  string `env:"DISK_FORMAT" envDefault:"qcow2"`
+	SCSIID  string `env:"DISK_SCSI_ID" envDefault:"scsi0"`
+}
+
 type Config struct {
 	EnableSEVSNP bool
 	EnableTDX    bool
+	EnableDisk   bool   `env:"ENABLE_DISK"    envDefault:"false"`
 	QemuBinPath  string `env:"BIN_PATH"       envDefault:"qemu-system-x86_64"`
 	UseSudo      bool   `env:"USE_SUDO"       envDefault:"false"`
 
@@ -96,8 +106,11 @@ type Config struct {
 	NetDevConfig
 	VirtioNetPciConfig
 
-	// disk
-	DiskImgConfig
+	// disk config
+	DiskConfig
+
+	// kernel and initramfs
+	KernelConfig
 
 	// SEV-SNP
 	SEVSNPConfig
@@ -121,6 +134,25 @@ type Config struct {
 	// mounts
 	CertsMount string `env:"CERTS_MOUNT" envDefault:""`
 	EnvMount   string `env:"ENV_MOUNT"   envDefault:""`
+}
+
+func (config Config) ValidateBootConfig() error {
+	if config.EnableDisk {
+		if strings.TrimSpace(config.DiskConfig.DstFile) == "" {
+			return fmt.Errorf("disk boot enabled but destination disk image is not set")
+		}
+		return nil
+	}
+
+	if strings.TrimSpace(config.KernelConfig.KernelFile) == "" {
+		return fmt.Errorf("kernel boot enabled but kernel image is not set")
+	}
+
+	if strings.TrimSpace(config.KernelConfig.RootFsFile) == "" {
+		return fmt.Errorf("kernel boot enabled but initramfs image is not set")
+	}
+
+	return nil
 }
 
 func (config Config) ConstructQemuArgs() []string {
@@ -179,6 +211,22 @@ func (config Config) ConstructQemuArgs() []string {
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
 
+	if config.EnableDisk {
+		// disk image
+		args = append(args, "-drive",
+			fmt.Sprintf("file=%s,if=none,id=%s,format=%s",
+				config.DiskConfig.DstFile,
+				config.DiskConfig.ID,
+				config.DiskConfig.Format))
+		args = append(args, "-device",
+			fmt.Sprintf("virtio-scsi-pci,id=%s,disable-legacy=on,iommu_platform=true",
+				config.DiskConfig.SCSIID))
+		args = append(args, "-device",
+			fmt.Sprintf("scsi-hd,drive=%s,bus=%s.0",
+				config.DiskConfig.ID,
+				config.DiskConfig.SCSIID))
+	}
+
 	// SEV-SNP
 	if config.EnableSEVSNP {
 		sevSnpType := "sev-snp-guest"
@@ -233,9 +281,11 @@ func (config Config) ConstructQemuArgs() []string {
 		args = append(args, "-nodefaults")
 	}
 
-	args = append(args, "-kernel", config.DiskImgConfig.KernelFile)
-	args = append(args, "-append", config.KernelCommandLine)
-	args = append(args, "-initrd", config.DiskImgConfig.RootFsFile)
+	if !config.EnableDisk {
+		args = append(args, "-kernel", config.KernelConfig.KernelFile)
+		args = append(args, "-append", config.KernelCommandLine)
+		args = append(args, "-initrd", config.KernelConfig.RootFsFile)
+	}
 
 	// display
 	if config.NoGraphic {

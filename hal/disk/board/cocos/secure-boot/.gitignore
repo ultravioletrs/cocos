@@ -1,0 +1,3 @@
+# Private key must not be committed
+db.key
+db.crt

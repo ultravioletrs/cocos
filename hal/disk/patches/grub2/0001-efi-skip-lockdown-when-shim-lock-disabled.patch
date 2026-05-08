@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] efi: skip lockdown when built with --disable-shim-lock
+
+When GRUB is built with --disable-shim-lock, grub_shim_lock_verifier_setup()
+returns early without registering the shim_lock verifier.  However
+grub_lockdown() was called unconditionally before that, registering the
+lockdown_verifier which marks kernel files as DEFER_AUTH.  With no verifier
+present to approve them, every kernel load fails with "verification requested
+but nobody cares".
+
+Fix by calling grub_shim_lock_verifier_setup() first and only calling
+grub_lockdown() if shim_lock is actually active.  This preserves full
+lockdown behaviour in shim-based chains while allowing direct
+OVMF->GRUB->kernel boot with a custom DB key and no shim.
+
+Signed-off-by: Cocos AI <build@cocos.ai>
+---
+ grub-core/kern/efi/init.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/efi/init.c b/grub-core/kern/efi/init.c
+--- a/grub-core/kern/efi/init.c
++++ b/grub-core/kern/efi/init.c
+@@ -122,8 +122,9 @@
+    */
+   if (grub_efi_get_secureboot () == GRUB_EFI_SECUREBOOT_MODE_ENABLED)
+     {
+-      grub_lockdown ();
+       grub_shim_lock_verifier_setup ();
++      if (grub_is_shim_lock_enabled ())
++        grub_lockdown ();
+     }
+
+   grub_efi_system_table->boot_services->set_watchdog_timer (0, 0, 0, NULL);

@@ -1,0 +1,7 @@
+# Root is mounted read-only by the initramfs through dm-verity.
+# /cocos, /var, /tmp, and bind mounts are set up by the initramfs init script.
+/dev/mapper/root_verity  /        ext4  ro,defaults          0 0
+
+# 9P virtio shares — provided by the hypervisor, optional (nofail)
+certs_share  /etc/certs   9p  trans=virtio,version=9p2000.L,cache=mmap,nofail  0 0
+env_share    /etc/cocos   9p  trans=virtio,version=9p2000.L,cache=mmap,nofail  0 0

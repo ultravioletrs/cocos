@@ -1,0 +1,6 @@
+config BR2_PACKAGE_WASMEDGE
+    bool "wasmedge"
+	  default y
+    help
+      Wasmedge is a standalone runtime for WebAssembly.
+      https://wasmedge.org/docs/
