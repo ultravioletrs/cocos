@@ -72,6 +72,14 @@ type IGVMConfig struct {
 	File string `env:"IGVM_FILE"      envDefault:"/root/coconut-qemu.igvm"`
 }
 
+type GPUConfig struct {
+	EnableGPU    bool
+	GPUBDF       string `env:"GPU_BDF"              envDefault:""`
+	PCIeRootPort string `env:"GPU_PCIE_ROOT_PORT"   envDefault:"pci.1"`
+	PCIeBus      string `env:"GPU_PCIE_BUS"         envDefault:"pcie.0"`
+	FWCfgPciMmio string `env:"GPU_FW_CFG_MMIO_MB"   envDefault:"262144"`
+}
+
 type Config struct {
 	EnableSEVSNP bool
 	EnableTDX    bool
@@ -107,6 +115,9 @@ type Config struct {
 
 	// vTPM
 	IGVMConfig
+
+	// GPU passthrough
+	GPUConfig
 
 	// display
 	NoGraphic bool   `env:"NO_GRAPHIC" envDefault:"true"`
@@ -178,6 +189,23 @@ func (config Config) ConstructQemuArgs() []string {
 			config.NetDevConfig.ID,
 			config.VirtioNetPciConfig.Addr,
 			config.VirtioNetPciConfig.ROMFile))
+
+	// GPU passthrough via VFIO
+	if config.GPUConfig.EnableGPU {
+		args = append(args, "-device",
+			fmt.Sprintf("pcie-root-port,id=%s,bus=%s",
+				config.GPUConfig.PCIeRootPort,
+				config.GPUConfig.PCIeBus))
+
+		args = append(args, "-device",
+			fmt.Sprintf("vfio-pci,host=%s,bus=%s",
+				config.GPUConfig.GPUBDF,
+				config.GPUConfig.PCIeRootPort))
+
+		args = append(args, "-fw_cfg",
+			fmt.Sprintf("name=opt/ovmf/X-PciMmio64Mb,string=%s",
+				config.GPUConfig.FWCfgPciMmio))
+	}
 
 	// SEV-SNP
 	if config.EnableSEVSNP {
@@ -266,6 +294,14 @@ func NewConfig() (*Config, error) {
 
 	cfg.EnableSEVSNP = SEVSNPEnabledOnHost()
 	cfg.EnableTDX = TDXEnabledOnHost()
+
+	bdf, detected := GPUPassthroughAvailable()
+	if cfg.GPUConfig.GPUBDF != "" {
+		cfg.GPUConfig.EnableGPU = true
+	} else if detected {
+		cfg.GPUConfig.EnableGPU = true
+		cfg.GPUConfig.GPUBDF = bdf
+	}
 
 	return &cfg, nil
 }

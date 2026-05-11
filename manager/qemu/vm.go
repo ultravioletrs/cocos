@@ -231,3 +231,36 @@ func TDXEnabledOnHost() bool {
 
 	return TDXEnabled(string(cpuinfo), string(kernelParam))
 }
+
+// GPUPassthroughAvailable scans for NVIDIA GPU devices bound to the vfio-pci
+// driver and returns the BDF of the first one found.
+func GPUPassthroughAvailable() (string, bool) {
+	const vfioPCIPath = "/sys/bus/pci/drivers/vfio-pci"
+	entries, err := os.ReadDir(vfioPCIPath)
+	if err != nil {
+		return "", false
+	}
+
+	for _, entry := range entries {
+		bdf := entry.Name()
+		if !strings.Contains(bdf, ":") {
+			continue
+		}
+
+		vendor, err := os.ReadFile(fmt.Sprintf("/sys/bus/pci/devices/%s/vendor", bdf))
+		if err != nil || strings.TrimSpace(string(vendor)) != "0x10de" {
+			continue
+		}
+
+		class, err := os.ReadFile(fmt.Sprintf("/sys/bus/pci/devices/%s/class", bdf))
+		if err != nil {
+			continue
+		}
+		classStr := strings.TrimSpace(string(class))
+		// 0x0302xx = 3D Controller (e.g. H100), 0x0300xx = VGA Compatible Controller
+		if strings.HasPrefix(classStr, "0x0302") || strings.HasPrefix(classStr, "0x0300") {
+			return bdf, true
+		}
+	}
+	return "", false
+}
