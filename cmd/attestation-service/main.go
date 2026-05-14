@@ -318,6 +318,13 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 		copy(nonce[:], req.Nonce)
 		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
 		platformType = attestation.SNPvTPM
+	case attestationpb.PlatformType_PLATFORM_TYPE_AZURE:
+		var reportData [64]byte
+		copy(reportData[:], req.ReportData)
+		var nonce [32]byte
+		copy(nonce[:], req.Nonce)
+		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
+		platformType = attestation.Azure
 	case attestationpb.PlatformType_PLATFORM_TYPE_UNSPECIFIED:
 		// Generate sample attestation for testing in non-TEE environments
 		s.logger.Warn("generating sample attestation for PLATFORM_TYPE_UNSPECIFIED - this should only be used for testing")

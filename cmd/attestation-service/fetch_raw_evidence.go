@@ -33,6 +33,12 @@ func (s *service) FetchRawEvidence(ctx context.Context, req *attestationpb.Attes
 		var nonce [32]byte
 		copy(nonce[:], req.Nonce)
 		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
+	case attestationpb.PlatformType_PLATFORM_TYPE_AZURE:
+		var reportData [64]byte
+		copy(reportData[:], req.ReportData)
+		var nonce [32]byte
+		copy(nonce[:], req.Nonce)
+		binaryReport, err = s.provider.Attestation(reportData[:], nonce[:])
 	case attestationpb.PlatformType_PLATFORM_TYPE_UNSPECIFIED:
 		// Generate sample attestation for testing in non-TEE environments
 		// This uses the underlying provider (EmptyProvider or CC Attestation Agent)
