@@ -4,6 +4,10 @@
 package azure
 
 import (
+	"os"
+	"strings"
+	"time"
+
 	"github.com/edgelesssys/go-azguestattestation/maa"
 )
 
@@ -28,6 +32,27 @@ func InitializeDefaultMAAVars(config *EnvConfig) {
 	maa.OSType = config.OSType
 	maa.OSDistro = config.OSDistro
 	MaaURL = config.MaaURL
+	InitializeDefaultAzureTDXVarsFromEnv()
+}
+
+func InitializeDefaultAzureTDXVars(imdsURL string, hclRefreshDelay time.Duration) {
+	if imdsURL = strings.TrimSpace(imdsURL); imdsURL != "" {
+		azureTDXIMDSQuoteURL = imdsURL
+	}
+	if hclRefreshDelay >= 0 {
+		azureTDXHCLRefreshDelay = hclRefreshDelay
+	}
+}
+
+func InitializeDefaultAzureTDXVarsFromEnv() {
+	imdsURL := os.Getenv("AZURE_TDX_IMDS_URL")
+	hclRefreshDelay := azureTDXHCLRefreshDelay
+	if value := strings.TrimSpace(os.Getenv("AZURE_HCL_REFRESH_WAIT")); value != "" {
+		if parsed, err := time.ParseDuration(value); err == nil {
+			hclRefreshDelay = parsed
+		}
+	}
+	InitializeDefaultAzureTDXVars(imdsURL, hclRefreshDelay)
 }
 
 func (c *EnvConfig) InitializeOSVars(build, osType, osDistro string) {

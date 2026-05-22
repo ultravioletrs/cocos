@@ -484,6 +484,9 @@ func parseAzureHCLReport(report []byte) (*azureHCLReport, error) {
 	if reportType == azureHCLReportTypeTDX {
 		hwReportSize = azureTDReportSize
 	}
+	if azureHCLHeaderSize+hwReportSize > len(report) {
+		return nil, fmt.Errorf("invalid Azure HCL hardware report size: %d", hwReportSize)
+	}
 
 	return &azureHCLReport{
 		reportType:    reportType,
