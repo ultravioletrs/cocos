@@ -21,11 +21,19 @@ The service is configured using the environment variables from the following tab
 | AGENT_CVM_ID                   | Unique identifier for the CVM (Confidential Virtual Machine)                                                  | ""                                              |
 | AGENT_CERTS_TOKEN              | Authentication token for certificate service access                                                           | ""                                              |
 | AGENT_MAA_URL                  | Microsoft Azure Attestation service URL for Azure attestation                                                 | https://sharedeus2.eus2.attest.azure.net        |
+| AZURE_TDX_IMDS_URL             | Azure TDX quote endpoint used by direct Azure TDX attestation                                                 | http://169.254.169.254/acc/tdquote           |
+| AZURE_HCL_REFRESH_WAIT         | Wait after writing TDX report data to Azure HCL vTPM storage before reading the refreshed HCL report          | 3s                                              |
 | AGENT_OS_BUILD                 | Operating system build information for attestation                                                            | UVC                                             |
 | AGENT_OS_DISTRO                | Operating system distribution information for attestation                                                     | UVC                                             |
 | AGENT_OS_TYPE                  | Operating system type information for attestation                                                             | UVC                                             |
 | ATTESTATION_SERVICE_SOCKET     | Unix socket path for attestation service communication                                                       | /run/cocos/attestation.sock                     |
 | AGENT_ENABLE_ATLS              | Enable Attestation TLS for secure communication                                                              | true                                            |
+
+### Azure TDX Attestation
+
+When the agent runs on an Azure TDX CVM, Azure attestation uses the direct Azure TDX flow. The agent writes TDX report data to Azure HCL vTPM storage, reads the refreshed HCL report, requests a TD quote from Azure IMDS, and submits the quote plus HCL runtime data to Microsoft Azure Attestation. This path does not depend on Confidential Containers attestation-agent `GetEvidence` or KBS token retrieval.
+
+`AGENT_MAA_URL` selects the Microsoft Azure Attestation endpoint. `AZURE_TDX_IMDS_URL` can override the Azure IMDS TDX quote endpoint, and `AZURE_HCL_REFRESH_WAIT` controls the wait used to avoid reading a stale HCL report after report-data is written.
 
 ### Remote Resource Download (Optional)
 
