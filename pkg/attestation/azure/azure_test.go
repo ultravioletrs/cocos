@@ -5,6 +5,7 @@ package azure
 
 import (
 	"testing"
+	"time"
 
 	"github.com/edgelesssys/go-azguestattestation/maa"
 	"github.com/stretchr/testify/assert"
@@ -55,4 +56,35 @@ func TestInitializeOSVars(t *testing.T) {
 	assert.Equal(t, "buildX", cfg.OSBuild)
 	assert.Equal(t, "TypeY", cfg.OSType)
 	assert.Equal(t, "DistroZ", cfg.OSDistro)
+}
+
+func TestInitializeDefaultAzureTDXVars(t *testing.T) {
+	oldURL := azureTDXIMDSQuoteURL
+	oldDelay := azureTDXHCLRefreshDelay
+	defer func() {
+		azureTDXIMDSQuoteURL = oldURL
+		azureTDXHCLRefreshDelay = oldDelay
+	}()
+
+	InitializeDefaultAzureTDXVars(" https://imds.example/tdquote ", 1500*time.Millisecond)
+
+	assert.Equal(t, "https://imds.example/tdquote", azureTDXIMDSQuoteURL)
+	assert.Equal(t, 1500*time.Millisecond, azureTDXHCLRefreshDelay)
+}
+
+func TestInitializeDefaultAzureTDXVarsFromEnv(t *testing.T) {
+	oldURL := azureTDXIMDSQuoteURL
+	oldDelay := azureTDXHCLRefreshDelay
+	defer func() {
+		azureTDXIMDSQuoteURL = oldURL
+		azureTDXHCLRefreshDelay = oldDelay
+	}()
+
+	t.Setenv("AZURE_TDX_IMDS_URL", "https://env-imds.example/tdquote")
+	t.Setenv("AZURE_HCL_REFRESH_WAIT", "2s")
+
+	InitializeDefaultAzureTDXVarsFromEnv()
+
+	assert.Equal(t, "https://env-imds.example/tdquote", azureTDXIMDSQuoteURL)
+	assert.Equal(t, 2*time.Second, azureTDXHCLRefreshDelay)
 }

@@ -55,6 +55,8 @@ func (c *client) GetAttestation(ctx context.Context, reportData [64]byte, nonce 
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_VTPM
 	case attestation.SNPvTPM:
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_SNP_VTPM
+	case attestation.Azure:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_AZURE
 	default:
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_UNSPECIFIED
 	}
@@ -92,6 +94,8 @@ func (c *client) GetRawEvidence(ctx context.Context, reportData [64]byte, nonce 
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_VTPM
 	case attestation.SNPvTPM:
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_SNP_VTPM
+	case attestation.Azure:
+		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_AZURE
 	default:
 		platformType = attestation_v1.PlatformType_PLATFORM_TYPE_UNSPECIFIED
 	}

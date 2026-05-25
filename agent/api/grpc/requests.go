@@ -60,7 +60,7 @@ func (req azureAttestationTokenReq) validate() error {
 
 func validateAttestationType(attType attestation.PlatformType) error {
 	switch attType {
-	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM, attestation.TDX:
+	case attestation.SNP, attestation.VTPM, attestation.SNPvTPM, attestation.Azure, attestation.TDX:
 		return nil
 	default:
 		return errors.New("invalid attestation type")

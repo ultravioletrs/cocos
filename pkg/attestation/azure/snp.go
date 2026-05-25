@@ -52,6 +52,10 @@ func NewProvider() attestation.Provider {
 }
 
 func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error) {
+	if isAzureTDX() {
+		return a.TeeAttestation(teeNonce)
+	}
+
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
 
@@ -77,6 +81,10 @@ func (a provider) Attestation(teeNonce []byte, vTpmNonce []byte) ([]byte, error)
 }
 
 func (a provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
+	if isAzureTDX() {
+		return fetchAzureTDXQuote(teeNonce)
+	}
+
 	var tokenNonce [vtpm.Nonce]byte
 	copy(tokenNonce[:], teeNonce)
 
@@ -89,7 +97,6 @@ func (a provider) TeeAttestation(teeNonce []byte) ([]byte, error) {
 }
 
 func (a provider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
-	fmt.Printf("DEBUG: VTpmAttestation: vtpm.ExternalTPM is %T at %p\n", vtpm.ExternalTPM, &vtpm.ExternalTPM)
 	quote, err := vtpm.FetchQuote(vTpmNonce)
 	if err != nil {
 		return []byte{}, errors.Wrap(vtpm.ErrFetchQuote, err)
@@ -111,6 +118,14 @@ func (c *defaultMaaClient) Attest(ctx context.Context, nonce []byte, maaURL stri
 var DefaultMaaClient MaaClient = &defaultMaaClient{}
 
 func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
+	if isAzureTDX() {
+		token, err := FetchAzureTDXAttestationToken(tokenNonce, MaaURL)
+		if err != nil {
+			return nil, errors.Wrap(ErrFetchAzureToken, err)
+		}
+		return token, nil
+	}
+
 	token, err := DefaultMaaClient.Attest(context.Background(), tokenNonce, MaaURL, http.DefaultClient)
 	if err != nil {
 		return nil, errors.Wrap(ErrFetchAzureToken, err)
@@ -152,12 +167,19 @@ func (v verifier) VerifyEAT(eatToken []byte, teeNonce []byte, vTpmNonce []byte) 
 func (v verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error {
 	attestation := &attest.Attestation{}
 	if err := proto.Unmarshal(report, attestation); err != nil {
-		return fmt.Errorf("failed to unmarshal attestation report: %w", err)
+		tdxErr := verifyTDXQuoteWithCoRIM(report, manifest)
+		if tdxErr == nil {
+			return nil
+		}
+		return fmt.Errorf("failed to unmarshal attestation report: %w; Azure TDX verification failed: %v", err, tdxErr)
 	}
 
 	// Extract measurement from SEV-SNP report if present
 	snpRep := attestation.GetSevSnpAttestation()
 	if snpRep == nil {
+		if tdxErr := verifyTDXQuoteWithCoRIM(report, manifest); tdxErr == nil {
+			return nil
+		}
 		return fmt.Errorf("no SEV-SNP attestation found in report")
 	}
 

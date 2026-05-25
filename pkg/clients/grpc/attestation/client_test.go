@@ -174,6 +174,40 @@ func TestGetAttestationTDX(t *testing.T) {
 	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_TDX, mockServer.lastPlatformType)
 }
 
+// TestGetAttestationAzure tests getting Azure attestation.
+func TestGetAttestationAzure(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "attestation-azure-evidence.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	quote, err := client.GetAttestation(ctx, reportData, nonce, attestation.Azure)
+	require.NoError(t, err)
+	assert.NotNil(t, quote)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_AZURE, mockServer.lastPlatformType)
+}
+
 // TestGetAttestationVTPM tests getting vTPM attestation.
 func TestGetAttestationVTPM(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -477,6 +511,40 @@ func TestGetRawEvidenceTDX(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, evidence)
 	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_TDX, mockServer.lastPlatformType)
+}
+
+// TestGetRawEvidenceAzure tests getting raw evidence for Azure platform.
+func TestGetRawEvidenceAzure(t *testing.T) {
+	tmpDir := t.TempDir()
+	socketPath := filepath.Join(tmpDir, "raw-evidence-azure.sock")
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	mockServer := &mockAttestationServer{}
+	attestation_v1.RegisterAttestationServiceServer(grpcServer, mockServer)
+
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := NewClient(socketPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	var reportData [64]byte
+	var nonce [32]byte
+
+	evidence, err := client.GetRawEvidence(ctx, reportData, nonce, attestation.Azure)
+	require.NoError(t, err)
+	assert.NotNil(t, evidence)
+	assert.Equal(t, attestation_v1.PlatformType_PLATFORM_TYPE_AZURE, mockServer.lastPlatformType)
 }
 
 // TestGetRawEvidenceVTPM tests getting raw evidence for VTPM platform.
