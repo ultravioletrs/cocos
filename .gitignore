@@ -31,3 +31,7 @@ Cargo.lock
 *.key
 *.pub
 .codex
+
+# Standalone EDC extension workspace
+edc-extensions/.gradle/
+edc-extensions/.jdk/
