@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func selfSignedCert(t *testing.T) tls.Certificate {
+func selfSignedCert(t testing.TB) tls.Certificate {
 	t.Helper()
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
