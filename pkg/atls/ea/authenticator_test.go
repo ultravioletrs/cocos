@@ -20,7 +20,7 @@ import (
 	attestation "github.com/ultravioletrs/cocos/pkg/atls/eaattestation"
 )
 
-func selfSignedCert(t *testing.T) tls.Certificate {
+func selfSignedCert(t testing.TB) tls.Certificate {
 	t.Helper()
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -42,7 +42,7 @@ func selfSignedCert(t *testing.T) tls.Certificate {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: priv}
 }
 
-func tlsPair(t *testing.T, cert tls.Certificate) (srv, cli *tls.Conn) {
+func tlsPair(t testing.TB, cert tls.Certificate) (srv, cli *tls.Conn) {
 	t.Helper()
 	srvConf := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13}
 	cliConf := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13}
