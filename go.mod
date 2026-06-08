@@ -28,7 +28,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-jose/go-jose/v4 v4.1.4
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/gce-tcb-verifier v0.3.1
 	github.com/veraison/corim v1.1.2
 	github.com/veraison/go-cose v1.3.0
