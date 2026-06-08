@@ -9,8 +9,11 @@ import (
 	"testing"
 
 	"github.com/google/go-sev-guest/abi"
+	attestpb "github.com/google/go-tpm-tools/proto/attest"
+	tpmpb "github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/stretchr/testify/assert"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestExtractSNPClaims(t *testing.T) {
@@ -99,16 +102,29 @@ func TestTDXExtensionsJSON(t *testing.T) {
 }
 
 func TestExtractVTPMClaims(t *testing.T) {
-	report := make([]byte, 32)
-	copy(report, []byte("vtpm-report-with-enough-length-123"))
+	pcr0 := []byte("0123456789abcdef0123456789abcdef")
+	rawQuote := []byte("raw-vtpm-quote")
+	report, err := proto.Marshal(&attestpb.Attestation{
+		Quotes: []*tpmpb.Quote{{
+			Quote: rawQuote,
+			Pcrs: &tpmpb.PCRs{
+				Hash: tpmpb.HashAlgo_SHA256,
+				Pcrs: map[uint32][]byte{
+					0: pcr0,
+				},
+			},
+		}},
+		EventLog: []byte("event-log"),
+	})
+	assert.NoError(t, err)
 
 	claims := &EATClaims{}
-	err := extractVTPMClaims(claims, report)
+	err = extractVTPMClaims(claims, report)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims.VTPMExtensions)
-	assert.Equal(t, report, claims.VTPMExtensions.Quote)
-	assert.Equal(t, report[:32], claims.Measurements)
-	assert.Equal(t, report[:16], claims.UEID)
+	assert.Equal(t, rawQuote, claims.VTPMExtensions.Quote)
+	assert.Equal(t, pcr0, claims.Measurements)
+	assert.Equal(t, pcr0[:16], claims.UEID)
 }
 
 func TestExtractAzureClaims(t *testing.T) {
