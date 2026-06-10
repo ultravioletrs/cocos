@@ -269,7 +269,7 @@ func main() {
 		return mc.Process(ctx, cancel)
 	})
 
-	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
+	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc, ccPlatform)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
 		exitCode = 1
@@ -317,7 +317,7 @@ func newService(ctx context.Context, logger *slog.Logger, eventSvc events.Servic
 	return svc
 }
 
-func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Service) ([]byte, string, error) {
+func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Service, ccPlatform attestation.PlatformType) ([]byte, string, error) {
 	if certFilePath == "" {
 		return nil, "", nil
 	}
@@ -335,7 +335,7 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 
 	nonceSNP := sha512.Sum512(certFile)
 	nonceVTPM := sha256.Sum256(certFile)
-	attest, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, attestation.SNPvTPM)
+	attest, err := svc.Attestation(ctx, nonceSNP, nonceVTPM, ccPlatform)
 	if err != nil {
 		return nil, "", err
 	}
