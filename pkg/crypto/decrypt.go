@@ -11,7 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/absmach/supermq/pkg/errors"
+	"github.com/absmach/magistrala/pkg/errors"
 	"golang.org/x/crypto/hkdf"
 )
 

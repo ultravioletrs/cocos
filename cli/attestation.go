@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/absmach/supermq/pkg/errors"
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/fatih/color"
 	"github.com/google/go-sev-guest/abi"
 	tpmAttest "github.com/google/go-tpm-tools/proto/attest"

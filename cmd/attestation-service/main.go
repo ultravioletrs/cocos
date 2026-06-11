@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	mglog "github.com/absmach/supermq/logger"
+	mglog "github.com/absmach/magistrala/logger"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	logpb "github.com/ultravioletrs/cocos/agent/log"
