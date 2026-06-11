@@ -328,6 +328,9 @@ func attestationFromCert(ctx context.Context, certFilePath string, svc agent.Ser
 	}
 
 	certPem, _ := pem.Decode(certFile)
+	if certPem == nil {
+		return nil, "", fmt.Errorf("failed to decode certificate PEM")
+	}
 	certx509, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
 		return nil, "", err
@@ -354,6 +357,9 @@ func azureAttestationFromCert(ctx context.Context, certFilePath string, svc agen
 	}
 
 	certPem, _ := pem.Decode(certFile)
+	if certPem == nil {
+		return nil, "", fmt.Errorf("failed to decode certificate PEM")
+	}
 	certx509, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
 		return nil, "", err

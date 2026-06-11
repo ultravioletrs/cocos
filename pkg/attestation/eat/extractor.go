@@ -95,15 +95,59 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 		return fmt.Errorf("failed to parse TDX quote: %w", err)
 	}
 
-	quoteV4, ok := decodedQuote.(*tdxpb.QuoteV4)
-	if !ok {
+	var rtmrs [][]byte
+	var mrTd []byte
+	var xfam []byte
+	var tdAttributes []byte
+	var mrConfigId []byte
+	var mrOwner []byte
+	var mrOwnerConfig []byte
+	var mrSeam []byte
+	var signature []byte
+
+	switch q := decodedQuote.(type) {
+	case *tdxpb.QuoteV4:
+		tdReport := q.GetTdQuoteBody()
+		signedData := q.GetSignedData()
+		if tdReport == nil {
+			return fmt.Errorf("missing TDX quote body")
+		}
+		rtmrs = tdReport.GetRtmrs()
+		mrTd = tdReport.GetMrTd()
+		xfam = tdReport.GetXfam()
+		tdAttributes = tdReport.GetTdAttributes()
+		mrConfigId = tdReport.GetMrConfigId()
+		mrOwner = tdReport.GetMrOwner()
+		mrOwnerConfig = tdReport.GetMrOwnerConfig()
+		mrSeam = tdReport.GetMrSeam()
+		if signedData != nil {
+			signature = signedData.GetSignature()
+		}
+	case *tdxpb.QuoteV5:
+		bodyDesc := q.GetTdQuoteBodyDescriptor()
+		if bodyDesc == nil {
+			return fmt.Errorf("missing TDX quote body descriptor")
+		}
+		tdReport := bodyDesc.GetTdQuoteBodyV5()
+		if tdReport == nil {
+			return fmt.Errorf("missing TDX quote body V5")
+		}
+		rtmrs = tdReport.GetRtmrs()
+		mrTd = tdReport.GetMrTd()
+		xfam = tdReport.GetXfam()
+		tdAttributes = tdReport.GetTdAttributes()
+		mrConfigId = tdReport.GetMrConfigId()
+		mrOwner = tdReport.GetMrOwner()
+		mrOwnerConfig = tdReport.GetMrOwnerConfig()
+		mrSeam = tdReport.GetMrSeam()
+		signedData := q.GetSignedData()
+		if signedData != nil {
+			signature = signedData.GetSignature()
+		}
+	default:
 		return fmt.Errorf("unsupported TDX quote format")
 	}
 
-	tdReport := quoteV4.GetTdQuoteBody()
-	signedData := quoteV4.GetSignedData()
-
-	rtmrs := tdReport.GetRtmrs()
 	var rtmr0, rtmr1, rtmr2, rtmr3 []byte
 	if len(rtmrs) > 0 {
 		rtmr0 = rtmrs[0]
@@ -119,22 +163,22 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 	}
 
 	claims.TDXExtensions = &TDXExtensions{
-		MRTD:          tdReport.GetMrTd(),
+		MRTD:          mrTd,
 		RTMR0:         rtmr0,
 		RTMR1:         rtmr1,
 		RTMR2:         rtmr2,
 		RTMR3:         rtmr3,
-		XFAM:          binary.LittleEndian.Uint64(tdReport.GetXfam()),
-		TDAttributes:  binary.LittleEndian.Uint64(tdReport.GetTdAttributes()),
-		MRConfigID:    tdReport.GetMrConfigId(),
-		MROwner:       tdReport.GetMrOwner(),
-		MROwnerConfig: tdReport.GetMrOwnerConfig(),
-		MRSEAM:        tdReport.GetMrSeam(),
-		Signature:     signedData.GetSignature(),
+		XFAM:          binary.LittleEndian.Uint64(xfam),
+		TDAttributes:  binary.LittleEndian.Uint64(tdAttributes),
+		MRConfigID:    mrConfigId,
+		MROwner:       mrOwner,
+		MROwnerConfig: mrOwnerConfig,
+		MRSEAM:        mrSeam,
+		Signature:     signature,
 	}
 
 	// Set core EAT claims
-	claims.Measurements = tdReport.GetMrTd()
+	claims.Measurements = mrTd
 	// Use first 32 bytes of MRTD as UEID, similar to other extractors
 	if len(claims.Measurements) >= 32 {
 		claims.UEID = claims.Measurements[:32]

@@ -156,8 +156,10 @@ func main() {
 		}
 	}
 
+	isDirectProvider := false
 	// Fallback to direct providers if CC AA not configured or unavailable
 	if provider == nil {
+		isDirectProvider = true
 		switch ccPlatform {
 		case attestation.SNP:
 			provider = vtpm.NewProvider(false, uint(cfg.Vmpl))
@@ -188,7 +190,7 @@ func main() {
 		logger.Error("[ATTESTATION-SERVICE] No provider configured!")
 	}
 
-	if ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM {
+	if (ccPlatform == attestation.SNP || ccPlatform == attestation.SNPvTPM) && isDirectProvider {
 		if err := vtpm.FetchSEVCertificates(uint(cfg.Vmpl)); err != nil {
 			logger.Error(fmt.Sprintf("failed to fetch certificates: %s", err))
 			exitCode = 1
