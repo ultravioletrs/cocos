@@ -9,7 +9,7 @@ import (
 	"encoding/pem"
 	"os"
 
-	"github.com/absmach/supermq/pkg/errors"
+	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/pkg/attestation"
 )
 

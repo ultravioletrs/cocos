@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	mglog "github.com/absmach/supermq/logger"
-	smqserver "github.com/absmach/supermq/pkg/server"
-	grpcserver "github.com/absmach/supermq/pkg/server/grpc"
+	mglog "github.com/absmach/magistrala/logger"
+	smqserver "github.com/absmach/magistrala/pkg/server"
+	grpcserver "github.com/absmach/magistrala/pkg/server/grpc"
 	"github.com/caarlos0/env/v11"
 	"github.com/ultravioletrs/cocos/agent/cvms"
 	cvmsgrpc "github.com/ultravioletrs/cocos/agent/cvms/api/grpc"

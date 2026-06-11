@@ -534,17 +534,28 @@ func verifyTDXQuoteWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error
 		return fmt.Errorf("failed to parse TDX quote: %w", err)
 	}
 
-	quoteV4, ok := decodedQuote.(*tdxpb.QuoteV4)
-	if !ok {
+	var mrtd []byte
+	switch q := decodedQuote.(type) {
+	case *tdxpb.QuoteV4:
+		tdReport := q.GetTdQuoteBody()
+		if tdReport == nil {
+			return fmt.Errorf("missing TDX quote body")
+		}
+		mrtd = tdReport.GetMrTd()
+	case *tdxpb.QuoteV5:
+		bodyDesc := q.GetTdQuoteBodyDescriptor()
+		if bodyDesc == nil {
+			return fmt.Errorf("missing TDX quote body descriptor")
+		}
+		tdReport := bodyDesc.GetTdQuoteBodyV5()
+		if tdReport == nil {
+			return fmt.Errorf("missing TDX quote body V5")
+		}
+		mrtd = tdReport.GetMrTd()
+	default:
 		return fmt.Errorf("unsupported TDX quote format")
 	}
 
-	tdReport := quoteV4.GetTdQuoteBody()
-	if tdReport == nil {
-		return fmt.Errorf("missing TDX quote body")
-	}
-
-	mrtd := tdReport.GetMrTd()
 	if len(mrtd) == 0 {
 		return fmt.Errorf("no MRTD in TDX quote")
 	}
