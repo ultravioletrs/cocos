@@ -1064,17 +1064,40 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if matchedIndex == -1 {
 		datasetData = dataset.Dataset
 		datasetFilename = dataset.Filename
-	}
 
-	matchedIndex = -1
-	for i, d := range as.computation.Datasets {
-		if d.Filename == datasetFilename {
-			matchedIndex = i
-			break
+		index, ok := IndexFromContext(ctx)
+		if ok {
+			if index < 0 || index >= len(as.computation.Datasets) {
+				return ErrUndeclaredDataset
+			}
+			if as.computation.Datasets[index].Filename != datasetFilename {
+				return ErrFileNameMismatch
+			}
+			matchedIndex = index
+		} else {
+			matchedIndex = -1
+			for i, d := range as.computation.Datasets {
+				if d.Filename == datasetFilename {
+					matchedIndex = i
+					break
+				}
+			}
+			if matchedIndex == -1 {
+				return ErrUndeclaredDataset
+			}
 		}
-	}
-	if matchedIndex == -1 {
-		return ErrUndeclaredDataset
+	} else {
+		remoteIndex := -1
+		for i, d := range as.computation.Datasets {
+			if d.Filename == datasetFilename {
+				remoteIndex = i
+				break
+			}
+		}
+		if remoteIndex == -1 {
+			return ErrUndeclaredDataset
+		}
+		matchedIndex = remoteIndex
 	}
 
 	d := as.computation.Datasets[matchedIndex]
