@@ -17,6 +17,9 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          mkdir -p "$RUNNER_TEMP/hostedtoolcache"
+          echo "RUNNER_TOOL_CACHE=$RUNNER_TEMP/hostedtoolcache" >> "$GITHUB_ENV"
+          echo "AGENT_TOOLSDIRECTORY=$RUNNER_TEMP/hostedtoolcache" >> "$GITHUB_ENV"
           df -h
 
       - name: Update Ubuntu
@@ -39,17 +42,17 @@ jobs:
           echo "Free space:"
           df -h
 
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.26.x
-          cache-dependency-path: "go.sum"
-
       - name: Checkout cocos
         uses: actions/checkout@v4
         with:
           repository: "ultravioletrs/cocos"
           path: cocos
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.x
+          cache-dependency-path: "cocos/go.sum"
 
       - name: Checkout buildroot
         uses: actions/checkout@v4
