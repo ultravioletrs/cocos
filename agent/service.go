@@ -416,7 +416,7 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		"kbs_enabled", kbsEnabled)
 
 	// Check if algorithm should be downloaded from remote source
-	if as.computation.Algorithm.Source != nil && kbsEnabled {
+	if as.computation.Algorithm.Source != nil && kbsEnabled && as.computation.Algorithm.Source.URL != "" {
 		as.logger.Info("downloading algorithm from remote source",
 			"url", as.computation.Algorithm.Source.URL,
 			"kbs_resource_path", as.computation.Algorithm.Source.KBSResourcePath,
@@ -536,7 +536,7 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 	hasRemoteDatasets := false
 	for _, d := range as.computation.Datasets {
 		kbsEnabled := d.KBS != nil && d.KBS.Enabled
-		if d.Source != nil && kbsEnabled {
+		if d.Source != nil && kbsEnabled && d.Source.URL != "" {
 			hasRemoteDatasets = true
 			break
 		}
@@ -557,7 +557,7 @@ func (as *agentService) downloadDatasetsIfRemote(state statemachine.State) {
 			kbsURL = d.KBS.URL
 		}
 
-		if d.Source != nil && kbsEnabled {
+		if d.Source != nil && kbsEnabled && d.Source.URL != "" {
 			as.logger.Info("downloading dataset from remote source", "filename", d.Filename, "kbs_url", kbsURL)
 
 			res, err := as.downloadAndDecryptResource(ctx, d.Source, kbsURL, "dataset")
@@ -944,7 +944,7 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		kbsURL = as.computation.Algorithm.KBS.URL
 	}
 
-	if as.computation.Algorithm.Source != nil && kbsEnabled {
+	if as.computation.Algorithm.Source != nil && kbsEnabled && as.computation.Algorithm.Source.URL != "" {
 		as.logger.Info("downloading algorithm from remote source", "kbs_url", kbsURL)
 
 		res, err := as.downloadAndDecryptResource(ctx, as.computation.Algorithm.Source, kbsURL, "algorithm")
@@ -957,6 +957,19 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 	} else {
 		// Use directly uploaded algorithm
 		algoData = algo.Algorithm
+
+		if as.computation.Algorithm.Source != nil && as.computation.Algorithm.Source.Encrypted && kbsEnabled {
+			as.logger.Info("directly uploaded algorithm is encrypted, retrieving key from KBS")
+			key, err := as.getKeyFromKBS(ctx, kbsURL, as.computation.Algorithm.Source.KBSResourcePath)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve key from KBS for uploaded algorithm: %w", err)
+			}
+			decrypted, err := resource.DecryptData(algoData, key)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt uploaded algorithm: %w", err)
+			}
+			algoData = decrypted
+		}
 	}
 
 	hash := sha3.Sum256(algoData)
@@ -1032,7 +1045,7 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 			kbsURL = d.KBS.URL
 		}
 
-		if d.Source != nil && kbsEnabled {
+		if d.Source != nil && kbsEnabled && d.Source.URL != "" {
 			as.logger.Info("downloading dataset from remote source", "filename", d.Filename, "kbs_url", kbsURL)
 
 			downloadedData, err := as.downloadAndDecryptResource(ctx, d.Source, kbsURL, "dataset")
@@ -1051,44 +1064,85 @@ func (as *agentService) Data(ctx context.Context, dataset Dataset) error {
 	if matchedIndex == -1 {
 		datasetData = dataset.Dataset
 		datasetFilename = dataset.Filename
+
+		index, ok := IndexFromContext(ctx)
+		if ok {
+			if index < 0 || index >= len(as.computation.Datasets) {
+				return ErrUndeclaredDataset
+			}
+			if as.computation.Datasets[index].Filename != datasetFilename {
+				return ErrFileNameMismatch
+			}
+			matchedIndex = index
+		} else {
+			matchedIndex = -1
+			for i, d := range as.computation.Datasets {
+				if d.Filename == datasetFilename {
+					matchedIndex = i
+					break
+				}
+			}
+			if matchedIndex == -1 {
+				return ErrUndeclaredDataset
+			}
+		}
+	} else {
+		remoteIndex := -1
+		for i, d := range as.computation.Datasets {
+			if d.Filename == datasetFilename {
+				remoteIndex = i
+				break
+			}
+		}
+		if remoteIndex == -1 {
+			return ErrUndeclaredDataset
+		}
+		matchedIndex = remoteIndex
+	}
+
+	d := as.computation.Datasets[matchedIndex]
+
+	kbsEnabled := d.KBS != nil && d.KBS.Enabled
+	kbsURL := ""
+	if d.KBS != nil {
+		kbsURL = d.KBS.URL
+	}
+	if d.Source != nil && d.Source.Encrypted && kbsEnabled {
+		as.logger.Info("directly uploaded dataset is encrypted, retrieving key from KBS", "filename", d.Filename)
+		key, err := as.getKeyFromKBS(ctx, kbsURL, d.Source.KBSResourcePath)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve key from KBS for dataset %s: %w", d.Filename, err)
+		}
+		decrypted, err := resource.DecryptData(datasetData, key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt dataset %s: %w", d.Filename, err)
+		}
+		datasetData = decrypted
 	}
 
 	hash := sha3.Sum256(datasetData)
-
-	matched := false
-	for i, d := range as.computation.Datasets {
-		if hash == d.Hash {
-			if d.Filename != "" && d.Filename != datasetFilename {
-				return ErrFileNameMismatch
-			}
-
-			as.computation.Datasets = slices.Delete(as.computation.Datasets, i, i+1)
-
-			if DecompressFromContext(ctx) {
-				if err := internal.UnzipFromMemory(datasetData, algorithm.DatasetsDir); err != nil {
-					return fmt.Errorf("error decompressing dataset: %v", err)
-				}
-			} else {
-				f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, datasetFilename))
-				if err != nil {
-					return fmt.Errorf("error creating dataset file: %v", err)
-				}
-
-				if _, err := f.Write(datasetData); err != nil {
-					return fmt.Errorf("error writing dataset to file: %v", err)
-				}
-				if err := f.Close(); err != nil {
-					return fmt.Errorf("error closing file: %v", err)
-				}
-			}
-
-			matched = true
-			break
-		}
+	if hash != d.Hash {
+		return ErrHashMismatch
 	}
 
-	if !matched {
-		return ErrUndeclaredDataset
+	as.computation.Datasets = slices.Delete(as.computation.Datasets, matchedIndex, matchedIndex+1)
+
+	if DecompressFromContext(ctx) {
+		if err := internal.UnzipFromMemory(datasetData, algorithm.DatasetsDir); err != nil {
+			return fmt.Errorf("error decompressing dataset: %v", err)
+		}
+	} else {
+		f, err := os.Create(fmt.Sprintf("%s/%s", algorithm.DatasetsDir, datasetFilename))
+		if err != nil {
+			return fmt.Errorf("error creating dataset file: %v", err)
+		}
+
+		if _, err := f.Write(datasetData); err != nil {
+			return fmt.Errorf("error writing dataset to file: %v", err)
+		}
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("error closing file: %v", err)
+		}
 	}
 
 	if len(as.computation.Datasets) == 0 {

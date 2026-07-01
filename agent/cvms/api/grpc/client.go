@@ -178,6 +178,9 @@ func (client *CVMSClient) processIncomingMessage(ctx context.Context, req *cvms.
 	switch mes := req.Message.(type) {
 	case *cvms.ServerStreamMessage_RunReqChunks:
 		return client.handleRunReqChunks(ctx, mes)
+	case *cvms.ServerStreamMessage_RunReq:
+		client.logger.Info("Starting computation execution from non-chunked run request", "computationId", mes.RunReq.Id, "name", mes.RunReq.Name)
+		go client.executeRun(ctx, mes.RunReq)
 	case *cvms.ServerStreamMessage_StopComputation:
 		go client.handleStopComputation(ctx, mes)
 	case *cvms.ServerStreamMessage_AgentStateReq:

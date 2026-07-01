@@ -218,7 +218,7 @@ func TestData(t *testing.T) {
 		{
 			name: "Test dataset not declared in manifest",
 			data: Dataset{
-				Filename: datasetFile,
+				Filename: "undeclared.csv",
 			},
 			err: ErrUndeclaredDataset,
 		},
@@ -1807,4 +1807,92 @@ func TestInferSourceType(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestInitComputation_Errors(t *testing.T) {
+	sm := &smmocks.StateMachine{}
+	sm.On("GetState").Return(ReceivingAlgorithm) // Not ReceivingManifest
+
+	svc := &agentService{
+		sm: sm,
+	}
+
+	err := svc.InitComputation(context.Background(), Computation{})
+	assert.ErrorIs(t, err, ErrStateNotReady)
+}
+
+func TestAlgo_Errors(t *testing.T) {
+	t.Run("state not ready", func(t *testing.T) {
+		sm := &smmocks.StateMachine{}
+		sm.On("GetState").Return(ReceivingManifest) // Not ReceivingAlgorithm
+
+		svc := &agentService{
+			sm: sm,
+		}
+
+		err := svc.Algo(context.Background(), Algorithm{})
+		assert.ErrorIs(t, err, ErrStateNotReady)
+	})
+
+	t.Run("all manifest items received", func(t *testing.T) {
+		sm := &smmocks.StateMachine{}
+		sm.On("GetState").Return(ReceivingAlgorithm)
+
+		svc := &agentService{
+			sm:           sm,
+			algoReceived: true,
+		}
+
+		err := svc.Algo(context.Background(), Algorithm{})
+		assert.ErrorIs(t, err, ErrAllManifestItemsReceived)
+	})
+
+	t.Run("undeclared algorithm", func(t *testing.T) {
+		sm := &smmocks.StateMachine{}
+		sm.On("GetState").Return(ReceivingAlgorithm)
+
+		svc := &agentService{
+			sm:           sm,
+			algoReceived: false,
+			computation: Computation{
+				Algorithm: nil, // Not declared
+			},
+		}
+
+		err := svc.Algo(context.Background(), Algorithm{})
+		assert.ErrorIs(t, err, ErrUndeclaredAlgorithm)
+	})
+}
+
+func TestData_ErrorsExtra(t *testing.T) {
+	t.Run("all manifest items received", func(t *testing.T) {
+		sm := &smmocks.StateMachine{}
+		sm.On("GetState").Return(ReceivingData)
+
+		svc := &agentService{
+			sm: sm,
+			computation: Computation{
+				Datasets: nil, // length 0
+			},
+		}
+
+		err := svc.Data(context.Background(), Dataset{})
+		assert.ErrorIs(t, err, ErrAllManifestItemsReceived)
+	})
+}
+
+func TestEnsureDir_Error(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ensureDirTest")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	tmpFile.Close()
+
+	// ensureDir should fail because the parent path is a file, not a directory
+	err = ensureDir(filepath.Join(tmpFile.Name(), "subdir"), 0o755)
+	assert.Error(t, err)
+}
+
+func TestKbsHTTPGet_Error(t *testing.T) {
+	_, err := kbsHTTPGet(context.Background(), "%%")
+	assert.Error(t, err)
 }
