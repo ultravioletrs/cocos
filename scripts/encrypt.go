@@ -1,3 +1,6 @@
+// Copyright (c) Ultraviolet
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -61,7 +64,7 @@ func main() {
 	// Seal returns ciphertext || tag, so we just append it to nonce
 	output := append(nonce, ciphertext...)
 
-	err = os.WriteFile(outputFile, output, 0644)
+	err = os.WriteFile(outputFile, output, 0o644)
 	if err != nil {
 		fmt.Printf("Failed to write output file: %v\n", err)
 		os.Exit(1)
