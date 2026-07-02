@@ -51,9 +51,13 @@ func TestDownloadAndDecryptGenericResource(t *testing.T) {
 	mockDownloader.On("Type").Return(resource.SourceTypeHTTP)
 	registry.Register(mockDownloader)
 
+	attestationClient := new(MockAttestationClient)
+	attestationClient.On("GetKbsToken", mock.Anything).Return([]byte("mockToken"), nil).Maybe()
+
 	svc := &agentService{
-		logger:           slog.Default(),
-		resourceRegistry: registry,
+		logger:            slog.Default(),
+		resourceRegistry:  registry,
+		attestationClient: attestationClient,
 		computation: Computation{
 			Algorithm: &Algorithm{
 				KBS: &KBSConfig{
@@ -122,8 +126,12 @@ func TestDownloadAndDecryptGenericResource(t *testing.T) {
 }
 
 func TestGetKeyFromKBS(t *testing.T) {
+	attestationClient := new(MockAttestationClient)
+	attestationClient.On("GetKbsToken", mock.Anything).Return([]byte("mockToken"), nil).Maybe()
+
 	svc := &agentService{
-		logger: slog.Default(),
+		logger:            slog.Default(),
+		attestationClient: attestationClient,
 		computation: Computation{
 			Algorithm: &Algorithm{
 				KBS: &KBSConfig{
