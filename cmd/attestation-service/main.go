@@ -409,7 +409,7 @@ func convertPlatformType(pt attestationpb.PlatformType) attestation.PlatformType
 	}
 }
 
-func (s *service) GetAzureToken(ctx context.Context, req *attestationpb.AzureTokenRequest) (*attestationpb.AzureTokenResponse, error) {
+func (s *service) FetchAzureToken(ctx context.Context, req *attestationpb.AzureTokenRequest) (*attestationpb.AzureTokenResponse, error) {
 	var nonce [32]byte
 	copy(nonce[:], req.Nonce)
 	token, err := s.provider.AzureAttestationToken(nonce[:])
@@ -417,4 +417,15 @@ func (s *service) GetAzureToken(ctx context.Context, req *attestationpb.AzureTok
 		return nil, err
 	}
 	return &attestationpb.AzureTokenResponse{Token: token}, nil
+}
+
+func (s *service) FetchKbsToken(ctx context.Context, req *attestationpb.KbsTokenRequest) (*attestationpb.KbsTokenResponse, error) {
+	s.logger.Info("[ATTESTATION-SERVICE] FetchKbsToken RPC called")
+	token, err := s.provider.KbsToken()
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("[ATTESTATION-SERVICE] FetchKbsToken failed: %v", err))
+		return nil, err
+	}
+	s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] FetchKbsToken succeeded, token len: %d", len(token)))
+	return &attestationpb.KbsTokenResponse{Token: token}, nil
 }

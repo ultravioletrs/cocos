@@ -31,3 +31,7 @@ func (e *EmptyProvider) VTpmAttestation(vTpmNonce []byte) ([]byte, error) {
 func (e *EmptyProvider) AzureAttestationToken(nonce []byte) ([]byte, error) {
 	return nil, nil
 }
+
+func (e *EmptyProvider) KbsToken() ([]byte, error) {
+	return nil, fmt.Errorf("KbsToken not supported on EmptyProvider")
+}

@@ -48,7 +48,6 @@ jobs:
       - name: Checkout cocos
         uses: actions/checkout@v4
         with:
-          repository: "ultravioletrs/cocos"
           path: cocos
 
       - name: Checkout buildroot
@@ -75,6 +74,12 @@ jobs:
           files: |
             buildroot/output/images/bzImage
             buildroot/output/images/rootfs.cpio.gz
-            cocos/build/cocos-agent  
-            cocos/build/cocos-cli  
+            cocos/build/cocos-agent
+            cocos/build/cocos-cli
             cocos/build/cocos-manager
+            cocos/build/cocos-attestation-service
+            cocos/build/cocos-log-forwarder
+            cocos/build/cocos-computation-runner
+            cocos/build/cocos-egress-proxy
+            cocos/build/cocos-ingress-proxy
+            cocos/build/igvmmeasure

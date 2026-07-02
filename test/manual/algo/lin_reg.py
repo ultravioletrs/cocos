@@ -1,5 +1,25 @@
-import os
+import subprocess
 import sys
+
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    import pandas
+except ImportError:
+    install("pandas")
+
+try:
+    import sklearn
+except ImportError:
+    install("scikit-learn")
+
+try:
+    import joblib
+except ImportError:
+    install("joblib")
+
+import os
 import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
