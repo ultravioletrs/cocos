@@ -42,6 +42,7 @@ type Provider interface {
 	TeeAttestation(teeNonce []byte) ([]byte, error)
 	VTpmAttestation(vTpmNonce []byte) ([]byte, error)
 	AzureAttestationToken(tokenNonce []byte) ([]byte, error)
+	KbsToken() ([]byte, error)
 }
 
 type Verifier interface {

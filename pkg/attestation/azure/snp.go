@@ -134,6 +134,10 @@ func (a provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
 	return []byte(token), nil
 }
 
+func (a provider) KbsToken() ([]byte, error) {
+	return nil, fmt.Errorf("KbsToken not supported on Azure provider")
+}
+
 type verifier struct {
 	writer io.Writer
 }

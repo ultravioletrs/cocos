@@ -17,6 +17,7 @@ type Client interface {
 	GetAttestation(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error)
 	GetRawEvidence(ctx context.Context, reportData [64]byte, nonce [32]byte, attType attestation.PlatformType) ([]byte, error)
 	GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, error)
+	GetKbsToken(ctx context.Context) ([]byte, error)
 	Close() error
 }
 
@@ -126,6 +127,18 @@ func (c *client) GetAzureToken(ctx context.Context, nonce [32]byte) ([]byte, err
 	}
 
 	resp, err := c.client.FetchAzureToken(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Token, nil
+}
+
+func (c *client) GetKbsToken(ctx context.Context) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.FetchKbsToken(ctx, &attestation_v1.KbsTokenRequest{})
 	if err != nil {
 		return nil, err
 	}

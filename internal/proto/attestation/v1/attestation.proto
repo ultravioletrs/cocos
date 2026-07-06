@@ -8,6 +8,13 @@ service AttestationService {
   rpc FetchAttestation (AttestationRequest) returns (AttestationResponse);
   rpc FetchRawEvidence (AttestationRequest) returns (RawEvidenceResponse);
   rpc FetchAzureToken (AzureTokenRequest) returns (AzureTokenResponse);
+  rpc FetchKbsToken (KbsTokenRequest) returns (KbsTokenResponse);
+}
+
+message KbsTokenRequest {}
+
+message KbsTokenResponse {
+  bytes token = 1;
 }
 
 message AttestationRequest {

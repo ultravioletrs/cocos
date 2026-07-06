@@ -129,3 +129,21 @@ func (p *Provider) AzureAttestationToken(nonce []byte) ([]byte, error) {
 
 	return resp.Token, nil
 }
+
+// KbsToken retrieves the official KBS-signed token from the attestation agent.
+func (p *Provider) KbsToken() ([]byte, error) {
+	fmt.Println("[CCAA-PROVIDER] KbsToken called, querying attestation-agent...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := p.client.GetToken(ctx, &attestation_agent.GetTokenRequest{
+		TokenType: "kbs",
+	})
+	if err != nil {
+		fmt.Printf("[CCAA-PROVIDER] GetToken failed: %v\n", err)
+		return nil, fmt.Errorf("CC attestation-agent GetToken failed for kbs: %w", err)
+	}
+
+	fmt.Printf("[CCAA-PROVIDER] GetToken succeeded! Return raw JSON message, len: %d\n", len(resp.Token))
+	return resp.Token, nil
+}

@@ -120,6 +120,10 @@ func (v provider) AzureAttestationToken(tokenNonce []byte) ([]byte, error) {
 	return nil, errors.New("Azure attestation token is not supported")
 }
 
+func (v provider) KbsToken() ([]byte, error) {
+	return nil, errors.New("KbsToken is not supported on vTPM provider")
+}
+
 type verifier struct {
 	writer io.Writer
 }

@@ -1893,6 +1893,6 @@ func TestEnsureDir_Error(t *testing.T) {
 }
 
 func TestKbsHTTPGet_Error(t *testing.T) {
-	_, err := kbsHTTPGet(context.Background(), "%%")
+	_, err := kbsHTTPGet(context.Background(), "%%", "")
 	assert.Error(t, err)
 }

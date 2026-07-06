@@ -15,8 +15,30 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/hkdf"
 )
+
+// testConcatKDF derives a KEK using Concat KDF (NIST SP 800-56A), matching
+// the exact implementation in DecryptWithWrappedKey.
+func testConcatKDF(sharedSecret []byte) []byte {
+	algStr := "ECDH-ES+A256KW"
+	otherInfo := make([]byte, 0, 4+len(algStr)+4+4+4)
+	algLen := uint32(len(algStr))
+	otherInfo = append(otherInfo, byte(algLen>>24), byte(algLen>>16), byte(algLen>>8), byte(algLen))
+	otherInfo = append(otherInfo, algStr...)
+	otherInfo = append(otherInfo, 0, 0, 0, 0) // PartyUInfo
+	otherInfo = append(otherInfo, 0, 0, 0, 0) // PartyVInfo
+	otherInfo = append(otherInfo, 0, 0, 1, 0) // SuppPubInfo (256 bits BE)
+
+	counter := uint32(1)
+	hashInput := make([]byte, 0, 4+len(sharedSecret)+len(otherInfo))
+	hashInput = append(hashInput, byte(counter>>24), byte(counter>>16), byte(counter>>8), byte(counter))
+	hashInput = append(hashInput, sharedSecret...)
+	hashInput = append(hashInput, otherInfo...)
+
+	h := sha256.New()
+	h.Write(hashInput)
+	return h.Sum(nil)
+}
 
 // testAESKeyWrap implements RFC 3394 AES Key Wrap for use in test setup.
 func testAESKeyWrap(kek, key []byte) ([]byte, error) {
@@ -527,11 +549,8 @@ func TestDecryptWithWrappedKeyFullRoundTrip(t *testing.T) {
 		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
 		require.NoError(t, err)
 
-		// Derive KEK using HKDF (same as in DecryptWithWrappedKey)
-		kek := make([]byte, 32)
-		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
-		_, err = kdf.Read(kek)
-		require.NoError(t, err)
+		// Derive KEK using Concat KDF (same as in DecryptWithWrappedKey)
+		kek := testConcatKDF(sharedSecret)
 
 		// Generate random CEK (32 bytes)
 		cek := make([]byte, 32)
@@ -589,10 +608,7 @@ func TestDecryptWithWrappedKeyFullRoundTrip(t *testing.T) {
 		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
 		require.NoError(t, err)
 
-		kek := make([]byte, 32)
-		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
-		_, err = kdf.Read(kek)
-		require.NoError(t, err)
+		kek := testConcatKDF(sharedSecret)
 
 		cek := make([]byte, 16) // 16-byte CEK (AES-128)
 		_, err = rand.Read(cek)
@@ -650,10 +666,7 @@ func TestDecryptWithWrappedKeyFullRoundTrip(t *testing.T) {
 		sharedSecret, err := ephemeralKey.ECDH(recipientKey.PublicKey())
 		require.NoError(t, err)
 
-		kek := make([]byte, 32)
-		kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
-		_, err = kdf.Read(kek)
-		require.NoError(t, err)
+		kek := testConcatKDF(sharedSecret)
 
 		cek := make([]byte, 32)
 		_, err = rand.Read(cek)

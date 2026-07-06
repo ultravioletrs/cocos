@@ -5,7 +5,11 @@ package agent
 
 import (
 	"context"
+	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log/slog"
@@ -29,6 +33,7 @@ import (
 	"github.com/ultravioletrs/cocos/pkg/attestation/vtpm"
 	attestation_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/attestation"
 	runner_client "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
+	"github.com/ultravioletrs/cocos/pkg/crypto"
 	"github.com/ultravioletrs/cocos/pkg/oci"
 	"github.com/ultravioletrs/cocos/pkg/resource"
 	"golang.org/x/crypto/sha3"
@@ -762,24 +767,89 @@ func (as *agentService) getKeyFromKBS(ctx context.Context, kbsURL, resourcePath 
 
 	as.logger.Info("fetching key from KBS", "url", kbsResourceURL)
 
-	// Use a simple HTTP GET to KBS for now.
-	// In a full CoCo deployment, this would go through the Attestation Agent
-	// which performs attestation before KBS releases the key.
-	// For non-OCI resources, the AA/KBS handshake may need to be handled
-	// differently than via ocicrypt.
-	resp, err := kbsHTTPGet(ctx, kbsResourceURL)
+	// Fetch token from attestation service via the initialized client
+	tokenBytes, err := as.attestationClient.GetKbsToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve token from attestation service: %w", err)
+	}
+
+	// Unmarshal the JSON from attestation service containing token and private key
+	var msg struct {
+		Token      string `json:"token"`
+		TeeKeyPair string `json:"tee_keypair"`
+	}
+
+	var token string
+	var teeKeyPairPem string
+	if err := json.Unmarshal(tokenBytes, &msg); err == nil {
+		token = strings.TrimSpace(msg.Token)
+		teeKeyPairPem = msg.TeeKeyPair
+		as.logger.Info("retrieved token and keypair from attestation service successfully")
+	} else {
+		// Fallback for non-JSON token bytes
+		token = strings.TrimSpace(string(tokenBytes))
+		as.logger.Warn("attestation service token is not in JSON format; using raw token without local JWE decryption fallback", "error", err)
+	}
+
+	resp, err := kbsHTTPGet(ctx, kbsResourceURL, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch key from KBS at %s: %w", kbsResourceURL, err)
 	}
 
-	return resp, nil
+	// If we don't have a private key, return the response as is (could be plaintext)
+	if teeKeyPairPem == "" {
+		as.logger.Info("no session keypair found, returning KBS response directly")
+		return resp, nil
+	}
+
+	// Parse JWE response
+	encryptedRes, err := crypto.ParseEncryptedResource(resp)
+	if err != nil {
+		as.logger.Warn("failed to parse JWE resource response, returning raw response", "error", err)
+		return resp, nil
+	}
+
+	// Parse PKCS#8 private key PEM
+	block, _ := pem.Decode([]byte(teeKeyPairPem))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode private key PEM")
+	}
+
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key PKCS8: %w", err)
+	}
+
+	var ecdhKey *ecdh.PrivateKey
+	switch k := privKey.(type) {
+	case *ecdsa.PrivateKey:
+		ecdhKey, err = k.ECDH()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ECDH private key: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("private key is not ECDSA (unsupported curve or type)")
+	}
+
+	// Decrypt JWE resource using the private key
+	decryptedKey, err := crypto.DecryptWithWrappedKey(*encryptedRes, ecdhKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt KBS resource: %w", err)
+	}
+
+	as.logger.Info("successfully decrypted KBS key", "key_len", len(decryptedKey))
+	return decryptedKey, nil
 }
 
 // kbsHTTPGet performs an HTTP GET to the KBS endpoint.
-func kbsHTTPGet(ctx context.Context, url string) ([]byte, error) {
+func kbsHTTPGet(ctx context.Context, url string, token string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	client := &http.Client{}

@@ -10,9 +10,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	"github.com/absmach/magistrala/pkg/errors"
-	"golang.org/x/crypto/hkdf"
 )
 
 var (
@@ -117,12 +117,26 @@ func DecryptWithWrappedKey(encryptedResource EncryptedResource, privateKey *ecdh
 		return nil, errors.Wrap(ErrDecryptionFailed, err)
 	}
 
-	// Derive KEK (Key Encryption Key) using HKDF
-	kek := make([]byte, 32)
-	kdf := hkdf.New(sha256.New, sharedSecret, nil, nil)
-	if _, err := kdf.Read(kek); err != nil {
-		return nil, errors.Wrap(ErrDecryptionFailed, err)
-	}
+	// Derive KEK (Key Encryption Key) using Concat KDF (NIST SP 800-56A)
+	algStr := "ECDH-ES+A256KW"
+	otherInfo := make([]byte, 0, 4+len(algStr)+4+4+4)
+	algLen := uint32(len(algStr))
+	otherInfo = append(otherInfo, byte(algLen>>24), byte(algLen>>16), byte(algLen>>8), byte(algLen))
+	otherInfo = append(otherInfo, algStr...)
+	otherInfo = append(otherInfo, 0, 0, 0, 0) // PartyUInfo
+	otherInfo = append(otherInfo, 0, 0, 0, 0) // PartyVInfo
+	otherInfo = append(otherInfo, 0, 0, 1, 0) // SuppPubInfo (256 bits BE)
+
+	// Since we need a 32-byte KEK, and SHA-256 produces 32 bytes, we run exactly 1 iteration (counter = 1)
+	counter := uint32(1)
+	hashInput := make([]byte, 0, 4+len(sharedSecret)+len(otherInfo))
+	hashInput = append(hashInput, byte(counter>>24), byte(counter>>16), byte(counter>>8), byte(counter))
+	hashInput = append(hashInput, sharedSecret...)
+	hashInput = append(hashInput, otherInfo...)
+
+	h := sha256.New()
+	h.Write(hashInput)
+	kek := h.Sum(nil)
 
 	// Unwrap the content encryption key (CEK)
 	cek, err := unwrapKey(encryptedResource.EncryptedKey, kek)
@@ -201,13 +215,134 @@ func unwrapKey(wrappedKey, kek []byte) ([]byte, error) {
 	return unwrapped, nil
 }
 
+func decodeBase64(s string) ([]byte, error) {
+	if d, err := base64.StdEncoding.DecodeString(s); err == nil {
+		return d, nil
+	}
+	if d, err := base64.URLEncoding.DecodeString(s); err == nil {
+		return d, nil
+	}
+	if d, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+		return d, nil
+	}
+	if d, err := base64.RawStdEncoding.DecodeString(s); err == nil {
+		return d, nil
+	}
+	return nil, errors.New("invalid base64 encoding")
+}
+
 // ParseEncryptedResource parses a JSON-encoded encrypted resource.
 func ParseEncryptedResource(data []byte) (*EncryptedResource, error) {
-	var resource EncryptedResource
-	if err := json.Unmarshal(data, &resource); err != nil {
+	var jwe struct {
+		Protected    string `json:"protected"`
+		EncryptedKey string `json:"encrypted_key"`
+		IV           string `json:"iv"`
+		Ciphertext   string `json:"ciphertext"`
+		Tag          string `json:"tag"`
+	}
+	if err := json.Unmarshal(data, &jwe); err != nil {
 		return nil, errors.Wrap(ErrInvalidFormat, err)
 	}
-	return &resource, nil
+
+	// JWE structure check: if it lacks protected header, try legacy standard struct unmarshal
+	if jwe.Protected == "" {
+		var legacy struct {
+			Ciphertext   string              `json:"ciphertext"`
+			EncryptedKey string              `json:"encrypted_key"`
+			IV           string              `json:"iv"`
+			Tag          string              `json:"tag"`
+			AAD          string              `json:"aad,omitempty"`
+			EPK          *EphemeralPublicKey `json:"epk,omitempty"`
+		}
+		if err := json.Unmarshal(data, &legacy); err != nil {
+			return nil, errors.Wrap(ErrInvalidFormat, err)
+		}
+
+		ciphertext, err := decodeBase64(legacy.Ciphertext)
+		if err != nil {
+			return nil, errors.Wrap(ErrInvalidFormat, err)
+		}
+
+		encryptedKey, err := decodeBase64(legacy.EncryptedKey)
+		if err != nil {
+			return nil, errors.Wrap(ErrInvalidFormat, err)
+		}
+
+		iv, err := decodeBase64(legacy.IV)
+		if err != nil {
+			return nil, errors.Wrap(ErrInvalidFormat, err)
+		}
+
+		tag, err := decodeBase64(legacy.Tag)
+		if err != nil {
+			return nil, errors.Wrap(ErrInvalidFormat, err)
+		}
+
+		var aad []byte
+		if legacy.AAD != "" {
+			aad, err = decodeBase64(legacy.AAD)
+			if err != nil {
+				return nil, errors.Wrap(ErrInvalidFormat, err)
+			}
+		}
+
+		return &EncryptedResource{
+			Ciphertext:   ciphertext,
+			EncryptedKey: encryptedKey,
+			IV:           iv,
+			Tag:          tag,
+			AAD:          aad,
+			EPK:          legacy.EPK,
+		}, nil
+	}
+
+	// 1. Decode Protected Header JSON
+	protectedJSON, err := decodeBase64(jwe.Protected)
+	if err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, fmt.Errorf("failed to decode JWE protected header: %w", err))
+	}
+
+	// 2. Parse Ephemeral Public Key (EPK) from Protected Header
+	var header struct {
+		Alg string              `json:"alg"`
+		EPK *EphemeralPublicKey `json:"epk"`
+	}
+	if err := json.Unmarshal(protectedJSON, &header); err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, fmt.Errorf("failed to parse JWE header JSON: %w", err))
+	}
+
+	// 3. Decode main crypto fields
+	ciphertext, err := decodeBase64(jwe.Ciphertext)
+	if err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, err)
+	}
+
+	encryptedKey, err := decodeBase64(jwe.EncryptedKey)
+	if err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, err)
+	}
+
+	iv, err := decodeBase64(jwe.IV)
+	if err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, err)
+	}
+
+	tag, err := decodeBase64(jwe.Tag)
+	if err != nil {
+		return nil, errors.Wrap(ErrInvalidFormat, err)
+	}
+
+	// In JWE, AAD is the ASCII bytes of the protected header string
+	aad := []byte(jwe.Protected)
+
+	return &EncryptedResource{
+		Ciphertext:   ciphertext,
+		EncryptedKey: encryptedKey,
+		IV:           iv,
+		Tag:          tag,
+		AAD:          aad,
+		EPK:          header.EPK,
+	}, nil
 }
 
 // zeroBytes securely zeros out a byte slice.

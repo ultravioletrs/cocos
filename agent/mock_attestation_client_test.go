@@ -28,6 +28,11 @@ func (m *MockAttestationClient) GetAzureToken(ctx context.Context, nonce [32]byt
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+func (m *MockAttestationClient) GetKbsToken(ctx context.Context) ([]byte, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
 func (m *MockAttestationClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
