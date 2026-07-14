@@ -39,6 +39,7 @@ import (
 	runnerclient "github.com/ultravioletrs/cocos/pkg/clients/grpc/runner"
 	"github.com/ultravioletrs/cocos/pkg/ingress"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -170,6 +171,9 @@ func main() {
 		}
 		// Don't defer close here as we want to keep the connection open
 
+		if cfg.CVMId != "" {
+			ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+		}
 		pc, err := newClient.Process(ctx)
 		if err != nil {
 			grpcClient.Close()
@@ -236,7 +240,11 @@ func main() {
 	}
 	ingressProxy := ingress.NewProxyServer(logger, backendURL, certProvider)
 
-	pc, err := cvmsClient.Process(ctx)
+	agentCtx := ctx
+	if cfg.CVMId != "" {
+		agentCtx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+	}
+	pc, err := cvmsClient.Process(agentCtx)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to connect to cvm server: %s", err))
 		exitCode = 1
