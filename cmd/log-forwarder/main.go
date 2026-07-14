@@ -20,6 +20,7 @@ import (
 	cvmsgrpc "github.com/ultravioletrs/cocos/pkg/clients/grpc/cvm"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 
 type config struct {
 	LogLevel string `env:"LOG_FORWARDER_LOG_LEVEL" envAlternate:"AGENT_LOG_LEVEL" envDefault:"debug"`
+	CVMId    string `env:"AGENT_CVM_ID"                 envDefault:""`
 }
 
 func main() {
@@ -100,6 +102,9 @@ func main() {
 	defer cvmClient.Close()
 
 	// Create stream to Manager
+	if cfg.CVMId != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId, "connection-type", "log-forwarder")
+	}
 	stream, err := cvmsClient.Process(ctx)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to create stream to manager: %s", err))
@@ -122,8 +127,19 @@ func main() {
 			case msg := <-logQueue:
 				if err := stream.Send(msg); err != nil {
 					logger.Error(fmt.Sprintf("failed to send log to manager: %s", err))
-					// Reconnect logic would go here
+					return err
 				}
+			}
+		}
+	})
+
+	// Stream Receiver Goroutine
+	g.Go(func() error {
+		for {
+			_, err := stream.Recv()
+			if err != nil {
+				logger.Error(fmt.Sprintf("stream connection lost: %s", err))
+				return err
 			}
 		}
 	})
