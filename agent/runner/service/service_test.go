@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -30,6 +31,15 @@ func (m *MockEventService) SendEvent(cmpID, event, status string, details json.R
 	})
 }
 
+func writeRunnerTestFile(t *testing.T, dir, name string, data []byte, mode os.FileMode) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	require.NoError(t, os.WriteFile(path, data, mode))
+
+	return path
+}
+
 // TestNewRunnerService tests the creation of a new runner service.
 func TestNewRunnerService(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -48,6 +58,7 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	tmpDir := t.TempDir()
 	require.NoError(t, os.Chdir(tmpDir))
 	defer func() { require.NoError(t, os.Chdir(origDir)) }()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo", []byte("#!/bin/bash\necho 'test'"), 0o700)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
@@ -56,7 +67,7 @@ func TestRunWithBinaryAlgorithm(t *testing.T) {
 	req := &pb.RunRequest{
 		ComputationId: "test-1",
 		AlgoType:      "bin",
-		Algorithm:     []byte("#!/bin/bash\necho 'test'"),
+		AlgorithmPath: algoPath,
 		Args:          []string{"arg1", "arg2"},
 	}
 
@@ -72,13 +83,16 @@ func TestRunWithPythonAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo.py", []byte("print('hello')"), 0o600)
+	requirementsPath := writeRunnerTestFile(t, tmpDir, "requirements.txt", []byte("numpy==2.2.0"), 0o600)
 
 	req := &pb.RunRequest{
-		ComputationId: "test-python",
-		AlgoType:      "python",
-		Algorithm:     []byte("print('hello')"),
-		Args:          []string{},
-		Requirements:  []byte("numpy==2.2.0"),
+		ComputationId:    "test-python",
+		AlgoType:         "python",
+		AlgorithmPath:    algoPath,
+		Args:             []string{},
+		RequirementsPath: requirementsPath,
 	}
 
 	resp, err := rs.Run(context.Background(), req)
@@ -86,9 +100,6 @@ func TestRunWithPythonAlgorithm(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithPythonAlgorithmNoRequirements tests running Python without requirements.
@@ -96,11 +107,13 @@ func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo.py", []byte("print('hello')"), 0o600)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-python-noreq",
 		AlgoType:      "python",
-		Algorithm:     []byte("print('hello')"),
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -109,9 +122,6 @@ func TestRunWithPythonAlgorithmNoRequirements(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-python-noreq", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithWasmAlgorithm tests running a WASM algorithm.
@@ -119,11 +129,13 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo.wasm", []byte{0x00, 0x61, 0x73, 0x6d}, 0o600)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-wasm",
 		AlgoType:      "wasm",
-		Algorithm:     []byte{0x00, 0x61, 0x73, 0x6d},
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -135,9 +147,6 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 		t.Skip("wasmedge not found, skipping test")
 	}
 	assert.Equal(t, "test-wasm", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithDockerAlgorithm tests running a Docker algorithm.
@@ -145,11 +154,13 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "Dockerfile", []byte("FROM ubuntu:latest\nRUN echo 'test'"), 0o600)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-docker",
 		AlgoType:      "docker",
-		Algorithm:     []byte("FROM ubuntu:latest\nRUN echo 'test'"),
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -161,9 +172,6 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 		t.Skip("Docker issue, skipping test")
 	}
 	assert.Equal(t, "test-docker", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithUnsupportedAlgorithmType tests running with unsupported algorithm type.
@@ -175,7 +183,7 @@ func TestRunWithUnsupportedAlgorithmType(t *testing.T) {
 	req := &pb.RunRequest{
 		ComputationId: "test-unsupported",
 		AlgoType:      "unsupported",
-		Algorithm:     []byte("test"),
+		AlgorithmPath: "/tmp/test",
 		Args:          []string{},
 	}
 
@@ -189,12 +197,14 @@ func TestRunAlreadyRunning(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo", []byte("#!/bin/bash\nsleep 30"), 0o700)
 
 	// Use a long-running bash script
 	req := &pb.RunRequest{
 		ComputationId: "test-running",
 		AlgoType:      "bin",
-		Algorithm:     []byte("#!/bin/bash\nsleep 30"),
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -211,9 +221,6 @@ func TestRunAlreadyRunning(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "computation already running", resp.Error)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestStopWhenRunning tests stopping a running computation.
@@ -221,11 +228,13 @@ func TestStopWhenRunning(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo", []byte("#!/bin/bash\nsleep 10"), 0o700)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-stop",
 		AlgoType:      "bin",
-		Algorithm:     []byte("#!/bin/bash\nsleep 10"),
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -243,9 +252,6 @@ func TestStopWhenRunning(t *testing.T) {
 	stopResp, err := rs.Stop(context.Background(), stopReq)
 	require.NoError(t, err)
 	require.NotNil(t, stopResp)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunErrors tests error paths in Run.
@@ -255,59 +261,27 @@ func TestRunErrors(t *testing.T) {
 	rs := New(logger, eventSvc)
 
 	t.Run("create algo file failure", func(t *testing.T) {
-		// Create a directory named "algo" to make os.Create("algo") fail
-		err := os.Mkdir("algo", 0o755)
-		require.NoError(t, err)
-		defer os.RemoveAll("algo")
-
+		var err error
 		req := &pb.RunRequest{
 			ComputationId: "test-err",
 			AlgoType:      "bin",
-			Algorithm:     []byte("test"),
+			AlgorithmPath: "",
 		}
 		_, err = rs.Run(context.Background(), req)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error creating algorithm file")
-	})
-
-	t.Run("getwd failure", func(t *testing.T) {
-		origDir, _ := os.Getwd()
-		tmpDir := t.TempDir()
-		err := os.Chdir(tmpDir)
-		require.NoError(t, err)
-
-		// Remove the current working directory to trigger Getwd failure
-		err = os.RemoveAll(tmpDir)
-		require.NoError(t, err)
-
-		req := &pb.RunRequest{
-			ComputationId: "test-err-getwd",
-			AlgoType:      "bin",
-			Algorithm:     []byte("test"),
-		}
-		_, err = rs.Run(context.Background(), req)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error getting current directory")
-
-		// Restore working directory
-		_ = os.Chdir(origDir)
+		assert.Contains(t, err.Error(), "algorithm path is required")
 	})
 
 	t.Run("requirements file creation failure", func(t *testing.T) {
-		// This one is harder because it uses os.CreateTemp("", "requirements.txt")
-		// We can't easily make this fail without reaching into the system's temp dir.
-		// Skipping for now as it's a very unlikely edge case.
+		// Requirements are now staged by the agent, so the runner no longer creates temp files.
 	})
 
 	t.Run("chmod failure", func(t *testing.T) {
-		// We can't easily mock os.Chmod, but we can try to make the file unmodifiable
-		// On Linux, we can set the immutable attribute, but that requires root.
-		// Alternatively, we can try to use a directory with permissions that prevent chmod?
-		// No, chmod usually works if you own the file.
+		// Permission management is now the agent's responsibility during staging.
 	})
 
 	t.Run("write algorithm failure", func(t *testing.T) {
-		// This is also hard without mocking os.File.Write or reaching internal limits.
+		// Write failures are now handled by the agent before invoking the runner.
 	})
 }
 
@@ -316,11 +290,13 @@ func TestConcurrentRun(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo", []byte("#!/bin/bash\nsleep 15"), 0o700)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-concurrent",
 		AlgoType:      "bin",
-		Algorithm:     []byte("#!/bin/bash\nsleep 15"),
+		AlgorithmPath: algoPath,
 		Args:          []string{},
 	}
 
@@ -336,9 +312,6 @@ func TestConcurrentRun(t *testing.T) {
 	resp2, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	assert.Equal(t, "computation already running", resp2.Error)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 // TestRunWithMultipleArgs tests running with multiple arguments.
@@ -346,11 +319,13 @@ func TestRunWithMultipleArgs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
+	tmpDir := t.TempDir()
+	algoPath := writeRunnerTestFile(t, tmpDir, "algo", []byte("#!/bin/bash\necho $@"), 0o700)
 
 	req := &pb.RunRequest{
 		ComputationId: "test-multi-args",
 		AlgoType:      "bin",
-		Algorithm:     []byte("#!/bin/bash\necho $@"),
+		AlgorithmPath: algoPath,
 		Args:          []string{"arg1", "arg2", "arg3", "arg4"},
 	}
 
@@ -359,9 +334,6 @@ func TestRunWithMultipleArgs(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-multi-args", resp.ComputationId)
-	t.Cleanup(func() {
-		_ = os.Remove("algo")
-	})
 }
 
 func TestStopFailure(t *testing.T) {
