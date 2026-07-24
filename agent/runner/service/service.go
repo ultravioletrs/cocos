@@ -6,8 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/ultravioletrs/cocos/agent/algorithm"
@@ -18,10 +16,6 @@ import (
 	"github.com/ultravioletrs/cocos/agent/events"
 	pb "github.com/ultravioletrs/cocos/agent/runner"
 	"google.golang.org/protobuf/types/known/emptypb"
-)
-
-const (
-	algoFilePermission = 0o700
 )
 
 var _ pb.ComputationRunnerServer = (*RunnerService)(nil)
@@ -58,65 +52,24 @@ func (s *RunnerService) Run(ctx context.Context, req *pb.RunRequest) (*pb.RunRes
 		s.mu.Unlock()
 	}()
 
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("error getting current directory: %v", err)
+	if req.AlgorithmPath == "" {
+		return nil, fmt.Errorf("algorithm path is required")
 	}
-
-	// Write Algo File
-	algoPath := filepath.Join(currentDir, "algo")
-	f, err := os.Create(algoPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating algorithm file: %v", err)
-	}
-	if _, err := f.Write(req.Algorithm); err != nil {
-		return nil, fmt.Errorf("error writing algorithm to file: %v", err)
-	}
-	if err := os.Chmod(algoPath, algoFilePermission); err != nil {
-		return nil, fmt.Errorf("error changing file permissions: %v", err)
-	}
-	if err := f.Close(); err != nil {
-		return nil, fmt.Errorf("error closing file: %v", err)
-	}
-	defer func() {
-		if err := os.Remove(algoPath); err != nil {
-			s.logger.Warn("error removing algorithm file", "error", err)
-		}
-	}()
 
 	var algo algorithm.Algorithm
 
 	switch req.AlgoType {
 	case string(algorithm.AlgoTypeBin):
-		algo = binary.NewAlgorithm(s.logger, s.eventSvc, algoPath, req.Args, req.ComputationId)
+		algo = binary.NewAlgorithm(s.logger, s.eventSvc, req.AlgorithmPath, req.Args, req.ComputationId)
 	case string(algorithm.AlgoTypePython):
-		var requirementsFile string
-		if len(req.Requirements) > 0 {
-			fr, err := os.CreateTemp("", "requirements.txt")
-			if err != nil {
-				return nil, fmt.Errorf("error creating requirments file: %v", err)
-			}
-			defer func() {
-				if err := os.Remove(fr.Name()); err != nil {
-					s.logger.Warn("error removing requirements file", "error", err)
-				}
-			}()
-			if _, err := fr.Write(req.Requirements); err != nil {
-				return nil, fmt.Errorf("error writing requirements to file: %v", err)
-			}
-			if err := fr.Close(); err != nil {
-				return nil, fmt.Errorf("error closing file: %v", err)
-			}
-			requirementsFile = fr.Name()
-		}
 		// Assuming default python runtime if not specified in request (proto doesn't have runtime field yet)
 		// We can add it or assume.
 		runtime := python.PyRuntime
-		algo = python.NewAlgorithm(s.logger, s.eventSvc, runtime, requirementsFile, algoPath, req.Args, req.ComputationId)
+		algo = python.NewAlgorithm(s.logger, s.eventSvc, runtime, req.RequirementsPath, req.AlgorithmPath, req.Args, req.ComputationId)
 	case string(algorithm.AlgoTypeWasm):
-		algo = wasm.NewAlgorithm(s.logger, s.eventSvc, req.Args, algoPath, req.ComputationId)
+		algo = wasm.NewAlgorithm(s.logger, s.eventSvc, req.Args, req.AlgorithmPath, req.ComputationId)
 	case string(algorithm.AlgoTypeDocker):
-		algo = docker.NewAlgorithm(s.logger, s.eventSvc, algoPath, req.ComputationId)
+		algo = docker.NewAlgorithm(s.logger, s.eventSvc, req.AlgorithmPath, req.ComputationId)
 	default:
 		return nil, fmt.Errorf("unsupported algorithm type: %s", req.AlgoType)
 	}

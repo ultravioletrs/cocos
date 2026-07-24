@@ -82,7 +82,9 @@ const (
 )
 
 const (
-	algoFilePermission = 0o700
+	algoFilePermission   = 0o700
+	algoFileName         = "algo"
+	requirementsFileName = "requirements.txt"
 )
 
 var (
@@ -111,6 +113,30 @@ func ensureDir(path string, mode os.FileMode) error {
 	}
 
 	return nil
+}
+
+func writeFile(path string, data []byte, mode os.FileMode) error {
+	if err := os.WriteFile(path, data, mode); err != nil {
+		return fmt.Errorf("writing file %q: %w", path, err)
+	}
+
+	return nil
+}
+
+func stageRequirementsFile(workDir string, requirements []byte) (string, error) {
+	requirementsPath := filepath.Join(workDir, requirementsFileName)
+	if len(requirements) == 0 {
+		if err := os.Remove(requirementsPath); err != nil && !os.IsNotExist(err) {
+			return "", fmt.Errorf("removing stale requirements file: %w", err)
+		}
+		return "", nil
+	}
+
+	if err := writeFile(requirementsPath, requirements, 0o600); err != nil {
+		return "", err
+	}
+
+	return requirementsPath, nil
 }
 
 var (
@@ -364,8 +390,12 @@ func (as *agentService) StopComputation(ctx context.Context) error {
 		return fmt.Errorf("error removing results directory: %v", err)
 	}
 
-	if err := os.Remove("algo"); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(algoFileName); err != nil && !os.IsNotExist(err) {
 		as.logger.Warn("error removing algorithm file", "error", err)
+	}
+
+	if err := os.Remove(requirementsFileName); err != nil && !os.IsNotExist(err) {
+		as.logger.Warn("error removing requirements file", "error", err)
 	}
 
 	as.sm.Reset(Idle)
@@ -448,9 +478,9 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		}
 
 		// Write algorithm to file
-		currentDir, err := os.Getwd()
-		if err != nil {
-			as.runError = fmt.Errorf("error getting current directory: %w", err)
+		currentDir, getwdErr := os.Getwd()
+		if getwdErr != nil {
+			as.runError = fmt.Errorf("error getting current directory: %w", getwdErr)
 			as.logger.Error(as.runError.Error())
 			as.sm.SendEvent(RunFailed)
 			return
@@ -504,7 +534,14 @@ func (as *agentService) downloadAlgorithmIfRemote(state statemachine.State) {
 		}
 
 		as.algoReceived = true
-		as.algoRequirements = res.Requirements // Store requirements for installation
+		as.algoRequirements = res.Requirements
+
+		if _, err := stageRequirementsFile(currentDir, as.algoRequirements); err != nil {
+			as.runError = fmt.Errorf("error staging requirements file: %w", err)
+			as.logger.Error(as.runError.Error())
+			as.sm.SendEvent(RunFailed)
+			return
+		}
 
 		// The initramfs may have already provisioned /cocos/datasets.
 		if err := ensureDir(algorithm.DatasetsDir, 0o755); err != nil {
@@ -1053,21 +1090,9 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 		return fmt.Errorf("error getting current directory: %v", err)
 	}
 
-	f, err := os.Create(filepath.Join(currentDir, "algo"))
-	if err != nil {
-		return fmt.Errorf("error creating algorithm file: %v", err)
-	}
-
-	if _, err := f.Write(algoData); err != nil {
-		return fmt.Errorf("error writing algorithm to file: %v", err)
-	}
-
-	if err := os.Chmod(f.Name(), algoFilePermission); err != nil {
-		return fmt.Errorf("error changing file permissions: %v", err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("error closing file: %v", err)
+	algoPath := filepath.Join(currentDir, algoFileName)
+	if err := writeFile(algoPath, algoData, algoFilePermission); err != nil {
+		return fmt.Errorf("error staging algorithm file: %w", err)
 	}
 
 	algoType := algorithm.AlgorithmTypeFromContext(ctx)
@@ -1079,7 +1104,13 @@ func (as *agentService) Algo(ctx context.Context, algo Algorithm) error {
 
 	as.algoType = algoType
 	as.algoArgs = args
-	as.algoRequirements = algo.Requirements
+	if len(as.algoRequirements) == 0 {
+		as.algoRequirements = algo.Requirements
+	}
+
+	if _, err := stageRequirementsFile(currentDir, as.algoRequirements); err != nil {
+		return fmt.Errorf("error staging requirements file: %w", err)
+	}
 	as.algoReceived = true
 
 	if err := ensureDir(algorithm.DatasetsDir, 0o755); err != nil {
@@ -1276,9 +1307,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 		}
 	}()
 
-	// Read algo file
 	currentDir, _ := os.Getwd()
-	algoFile := filepath.Join(currentDir, "algo")
+	algoFile := filepath.Join(currentDir, algoFileName)
+	requirementsFile := filepath.Join(currentDir, requirementsFileName)
 
 	defer func() {
 		if err := os.RemoveAll(algorithm.ResultsDir); err != nil {
@@ -1289,6 +1320,9 @@ func (as *agentService) runComputation(state statemachine.State) {
 		}
 		if err := os.Remove(algoFile); err != nil && !os.IsNotExist(err) {
 			as.logger.Warn(fmt.Sprintf("error removing algorithm file: %s", err.Error()))
+		}
+		if err := os.Remove(requirementsFile); err != nil && !os.IsNotExist(err) {
+			as.logger.Warn(fmt.Sprintf("error removing requirements file: %s", err.Error()))
 		}
 	}()
 
@@ -1301,10 +1335,21 @@ func (as *agentService) runComputation(state statemachine.State) {
 		return
 	}
 
-	algoBytes, err := os.ReadFile(algoFile)
-	if err != nil {
+	if _, err := os.Stat(algoFile); err != nil {
 		as.mu.Lock()
-		as.runError = fmt.Errorf("failed to read algo file: %w", err)
+		as.runError = fmt.Errorf("failed to stat algo file: %w", err)
+		as.mu.Unlock()
+		as.logger.Warn(as.runError.Error())
+		as.publishEvent(Failed.String())(state)
+		return
+	}
+
+	requirementsPath := ""
+	if _, err := os.Stat(requirementsFile); err == nil {
+		requirementsPath = requirementsFile
+	} else if !os.IsNotExist(err) {
+		as.mu.Lock()
+		as.runError = fmt.Errorf("failed to stat requirements file: %w", err)
 		as.mu.Unlock()
 		as.logger.Warn(as.runError.Error())
 		as.publishEvent(Failed.String())(state)
@@ -1315,11 +1360,11 @@ func (as *agentService) runComputation(state statemachine.State) {
 
 	// Call Runner
 	resp, err := as.runnerClient.Run(context.Background(), &runnerpb.RunRequest{
-		ComputationId: as.computation.ID,
-		AlgoType:      as.algoType,
-		Algorithm:     algoBytes,
-		Requirements:  as.algoRequirements,
-		Args:          as.algoArgs,
+		ComputationId:    as.computation.ID,
+		AlgoType:         as.algoType,
+		AlgorithmPath:    algoFile,
+		RequirementsPath: requirementsPath,
+		Args:             as.algoArgs,
 		// Datasets implicit on shared FS
 	})
 	if err != nil {
