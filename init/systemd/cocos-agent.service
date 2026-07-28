@@ -2,7 +2,6 @@
 Description=Cocos AI agent
 After=network.target attestation-service.service log-forwarder.service computation-runner.service egress-proxy.service
 Requires=log-forwarder.service computation-runner.service egress-proxy.service
-Before=docker.service
 
 [Service]
 WorkingDirectory=/cocos
@@ -17,4 +16,4 @@ Restart=always
 RestartSec=5s
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target

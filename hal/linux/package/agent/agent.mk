@@ -22,6 +22,12 @@ define AGENT_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0640 $(@D)/init/systemd/cocos-agent.service $(TARGET_DIR)/usr/lib/systemd/system/cocos-agent.service
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/agent_setup.sh $(TARGET_DIR)/cocos_init/agent_setup.sh
 	$(INSTALL) -D -m 0750 $(@D)/init/systemd/agent_start_script.sh $(TARGET_DIR)/cocos_init/agent_start_script.sh
+	mkdir -p $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants
+	ln -sf ../docker.service $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/docker.service
+	ln -sf ../log-forwarder.service $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/log-forwarder.service
+	ln -sf ../computation-runner.service $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/computation-runner.service
+	ln -sf ../egress-proxy.service $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/egress-proxy.service
+	ln -sf ../cocos-agent.service $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/cocos-agent.service
 endef
 
 $(eval $(generic-package))

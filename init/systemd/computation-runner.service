@@ -1,8 +1,9 @@
 [Unit]
 Description=Cocos AI Computation Runner
-After=network.target log-forwarder.service
+After=network.target log-forwarder.service docker.service
 Before=cocos-agent.service
 Requires=log-forwarder.service
+Wants=docker.service
 
 [Service]
 WorkingDirectory=/cocos
@@ -17,4 +18,4 @@ Restart=always
 RestartSec=5s
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
