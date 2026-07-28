@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/absmach/certs/sdk"
 	mglog "github.com/absmach/magistrala/logger"
@@ -274,7 +275,15 @@ func main() {
 	})
 
 	g.Go(func() error {
-		return mc.Process(ctx, cancel)
+		for {
+			if err := mc.Process(ctx, cancel); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				logger.Warn("CVMS client process connection loop exited, retrying in 2s...", "error", err)
+				time.Sleep(2 * time.Second)
+			}
+		}
 	})
 
 	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc, ccPlatform)

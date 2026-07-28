@@ -1,6 +1,24 @@
 #!/bin/sh
 
 WORK_DIR="/cocos"
+DOCKER_OVERRIDE_DIR="/etc/systemd/system/docker.service.d"
+DOCKER_OVERRIDE_FILE="$DOCKER_OVERRIDE_DIR/override.conf"
+
+# Docker runs on a writable bind mount while the rootfs itself stays ephemeral,
+# so force RAM-disk mode to avoid pivot_root failures inside containers.
+mkdir -p "$DOCKER_OVERRIDE_DIR"
+if ! grep -qs '^Environment=DOCKER_RAMDISK=true$' "$DOCKER_OVERRIDE_FILE"; then
+    tee "$DOCKER_OVERRIDE_FILE" > /dev/null <<EOF
+[Service]
+Environment=DOCKER_RAMDISK=true
+EOF
+    systemctl daemon-reload
+fi
+
+# Docker is required by the computation runner. Start the runtime stack here so
+# later units don't depend on passive boot enablement or service ordering races.
+systemctl start containerd.service
+systemctl start docker.service
 
 # IFACES are all network interfaces excluding lo (LOOPBACK) and sit interfaces 
 IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')

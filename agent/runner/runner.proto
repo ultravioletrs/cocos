@@ -17,8 +17,8 @@ service ComputationRunner {
 message RunRequest {
   string computation_id = 1;
   string algo_type = 2; // "binary", "python", "wasm", "docker"
-  bytes algorithm = 3; // The algorithm binary/script content
-  bytes requirements = 4; // Python requirements.txt content
+  string algorithm_path = 3; // Path to the staged algorithm artifact
+  string requirements_path = 4; // Optional path to staged Python requirements.txt
   repeated string args = 5;
   repeated Dataset datasets = 6;
 }

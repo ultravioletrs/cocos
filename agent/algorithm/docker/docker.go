@@ -90,6 +90,16 @@ func (d *docker) Run() error {
 		return fmt.Errorf("could not find image ID")
 	}
 
+	datasetsDir := path.Join(algorithm.AlgoWorkingDir, algorithm.DatasetsDir)
+	resultsDir := path.Join(algorithm.AlgoWorkingDir, algorithm.ResultsDir)
+
+	if err := os.MkdirAll(datasetsDir, 0o755); err != nil {
+		return fmt.Errorf("could not create datasets directory %s: %v", datasetsDir, err)
+	}
+	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
+		return fmt.Errorf("could not create results directory %s: %v", resultsDir, err)
+	}
+
 	// Create and start the container.
 	respContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Image:        dockerImageName,

@@ -1014,7 +1014,7 @@ func TestRunComputation(t *testing.T) {
 		svc.runComputation(Running)
 
 		assert.Error(t, svc.runError)
-		assert.Contains(t, svc.runError.Error(), "failed to read algo file")
+		assert.Contains(t, svc.runError.Error(), "failed to stat algo file")
 		sm.AssertExpectations(t)
 	})
 
@@ -1026,7 +1026,9 @@ func TestRunComputation(t *testing.T) {
 		require.NoError(t, os.WriteFile("algo", []byte("#!/bin/sh\necho ok\n"), 0o755))
 
 		runnerCli := new(runnermocks.Client)
-		runnerCli.On("Run", mock.Anything, mock.Anything).Return((*runnerpb.RunResponse)(nil), fmt.Errorf("runner unavailable"))
+		runnerCli.On("Run", mock.Anything, mock.MatchedBy(func(req *runnerpb.RunRequest) bool {
+			return req != nil && filepath.Base(req.AlgorithmPath) == algoFileName && req.RequirementsPath == "" && len(req.Args) == 0
+		})).Return((*runnerpb.RunResponse)(nil), fmt.Errorf("runner unavailable"))
 
 		eventsSvc := new(mocks.Service)
 		eventsSvc.EXPECT().SendEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
