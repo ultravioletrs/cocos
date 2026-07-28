@@ -19,6 +19,9 @@ BR2_PACKAGE_9PFS=y
 
 # Image
 BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_COCOS_PATH)/board/cocos/post-build.sh"
+ 
+# Patches for existing Buildroot packages
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_COCOS_PATH)/patches"
 
 # Image
 BR2_ROOTFS_POST_IMAGE_SCRIPT="$(BR2_EXTERNAL_COCOS_PATH)/board/cocos/post-image.sh"
