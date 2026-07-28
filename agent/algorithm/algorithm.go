@@ -18,10 +18,13 @@ const (
 	AlgoTypeKey                 = "algo_type"
 	AlgoArgsKey                 = "algo_args"
 
-	ResultsDir     = "results"
-	DatasetsDir    = "datasets"
-	AlgoWorkingDir = "/cocos"
+	ResultsDir  = "results"
+	DatasetsDir = "datasets"
 )
+
+// AlgoWorkingDir is the base directory used by algorithm runners (e.g. docker)
+// to create datasets/results mounts. It is a variable so tests can override it.
+var AlgoWorkingDir = "/cocos"
 
 func AlgorithmTypeToContext(ctx context.Context, algoType string) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, AlgoTypeKey, algoType)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ultravioletrs/cocos/agent/algorithm"
 	pb "github.com/ultravioletrs/cocos/agent/runner"
 )
 
@@ -156,6 +157,10 @@ func TestRunWithDockerAlgorithm(t *testing.T) {
 	rs := New(logger, eventSvc)
 	tmpDir := t.TempDir()
 	algoPath := writeRunnerTestFile(t, tmpDir, "Dockerfile", []byte("FROM ubuntu:latest\nRUN echo 'test'"), 0o600)
+
+	origWorkingDir := algorithm.AlgoWorkingDir
+	algorithm.AlgoWorkingDir = tmpDir
+	t.Cleanup(func() { algorithm.AlgoWorkingDir = origWorkingDir })
 
 	req := &pb.RunRequest{
 		ComputationId: "test-docker",
