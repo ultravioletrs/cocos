@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/absmach/certs/sdk"
 	mglog "github.com/absmach/magistrala/logger"
 	"github.com/absmach/magistrala/pkg/prometheus"
 	"github.com/caarlos0/env/v11"
@@ -53,9 +52,7 @@ type config struct {
 	LogLevel                 string `env:"AGENT_LOG_LEVEL"              envDefault:"debug"`
 	Vmpl                     int    `env:"AGENT_VMPL"                   envDefault:"2"`
 	AgentGrpcHost            string `env:"AGENT_GRPC_HOST"              envDefault:"0.0.0.0"`
-	CAUrl                    string `env:"AGENT_CVM_CA_URL"             envDefault:""`
 	CVMId                    string `env:"AGENT_CVM_ID"                 envDefault:""`
-	CertsToken               string `env:"AGENT_CERTS_TOKEN"            envDefault:""`
 	AgentMaaURL              string `env:"AGENT_MAA_URL"                envDefault:"https://sharedeus2.eus2.attest.azure.net"`
 	AgentOSBuild             string `env:"AGENT_OS_BUILD"               envDefault:"UVC"`
 	AgentOSDistro            string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
@@ -216,13 +213,7 @@ func main() {
 	var certProvider atls.CertificateProvider
 	if ccPlatform != attestation.NoCC {
 		logger.Info(fmt.Sprintf("Initializing aTLS for platform %v with attestation service at %s", ccPlatform, cfg.AttestationServiceSocket))
-		var certsSDK sdk.SDK
-		if cfg.CAUrl != "" {
-			certsSDK = sdk.NewSDK(sdk.Config{
-				CertsURL: cfg.CAUrl,
-			})
-		}
-		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+		certProvider, err = atls.NewProvider(attClient, ccPlatform)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to create certificate provider for aTLS: %s. Continuing without attested TLS.", err))
 		} else {
