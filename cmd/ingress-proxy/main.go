@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/absmach/certs/sdk"
 	"github.com/caarlos0/env/v11"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -36,9 +35,7 @@ type config struct {
 	Backend  string `env:"COCOS_INGRESS_BACKEND"           envDefault:"http://localhost:7001"`
 
 	// ATLS Config
-	CAUrl         string `env:"AGENT_CVM_CA_URL"             envDefault:""`
 	CVMId         string `env:"AGENT_CVM_ID"                 envDefault:""`
-	CertsToken    string `env:"AGENT_CERTS_TOKEN"            envDefault:""`
 	AgentMaaURL   string `env:"AGENT_MAA_URL"                envDefault:"https://sharedeus2.eus2.attest.azure.net"`
 	AgentOSBuild  string `env:"AGENT_OS_BUILD"               envDefault:"UVC"`
 	AgentOSDistro string `env:"AGENT_OS_DISTRO"              envDefault:"UVC"`
@@ -143,13 +140,7 @@ func run(cfg config) error {
 		}
 		defer attClient.Close()
 
-		var certsSDK sdk.SDK
-		if cfg.CAUrl != "" {
-			certsSDK = sdk.NewSDK(sdk.Config{
-				CertsURL: cfg.CAUrl,
-			})
-		}
-		certProvider, err = atls.NewProvider(attClient, ccPlatform, cfg.CertsToken, cfg.CVMId, certsSDK)
+		certProvider, err = atls.NewProvider(attClient, ccPlatform)
 		if err != nil {
 			return fmt.Errorf("failed to create certificate provider: %w", err)
 		}
