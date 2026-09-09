@@ -170,7 +170,7 @@ func main() {
 		// Don't defer close here as we want to keep the connection open
 
 		if cfg.CVMId != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+			ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId, "connection-type", "agent")
 		}
 		pc, err := newClient.Process(ctx)
 		if err != nil {
@@ -234,7 +234,7 @@ func main() {
 
 	agentCtx := ctx
 	if cfg.CVMId != "" {
-		agentCtx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+		agentCtx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId, "connection-type", "agent")
 	}
 	pc, err := cvmsClient.Process(agentCtx)
 	if err != nil {
