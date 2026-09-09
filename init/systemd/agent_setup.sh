@@ -15,11 +15,6 @@ EOF
     systemctl daemon-reload
 fi
 
-# Docker is required by the computation runner. Start the runtime stack here so
-# later units don't depend on passive boot enablement or service ordering races.
-systemctl start containerd.service
-systemctl start docker.service
-
 # IFACES are all network interfaces excluding lo (LOOPBACK) and sit interfaces 
 IFACES=$(ip link show | grep -vE 'LOOPBACK|sit*' | awk -F': ' '{print $2}')
 
@@ -34,9 +29,14 @@ for IFACE in $IFACES; do
     if [ -z "$IP_ADDR" ]; then
         # DHCP runs from log-forwarder's ExecStartPre. Do not let a slow or
         # unavailable first lease block the entire agent dependency chain.
-        dhclient -1 -timeout 15 "$IFACE" || true
+        dhclient -1 -nw "$IFACE" || true
     fi
 done
+
+# Docker is required by the computation runner. Start it only after network
+# setup, because docker.service waits for network-online.target on this image.
+systemctl start containerd.service
+systemctl start docker.service
 
 if [ ! -d "$WORK_DIR" ]; then
     mkdir -p $WORK_DIR
