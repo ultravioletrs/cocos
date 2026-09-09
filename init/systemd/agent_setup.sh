@@ -29,7 +29,7 @@ for IFACE in $IFACES; do
     if [ -z "$IP_ADDR" ]; then
         # DHCP runs from log-forwarder's ExecStartPre. Do not let a slow or
         # unavailable first lease block the entire agent dependency chain.
-        dhclient -1 -nw "$IFACE" || true
+        dhclient -1 -timeout 15 "$IFACE" || true
     fi
 done
 
