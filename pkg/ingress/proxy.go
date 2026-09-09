@@ -50,7 +50,6 @@ type proxyServer struct {
 	certProvider atls.CertificateProvider
 	httpServer   *http.Server
 	started      bool
-	stopped      bool
 }
 
 // NewProxyServer creates a new ingress proxy server manager.
@@ -69,9 +68,6 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 
 	if p.started {
 		return fmt.Errorf("proxy server already started")
-	}
-	if p.stopped {
-		return fmt.Errorf("proxy server already stopped")
 	}
 
 	if cfg.Port == "" {
@@ -156,8 +152,9 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 		}
 
 		p.started = true
+		server := p.httpServer
 		go func() {
-			serveErr := p.httpServer.Serve(listener)
+			serveErr := server.Serve(listener)
 			if serveErr != nil && serveErr != http.ErrServerClosed {
 				p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
 			}
@@ -203,8 +200,9 @@ func (p *proxyServer) Start(cfg ProxyConfig, ctx ProxyContext) error {
 	p.started = true
 
 	// Start server in goroutine
+	server := p.httpServer
 	go func() {
-		serveErr := p.httpServer.Serve(listener)
+		serveErr := server.Serve(listener)
 		if serveErr != nil && serveErr != http.ErrServerClosed {
 			p.logger.Error(fmt.Sprintf("ingress-proxy server error: %s", serveErr))
 		}
@@ -234,19 +232,20 @@ func (p *proxyServer) Stop() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.stopped {
+	if !p.started || p.httpServer == nil {
 		return nil
 	}
-	p.stopped = true
 
-	if p.httpServer != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*1000000000) // 5 seconds
-		defer cancel()
-		if err := p.httpServer.Shutdown(ctx); err != nil {
-			return fmt.Errorf("failed to shutdown server: %w", err)
-		}
-		p.logger.Info("ingress-proxy stopped")
+	server := p.httpServer
+	p.httpServer = nil
+	p.started = false
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*1000000000) // 5 seconds
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
+	p.logger.Info("ingress-proxy stopped")
 
 	return nil
 }

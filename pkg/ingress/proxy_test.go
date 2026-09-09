@@ -172,7 +172,7 @@ func TestProxyStartReturnsListenerError(t *testing.T) {
 	defer func() { _ = ps.Stop() }()
 }
 
-// TestProxyStartAfterStopped tests error when starting after stop.
+// TestProxyStartAfterStopped verifies that the proxy can be reused for another computation.
 func TestProxyStartAfterStopped(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ps := NewProxyServer(logger, getBackendURL(), nil)
@@ -192,9 +192,9 @@ func TestProxyStartAfterStopped(t *testing.T) {
 	require.NoError(t, err)
 
 	err = ps.Start(cfg, ctx)
-	assert.Error(t, err)
-	// After stop, attempts to start will fail with "already started" error first
-	assert.Contains(t, err.Error(), "proxy server already")
+	require.NoError(t, err)
+	err = ps.Stop()
+	require.NoError(t, err)
 }
 
 // TestProxyWithName tests proxy context with name.
