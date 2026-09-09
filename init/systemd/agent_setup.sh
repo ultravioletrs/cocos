@@ -32,7 +32,9 @@ for IFACE in $IFACES; do
 
     IP_ADDR=$(ip addr show $IFACE | grep 'inet ')
     if [ -z "$IP_ADDR" ]; then
-        dhclient $IFACE
+        # DHCP runs from log-forwarder's ExecStartPre. Do not let a slow or
+        # unavailable first lease block the entire agent dependency chain.
+        dhclient -1 -timeout 15 "$IFACE" || true
     fi
 done
 
