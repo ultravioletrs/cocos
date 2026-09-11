@@ -84,6 +84,7 @@ func main() {
 
 	handler := agentlogger.NewProtoHandler(os.Stdout, &slog.HandlerOptions{Level: level}, logQueue)
 	logger := slog.New(handler)
+	logger.Info("CVM agent identity configuration", "cvm_id", cfg.CVMId, "log_level", cfg.LogLevel)
 
 	eventSvc, err := events.New(svcName, logQueue)
 	if err != nil {
@@ -170,8 +171,9 @@ func main() {
 		// Don't defer close here as we want to keep the connection open
 
 		if cfg.CVMId != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+			ctx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId, "connection-type", "agent")
 		}
+		logger.Info("Opening CVMS reconnect stream", "cvm_id", cfg.CVMId, "metadata_job_id", cfg.CVMId, "metadata_connection_type", "agent")
 		pc, err := newClient.Process(ctx)
 		if err != nil {
 			grpcClient.Close()
@@ -234,8 +236,9 @@ func main() {
 
 	agentCtx := ctx
 	if cfg.CVMId != "" {
-		agentCtx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId)
+		agentCtx = metadata.AppendToOutgoingContext(ctx, "job-id", cfg.CVMId, "connection-type", "agent")
 	}
+	logger.Info("Opening CVMS initial stream", "cvm_id", cfg.CVMId, "metadata_job_id", cfg.CVMId, "metadata_connection_type", "agent")
 	pc, err := cvmsClient.Process(agentCtx)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to connect to cvm server: %s", err))
