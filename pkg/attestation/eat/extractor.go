@@ -92,7 +92,12 @@ func extractTDXClaims(claims *EATClaims, report []byte) error {
 	// Parse TDX quote using go-tdx-guest ABI
 	decodedQuote, err := tdxabi.QuoteToProto(report)
 	if err != nil {
-		return fmt.Errorf("failed to parse TDX quote: %w", err)
+		if len(report) >= 2 {
+			quoteVersion := binary.LittleEndian.Uint16(report[:2])
+			return fmt.Errorf("failed to parse TDX quote (version=%d, size=%d): %w",
+				quoteVersion, len(report), err)
+		}
+		return fmt.Errorf("failed to parse TDX quote (size=%d): %w", len(report), err)
 	}
 
 	var rtmrs [][]byte
