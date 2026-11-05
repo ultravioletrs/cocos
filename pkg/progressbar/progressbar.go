@@ -271,6 +271,9 @@ func (p *ProgressBar) renderProgressBar() error {
 
 	// Calculate the progress bar's width.
 	progressWidth := width - builder.Len() - len(rightBracket+" [100%]")
+	if progressWidth < 1 {
+		return nil
+	}
 	numOfCharactersBody := progressWidth * p.currentUploadPercentage / 100
 	if numOfCharactersBody == 0 {
 		numOfCharactersBody = 1

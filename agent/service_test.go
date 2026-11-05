@@ -424,9 +424,9 @@ func TestAttestation(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			getQuote := client.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
+			getQuote := client.On("GetRawEvidence", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.rawQuote, tc.err)
 			if tc.err != ErrAttestationFailed && tc.err != ErrAttestationVTpmFailed {
-				getQuote = client.On("GetAttestation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.nonce[:], nil)
+				getQuote = client.On("GetRawEvidence", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.nonce[:], nil)
 			}
 			defer getQuote.Unset()
 

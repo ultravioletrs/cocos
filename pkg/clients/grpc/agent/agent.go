@@ -4,6 +4,7 @@ package agent
 
 import (
 	"context"
+	"os"
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/ultravioletrs/cocos/agent"
@@ -22,7 +23,7 @@ func NewAgentClient(ctx context.Context, cfg clients.AttestedClientConfig) (grpc
 		return nil, nil, err
 	}
 
-	if client.Secure() != tls.WithMATLS.String() && client.Secure() != tls.WithATLS.String() && client.Secure() != tls.WithTLS.String() {
+	if client.Secure() != tls.WithMATLS.String() && client.Secure() != tls.WithATLS.String() && client.Secure() != tls.WithTLS.String() && os.Getenv("AGENT_GRPC_SKIP_HEALTH") != "true" {
 		health := grpchealth.NewHealthClient(client.Connection())
 		resp, err := health.Check(ctx, &grpchealth.HealthCheckRequest{
 			Service: "agent",

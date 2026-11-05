@@ -142,9 +142,9 @@ func (cli *CLI) NewGetAttestationCmd() *cobra.Command {
 			}
 
 			var fixedReportData [vtpm.SEVNonce]byte
-			if attType == attestation.SNP || attType == attestation.SNPvTPM {
+			if attType == attestation.SNP || attType == attestation.SNPvTPM || attType == attestation.TDX {
 				if len(teeNonce) > vtpm.SEVNonce {
-					msg := color.New(color.FgRed).Sprintf("nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.SEVNonce)
+					msg := color.New(color.FgRed).Sprintf("TEE nonce must be a hex encoded string of length lesser or equal %d bytes ❌ ", vtpm.SEVNonce)
 					cmd.Println(msg)
 					return
 				}

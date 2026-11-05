@@ -35,8 +35,10 @@ done
 
 # Docker is required by the computation runner. Start it only after network
 # setup, because docker.service waits for network-online.target on this image.
-systemctl start containerd.service
-systemctl start docker.service
+# Do not block agent registration on container startup. The computation runner
+# will retry while these services finish initializing.
+timeout 30 systemctl start containerd.service || true
+timeout 30 systemctl start docker.service || true
 
 if [ ! -d "$WORK_DIR" ]; then
     mkdir -p $WORK_DIR
