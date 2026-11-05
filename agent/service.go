@@ -1279,7 +1279,7 @@ func (as *agentService) Result(ctx context.Context) ([]byte, error) {
 }
 
 func (as *agentService) Attestation(ctx context.Context, reportData [vtpm.SEVNonce]byte, nonce [vtpm.Nonce]byte, attType attestation.PlatformType) ([]byte, error) {
-	rawQuote, err := as.attestationClient.GetAttestation(ctx, reportData, nonce, attType)
+	rawQuote, err := as.attestationClient.GetRawEvidence(ctx, reportData, nonce, attType)
 	if err != nil {
 		return []byte{}, errors.Wrap(ErrAttestationFailed, err)
 	}

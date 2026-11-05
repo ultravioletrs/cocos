@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net"
@@ -352,6 +353,14 @@ func (s *service) FetchAttestation(ctx context.Context, req *attestationpb.Attes
 
 	if err != nil {
 		return nil, err
+	}
+	if platformType == attestation.TDX {
+		preview := binaryReport
+		if len(preview) > 256 {
+			preview = preview[:256]
+		}
+		s.logger.Info(fmt.Sprintf("[ATTESTATION-SERVICE] TDX evidence received: len=%d, prefix_hex=%s, prefix_text=%q",
+			len(binaryReport), hex.EncodeToString(preview), string(preview)))
 	}
 
 	// Create EAT claims from binary report

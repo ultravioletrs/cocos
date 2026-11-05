@@ -5,7 +5,8 @@
 ################################################################################
 
 COMPUTATION_RUNNER_VERSION = main
-COMPUTATION_RUNNER_SITE = $(call github,ultravioletrs,cocos,$(COMPUTATION_RUNNER_VERSION))
+COMPUTATION_RUNNER_SITE = $(BR2_EXTERNAL_COCOS_PATH)/../../../cocos-ai
+COMPUTATION_RUNNER_SITE_METHOD = local
 
 define COMPUTATION_RUNNER_BUILD_CMDS
 	$(MAKE) -C $(@D) computation-runner

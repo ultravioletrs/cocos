@@ -282,35 +282,37 @@ func main() {
 
 	attest, certSerialNumber, err := attestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc, ccPlatform)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
-		exitCode = 1
-		return
+		// Keep the CVMS stream alive when initial evidence generation fails.
+		logger.Error(fmt.Sprintf("initial attestation unavailable; agent remains registered: %s", err))
+		attest = nil
+		certSerialNumber = ""
 	}
 
 	if ccPlatform == attestation.Azure {
 		azureAttestationToken, azureCertSerialNumber, err := azureAttestationFromCert(ctx, cvmGrpcConfig.ClientCert, svc)
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to get attestation: %s", err))
-			exitCode = 1
-			return
-		}
-		cvmsQueue <- &cvms.ClientStreamMessage{
-			Message: &cvms.ClientStreamMessage_AzureAttestationToken{
-				AzureAttestationToken: &cvms.AzureAttestationToken{
-					File:             azureAttestationToken,
-					CertSerialNumber: azureCertSerialNumber,
+			logger.Error(fmt.Sprintf("initial Azure attestation unavailable; agent remains registered: %s", err))
+		} else {
+			cvmsQueue <- &cvms.ClientStreamMessage{
+				Message: &cvms.ClientStreamMessage_AzureAttestationToken{
+					AzureAttestationToken: &cvms.AzureAttestationToken{
+						File:             azureAttestationToken,
+						CertSerialNumber: azureCertSerialNumber,
+					},
 				},
-			},
+			}
 		}
 	}
 
-	cvmsQueue <- &cvms.ClientStreamMessage{
-		Message: &cvms.ClientStreamMessage_VTPMattestationReport{
-			VTPMattestationReport: &cvms.AttestationResponse{
-				File:             attest,
-				CertSerialNumber: certSerialNumber,
+	if attest != nil {
+		cvmsQueue <- &cvms.ClientStreamMessage{
+			Message: &cvms.ClientStreamMessage_VTPMattestationReport{
+				VTPMattestationReport: &cvms.AttestationResponse{
+					File:             attest,
+					CertSerialNumber: certSerialNumber,
+				},
 			},
-		},
+		}
 	}
 
 	if err := g.Wait(); err != nil {
