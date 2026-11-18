@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-sev-guest/proto/sevsnp"
+	sevverify "github.com/google/go-sev-guest/verify"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -225,7 +226,8 @@ func TestGetPCRValue(t *testing.T) {
 }
 
 func TestVerifier_VerifyWithCoRIM(t *testing.T) {
-	v := NewVerifier(&mockWriter{})
+	v := NewVerifier(&mockWriter{}).(*verifier)
+	v.verifySNP = func(*sevsnp.Attestation) error { return nil }
 
 	// 1. Invalid report
 	err := v.VerifyWithCoRIM([]byte("invalid"), &corim.UnsignedCorim{})
@@ -251,8 +253,8 @@ func TestVerifier_VerifyWithCoRIM(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no measurement in SEV-SNP report")
 
-	// 4. Successful match
-	measurement := []byte("test-measurement-1234")
+	// 4. A CoRIM without a valid encoded tag must not authorize the report.
+	measurement := bytes.Repeat([]byte{0x42}, 32)
 	att = &attest.Attestation{
 		TeeAttestation: &attest.Attestation_SevSnpAttestation{
 			SevSnpAttestation: &sevsnp.Attestation{
@@ -276,21 +278,52 @@ func TestVerifier_VerifyWithCoRIM(t *testing.T) {
 	unsignedCorim.AddComid(*c)
 
 	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
-	assert.NoError(t, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match any CoRIM reference value")
 
 	// 5. CoRIM with no tags
 	unsignedCorim.Tags = nil
 	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
-	assert.NoError(t, err) // Matches current implementation behavior
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match any CoRIM reference value")
 
 	// 6. Non-CoMID tag
 	unsignedCorim.Tags = []corim.Tag{corim.Tag([]byte("non-comid-tag"))}
 	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
-	assert.NoError(t, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match any CoRIM reference value")
 
 	// 7. Invalid CoMID tag
 	unsignedCorim.Tags = []corim.Tag{corim.Tag(append(corim.ComidTag, []byte("invalid")...))}
 	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse CoMID from tag")
+}
+
+func TestVerifier_VerifyWithCoRIM_RejectsInvalidSNPSignature(t *testing.T) {
+	v := NewVerifier(&mockWriter{}).(*verifier)
+	v.verifySNP = func(snp *sevsnp.Attestation) error {
+		return sevverify.SnpAttestation(snp, &sevverify.Options{DisableCertFetching: true})
+	}
+	measurement := bytes.Repeat([]byte{0x42}, 32)
+	att := &attest.Attestation{
+		TeeAttestation: &attest.Attestation_SevSnpAttestation{
+			SevSnpAttestation: &sevsnp.Attestation{
+				Report: &sevsnp.Report{Measurement: measurement},
+			},
+		},
+	}
+	reportBytes, err := proto.Marshal(att)
+	require.NoError(t, err)
+
+	c := comid.NewComid()
+	m := comid.MustNewUintMeasurement(uint64(1))
+	m.AddDigest(1, measurement)
+	c.AddReferenceValue(comid.ReferenceValue{Measurements: comid.Measurements{*m}})
+
+	unsignedCorim := corim.NewUnsignedCorim()
+	unsignedCorim.AddComid(*c)
+	err = v.VerifyWithCoRIM(reportBytes, unsignedCorim)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "SEV-SNP report verification failed")
 }
