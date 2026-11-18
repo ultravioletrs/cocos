@@ -22,16 +22,20 @@ var _ pb.ComputationRunnerServer = (*RunnerService)(nil)
 
 type RunnerService struct {
 	pb.UnimplementedComputationRunnerServer
-	logger      *slog.Logger
-	eventSvc    events.Service
-	currentAlgo algorithm.Algorithm
-	mu          sync.Mutex
+	logger        *slog.Logger
+	eventSvc      events.Service
+	newDockerAlgo func(string, string) algorithm.Algorithm
+	currentAlgo   algorithm.Algorithm
+	mu            sync.Mutex
 }
 
 func New(logger *slog.Logger, eventSvc events.Service) *RunnerService {
 	return &RunnerService{
 		logger:   logger,
 		eventSvc: eventSvc,
+		newDockerAlgo: func(algoFile, cmpID string) algorithm.Algorithm {
+			return docker.NewAlgorithm(logger, eventSvc, algoFile, cmpID)
+		},
 	}
 }
 
@@ -69,7 +73,7 @@ func (s *RunnerService) Run(ctx context.Context, req *pb.RunRequest) (*pb.RunRes
 	case string(algorithm.AlgoTypeWasm):
 		algo = wasm.NewAlgorithm(s.logger, s.eventSvc, req.Args, req.AlgorithmPath, req.ComputationId)
 	case string(algorithm.AlgoTypeDocker):
-		algo = docker.NewAlgorithm(s.logger, s.eventSvc, req.AlgorithmPath, req.ComputationId)
+		algo = s.newDockerAlgo(req.AlgorithmPath, req.ComputationId)
 	default:
 		return nil, fmt.Errorf("unsupported algorithm type: %s", req.AlgoType)
 	}

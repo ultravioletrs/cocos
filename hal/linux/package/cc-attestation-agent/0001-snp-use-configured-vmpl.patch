@@ -1,0 +1,25 @@
+From 4b7d0c90eac9b0d13d74f1ecb64f5d04
+Subject: [PATCH] attester: use configured VMPL for SNP reports
+
+The SNP attester currently always requests a report at VMPL 0. Cocos SEV-SNP
+guests boot at VMPL 2, so firmware rejects that request with INVALID_PARAM.
+Honor the VMPL configured for the guest, retaining VMPL 0 as the upstream
+default when the variable is absent.
+
+--- a/attestation-agent/attester/src/snp/mod.rs
++++ b/attestation-agent/attester/src/snp/mod.rs
+@@ -40,9 +40,13 @@ impl Attester for SnpAttester {
+ 
+         let mut firmware = Firmware::open()?;
+         let data = report_data.as_slice().try_into()?;
++        let vmpl = std::env::var("ATTESTATION_VMPL")
++            .ok()
++            .and_then(|value| value.parse::<u32>().ok())
++            .unwrap_or(0);
+ 
+         let (report, certs) = firmware
+-            .get_ext_report(None, Some(data), Some(0))
++            .get_ext_report(None, Some(data), Some(vmpl))
+             .context("Failed to get attestation report")?;
+ 
+         let evidence = SnpEvidence {

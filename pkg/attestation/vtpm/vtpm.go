@@ -11,6 +11,7 @@ import (
 
 	"github.com/absmach/magistrala/pkg/errors"
 	"github.com/google/go-sev-guest/proto/sevsnp"
+	sevverify "github.com/google/go-sev-guest/verify"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/proto/attest"
 	"github.com/google/go-tpm/legacy/tpm2"
@@ -125,16 +126,24 @@ func (v provider) KbsToken() ([]byte, error) {
 }
 
 type verifier struct {
-	writer io.Writer
+	writer    io.Writer
+	verifySNP func(*sevsnp.Attestation) error
 }
 
 func NewVerifier(writer io.Writer) attestation.Verifier {
 	return &verifier{
 		writer: writer,
+		verifySNP: func(snp *sevsnp.Attestation) error {
+			return sevverify.SnpAttestation(snp, sevverify.DefaultOptions())
+		},
 	}
 }
 
 func (v *verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim) error {
+	if manifest == nil {
+		return fmt.Errorf("CoRIM manifest is required")
+	}
+
 	attestation := &attest.Attestation{}
 	if err := proto.Unmarshal(report, attestation); err != nil {
 		return fmt.Errorf("failed to unmarshal attestation report: %w", err)
@@ -149,6 +158,12 @@ func (v *verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim)
 	measurement := snp.GetReport().GetMeasurement()
 	if len(measurement) == 0 {
 		return fmt.Errorf("no measurement in SEV-SNP report")
+	}
+	if v.verifySNP == nil {
+		return fmt.Errorf("SEV-SNP verifier is not configured")
+	}
+	if err := v.verifySNP(snp); err != nil {
+		return fmt.Errorf("SEV-SNP report verification failed: %w", err)
 	}
 
 	// Iterate over CoMIDs tags looking for measurements
@@ -177,7 +192,7 @@ func (v *verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim)
 					}
 					for _, digest := range *m.Val.Digests {
 						if string(digest.HashValue) == string(measurement) {
-							return nil // Match found
+							return nil
 						}
 					}
 				}
@@ -185,8 +200,7 @@ func (v *verifier) VerifyWithCoRIM(report []byte, manifest *corim.UnsignedCorim)
 		}
 	}
 
-	// returning nil to satisfy interface for now as we transition
-	return nil
+	return fmt.Errorf("SEV-SNP measurement does not match any CoRIM reference value")
 }
 
 func Attest(teeNonce []byte, vTPMNonce []byte, teeAttestaion bool, vmpl uint) ([]byte, error) {
