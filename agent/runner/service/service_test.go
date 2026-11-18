@@ -150,33 +150,31 @@ func TestRunWithWasmAlgorithm(t *testing.T) {
 	assert.Equal(t, "test-wasm", resp.ComputationId)
 }
 
-// TestRunWithDockerAlgorithm tests running a Docker algorithm.
-func TestRunWithDockerAlgorithm(t *testing.T) {
+// TestRunWithDockerAlgorithmDispatch tests Docker algorithm dispatch without a daemon.
+func TestRunWithDockerAlgorithmDispatch(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	eventSvc := &MockEventService{}
 	rs := New(logger, eventSvc)
-	tmpDir := t.TempDir()
-	algoPath := writeRunnerTestFile(t, tmpDir, "Dockerfile", []byte("FROM ubuntu:latest\nRUN echo 'test'"), 0o600)
-
-	origWorkingDir := algorithm.AlgoWorkingDir
-	algorithm.AlgoWorkingDir = tmpDir
-	t.Cleanup(func() { algorithm.AlgoWorkingDir = origWorkingDir })
+	algo := &mockRunnerAlgorithm{}
+	rs.newDockerAlgo = func(algoFile, cmpID string) algorithm.Algorithm {
+		assert.Equal(t, "image.tar", algoFile)
+		assert.Equal(t, "test-docker", cmpID)
+		return algo
+	}
 
 	req := &pb.RunRequest{
 		ComputationId: "test-docker",
 		AlgoType:      "docker",
-		AlgorithmPath: algoPath,
+		AlgorithmPath: "image.tar",
 		Args:          []string{},
 	}
 
 	resp, err := rs.Run(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	if resp.Error != "" {
-		assert.Contains(t, resp.Error, "Docker")
-		t.Skip("Docker issue, skipping test")
-	}
+	assert.Empty(t, resp.Error)
 	assert.Equal(t, "test-docker", resp.ComputationId)
+	assert.True(t, algo.ran)
 }
 
 // TestRunWithUnsupportedAlgorithmType tests running with unsupported algorithm type.
@@ -357,3 +355,14 @@ type MockAlgorithmStopFail struct{}
 
 func (m *MockAlgorithmStopFail) Run() error  { return nil }
 func (m *MockAlgorithmStopFail) Stop() error { return fmt.Errorf("stop failed") }
+
+type mockRunnerAlgorithm struct {
+	ran bool
+}
+
+func (m *mockRunnerAlgorithm) Run() error {
+	m.ran = true
+	return nil
+}
+
+func (m *mockRunnerAlgorithm) Stop() error { return nil }
